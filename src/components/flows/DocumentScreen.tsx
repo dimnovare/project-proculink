@@ -17,7 +17,8 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useApple, useShortcut } from "@/hooks/useShortcut";
 import { ariaOf, keyWord } from "@/lib/shortcuts";
 import { useDocumentEdits } from "@/hooks/useDocumentEdits";
-import { reviewQueueQuery } from "@/hooks/useDocumentEngine";
+import { inboxQuery, reviewQueueQuery } from "@/hooks/useDocumentEngine";
+import { inInbox } from "@/lib/documentKind";
 import { editKey, reviewMarks } from "@/lib/reviewMarks";
 import { documentHref, pickNext, positionText, queuePosition } from "@/lib/reviewQueue";
 import { documentsAddress } from "@/lib/documentTabs";
@@ -38,6 +39,7 @@ import { ADDED_TO_CHANGES, ReadValuesPanel, SAVE_WORDS, type Teach } from "./Rea
 import { Checks, Failed, Quiet, ReadProblem } from "./states";
 import { rowNeed } from "./DocumentList";
 import { WaitingList } from "./WaitingList";
+import { InboxAnswers } from "./InboxAnswers";
 
 // The file's own extension decides the viewer. The server's content type is not trusted for this.
 const TYPES: Record<string, string> = {
@@ -346,8 +348,14 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
 
   const summary = doc.data?.summary;
   const docFlowId = summary?.flowId ?? flowId;
-  const flow = useQuery({ queryKey: ["flow", docFlowId], queryFn: () => getFlow(docFlowId), enabled });
+  // P2: is it still in the workspace's inbox? Unknown (loading or failed) draws neither the answers nor Send.
+  const inbox = useQuery({ ...inboxQuery, enabled });
+  const here = summary && inInbox(summary, inbox.data);
+  const flow = useQuery({ queryKey: ["flow", docFlowId], queryFn: () => getFlow(docFlowId), enabled: enabled && here === false });
   const status = summary && documentStatus(summary.status, summary.statusReason);
+  // Only a document sorted into a flow can be sent or skipped; an inbox document is answered instead (Review Focus 1).
+  const sends = here === false && !!status?.editable;
+  const answered = here === true && !!summary && ((!!status?.editable && summary.statusReason !== "duplicate_file") || (summary.status === "sent" && summary.statusReason === "downloaded"));
   const originalKind = summary ? sourceRenderFor(typeOf(summary.fileName)) : "opaque";
   const canTeach = !!status?.editable && !!flow.data?.fieldsConfirmed && originalKind !== "opaque";
   const nothingRead = !doc.data || doc.data.read.fields.length + doc.data.read.tables.length === 0;
@@ -404,8 +412,10 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
     m.mutate(undefined, { onError: () => { pressed.current = false; } });
   };
   const busy = send.isPending || skip.isPending || leaving;
-  useShortcut("send-and-next", () => press(send), !!status?.editable && !busy);
-  const canSkip = !!status?.editable && !!nextNow;
+  useShortcut("send-and-next", () => press(send), sends && !busy);
+  const canSkip = sends && !!nextNow;
+  // Review next is the way on wherever nothing is sent from here; beside the inbox answers it is never the filled button.
+  const next = here !== undefined && !sends && nextNow;
   const located = !!marks?.places.length || !!doc.data?.read.fields.some((f) => f.location?.box || f.location?.address)
     || !!doc.data?.read.tables.some((t) => t.rows.some((r) => Object.values(r.cells).some((c) => c.location?.box || c.location?.address)));
   const refused = send.error ?? skip.error;
@@ -414,21 +424,23 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
     ? { text: marks.count === 1 ? "1 value to check" : `${marks.count} values to check`, tone: "amber" as const }
     : summary && rowNeed({ ...summary, checks: failedCodes, failedChecks: 0 });
   const ago = relativeTime(summary?.createdAt);
-  const arrived = summary && [
-    summary.source ? `, arrived by ${SOURCES.get(summary.source) ?? summary.source}` : "",
-    summary.sourceRef ? ` from ${summary.sourceRef}` : "",
-    ago ? ` ${ago}` : "",
-  ].join("");
+  const by = summary?.source ? `by ${SOURCES.get(summary.source) ?? summary.source}` : "";
+  const when = `${summary?.sourceRef ? ` from ${summary.sourceRef}` : ""}${ago ? ` ${ago}` : ""}`;
+  const panes = here === false ? PANES : PANES.filter((p) => p.id !== "send");
 
   return (
     <PageShell variant="full">
       <PageHeader
         compact
         title={summary?.fileName ?? "Document"}
-        sub={summary && (
+        sub={summary && here !== undefined && (
           <span data-testid="review-sub">
-            <Link href={`/flows/${summary.flowId}`} className="inline-flex min-h-[44px] items-center text-brand-blue sm:min-h-0">{summary.flowName}</Link>
-            {arrived}
+            {here ? `Added${by && ` ${by}`}${when}` : (
+              <>
+                <Link href={`/flows/${summary.flowId}`} className="inline-flex min-h-[44px] items-center text-brand-blue sm:min-h-0">{summary.flowName}</Link>
+                {by && `, arrived ${by}`}{when}
+              </>
+            )}
           </span>
         )}
         back={{ href: "/documents", label: "Documents" }}
@@ -436,7 +448,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
           <div data-testid="review-header-actions" className="flex flex-wrap items-center gap-2">
             <Pill tone={tag.tone}>{tag.text}</Pill>
             {position && <span className="text-[12.5px] text-ink-muted">{position}</span>}
-            {status.editable ? (
+            {sends ? (
               <>
                 {canSkip && <Button variant="secondary" className="hidden md:inline-flex" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
                 <Button id="review-send" variant="send" className="hidden md:inline-flex" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}
@@ -448,7 +460,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
                   <kbd aria-hidden className="hidden h-[22px] items-center rounded bg-brand-green-deep px-1.5 font-sans text-[12.5px] font-semibold lg:inline-flex">{keyWord("Mod", apple)} Enter</kbd>
                 </Button>
               </>
-            ) : nextNow && <Link replace href={documentHref(nextNow)} className={`${buttonClass("send", "md")} hidden items-center md:inline-flex`}>Review next</Link>}
+            ) : next && <Link replace href={documentHref(next)} className={`${buttonClass(here ? "secondary" : "send", "md")} hidden items-center md:inline-flex`}>Review next</Link>}
           </div>
         )}
       />
@@ -467,9 +479,18 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
       ) : (
         <div className="grid gap-4">
           {doc.isError && <Failed error={doc.error} retry={() => doc.refetch()} />}
-          <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} scansOn={flow.data?.scansOn} uploadHref={`/flows/${summary.flowId}?tab=documents`} />
-          <PaneTabs panes={PANES} active={tab} onSelect={(id) => setTab(id as PaneId)} />
+          {inbox.isError && here === undefined && (
+            <StatusNotice tone="error" action={<Button size="sm" variant="secondary" loading={inbox.isFetching} onClick={() => inbox.refetch()}>Try again</Button>}>
+              We couldn&apos;t check where this document is.
+            </StatusNotice>
+          )}
+          <ReadProblem
+            summary={summary} nothingRead={nothingRead} retry={retry} scansOn={(here ? inbox.data : flow.data)?.scansOn}
+            uploadHref={here ? "/upload" : `/flows/${summary.flowId}?tab=documents`} held={doc.data.checks.find((c) => !c.passed && c.code === "duplicate")?.message}
+          />
           <div className={`grid items-start gap-4 lg:gap-x-1 lg:grid-cols-[minmax(280px,var(--split))_10px_minmax(0,1fr)] ${waiting ? "min-[1700px]:grid-cols-[264px_minmax(280px,var(--split))_10px_minmax(360px,1fr)]" : ""}`} style={{ "--split": `${split}%` } as CSSProperties}>
+            {/* Inside the grid so that below lg the inbox answers can sit above the tabs (order-first). */}
+            <PaneTabs panes={panes} active={tab} onSelect={(id) => setTab(id as PaneId)} />
             {waiting && queue.data && (
               <div className={`hidden min-w-0 min-[1700px]:mr-3 min-[1700px]:block min-[1700px]:sticky ${UNDER_HEADER}`}>
                 <WaitingList queue={queue.data} currentId={documentId} />
@@ -489,6 +510,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
             <SplitGrip split={split} onChange={setSplit} className={`lg:sticky ${UNDER_HEADER}`} />
             {/* From lg the values sit above the outputs, so both get the width a table needs. */}
             <div className="grid min-w-0 gap-4 max-lg:contents">
+            {answered && <InboxAnswers detail={doc.data} />}
             <Pane
               id="read" title="What we read" dot="navy" hidden={tab !== "read"}
               aside={editable && <span data-testid="save-state" aria-live="polite" className="text-[12.5px] text-ink-muted">{SAVE_WORDS[edits.state]}</span>}
@@ -504,26 +526,28 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
                 </div>
               ) : (
                 <ReadValuesPanel detail={doc.data} editable={status.editable} edits={edits} marks={marks} history={history} onLocate={setSpot} flow={flow.data}
-                  walk={isLg && status.editable} onChecked={(from) => { document.getElementById("review-send")?.focus(); walked.current = from; }}
+                  walk={isLg && sends} onChecked={(from) => { document.getElementById("review-send")?.focus(); walked.current = from; }}
                   onTeach={canTeach ? (t) => { setTeach(t); setTaught(null); setTab("original"); teachMutation.reset(); } : undefined}
                 />
               )}
             </Pane>
-            <Pane id="send" title="What we'll send" dot="green" hidden={tab !== "send"}>
-              <DocumentOutputsPanel flowId={summary.flowId} document={doc.data} />
-            </Pane>
+            {here === false && (
+              <Pane id="send" title="What we'll send" dot="green" hidden={tab !== "send"}>
+                <DocumentOutputsPanel flowId={summary.flowId} document={doc.data} />
+              </Pane>
+            )}
             </div>
           </div>
         </div>
       )}
-      {status && (status.editable || nextNow) && (
+      {(sends || next) && (
         <ActionBar>
-          {status.editable ? (
+          {sends ? (
             <>
               {canSkip && <Button variant="secondary" className="!flex-none" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
               <Button variant="send" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}>Send and open next</Button>
             </>
-          ) : nextNow && <Link replace href={documentHref(nextNow)} className={`${buttonClass("send", "md")} inline-flex items-center`}>Review next</Link>}
+          ) : next && <Link replace href={documentHref(next)} className={`${buttonClass(here ? "secondary" : "send", "md")} inline-flex items-center`}>Review next</Link>}
         </ActionBar>
       )}
     </PageShell>

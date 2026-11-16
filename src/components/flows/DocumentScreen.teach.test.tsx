@@ -9,7 +9,7 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => tru
 
 const api = vi.hoisted(() => ({
   getDocument: vi.fn(), getDocumentHistory: vi.fn(), fetchDocumentSource: vi.fn(), getFlow: vi.fn(), teachDocument: vi.fn(),
-  listOutputs: vi.fn(), listDestinations: vi.fn(), listDeliveries: vi.fn(),
+  listOutputs: vi.fn(), listDestinations: vi.fn(), listDeliveries: vi.fn(), getInbox: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
 
@@ -47,6 +47,7 @@ beforeEach(() => {
   qc = new QueryClient();
   api.getDocument.mockResolvedValue(detail("a.csv"));
   api.getDocumentHistory.mockResolvedValue([]);
+  api.getInbox.mockResolvedValue({ flowId: "inbox", address: null, intakeId: null });
   api.getFlow.mockResolvedValue({ id: "f", fieldsConfirmed: true, fields: { fields: [{ key: "total", label: "Total" }], tables: [] } });
   api.listOutputs.mockResolvedValue([]);
   api.listDestinations.mockResolvedValue([]);

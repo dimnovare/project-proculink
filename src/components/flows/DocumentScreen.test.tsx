@@ -15,7 +15,7 @@ const api = vi.hoisted(() => ({
   retryDocumentRead: vi.fn(), fetchDocumentSource: vi.fn(),
   getFlow: vi.fn(), saveFlowFields: vi.fn(),
   listOutputs: vi.fn(), listDestinations: vi.fn(), listDeliveries: vi.fn(),
-  sendDocument: vi.fn(), listDocumentPage: vi.fn(),
+  sendDocument: vi.fn(), listDocumentPage: vi.fn(), getInbox: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
 
@@ -46,6 +46,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   api.getDocument.mockResolvedValue(detail("INV-1"));
   api.getDocumentHistory.mockResolvedValue([]);
+  api.getInbox.mockResolvedValue({ flowId: "inbox", address: null, intakeId: null }); // these documents are in flow "f"
   api.getFlow.mockResolvedValue({ id: "f", fieldsConfirmed: false });
   api.listOutputs.mockResolvedValue([]);
   api.listDestinations.mockResolvedValue([]);

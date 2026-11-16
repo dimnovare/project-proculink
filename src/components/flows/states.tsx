@@ -138,10 +138,12 @@ export function Checks({ checks }: { checks: DocumentCheck[] }) {
 }
 
 /** Why a document has nothing to edit, and the way forward: a failed read, or a file we had already. */
-export function ReadProblem({ summary, nothingRead, retry, scansOn, uploadHref }: {
+export function ReadProblem({ summary, nothingRead, retry, scansOn, uploadHref, held }: {
   summary: DocumentSummary; nothingRead: boolean; scansOn?: boolean; retry: UseMutationResult<unknown, unknown, void>;
   /** Where "Upload a clearer copy" goes: where this screen uploads to the document's flow. */
   uploadHref: string;
+  /** The server's sentence for a held duplicate ("This file is already in your workspace." in the inbox). */
+  held?: string;
 }) {
   if (AUTOMATIC_HOLDS.has(summary.statusReason ?? "")) return <StatusNotice tone="warning">{readFailureMessage(summary.statusReason)}</StatusNotice>;
   const duplicate = summary.statusReason === "duplicate_file" && nothingRead;
@@ -153,7 +155,7 @@ export function ReadProblem({ summary, nothingRead, retry, scansOn, uploadHref }
         tone={duplicate ? "warning" : "error"}
         action={again && <Button variant="secondary" size="sm" loading={retry.isPending} onClick={() => retry.mutate()}>{again}</Button>}
       >
-        {duplicate ? "This file was already uploaded to this flow." : readFailureMessage(summary.statusReason)}
+        {duplicate ? held ?? "This file was already uploaded to this flow." :readFailureMessage(summary.statusReason)}
       </StatusNotice>
       {summary.status === "read_failed" && (
         <>
