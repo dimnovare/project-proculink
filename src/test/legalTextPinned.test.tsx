@@ -34,11 +34,11 @@ function legalText(root: HTMLElement): string {
 const sha256 = (s: string) => createHash("sha256").update(s, "utf8").digest("hex");
 
 const PINNED: Record<"/privacy" | "/terms" | "/aup" | "/dpa" | "/subprocessors" | "/security#statements", string> = {
-  "/privacy": "0af48d6dbc9d3956c65be886a926e0ffe54bd674b4145bbae8f9b02f089d41ba",
-  "/terms": "9885ddfbe3061b380e01419a4b0c3f9a0860396f510626aa1ed4d424bde4d4f6",
-  "/aup": "b608508398c64612b9016b3c026b746f21f77dadeaa2360ec2fd62b1b4aaca75",
+  "/privacy": "d71ad2edf8a3ce6a3060e6f622560aa6d4ce2b430f347e378278ad696fc1cc69",
+  "/terms": "87eb284bb77c6def1eae4ae8d77c162200615f3407e6fe7d485fdbf5a73a0ec7",
+  "/aup": "e9398125d3b0e8b4c41df0c9f3a92607bfff7bb35e8235419fa02cdd99062e1c",
   "/dpa": "a3a7da46b541633b0922f64c8f6e295c49c7bc6015c2cbd2e173446b168ce866",
-  "/subprocessors": "30fc49f8a32eed22bbde4befa8b1d4a8c3b3ff307fac99b53a150accb2fd2293",
+  "/subprocessors": "24d3c088b91cbd524a7bcb20c5c495b7233c3f49d9184bb75f84192bd55883a4",
   "/security#statements": "280994103424d63c5b854ab168afcbc4eea525c4d35883069d1ffa2e2bad37b4",
 };
 

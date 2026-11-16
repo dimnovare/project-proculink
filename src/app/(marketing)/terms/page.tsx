@@ -8,7 +8,7 @@ export const metadata = pageMetadata({
   path: "/terms",
   title: "Terms of Service — ProcuLink",
   description:
-    "The terms governing business use of ProcuLink, the platform for purchase orders and other business documents, and how they sit alongside the Acceptable Use Policy and Privacy Policy.",
+    "The terms governing business use of ProcuLink, the platform for reading, checking and sending on business documents, and how they sit alongside the Acceptable Use Policy and Privacy Policy.",
 });
 
 /*
@@ -22,7 +22,7 @@ export const metadata = pageMetadata({
 export default function TermsPage() {
   return (
     // FOUNDER DECISION: set this date to the day the page is published.
-    <LegalPage title="Terms of Service" updated="Last updated: 14 November 2026" path="/terms">
+    <LegalPage title="Terms of Service" updated="Last updated: 16 November 2026" path="/terms">
 
       <LegalH2>1. Agreement</LegalH2>
       <p>
@@ -39,11 +39,10 @@ export default function TermsPage() {
 
       <LegalH2>2. Service description</LegalH2>
       <p>
-        ProcuLink is a B2B platform for business documents such as purchase orders and
-        invoices. For purchase orders we provide parsing, field mapping, format transformation,
-        and supplier delivery. Invoice reading and conversion are in early access: they are
-        offered as they are, with fewer features, and may change or be withdrawn. We reserve
-        the right to modify or discontinue features with reasonable notice.
+        ProcuLink is a B2B platform for business documents such as invoices, purchase orders
+        and delivery notes. We receive a document, read its contents, check them, turn them into
+        the file format you choose, and deliver that file where you tell us. We reserve the right
+        to modify or discontinue features with reasonable notice.
       </p>
       <p>
         We do not guarantee that the service will be uninterrupted or error-free. No specific

@@ -16,14 +16,14 @@ export const metadata = pageMetadata({
 export default function PrivacyPage() {
   return (
     // FOUNDER DECISION: set this date to the day the page is published.
-    <LegalPage title="Privacy Policy" updated="Last updated: 14 November 2026" path="/privacy">
+    <LegalPage title="Privacy Policy" updated="Last updated: 16 November 2026" path="/privacy">
 
       <LegalH2>Who we are</LegalH2>
       <p>
         {PRODUCT_OPERATOR_NOTICE} In this policy, &quot;ProcuLink&quot;, &quot;we&quot;,
         &quot;us&quot;, and &quot;our&quot; refer to {LEGAL_ENTITY.legalName} as operator
         of the ProcuLink platform at proculink.eu, which processes business documents such as
-        purchase orders and invoices for businesses. ProcuLink is a service for business and
+        invoices, purchase orders and delivery notes for businesses. ProcuLink is a service for business and
         professional use; it is not offered to consumers.
       </p>
 

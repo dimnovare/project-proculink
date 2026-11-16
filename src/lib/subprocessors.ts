@@ -177,7 +177,7 @@ export const SUBPROCESSORS: Subprocessor[] = [
     // delivery channel posts to Postmark's US API — there is no EU option to
     // switch on; the vendor states it has no plans to add EU servers.
     purpose:
-      "Email in and out: orders emailed to your ProcuLink address, and the purchase orders we email to your suppliers",
+      "Email in and out: documents emailed to your ProcuLink address, and the files we email to the recipients you set",
     location: "US",
     contract: "Postmark DPA + SCCs",
   },
