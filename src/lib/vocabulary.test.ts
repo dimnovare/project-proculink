@@ -81,7 +81,7 @@ describe("unapprovedWords", () => {
     "Issues",
     "Workspace",
     "Overview",
-    "Activity",
+    "History",
     "Settings",
     "Buyers",
     "Changes",

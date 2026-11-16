@@ -40,7 +40,7 @@ describe("renamed sidebar labels keep their routes", () => {
   // pages, and the old URLs 308 (src/lib/retired-routes.ts).
   const rows: Array<[string, string, string]> = [
     ["Documents", "/documents", "§6.1 #2 Inbox → Documents"],
-    ["Activity", "/operations/log", "§6.1 #8 Operations → Activity"],
+    ["History", "/operations/log", "§6.1 #8 Operations → Activity → History"],
     ["Settings", "/settings", "§6.1 #32 unchanged"],
     ["Admin", "/admin", "§6.1 #30 unchanged"],
     ["Help & support", "/help", "§6.1 #31 unchanged"],

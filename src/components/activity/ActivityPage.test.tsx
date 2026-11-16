@@ -31,9 +31,9 @@ const mount = () => {
   const r = render(ui());
   return { ...r, again: () => r.rerender(ui()) };
 };
-const panel = () => within(screen.getByRole("tabpanel", { name: "Activity, newest first" }));
+const panel = () => within(screen.getByRole("tabpanel", { name: "History, newest first" }));
 const typeSearch = async (text: string) => {
-  fireEvent.change(screen.getByLabelText("Search activity"), { target: { value: text } });
+  fireEvent.change(screen.getByLabelText("Search history"), { target: { value: text } });
   await act(() => vi.advanceTimersByTimeAsync(300));
 };
 
@@ -62,7 +62,7 @@ describe("ActivityPage", () => {
     expect(router.replace).toHaveBeenCalledWith("/operations/log?show=sent");
     search.q = "show=sent";
     again();
-    expect(await panel().findByText("Loading activity…")).toBeInTheDocument();
+    expect(await panel().findByText("Loading history…")).toBeInTheDocument();
     expect(panel().queryAllByTestId("activity-row")).toHaveLength(0);
 
     // A search typed on page 2 waits 300ms, then lands on page 1: the server is asked once, for page 1.
@@ -70,7 +70,7 @@ describe("ActivityPage", () => {
     search.q = "show=sent&page=2";
     again();
     const replaced = router.replace.mock.calls.length;
-    fireEvent.change(screen.getByLabelText("Search activity"), { target: { value: "inv" } });
+    fireEvent.change(screen.getByLabelText("Search history"), { target: { value: "inv" } });
     await act(() => vi.advanceTimersByTimeAsync(200)); // under the pause (the fake clock also follows real time)
     expect(listActivity).not.toHaveBeenCalledWith(expect.objectContaining({ q: "inv" }));
     expect(router.replace).toHaveBeenCalledTimes(replaced);
@@ -96,13 +96,13 @@ describe("ActivityPage", () => {
     await typeSearch("zzz");
     expect(await screen.findByText("Nothing matches “zzz”.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Clear the search" }));
-    expect(screen.getByLabelText("Search activity")).toHaveValue("");
+    expect(screen.getByLabelText("Search history")).toHaveValue("");
     first.unmount();
 
     vi.clearAllMocks();
     listActivity.mockRejectedValue(new Error("offline"));
     mount();
-    expect(await screen.findByText("We couldn't load your activity. Nothing is lost. Check your connection and try again.")).toBeInTheDocument();
+    expect(await screen.findByText("We couldn't load your history. Nothing is lost. Check your connection and try again.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() => expect(listActivity).toHaveBeenCalledTimes(2));
   });
@@ -120,7 +120,7 @@ describe("ActivityPage", () => {
     answer(Array.from({ length: 11 }, (_, i) => ev(`p${i}`, "2026-06-01T08:00:00Z")), 61);
     again();
     expect(await screen.findByText("Showing 51 to 61 of 61.")).toBeInTheDocument();
-    const pages = within(screen.getByRole("navigation", { name: "Activity pages" }));
+    const pages = within(screen.getByRole("navigation", { name: "History pages" }));
     expect(pages.getByRole("link", { name: "Newer" })).toHaveAttribute("href", "/operations/log");
     expect(pages.queryByRole("link", { name: "Older" })).toBeNull();
   });
@@ -142,7 +142,7 @@ describe("ActivityPage", () => {
     walks.forEach((q, i) => expect(q).toEqual(expect.objectContaining({ actions: ["document.delivered"], pageSize: 200, page: i + 1 })));
     expect(saveBlob).toHaveBeenCalledTimes(1);
     const [blob, name] = saveBlob.mock.calls[0] as [Blob, string];
-    expect(name).toMatch(/^activity-\d{4}-\d{2}-\d{2}\.csv$/);
+    expect(name).toMatch(/^history-\d{4}-\d{2}-\d{2}\.csv$/);
     const csv = await new Promise<string>((done) => { const r = new FileReader(); r.onload = () => done(r.result as string); r.readAsText(blob); });
     expect(csv.split("\r\n")[0]).toBe('"Date","Time","What happened","Flow","Who","Result","Details"');
 

@@ -37,7 +37,7 @@ export const APPROVED_NOUNS = [
 /** The small closed set of place words the four-destination IA needs. */
 export const APPROVED_PLACES = [
   "overview",
-  "activity",
+  "history",
   "settings",
   "buyer",
   "change",

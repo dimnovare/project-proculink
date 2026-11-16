@@ -20,7 +20,7 @@ import { UserChipMenu } from "./UserChipMenu";
 
 // ─── Nav structure ───────────────────────────────────────────────────────────
 //
-// One flat section, no group headers: Documents · Flows · Lookups · Activity ·
+// One flat section, no group headers: Documents · Flows · Lookups · History ·
 // Settings. The order product's hubs (Orders → /inbox, Activity → /bridge) went
 // with its screens; both URLs 308 to their successors (src/lib/retired-routes.ts).
 // Guarded by BridgeSidebar.test.tsx (reachability) and navRoutesResolve.test.ts
@@ -50,7 +50,7 @@ const NAV_MAIN: SidebarNavSection[] = [
       { label: "Documents", href: "/documents", icon: FileText },
       { label: "Flows", href: "/flows", icon: Workflow },
       { label: "Lookups", href: "/lookups", icon: ArrowRightLeft },
-      { label: "Activity", href: "/operations/log", icon: Clock },
+      { label: "History", href: "/operations/log", icon: Clock },
       { label: "Settings", href: "/settings", icon: Settings },
     ],
   },

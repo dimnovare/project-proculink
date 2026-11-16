@@ -61,7 +61,7 @@ describe("BridgeSidebar — the document tool's nav", () => {
       ["Documents", "/documents"],
       ["Flows", "/flows"],
       ["Lookups", "/lookups"],
-      ["Activity", "/operations/log"],
+      ["History", "/operations/log"],
       ["Settings", "/settings"],
     ]);
   });
