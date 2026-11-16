@@ -74,6 +74,14 @@ const inDir = (dir: string) => (readdirSync(join(ROOT, dir), { recursive: true }
 /** The Advanced view's mapper: it is mounted only inside a flow (`AdvancedView`), so its words are a document's words,
  *  toolbar and orientation included (they are hidden there today, and would be read if shown). */
 const MAPPER = inDir("src/components/bridge/mapper");
+/** Files outside the mapper folder whose strings the mapper draws: the Advanced view's model and adapter (what the
+ *  panes are fed), and the lib module that resolves the received pane's view. The standards catalog is not read whole:
+ *  the panes take only field labels from it, and the rest of it is developer notes. */
+const MAPPER_FED = [
+  "src/components/flows/advanced/flowMapperModel.ts",
+  "src/components/flows/advanced/flowMapperAdapter.ts",
+  "src/lib/sourceDocument.ts",
+];
 
 /** Person-read files outside those folders that this guard read before it was widened. */
 const OTHER_FILES = [
@@ -101,7 +109,7 @@ const RETIRED: { word: RegExp; files: string[] }[] = [
   // screens say "changes" and "not in use yet"; code names such as useDraftPart and FlowDraftProvider are not words.
   { word: /publish|\bdiscard|\bdrafts?\b|\blive, version\b|\bis live\b/i, files: [...CORPUS, ...MAPPER, MANIFEST] },
   // The mapper speaks of the document and the file: no order, supplier, output or engine words (plan 16a R19, R20).
-  { word: /\b(orders?|suppliers?|canonical|deterministic|outputs?)\b/i, files: MAPPER },
+  { word: /\b(orders?|suppliers?|canonical|deterministic|outputs?)\b/i, files: [...MAPPER, ...MAPPER_FED] },
 ];
 
 const textOf = (f: string) => (f.endsWith(".mdx") ? mdxText : f === MANIFEST ? labels : personText)(read(f));
@@ -128,8 +136,9 @@ describe("retired words stay retired in what a person reads", () => {
     expect(personText("<Button>Publish changes</Button>").filter((t) => RETIRED[1].word.test(t))).toEqual(["Publish changes"]);
     expect(["Republish", "3 unpublished changes", "This flow is live.", "In use"].filter((t) => RETIRED[1].word.test(t))).toEqual(["Republish", "3 unpublished changes", "This flow is live."]);
     expect(["Changes save as a draft.", "Drafts", "useDraftPart needs a FlowDraftProvider."].filter((t) => RETIRED[1].word.test(t))).toEqual(["Changes save as a draft.", "Drafts"]);
-    expect(["This order arrived already-structured", "Supplier-ready output preview", "Show the file this document arrived as"].filter((t) => RETIRED[2].word.test(t)))
-      .toEqual(["This order arrived already-structured", "Supplier-ready output preview"]);
+    // Through the extractor, as the mapper's files are read: JSX text, a string literal, and a sentence that must pass.
+    expect(personText('const a = <p>This order arrived already-structured</p>; const t = "Supplier-ready output preview"; const b = <span>Show the file this document arrived as</span>;')
+      .filter((t) => RETIRED[2].word.test(t))).toEqual(["This order arrived already-structured", "Supplier-ready output preview"]);
     expect(labels(`{ action: "flow.published", label: "Version published", note: "was published" }`)).toEqual(["Version published"]);
     expect(personText("const s = `${n} outputs`;")).toEqual(["outputs"]);
     expect(personText('const s = `${n} output${n === 1 ? "" : "s"}`;').filter((t) => RETIRED[0].word.test(t))).toEqual(["output"]);
@@ -138,10 +147,11 @@ describe("retired words stay retired in what a person reads", () => {
     expect(personText("const s = `Output: ${name}`; const r = `/flows/${id}/outputs/${o}`;")).toEqual(["Output:"]);
     // Anti-vacuity: every folder yields a file, and the corpus yields person-read text to check.
     for (const dir of [...APP_DIRS, HELP]) expect(CORPUS.some((f) => f.startsWith(dir.replace(/\\/g, "/") + "/")), dir).toBe(true);
-    // Measured 2026-11-16: 4,580 person-read strings (the Advanced view read since Task 9), 750 in the mapper, and 31 help pages. Raise these floors when the corpus grows; never lower them.
+    // Measured 2026-11-16: 4,587 person-read strings (the Advanced view read since Task 9), 759 for the mapper rule (its folder and the files that feed it), and 31 help pages. Raise these floors when the corpus grows; never lower them.
     expect(CORPUS.flatMap(textOf).length).toBeGreaterThanOrEqual(4150);
     expect(MAPPER).toContain("src/components/bridge/mapper/MapperWorkbench.tsx");
-    expect(MAPPER.flatMap(textOf).length).toBeGreaterThanOrEqual(700);
+    expect([...MAPPER, ...MAPPER_FED].flatMap(textOf).length).toBeGreaterThanOrEqual(750);
+    for (const f of MAPPER_FED) expect(textOf(f).length, `${f} yields person-read text`).toBeGreaterThan(0);
     expect(HELP_PAGES.filter((f) => f.endsWith(".mdx")).length).toBeGreaterThanOrEqual(30);
   });
 });

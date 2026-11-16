@@ -331,11 +331,11 @@ export function OutgoingPane({
             background: "#F6F8FC", color: "#5E6779", fontSize: 11.5, lineHeight: 1.5,
           }}
         >
-          This file uses a structured format ({structuredFormatLabel(outputFormat)}). Fields like
-          contact and addresses are filled in from the document, so adding or editing fields
-          here won&rsquo;t change what&rsquo;s sent.{" "}
+          This file has a fixed structure ({structuredFormatLabel(outputFormat)}). We fill in fields
+          like contact and addresses from the document. Adding or changing fields here doesn&rsquo;t
+          change what is sent.{" "}
           <span style={{ color: "var(--ink-faint)" }}>
-            To change the structure, edit this file&rsquo;s setup.
+            To send another structure, choose another standard on We send.
           </span>
         </div>
       )}
@@ -827,7 +827,7 @@ function OutgoingRow({
                   onClick={(e) => { e.stopPropagation(); setTransformOpen((o) => !o); }}
                 />
               ) : (
-                <RowChipButton label="Edit value" lit={actionsLit} disabled reason="Editing the value needs a file you can change" />
+                <RowChipButton label="Edit value" lit={actionsLit} disabled reason="You can't change this value here." />
               )}
               {transformOpen && (
                 <TransformPopover

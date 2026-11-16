@@ -21,6 +21,9 @@ export const DOCUMENT_STATUSES: Record<string, DocumentStatusRow> = {
   send_failed: { label: "Couldn't send", tone: "error", stage: { failed: 4 }, needsYou: true, editable: true },
 };
 
+/** Each status by name (`STATUS.sent` is `"sent"`), so code compares against the manifest, not a typed string. */
+export const STATUS = Object.fromEntries(Object.keys(DOCUMENT_STATUSES).map((k) => [k, k])) as Record<keyof typeof DOCUMENT_STATUSES, string>;
+
 /** Checks about the whole document; each fails at most once. Every other failed check is about a value.
  *  Mirrors `ProcuLink.Core/Documents/DocumentChecks.cs` (pinned by backendMirror.test.ts). */
 export const WHOLE_DOCUMENT_CHECKS = ["fields_unconfirmed", "duplicate", "text_truncated"] as const;

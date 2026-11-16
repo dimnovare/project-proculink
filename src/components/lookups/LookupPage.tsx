@@ -12,7 +12,8 @@ import { INPUT } from "@/components/flows/DestinationForm";
 import { Quiet } from "@/components/flows/states";
 import { useAutosave } from "@/hooks/useAutosave";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { deleteLookup, getLookup, listFlows, updateLookup, type Lookup, type LookupCandidate } from "@/lib/api/documents";
+import { flowsQuery } from "@/hooks/useDocumentEngine";
+import { deleteLookup, getLookup, updateLookup, type Lookup, type LookupCandidate } from "@/lib/api/documents";
 import { flowAddress } from "@/lib/flowSteps";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { exportLookupCsv } from "@/lib/lookupCsvLeaf";
@@ -189,7 +190,7 @@ function LookupEditor({ lookup, lookupId, usedBy }: { lookup: Lookup; lookupId: 
   const used = usedByLine(usedBy);
   const unused = used === "Not used yet.";
   // Only for an unused lookup: one link per flow to its We send step. Loading or failed draws no list.
-  const flows = useQuery({ queryKey: ["flows"], queryFn: listFlows, enabled: useTenantQueriesEnabled() && unused });
+  const flows = useQuery({ ...flowsQuery, enabled: useTenantQueriesEnabled() && unused });
   const failure = autosave.error && refusalToken(autosave.error) ? documentRefusalMessage(autosave.error) : "Your changes are kept on this page.";
 
   return (

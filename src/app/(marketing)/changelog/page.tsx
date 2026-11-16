@@ -28,7 +28,7 @@ const ENTRIES = [
     date: "16 November 2026",
     items: [
       "On a flow's We send step, each file leads with where it goes and Send a test.",
-      "Make another file is one press: it makes a CSV with every value we read.",
+      "Make another file: one press of Create makes a CSV with every value we read.",
       "Standard formats are listed by family, the ones that fit your documents first.",
       "We read shows one More for each value, holding its type, its meaning and whether it is required.",
       "Your first flow offers the common places to send a file first, and a server is one press away.",

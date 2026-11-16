@@ -211,10 +211,10 @@ export function IncomingPane({
 
   if (!hasIncomingData(fields)) {
     const message = extractionFailed
-      ? "We couldn't read fields from this document on our own. What we did read still goes into the file. Map any field of the file by hand."
+      ? "We couldn't read every value from this document. What we did read still goes into the file. Fill in the rest by hand below."
       : !hasIncomingSource
       ? "This document arrived already structured, so there are no extra fields to map. What we read goes straight into the file."
-      : "No extra incoming fields for this document type — the parsed values are the source of truth.";
+      : "This document has no other values to map.";
     return (
       <PaneFrame title="What we received" sourceType={sourceType} tabs={tabs} notice={documentNotice}>
         <div style={{ padding: "12px", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>{message}</div>

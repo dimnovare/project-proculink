@@ -8,7 +8,7 @@
  * path or method throws, so a screen calling an endpoint with no fixture shows its error state
  * instead of an empty success. Only reachable when `isApiMockMode` (never true in production).
  */
-import { DOCUMENT_STATUSES, documentStatus } from "../documentStatusManifest";
+import { STATUS, documentStatus } from "../documentStatusManifest";
 import { acceptFor, fileRefusal } from "../fileKinds";
 import { LOOKUP_LIMITS } from "../lookupLimits";
 import { ApiHttpError } from "./core";
@@ -26,7 +26,6 @@ export const MOCK_ENGINE_IDS = { flow: "flow-1", setupFlow: "flow-2", document: 
 /** The document number every fixture read carries — specs assert against this, never a literal. */
 export const MOCK_DOCUMENT_NUMBER = "INV-1001";
 
-const STATUS = Object.fromEntries(Object.keys(DOCUMENT_STATUSES).map((k) => [k, k])) as Record<keyof typeof DOCUMENT_STATUSES, string>;
 const T = "2026-05-20T09:00:00Z";
 
 const CSV = [
@@ -213,7 +212,8 @@ function editValues(id: string, body: Body): DocumentDetail {
   return detail(id);
 }
 
-/** Like DocumentSender.SendAsync, except that it lands straight on sent with one delivered delivery (R23). */
+/** Like DocumentSender.SendAsync, except that it lands straight on sent: each file delivered, or stored when it has no
+ *  destination (R23). */
 function send(id: string): DocumentDelivery[] {
   const row = pick(ROWS, id, "document");
   const was = now(id);
@@ -221,7 +221,12 @@ function send(id: string): DocumentDelivery[] {
   // A document whose delivery failed was sent once, so its flow had an output then: only one never sent can lack it.
   if (was.status !== STATUS.send_failed && !outputs.some((o) => o.flowId === row.flowId)) refuse(409, "no_outputs");
   const sentAt = new Date().toISOString();
-  const deliveries = [delivery("delivered", 1, null, sentAt)];
+  // One row per file, as the server answers: a file with no destination is stored (it waits to be downloaded).
+  const own = outputs.filter((o) => o.flowId === row.flowId);
+  const deliveries = own.length ? own.map((o): DocumentDelivery => {
+    const dest = destinations.find((d) => d.id === o.destinationId);
+    return { ...delivery(dest ? "delivered" : "stored", dest ? 1 : 0, null, sentAt), outputName: o.name, protocol: dest?.protocol ?? "" };
+  }) : [delivery("delivered", 1, null, sentAt)];
   remembered.set(id, { ...was, status: STATUS.sent, sentAt, deliveries });
   resent.add(id);
   return deliveries;

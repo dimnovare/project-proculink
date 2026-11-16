@@ -90,6 +90,9 @@ describe("FlowValues", () => {
     expect(document.activeElement).toBe(screen.getByRole("checkbox", { name: "Invoice number is required" }));
     expect(screen.getByText("We mark the value when it is missing from a document.")).toBeTruthy();
     expect(screen.queryByText(/Required means we mark|save as a draft/)).toBeNull();
+    // With its name emptied, the row's More still has a name a person can hear.
+    fireEvent.change(screen.getByRole("textbox", { name: "Name for Invoice number" }), { target: { value: "" } });
+    expect(within(row).getByRole("button", { name: "More for this value" })).toBeInTheDocument();
   });
 
   it("a More opened by a problem stays open while the person fixes it, with focus in the control", async () => {

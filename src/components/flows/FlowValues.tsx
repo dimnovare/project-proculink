@@ -10,7 +10,7 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { getDocument, listDocuments, saveFlowFields } from "@/lib/api/documents";
 import type { DocumentSummary, Flow, FlowField, FlowFieldList, ReadResult } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { documentStatus } from "@/lib/documentStatusManifest";
+import { STATUS, documentStatus } from "@/lib/documentStatusManifest";
 import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
 import { addReadExtra, FIELD_TYPES, fieldListFromRead, replaceField, withReadExtras } from "@/lib/flowFieldModel";
 import { acceptFor, MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
@@ -107,7 +107,7 @@ function ValueRow({ field, scope, on, example, columns, indent, failed, onInclud
           {/* A problem holds the panel open, so More could not close it: it is not drawn until the problem is gone. */}
           {!forced && (
             <button
-              ref={more} type="button" className={buttonClass("ghost", "sm")} aria-label={`More for ${field.label}`} aria-expanded={shown} aria-controls={id}
+              ref={more} type="button" className={buttonClass("ghost", "sm")} aria-label={`More for ${field.label.trim() || "this value"}`} aria-expanded={shown} aria-controls={id}
               disabled={!on} onClick={toggle}
             >
               More
@@ -157,8 +157,8 @@ function ValueTable({ rows, edit, read, fileName, failed }: {
 }) {
   const id = useId();
   const { list, off } = rows;
-  // The row whose Required, Type or Meaning, or its Read tick, was changed last, by "key" or "table/column". Any other
-  // change clears it: a failed save never forces open a row the person did not just touch.
+  // The row whose Required, Type or Meaning was changed last (inside More), by "key" or "table/column". Any other change,
+  // a Read tick included, clears it: a failed save never forces open a More the person did not just change.
   const [last, setLast] = useState<string | null>(null);
   const showExample = !!read && !!fileName;
   const columns = showExample ? 4 : 3;
@@ -182,7 +182,7 @@ function ValueTable({ rows, edit, read, fileName, failed }: {
       ]
     : [];
 
-  const include = (key: string, on: boolean) => { setLast(key); edit({ list, off: toggled(off, key, on) }); };
+  const include = (key: string, on: boolean) => { setLast(null); edit({ list, off: toggled(off, key, on) }); };
   const setFields = (fields: FlowField[], key: string | null) => { setLast(key); edit({ list: { ...list, fields }, off }); };
   const setTable = (ti: number, patch: (t: FlowFieldList["tables"][number]) => FlowFieldList["tables"][number], key: string | null = null) => {
     setLast(key);
@@ -328,7 +328,7 @@ function FirstValues({ flow, read, fileName }: { flow: Flow; read: ReadResult; f
  *  While the newest one is still being read, that is said instead; a failed read links to it, where it is read again. */
 function FirstDocument({ flow, newest }: { flow: Flow; newest?: DocumentSummary }) {
   const queue = useUploadQueue();
-  if (newest?.status === "received" || newest?.status === "reading")
+  if (newest?.status === STATUS.received || newest?.status === STATUS.reading)
     return <Frame><Quiet>{`We are reading ${newest.fileName}. Its values appear here in a moment.`}</Quiet></Frame>;
   const prompt = (
     <>
@@ -338,7 +338,7 @@ function FirstDocument({ flow, newest }: { flow: Flow; newest?: DocumentSummary 
   );
   return (
     <Frame>
-      {newest?.status === "read_failed" && (
+      {newest?.status === STATUS.read_failed && (
         <StatusNotice tone="error" action={<Link href={`/flows/${flow.id}/documents/${newest.id}`} className={buttonClass("secondary", "sm")}>Open it</Link>}>
           {`We couldn't read ${newest.fileName}.`}
         </StatusNotice>

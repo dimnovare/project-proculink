@@ -4,9 +4,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 
 const RAW = "example-not-a-real-key-1";
-const nav = vi.hoisted(() => ({ replace: vi.fn() }));
+const nav = vi.hoisted(() => ({ replace: vi.fn(), query: "tab=api" }));
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams("tab=api"),
+  useSearchParams: () => new URLSearchParams(nav.query),
   useRouter: () => ({ replace: nav.replace }),
   usePathname: () => "/settings",
 }));
@@ -40,6 +40,21 @@ describe("Settings › API keys", () => {
     expect(tabs.queryByRole("button", { name: "API keys" })).toBeNull();
     expect(screen.getByText("For developers").closest("details")).toHaveAttribute("open");
     expect(await screen.findByRole("button", { name: "Create key" })).toBeInTheDocument();
+  });
+
+  it("plain Settings does not ask for the keys; opening For developers asks once", async () => {
+    nav.query = "";
+    api.getApiKeys.mockClear().mockResolvedValue([]);
+    mount();
+    const developers = screen.getByText("For developers").closest("details")!;
+    expect(developers).not.toHaveAttribute("open");
+    await new Promise((r) => setTimeout(r, 50));
+    expect(api.getApiKeys).not.toHaveBeenCalled();
+    developers.open = true;
+    fireEvent(developers, new Event("toggle"));
+    expect(await screen.findByRole("button", { name: "Create key" })).toBeInTheDocument();
+    expect(api.getApiKeys).toHaveBeenCalledTimes(1);
+    nav.query = "tab=api";
   });
 
   it("a new key is shown once: after I've saved it, it is in no element, no cache and no address", async () => {

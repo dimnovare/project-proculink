@@ -1,6 +1,6 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
 import { preparePage, settle } from "./a11yHarness";
-import { MOCK_SAMPLE_FILE } from "../../src/lib/api/mockWorkspace";
+import { MOCK_DELIVERY_ERROR, MOCK_SAMPLE_FILE } from "../../src/lib/api/mockWorkspace";
 import { destinationNameFor, foundSummary, suggestFlowName } from "../../src/lib/firstRun";
 import { documentStatus } from "../../src/lib/documentStatusManifest";
 import { limitRefusalCopy, readLimitRefusal } from "../../src/lib/limitRefusal";
@@ -277,6 +277,35 @@ test.describe("First run", () => {
     expect(await sends(page)).toBe(1);
 
     await googleAndAFailedTest(browser);
+  });
+
+  test("Download: Finish makes the file through the workspace mock and moves on; a delivery that fails keeps the step and says why", async ({ page, browser }) => {
+    for (const fails of [false, true]) {
+      const p = fails ? await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage() : page;
+      await newWorkspace(p, fails ? { "proculink.mock.deliveryFails": "on" } : {});
+      await p.setViewportSize({ width: 1440, height: 900 });
+      await uploadAndCheck(p, "delivery-note.pdf");
+      await expect(p.getByRole("button", { name: "Looks right, next" })).toBeVisible({ timeout: 15_000 });
+      await p.getByRole("button", { name: "Looks right, next" }).click();
+      await expect(p).toHaveURL(/step=send/);
+      const finish = p.getByRole("region", { name: "Finish", exact: true });
+      await expect(finish.getByText(DOWNLOAD_LINE)).toBeVisible({ timeout: 15_000 });
+      await expect(p.getByTestId("send-tile-download")).toHaveAttribute("aria-checked", "true");
+      const flowId = flowIdOf(p);
+      const docId = docIdOf(p);
+      await finish.getByRole("button", { name: "Finish", exact: true }).click();
+      if (!fails) {
+        await expect(p).toHaveURL(new RegExp(`/flows/${flowId}$`), { timeout: 30_000 });
+        const after = (await mockState(p))!;
+        expect(after.deliveries[docId], "one file, stored to download").toEqual([expect.objectContaining({ status: "stored" })]);
+        expect(after.docs.find((d) => d.id === docId)!.status).toBe("sent");
+      } else {
+        await expect(finish.getByText(MOCK_DELIVERY_ERROR)).toBeVisible({ timeout: 15_000 });
+        await expect(p).toHaveURL(/step=send/);
+        expect((await mockState(p))!.deliveries[docId], "the one send was made, and failed").toEqual([expect.objectContaining({ status: "dead_letter" })]);
+        await p.context().close();
+      }
+    }
   });
 
   test("on a phone: the welcome, a refusal with a way on, and nothing under the tab bar", async ({ page }) => {

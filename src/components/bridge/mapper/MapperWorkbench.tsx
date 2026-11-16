@@ -932,7 +932,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           {onSaveMappings && (
             <ToolbarButton
               label={savingMappings ? "Saving…" : (saveMappingsLabel ?? "Save mappings")}
-              title="Save these field mappings for this receiver — they apply to its next document automatically"
+              title="Save these mappings for this file."
               onClick={onSaveMappings}
               disabled={savingMappings || readOnly}
               variant="violet"
@@ -1028,8 +1028,8 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
         >
           <span aria-hidden style={{ fontSize: 13, lineHeight: 1.2 }}>⚠</span>
           <span>
-            We couldn&rsquo;t read this document on our own. What we did read still goes into the file.
-            Map any field by hand below; the preview and sending still work.
+            We couldn&rsquo;t read every value from this document. What we did read still goes into the file.
+            Fill in the rest by hand below.
           </span>
         </div>
       )}
