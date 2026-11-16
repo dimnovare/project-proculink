@@ -71,7 +71,7 @@ const readOf = (kindLabel: string): ReadResult => ({
   fields: [
     value("Invoice number", "INV-2250"), value("Date", "2026-11-21", "date"), value("Supplier", "Kestrel Supplies"),
     value("Supplier address", "Harbour Road 4, Turku"), value("Bill to", "Nordlys Trading"), value("Currency", "EUR"),
-    value("Total", "1303.40", "number", 0.97, "total_gross"), value("Payment terms", "30 days"), value("Reference", "2250-NT", "text", 0.62),
+    value("Total", "1303.40", "number", 0.97, "total_net"), value("Payment terms", "30 days"), value("Reference", "2250-NT", "text", 0.62),
   ],
   tables: [{
     key: "lines", label: "Lines", listed: true,

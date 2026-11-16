@@ -221,11 +221,25 @@ test.describe("Review", () => {
     await expect(read.getByLabel("Date")).toBeFocused();                       // the cursor starts in the first value to check
     await page.keyboard.press("Enter");
     await expect(read.getByLabel("Supplier")).toBeFocused();
-    await page.keyboard.press("Enter");
-    await expect(page.getByTestId("review-header-actions").getByRole("button", { name: "Send and open next" })).toBeFocused();
+    // Enter held down: the first press moves to Send, the repeats press nothing.
+    await page.keyboard.down("Enter");
+    await page.keyboard.down("Enter");
+    await page.keyboard.down("Enter");
+    await page.keyboard.up("Enter");
+    const header = page.getByTestId("review-header-actions");
+    await expect(header.getByRole("button", { name: "Send and open next" })).toBeFocused();
     await page.waitForTimeout(500);
     await expect(page).toHaveURL(/\/documents\/doc-1$/);                       // the key that moved the focus did not press the button
-    await expect(page.getByTestId("review-header-actions")).toContainText("2 values to check");
+    await expect(header).toContainText("2 values to check");
+    // Typing on after that Enter is typing, not a press of Send: a space and letters go back into the value.
+    await page.keyboard.press("Space");
+    await page.keyboard.type("Ltd");
+    await expect(read.getByLabel("Supplier")).toBeFocused();
+    await expect(read.getByLabel("Supplier")).toHaveValue(" Ltd");
+    await expect(page).toHaveURL(/\/documents\/doc-1$/);
+    // The value is saved and no longer needs a look: it moves to the other group and keeps the cursor.
+    await expect(header).toContainText("1 value to check", { timeout: 10_000 });
+    await expect(read.getByLabel("Supplier")).toBeFocused();
     const cell = (row: number, column: string) => read.getByLabel(`Lines row ${row} ${column}`);
     await cell(1, "Item code").focus();
     await page.keyboard.press("ArrowDown");

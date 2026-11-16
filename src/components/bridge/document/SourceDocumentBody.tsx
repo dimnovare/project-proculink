@@ -444,7 +444,7 @@ function TextView({
 
 /** A photo or scan with its zoom buttons above the area that scrolls. */
 function ImagePane({ bounded, ...image }: { bounded: boolean } & Omit<React.ComponentProps<typeof ImageDocumentView>, "zoom">) {
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState<number | null>(null);
   return (
     <>
       <div className="flex flex-shrink-0 items-center border-b border-border px-3 py-1.5"><ZoomButtons zoom={zoom} onZoom={setZoom} /></div>

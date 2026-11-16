@@ -142,9 +142,9 @@ const PANES: readonly { id: PaneId; title: string }[] = [
 const DOTS = { blue: "bg-brand-blue", navy: "bg-navy", green: "bg-brand-green" } as const;
 
 /** One of the three panes. Used by 14.5's first run too (R24). Below lg it is the panel of its tab (R15). */
-export function Pane({ id, title, dot, aside, hidden, sticky = "lg:top-0 lg:h-[calc(100vh-150px)]", children }: {
+export function Pane({ id, title, dot, aside, hidden, sticky, children }: {
   id: PaneId; title: string; dot: keyof typeof DOTS; aside?: ReactNode; hidden?: boolean; children: ReactNode;
-  /** Where the original sticks and how tall it is, from lg. */
+  /** Where the original sticks and how tall it is, from lg. Absent: it has its height and scrolls with the page. */
   sticky?: string;
 }) {
   const isLg = useLgViewport();
@@ -153,7 +153,7 @@ export function Pane({ id, title, dot, aside, hidden, sticky = "lg:top-0 lg:h-[c
     <Card
       flush as="section" id={`review-pane-${id}`} role={isLg ? undefined : "tabpanel"} tabIndex={isLg ? undefined : 0}
       aria-labelledby={isLg ? `review-heading-${id}` : `review-tab-${id}`}
-      className={`min-w-0 ${hidden ? "max-lg:hidden" : ""} ${original ? `flex flex-col lg:!sticky ${sticky}` : ""}`}
+      className={`min-w-0 ${hidden ? "max-lg:hidden" : ""} ${original ? `flex flex-col ${sticky ? `lg:!sticky ${sticky}` : "lg:h-[calc(100vh-150px)]"}` : ""}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-2 pt-3.5">
         <h2 id={`review-heading-${id}`} className="m-0 flex items-center gap-2 text-[13px] font-semibold text-ink">
@@ -271,6 +271,8 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   const isLg = useLgViewport();
   const apple = useApple();
   const [split, setSplit] = useSplit();
+  // The value Enter came from when it moved the cursor to Send: typing on goes back into it.
+  const walked = useRef<HTMLInputElement | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [tab, setTab] = useState<PaneId>("read");
   const [spot, setSpot] = useState<SourceLocation | null>(null);
@@ -408,7 +410,11 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
             {status.editable ? (
               <>
                 {canSkip && <Button variant="secondary" className="hidden md:inline-flex" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
-                <Button id="review-send" variant="send" className="hidden md:inline-flex" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} onKeyDown={noRepeat} aria-keyshortcuts={ariaOf("send-and-next")}>
+                <Button id="review-send" variant="send" className="hidden md:inline-flex" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}
+                  // After Enter brought the cursor here, only Enter sends: a space or a letter is typing, and goes back into the value.
+                  onKeyDown={(e) => { noRepeat(e); if (walked.current && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) walked.current.focus(); }}
+                  onBlur={() => { walked.current = null; }}
+                >
                   Send and open next
                   <kbd aria-hidden className="hidden h-[22px] items-center rounded bg-white/20 px-1.5 font-sans text-[12.5px] font-semibold lg:inline-flex">{keyWord("Mod", apple)} Enter</kbd>
                 </Button>
@@ -463,7 +469,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
                 </div>
               ) : (
                 <ReadValuesPanel detail={doc.data} editable={status.editable} edits={edits} marks={marks} history={history} onLocate={setSpot} flow={flow.data}
-                  walk={isLg && status.editable} onChecked={() => document.getElementById("review-send")?.focus()}
+                  walk={isLg && status.editable} onChecked={(from) => { document.getElementById("review-send")?.focus(); walked.current = from; }}
                   onTeach={canTeach ? (t) => { setTeach(t); setTaught(null); setTab("original"); teachMutation.reset(); } : undefined}
                 />
               )}

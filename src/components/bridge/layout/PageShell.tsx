@@ -29,7 +29,9 @@ export function PageShell({ variant = "narrow", children, className }: PageShell
 
   return (
     <div
-      className="flex flex-col h-full min-h-0 overflow-auto"
+      // "full" is a working screen whose one-row header sticks (PageHeader compact, 57px): what is focused or
+      // scrolled to stops below it, not under it.
+      className={`flex flex-col h-full min-h-0 overflow-auto${variant === "full" ? " lg:scroll-pt-[81px]" : ""}`}
       style={{ background: "var(--bg)" }}
     >
       {/* Canonical gutter ramp: 16 (base) → 24 (sm) → 34 (lg); vertical 20 → 28. */}

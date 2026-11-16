@@ -93,7 +93,9 @@ export function useDocumentEdits(documentId: string): DocumentEdits {
 
   const rows = useCallback(async (req: Pick<EditValuesRequest, "addRowToTables" | "removeRows">) => {
     try { await flush(); } catch { return false; }   // the unsaved values say so with their own Try again
-    try { await rowChange.mutateAsync(req); return true; } catch (e) { setRefusal(documentRefusalMessage(e)); return false; }
+    refused.current = null;
+    // A coded refusal resolves inside apply (the values can no longer change): it is still "the rows did not change".
+    try { await rowChange.mutateAsync(req); return refused.current === null; } catch (e) { setRefusal(documentRefusalMessage(e)); return false; }
   }, [flush, rowChange]);
 
   /** A refused save resolves inside the hook (the values can no longer change), but a caller waiting to send must not go on. */

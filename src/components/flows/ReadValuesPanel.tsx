@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type ClipboardEvent, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ClipboardEvent, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 import { Crosshair, X } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
@@ -178,7 +178,7 @@ function TableValues({ table: t, marks, edits, onLocate, sum, editable }: { tabl
   const shapes = new Map(t.columns.map((c) => [c.key, columnShape(t, c.key, c.label)]));
   const adds = sum && (
     <p data-testid="rows-sum" className={`m-0 text-[12.5px] ${sum.same ? "font-medium text-brand-green-deep" : "text-ink-muted"}`}>
-      {sum.same ? `The rows add up to ${sum.sum}, the same as ${sum.same}.` : `The rows add up to ${sum.sum}. ${sum.other!.label} says ${sum.other!.value}.`}
+      {sum.same ? `The rows add up to ${sum.sum}, the same as ${sum.label}.` : `The rows add up to ${sum.sum}. ${sum.label} says ${sum.value}.`}
     </p>
   );
   return (
@@ -214,7 +214,7 @@ function TableValues({ table: t, marks, edits, onLocate, sum, editable }: { tabl
                     return (
                       <td key={c.key} className="border-b border-r border-border p-0 [&_p]:px-2.5 [&_p]:pb-1.5" style={{ minWidth: `calc(${shape.size}ch + 1.75rem)` }} {...pointAt(onLocate, cell?.location ?? null)}>
                         <Field hideLabel label={`${t.label} row ${r + 1} ${c.label}`} look={marks.looks.get(editKey(target))?.text}>
-                          <ValueInput target={target} value={cell?.value ?? null} edits={edits} size={shape.size} base={CELL} data-table={t.key} data-cell={`${r}:${col}`} className={shape.numeric ? "text-right tabular-nums" : ""} />
+                          <ValueInput target={target} value={cell?.value ?? null} edits={edits} size={shape.size} base={CELL} data-table={t.key} data-cell={`${r}:${col}`} className={shape.numeric ? "text-right tabular-nums" : ""} {...(marks.looks.has(editKey(target)) && { "data-look": "" })} />
                         </Field>
                         {cell && <Meta read={cell} inTable className="px-2.5 pb-1.5" />}
                       </td>
@@ -248,7 +248,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
   /** The review screen on a wide window: the cursor starts in the first value to check, and Enter goes to the next one. */
   walk?: boolean;
   /** Enter was pressed in the last value to check. */
-  onChecked?(): void;
+  onChecked?(from: HTMLInputElement): void;
 }) {
   const [more, setMore] = useState(false);
   const [showEmpty, setShowEmpty] = useState(false);
@@ -256,16 +256,31 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
   const { fields, tables } = detail.read;
   const isMarked = (f: (typeof fields)[number]) => marks.looks.has(editKey({ field: f.key }));
   // Decided once, when the document opens: a value typed into an empty box must not move the box while it is typed in.
-  const [emptyKeys] = useState(() => new Set(fields.filter((f) => !f.value?.trim() && !f.edited).map((f) => f.key)));
+  // A value to check is never one of them: once it is filled in it joins the values with text, in the same grid.
+  const [emptyKeys] = useState(() => new Set(fields.filter((f) => !f.value?.trim() && !f.edited && !f.notOnPage && !isMarked(f)).map((f) => f.key)));
   // Marked values first, then the ones with text, then the empty ones behind one line; each group in read order.
   const marked = fields.filter(isMarked);
   const rest = fields.filter((f) => !isMarked(f) && !emptyKeys.has(f.key));
   const empty = fields.filter((f) => !isMarked(f) && emptyKeys.has(f.key));
+  const stillEmpty = empty.filter((f) => !(edits.drafts[editKey({ field: f.key })] ?? f.value)?.trim());
+  // A folded value that has been given text is never hidden again.
+  const emptyOpen = showEmpty || stillEmpty.length < empty.length;
+  const cellLooks = [...marks.looks.keys()].filter((k) => k.startsWith("cell:")).length;
+  const [pasteNote, setPasteNote] = useState<string | null>(null);
+  const values = useRef<HTMLFieldSetElement>(null);
+  const started = useRef(false);
+  // The cursor starts in the first value to check ONCE per opened document. A value that is marked after a save
+  // must never take the cursor from the box a person is typing in, so this is not autoFocus (which runs on every mount).
+  useEffect(() => {
+    if (!walk || started.current) return;
+    started.current = true;
+    if (!values.current?.contains(document.activeElement)) values.current?.querySelector<HTMLInputElement>("input[data-look]")?.focus();
+  }, [walk]);
   const intro = !editable ? null
     : marks.count === 0 ? (marks.allClear ? "Everything was read clearly." : null)
     : `${needsWords(marks.count)}${marks.allClear ? " The rest were read clearly." : ""}`;
   const hasMore = !!flow && (flow.fieldsConfirmed || !!onTeach);
-  const sum = rowsSum(detail.read, edits.drafts);
+  const sum = rowsSum(detail.read, flow, edits.drafts);
 
   const fieldRow = (f: (typeof fields)[number]) => {
     const look = marks.looks.get(editKey({ field: f.key }));
@@ -280,7 +295,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
         <div className="group/value relative">
           <ValueInput
             id={id} target={{ field: f.key }} value={f.value} edits={edits} aria-describedby={look ? `${id}-look` : undefined}
-            className={teach ? "lg:pr-10" : ""} autoFocus={walk && f === marked[0]} {...(look && { "data-look": "" })}
+            className={teach ? "lg:pr-10" : ""} {...(look && { "data-look": "" })}
           />
           {teach && (
             // Named by its own text, not aria-label: a label lookup for the value must find the box alone.
@@ -299,7 +314,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
   /** Enter in a value to check goes to the next one, then to Send. In a table the arrow keys and Enter move between cells. */
   const onKeys = (e: KeyboardEvent<HTMLFieldSetElement>) => {
     const el = e.target;
-    if (!(el instanceof HTMLInputElement) || e.nativeEvent.isComposing || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (!(el instanceof HTMLInputElement) || e.nativeEvent.isComposing || e.keyCode === 229 || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
     const to = (next: HTMLInputElement | null | undefined) => { if (next) { e.preventDefault(); next.focus(); next.select(); } };
     if (el.dataset.cell) {
       const [r, c] = el.dataset.cell.split(":").map(Number);
@@ -312,7 +327,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
     } else if (walk && e.key === "Enter" && !e.shiftKey && el.dataset.look !== undefined) {
       const looks = [...e.currentTarget.querySelectorAll<HTMLInputElement>("input[data-look]")];
       const next = looks[looks.indexOf(el) + 1];
-      if (next) to(next); else { e.preventDefault(); onChecked?.(); }
+      if (next) to(next); else { e.preventDefault(); onChecked?.(el); }
     }
   };
 
@@ -325,13 +340,19 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
     if (!grid || !t) return;
     e.preventDefault();
     const [r0, c0] = el.dataset.cell.split(":").map(Number);
-    const extra = Math.min(PASTE_ROWS, r0 + grid.length) - t.rows.length;
+    // Rows that exist are always written; new ones are added only up to the cap.
+    const last = Math.max(t.rows.length, Math.min(PASTE_ROWS, r0 + grid.length));
+    const lines = grid.slice(0, Math.max(0, last - r0));
+    const extra = last - t.rows.length;
     void (async () => {
       if (extra > 0 && !(await edits.rows({ addRowToTables: Array<string>(extra).fill(t.key) }))) return;
-      grid.slice(0, PASTE_ROWS - r0).forEach((cells, i) => cells.forEach((v, j) => {
+      lines.forEach((cells, i) => cells.forEach((v, j) => {
         const column = t.columns[c0 + j];
         if (column) edits.type({ table: t.key, row: r0 + i, column: column.key }, v.trim());
       }));
+      setPasteNote(lines.length < grid.length ? `Pasted the first ${lines.length} of ${grid.length} rows. A table can be made ${PASTE_ROWS} rows long by pasting.` : null);
+      // Adding rows locks the boxes for a moment, which drops the cursor: back to the cell the paste started in.
+      requestAnimationFrame(() => values.current?.querySelector<HTMLInputElement>(`input[data-table="${CSS.escape(t.key)}"][data-cell="${r0}:${c0}"]`)?.focus());
     })();
   };
 
@@ -348,31 +369,43 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
           <p className="m-0 text-[13px] text-ink">{intro}</p>
           {walk && marked.length > 0 && (
             <p className="m-0 hidden items-center gap-1.5 text-[12.5px] text-ink-muted lg:flex">
-              <kbd className={KBD}>Enter</kbd> {marked.length > 1 ? "goes to the next one" : "goes to Send"}
+              <kbd className={KBD}>Enter</kbd> {marked.length + cellLooks > 1 ? "goes to the next one" : "goes to Send"}
             </p>
           )}
         </div>
       )}
-      <fieldset className="m-0 grid min-w-0 gap-4 border-0 p-0" disabled={!editable || edits.busy} onKeyDown={onKeys} onPaste={onPaste}>
+      <fieldset ref={values} className="m-0 grid min-w-0 gap-4 border-0 p-0" disabled={!editable || edits.busy} onKeyDown={onKeys} onPaste={onPaste}>
         <legend className="sr-only">Read values</legend>
-        {marked.length > 0 && <div className={VALUE_GRID}>{marked.map(fieldRow)}</div>}
-        {marked.length > 0 && (rest.length > 0 || tables.length > 0) && (
-          <h3 className="m-0 text-[13px] font-semibold text-ink">{marks.allClear && ![...marks.looks.keys()].some((k) => k.startsWith("cell:")) ? "Read clearly" : "The rest"}</h3>
+        {/* ONE keyed list in one grid: a value that changes group after a save is moved, not made again, so it keeps the cursor. */}
+        {marked.length + rest.length > 0 && (
+          <div className={VALUE_GRID}>
+            {[
+              ...marked.map(fieldRow),
+              marked.length > 0 && (rest.length > 0 || tables.length > 0) && (
+                <h3 key=" rest" className="col-span-full m-0 text-[13px] font-semibold text-ink">{marks.allClear && cellLooks === 0 ? "Read clearly" : "The rest"}</h3>
+              ),
+              ...rest.map(fieldRow),
+            ]}
+          </div>
         )}
-        {rest.length > 0 && <div className={VALUE_GRID}>{rest.map(fieldRow)}</div>}
         {empty.length > 0 && (
           <div className="grid gap-3">
-            <p className="m-0 flex flex-wrap items-center gap-x-2 text-[13px] text-ink-muted">
-              {emptyWords(empty.map((f) => f.label))}
-              <Button size="sm" variant="ghost" className="!text-brand-blue" aria-expanded={showEmpty} aria-controls={`${uid}-empty`} onClick={() => setShowEmpty((s) => !s)}>
-                {showEmpty ? "Hide them" : "Show them"}
-              </Button>
-            </p>
-            <div id={`${uid}-empty`} hidden={!showEmpty} className={VALUE_GRID}>{empty.map(fieldRow)}</div>
+            {stillEmpty.length > 0 && (
+              <p className="m-0 flex flex-wrap items-center gap-x-2 text-[13px] text-ink-muted">
+                {emptyWords(stillEmpty.map((f) => f.label))}
+                {stillEmpty.length === empty.length && (
+                  <Button size="sm" variant="ghost" className="!text-brand-blue" aria-expanded={showEmpty} aria-controls={`${uid}-empty`} onClick={() => setShowEmpty((s) => !s)}>
+                    {showEmpty ? "Hide them" : "Show them"}
+                  </Button>
+                )}
+              </p>
+            )}
+            <div id={`${uid}-empty`} hidden={!emptyOpen} className={VALUE_GRID}>{empty.map(fieldRow)}</div>
           </div>
         )}
         {tables.map((t) => <TableValues key={t.key} table={t} marks={marks} edits={edits} onLocate={onLocate} editable={editable} sum={sum?.table === t.key ? sum : null} />)}
       </fieldset>
+      {pasteNote && <StatusNotice tone="warning">{pasteNote}</StatusNotice>}
       <Checks checks={marks.unattached} />
       {(hasMore || history) && (
         <div className="flex flex-wrap items-start justify-between gap-2">

@@ -98,7 +98,7 @@ function OutputRow({ o, flowId, documentId, flowFields, destinations, live }: {
           {o.sendWhen && <span className="text-[12.5px] text-ink-muted">{describeSendWhen(o.sendWhen, flowFields)}</span>}
         </span>
         <span className="flex flex-wrap items-center gap-2">
-          {open && live && <span className="text-[12.5px] text-ink-muted">Updates as you type</span>}
+          {open && live && <span className="text-[12.5px] text-ink-muted">{preview.isFetching ? "Updating…" : "Updates as you type"}</span>}
           <Button size="sm" variant="secondary" aria-expanded={open} loading={open && preview.isLoading} onClick={toggle}>{open ? "Hide preview" : "Preview"}</Button>
           {!o.standard && <Link href={`/flows/${flowId}/outputs/${o.id}/advanced?document=${documentId}`} className={`${buttonClass("secondary", "sm")} inline-flex items-center`}>Open in Advanced</Link>}
         </span>

@@ -122,7 +122,7 @@ export function PdfDocumentView({ cacheKey, blob, bounded, highlight, marks, onP
         {...scrollRegionProps(regionLabel, true)}
         className={
           (bounded
-            ? "min-h-0 flex-1 overflow-auto bg-surface-2 p-3"
+            ? "min-h-0 flex-1 overflow-auto bg-surface-2 p-3 [scrollbar-gutter:stable]"
             : "overflow-x-auto bg-surface-2 p-3") + " focus-visible:[outline-offset:-2px]"
         }
       >

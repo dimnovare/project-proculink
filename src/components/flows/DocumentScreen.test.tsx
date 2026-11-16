@@ -369,7 +369,7 @@ describe("DocumentScreen values", () => {
     const cell = (value: string) => ({ value, confidence: 0.95, location: null, notOnPage: false, edited: false });
     const read = {
       ...d.read,
-      fields: [...d.read.fields, { ...field("30.00"), key: "total", label: "Total", meaning: "total_gross" }],
+      fields: [...d.read.fields, { ...field("30.00"), key: "total", label: "Total", meaning: "total_net" }],
       tables: [{
         key: "lines", label: "Lines", listed: true, columns: [{ key: "amount", label: "Amount", type: "number", meaning: "line_amount" }],
         rows: [{ cells: { amount: cell("10.00") } }, { cells: { amount: cell("20.00") } }],
