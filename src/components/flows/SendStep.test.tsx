@@ -69,6 +69,9 @@ describe("SendStep", () => {
     fireEvent.click(more);
     expect(more).toHaveAttribute("aria-expanded", "true");
     expect(ids(group)).toEqual(["send-tile-download", "send-tile-email", "send-tile-server", "send-tile-s3", "send-tile-http"]);
+    expect(document.activeElement).toBe(within(group).getByTestId("send-tile-server"));
+    fireEvent.click(more);
+    expect(document.activeElement).toBe(more);
     unmount();
     linked.mockReturnValue({ data: { available: true, accounts: [] } });
     api.listDestinations.mockResolvedValue([savedSftp]);

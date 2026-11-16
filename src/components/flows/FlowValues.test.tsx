@@ -101,4 +101,18 @@ describe("FlowValues", () => {
     fireEvent.change(screen.getByLabelText("Choose a file"), { target: { files: [file] } });
     expect(queue.add).toHaveBeenCalledWith([file], first);
   });
+
+  it("a first document being read says so in place of the drop zone; a failed read links to it and offers the drop zone", async () => {
+    const first = { ...flow, fieldsConfirmed: false, fields: { fields: [], tables: [] } };
+    const pending = { ...detail.summary, id: "doc-2", fileName: "invoice-2292.pdf", status: "reading" };
+    api.listDocuments.mockResolvedValue([pending]);
+    const { unmount } = mount(first);
+    expect(await screen.findByText("We are reading invoice-2292.pdf. Its values appear here in a moment.")).toBeTruthy();
+    expect(screen.queryByText("Drop one document like the ones this flow will get.")).toBeNull();
+    unmount();
+    api.listDocuments.mockResolvedValue([{ ...pending, status: "read_failed" }]);
+    mount(first);
+    expect(await screen.findByRole("link", { name: "invoice-2292.pdf" })).toHaveAttribute("href", "/flows/flow-1/documents/doc-2");
+    expect(screen.getByText("Drop one document like the ones this flow will get.")).toBeTruthy();
+  });
 });

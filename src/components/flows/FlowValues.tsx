@@ -1,13 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
+import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { getDocument, listDocuments, saveFlowFields } from "@/lib/api/documents";
-import type { Flow, FlowField, FlowFieldList, ReadResult } from "@/lib/api/documents";
-import { documentRefusalMessage } from "@/lib/documentRefusals";
+import type { DocumentSummary, Flow, FlowField, FlowFieldList, ReadResult } from "@/lib/api/documents";
+import { documentRefusalMessage, readFailureMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
 import { addReadExtra, FIELD_TYPES, fieldListFromRead, replaceField, withReadExtras } from "@/lib/flowFieldModel";
@@ -26,14 +28,15 @@ export function useLatestRead(flowId: string) {
     queryKey: ["documents", { flowId }], queryFn: () => listDocuments({ flowId }), enabled,
     refetchInterval: (q) => (q.state.data?.some((d) => documentStatus(d.status, d.statusReason).tone === "working") ? 2000 : false),
   });
-  const latest = [...(docs.data ?? [])]
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .find((d) => {
-      const s = documentStatus(d.status, d.statusReason).stage;
-      return (typeof s === "number" ? s : s.failed) >= 2;
-    });
+  const sorted = [...(docs.data ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const latest = sorted.find((d) => {
+    const s = documentStatus(d.status, d.statusReason).stage;
+    return (typeof s === "number" ? s : s.failed) >= 2;
+  });
   const doc = useQuery({ queryKey: ["document", latest?.id], queryFn: () => getDocument(latest!.id), enabled: enabled && !!latest });
-  return { docs, latest, doc };
+  /** The newest document of any status: what the step says while a first one is read, or after it failed. */
+  const newest: DocumentSummary | undefined = sorted[0];
+  return { docs, latest, doc, newest };
 }
 
 /** Every row on screen; `off` holds the unticked ones by "key" (a value or table) or "table/column". */
@@ -308,9 +311,12 @@ function FirstValues({ flow, read, fileName }: { flow: Flow; read: ReadResult; f
   );
 }
 
-/** No document read yet: one is added to this flow right here, through the app's upload queue, as on Documents. */
-function FirstDocument({ flow }: { flow: Flow }) {
+/** No document read yet: one is added to this flow right here, through the app's upload queue, as on Documents.
+ *  While the newest one is still being read, that is said instead; a failed read links to it, where it is read again. */
+function FirstDocument({ flow, newest }: { flow: Flow; newest?: DocumentSummary }) {
   const queue = useUploadQueue();
+  if (newest?.status === "received" || newest?.status === "reading")
+    return <Frame><Quiet>{`We are reading ${newest.fileName}. Its values appear here in a moment.`}</Quiet></Frame>;
   const prompt = (
     <>
       <span className="block text-[14px] font-semibold text-ink">Drop one document like the ones this flow will get.</span>
@@ -319,6 +325,11 @@ function FirstDocument({ flow }: { flow: Flow }) {
   );
   return (
     <Frame>
+      {newest?.status === "read_failed" && (
+        <StatusNotice tone="error" action={<Link href={`/flows/${flow.id}/documents/${newest.id}`} className={buttonClass("secondary", "sm")}>{newest.fileName}</Link>}>
+          {readFailureMessage(newest.statusReason)}
+        </StatusNotice>
+      )}
       <FileDrop accept={acceptFor(flow)} maxBytes={MAX_UPLOAD_BYTES} prompt={prompt} onFile={(f) => queue.add([f], flow)} />
     </Frame>
   );
@@ -326,12 +337,12 @@ function FirstDocument({ flow }: { flow: Flow }) {
 
 /** The We read step. */
 export function FlowValues({ flow }: { flow: Flow }) {
-  const { docs, latest, doc } = useLatestRead(flow.id);
+  const { docs, latest, doc, newest } = useLatestRead(flow.id);
   const fileName = doc.data?.summary.fileName;
   if (flow.fieldsConfirmed) return <DraftValues flow={flow} read={doc.data?.read} fileName={fileName} />;
   if (docs.isError && !docs.data) return <Failed error={docs.error} retry={() => docs.refetch()} />;
   if (!docs.data || (latest && doc.isPending)) return <Quiet>Loading…</Quiet>;
   if (doc.isError && !doc.data) return <Failed error={doc.error} retry={() => doc.refetch()} />;
-  if (!doc.data) return <FirstDocument flow={flow} />;
+  if (!doc.data) return <FirstDocument flow={flow} newest={newest} />;
   return <FirstValues flow={flow} read={doc.data.read} fileName={doc.data.summary.fileName} />;
 }

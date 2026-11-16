@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -192,7 +192,15 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
     ...(servers ? newTiles(TILES.filter((t) => t.server)) : []),
   ];
   // Closing the fold while one of its kinds is chosen goes back to Download.
-  const toggleServers = () => { if (servers && tile?.server) pick({ kind: "download" }); setServerOpen(!servers); };
+  const toggleServers = () => { if (servers && tile?.server) pick({ kind: "download" }); moved.current = true; setServerOpen(!servers); };
+  // Opening moves focus to the first server tile; closing returns it to the fold's button.
+  const fold = useRef<HTMLButtonElement>(null);
+  const moved = useRef(false);
+  useEffect(() => {
+    if (!moved.current) return;
+    moved.current = false;
+    (servers ? group.current?.querySelector<HTMLButtonElement>("[data-testid=send-tile-server]") : fold.current)?.focus();
+  }, [servers]);
   if (notFound(doc.error)) return <Gone text={COPY.document_not_found} />;
   const refused = send.error ?? finish.error ?? sample.error;
   const sendLabel = `Send ${fileName} now`;
@@ -228,7 +236,7 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
           ))}
         </div>
         <button
-          type="button" aria-expanded={servers} onClick={toggleServers}
+          ref={fold} type="button" aria-expanded={servers} onClick={toggleServers}
           className="grid min-h-[44px] content-start gap-0.5 justify-self-start rounded-card border border-dashed border-borderStrong bg-bg px-3 py-2.5 text-left"
         >
           <span className="text-[14px] font-semibold text-ink">A server or another system</span>
