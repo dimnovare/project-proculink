@@ -8,6 +8,7 @@ import { ReadValuesPanel } from "@/components/flows/ReadValuesPanel";
 import { useDocumentEdits } from "@/hooks/useDocumentEdits";
 import { reviewMarks } from "@/lib/reviewMarks";
 import { SourceDocumentBody } from "./SourceDocumentBody";
+import { SpotButtons, SpotsContext } from "./SourceHighlight";
 import { PdfDocumentView } from "./PdfDocumentView";
 
 vi.mock("pdfjs-dist", () => ({
@@ -134,5 +135,26 @@ describe("highlight", () => {
     expect(within(imageView).getAllByTestId("source-mark")).toHaveLength(1);
     expect(within(sheetView).getByRole("cell", { name: "Example Supplier Ltd" })).toHaveAttribute("data-marked");
     expect(within(sheetView).getByRole("cell", { name: "EUR" })).not.toHaveAttribute("data-marked");
+  });
+});
+
+describe("the places of the values, as things to click", () => {
+  it("draws the largest box first so a box inside it can be reached, keeps to its page, and goes to the value clicked", () => {
+    const go = vi.fn();
+    const at = (page: number | null, x: number, width: number) => ({ page, address: null, box: { x, y: 0.1, width, height: 0.1 } }) as SourceLocation;
+    const spots = [
+      { key: "field:postcode", label: "Postcode", location: at(1, 0.2, 0.1) },
+      { key: "field:address", label: "Address", location: at(1, 0.1, 0.6) },       // contains the postcode, and comes later
+      { key: "field:total", label: "Total", location: at(2, 0.1, 0.2) },
+      { key: "field:stamp", label: "Stamp", location: at(null, 0.1, 0.05) },        // no page: a picture's, never a PDF page's
+    ];
+    const draw = (exact: boolean) => render(<SpotsContext.Provider value={{ spots, go }}><SpotButtons page={1} exact={exact} /></SpotsContext.Provider>);
+    const pdf = draw(true);
+    expect(screen.getAllByRole("button", { hidden: true }).map((b) => b.getAttribute("aria-label"))).toEqual(["Go to Address", "Go to Postcode"]);
+    fireEvent.click(screen.getByLabelText("Go to Postcode"));
+    expect(go).toHaveBeenCalledWith("field:postcode");
+    pdf.unmount();
+    draw(false);
+    expect(screen.getAllByRole("button", { hidden: true }).map((b) => b.getAttribute("aria-label"))).toEqual(["Go to Address", "Go to Postcode", "Go to Stamp"]);
   });
 });

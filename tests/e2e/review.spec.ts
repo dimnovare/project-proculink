@@ -231,6 +231,7 @@ test.describe("Review", () => {
     await page.waitForTimeout(500);
     await expect(page).toHaveURL(/\/documents\/doc-1$/);                       // the key that moved the focus did not press the button
     await expect(header).toContainText("2 values to check");
+    await expect(page.getByRole("complementary", { name: "Documents that need you" })).toHaveCount(0);   // only from 1700px wide
     // Typing on after that Enter is typing, not a press of Send: a space and letters go back into the value.
     await page.keyboard.press("Space");
     await page.keyboard.type("Ltd");
@@ -254,7 +255,7 @@ test.describe("Review", () => {
     await expect(cell(4, "Quantity")).toHaveValue("1");                         // a fourth row was added for the third pasted line
   });
 
-  test("on a wide screen the original stays in view beside its values, the handle between them moves, and no table scrolls sideways", async ({ page }) => {
+  test("on a wide screen the waiting list, the original and its values share the screen; the original stays in view, its values can be clicked, and the handle moves", async ({ page }) => {
     await preparePage(page, { dismissCookieBanner: true });
     const original = page.locator("#review-pane-original");
     const read = page.locator("#review-pane-read");
@@ -266,6 +267,19 @@ test.describe("Review", () => {
       expect(Math.abs(o.y - r.y), `the two panes start level at ${width}`).toBeLessThanOrEqual(1);
       expect(r.x + r.width, `the values reach the right edge of the page at ${width}`).toBeGreaterThan(width - 200);
       expect(await read.locator(".overflow-x-auto").evaluateAll((els) => els.map((e) => e.scrollWidth - e.clientWidth)), `no table scrolls sideways at ${width}`).toEqual([0]);
+      // The documents that still need a person are listed beside the review, with this one marked.
+      const list = page.getByRole("complementary", { name: "Documents that need you" });
+      await expect(list.getByRole("link", { name: /invoice-1001\.csv/ })).toHaveAttribute("aria-current", "page");
+      // A value's place on the original goes to the value.
+      const values = page.getByRole("region", { name: "What we read" });
+      await page.locator('[data-spot][title="Go to Date"]').click();
+      await expect(values.getByLabel("Date")).toBeFocused();
+      // While a person points at the original to teach a value, a click there means "it is here": nothing leads away.
+      await values.getByRole("button", { name: "Point to Date on the original" }).click();
+      await expect(page.getByText("Click the cell that holds Date.")).toBeVisible();
+      await expect(page.locator("[data-spot]")).toHaveCount(0);
+      await page.keyboard.press("Escape");
+      await expect(page.locator("[data-spot]").first()).toBeVisible();
     }
     // A short window, scrolled to the end: the bar with Send and the original are both still on screen.
     await page.setViewportSize({ width: 1920, height: 640 });
@@ -286,5 +300,8 @@ test.describe("Review", () => {
     await page.reload();
     await settle(page);
     expect((await original.boundingBox())!.width, "the width is remembered").toBeGreaterThan(stuck.width + 150);
+    // One click in the list opens another document that needs a person.
+    await page.getByRole("complementary", { name: "Documents that need you" }).getByRole("link", { name: /invoice-1005\.csv/ }).click();
+    await expect(page).toHaveURL(/\/documents\/doc-5$/);
   });
 });

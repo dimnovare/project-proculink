@@ -46,7 +46,7 @@ export function ValueInput({ target, value, edits, className = "", base = INPUT,
 } & Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "onBlur" | "onKeyDown"> & { "data-look"?: string; "data-table"?: string; "data-cell"?: string }) {
   return (
     <input
-      {...rest} className={`${base} ${className}`} value={edits.drafts[editKey(target)] ?? value ?? ""}
+      {...rest} data-value={editKey(target)} className={`${base} ${className}`} value={edits.drafts[editKey(target)] ?? value ?? ""}
       onChange={(e) => edits.type(target, e.target.value)}
       onBlur={edits.commit}
       onKeyDown={(e) => e.key === "Enter" && edits.commit()}

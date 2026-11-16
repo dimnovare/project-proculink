@@ -31,6 +31,7 @@ import {
 import type { Box, SourceLocation } from "@/lib/api/documents";
 import { ImageDocumentView } from "./ImageDocumentView";
 import { ZoomButtons } from "./ZoomButtons";
+import { SpotsContext, spotProps, useSpotAt, type SourceSpot } from "./SourceHighlight";
 import { parseAddress, spreadsheetColumnName } from "@/lib/sourceAddress";
 import { scrollRegionProps } from "./scrollRegion";
 import {
@@ -65,9 +66,18 @@ export interface SourceDocumentBodyProps {
   marks?: readonly SourceLocation[];
   /** Set to switch on pointing at the original; called with the spot picked. */
   onPick?(p: SourcePick): void;
+  /** The read values that have a place here: clicking a place calls `onSpot` with its key (flows only). */
+  spots?: readonly SourceSpot[];
+  onSpot?(key: string): void;
 }
 
-export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight, marks, onPick }: SourceDocumentBodyProps) {
+export function SourceDocumentBody({ spots, onSpot, ...props }: SourceDocumentBodyProps) {
+  // Never while pointing: a click then means "the value is here", not "go to the value".
+  const clickable = useMemo(() => (spots && onSpot && !props.onPick ? { spots, go: onSpot } : null), [spots, onSpot, props.onPick]);
+  return <SpotsContext.Provider value={clickable}><Body {...props} /></SpotsContext.Provider>;
+}
+
+function Body({ cacheKey, document: doc, bounded, highlight, marks, onPick }: Omit<SourceDocumentBodyProps, "spots" | "onSpot">) {
   const render = sourceRenderFor(doc.contentType);
 
   if (render === "pdf") {
@@ -213,17 +223,18 @@ function SheetView({
           " focus-visible:[outline-offset:-2px]"
         }
       >
-        <SheetGrid bounded={bounded} table={table} highlight={sel === 0 ? highlight : null} marks={sel === 0 ? marks : undefined} onPick={sel === 0 ? onPick : undefined} />
+        <SheetGrid bounded={bounded} table={table} highlight={sel === 0 ? highlight : null} marks={sel === 0 ? marks : undefined} onPick={sel === 0 ? onPick : undefined} clickable={sel === 0} />
       </div>
       <TruncationNote table={table} omitted={data.omittedSheetNames} />
     </div>
   );
 }
 
-function SheetGrid({ bounded, table, highlight, marks, onPick }: { bounded: boolean; table: SheetTable; highlight?: SourceLocation | null; marks?: readonly SourceLocation[]; onPick?(p: SourcePick): void }) {
+function SheetGrid({ bounded, table, highlight, marks, onPick, clickable }: { bounded: boolean; table: SheetTable; highlight?: SourceLocation | null; marks?: readonly SourceLocation[]; onPick?(p: SourcePick): void; /** This sheet is the one the values were read from. */ clickable: boolean }) {
   const spot = parseAddress(highlight?.address);
   const cell = spot?.kind === "cell" ? spot : null;
   const marked = new Set(marks?.map((m) => m.address));
+  const spotAt = useSpotAt();
   const width = table.rows.reduce((m, r) => Math.max(m, r.length), 0);
   const columnLabels = useMemo(
     () => Array.from({ length: width }, (_, i) => spreadsheetColumnName(i)),
@@ -281,6 +292,7 @@ function SheetGrid({ bounded, table, highlight, marks, onPick }: { bounded: bool
               const hit = cell?.row === r + 1 && cell.col === c + 1;
               const flag = marked.has(`cell:r${r + 1}c${c + 1}`);
               const text = row[c] ?? "";
+              const go = clickable && text ? spotAt(`cell:r${r + 1}c${c + 1}`) : null;
               return (
                 <td
                   key={label}
@@ -297,6 +309,8 @@ function SheetGrid({ bounded, table, highlight, marks, onPick }: { bounded: bool
                     >
                       {text}
                     </button>
+                  ) : go ? (
+                    <span {...spotProps(go)} className="cursor-pointer hover:underline">{text}</span>
                   ) : (
                     text
                   )}
@@ -346,6 +360,7 @@ function TextView({
   const spot = parseAddress(highlight?.address);
   const markedLines = new Set(marks?.map((m) => parseAddress(m.address)).flatMap((a) => (a?.kind === "line" ? [a.n] : [])));
   const [noSelection, setNoSelection] = useState(false);
+  const spotAt = useSpotAt();
   const { data, isLoading, isError } = useQuery({
     queryKey: ["source-document-text", cacheKey],
     queryFn: async () => {
@@ -414,6 +429,7 @@ function TextView({
           {data.lines.map((line, i) => {
             const hit = spot?.kind === "line" && spot.n === i + 1;
             const flag = markedLines.has(i + 1);
+            const go = spotAt(`line:${i + 1}`);
             return (
               <li
                 key={i}
@@ -425,7 +441,7 @@ function TextView({
                 <span className="w-9 flex-shrink-0 select-none text-right text-[12.5px] text-ink-faint">
                   {i + 1}
                 </span>
-                <span className="min-w-0 flex-1 whitespace-pre-wrap break-words text-ink">{line}</span>
+                <span {...(go && spotProps(go))} className={`min-w-0 flex-1 whitespace-pre-wrap break-words text-ink ${go ? "cursor-pointer hover:underline" : ""}`}>{line}</span>
               </li>
             );
           })}

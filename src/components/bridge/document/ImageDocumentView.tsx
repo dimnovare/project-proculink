@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { SourceLocation } from "@/lib/api/documents";
-import { SourceHighlight } from "./SourceHighlight";
+import { SourceHighlight, SpotButtons } from "./SourceHighlight";
 import { RegionPicker } from "./RegionPicker";
 import type { SourcePick } from "./SourceDocumentBody";
 
@@ -20,6 +20,7 @@ export function ImageDocumentView({ blob, contentType, filename, highlight, mark
       {url && <img src={url} alt={filename} className={zoom === null ? "block h-auto max-w-full" : "block h-auto w-full"} />}
       {marks?.map((m, i) => m.box && (m.page == null || m.page === 1) && <SourceHighlight key={i} box={m.box} tone="look" />)}
       {highlight?.box && <SourceHighlight box={highlight.box} />}
+      <SpotButtons page={1} />
       {onPick && <RegionPicker page={1} onBox={(box) => onPick({ page: 1, box })} />}
     </div>
   );

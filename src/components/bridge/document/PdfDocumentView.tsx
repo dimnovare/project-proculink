@@ -18,7 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { Box, SourceLocation } from "@/lib/api/documents";
 import { scrollRegionProps } from "./scrollRegion";
-import { SourceHighlight } from "./SourceHighlight";
+import { SourceHighlight, SpotButtons } from "./SourceHighlight";
 import { RegionPicker } from "./RegionPicker";
 import type { SourcePick } from "./SourceDocumentBody";
 
@@ -213,6 +213,7 @@ function PdfPageCanvas({ doc, pageNumber, zoom, box, marks, onPick }: { doc: PDF
           />
           {marks?.map((m, i) => <SourceHighlight key={i} box={m} tone="look" />)}
           {box && <SourceHighlight box={box} />}
+          <SpotButtons page={pageNumber} exact />
           {onPick && <RegionPicker page={pageNumber} onBox={(b) => onPick({ page: pageNumber, box: b })} />}
         </div>
       )}
