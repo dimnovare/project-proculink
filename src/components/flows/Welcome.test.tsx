@@ -46,6 +46,9 @@ describe("Welcome", () => {
     // PageShell draws no <main> (the app layout does): the render's container stands for it.
     const main = render(<Welcome flows={[]} flowId={null} />, { wrapper }).container;
     expect(within(main).getByRole("heading", { level: 1 })).toHaveTextContent("Welcome, Alex. Let's read your first document.");
+    const what = within(main).getByRole("heading", { name: "What is a flow?" }).closest("section")!.textContent;
+    expect(what).toContain("We create your first flow from this document.");
+    expect(what).not.toContain("We set this flow up from this document.");
     choose(main, new File(["x"], "po.pdf", { type: "application/pdf" }));
     expect(await within(main).findByText(`${uploadRefusalMessage(unreadable)} Choose another file.`)).toBeInTheDocument();
     choose(main, new File(["x"], "po.pdf", { type: "application/pdf" }));

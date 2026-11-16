@@ -116,12 +116,14 @@ describe("FlowsHome", () => {
     expect(named).toHaveLength(0);
     empty.unmount();
 
-    listFlows.mockResolvedValue([invoices]);
+    // Exactly at the limit is not over it.
+    const limit = PLAN_BY_ID.pilot.flowLimit!;
+    listFlows.mockResolvedValue(Array.from({ length: limit }, (_, i) => flow(`flow-${i}`, `Flow ${i}`, 0)));
     getBillingStatus.mockResolvedValue({ plan: "pilot" });
     const known = show();
     const seePlans = await screen.findByRole("link", { name: "See plans" });
     expect(seePlans.getAttribute("href")).toBe("/settings?tab=billing");
-    expect(seePlans.closest("p")?.textContent).toBe(`1 of ${PLAN_BY_ID.pilot.flowLimit} flows on ${planName("pilot")}. Need more? See plans`);
+    expect(seePlans.closest("p")?.textContent).toBe(`${limit} of ${limit} flows on ${planName("pilot")}. Need more? See plans`);
     expect(screen.getByText("A flow is what happens to one kind of document. We sort each document into the right one.")).toBeTruthy();
     // The page's own content has no filled button: "New flow" is outlined, and stays over the limit (the server's refusal explains).
     const header = () => screen.getByRole("button", { name: "New flow" }).className;
