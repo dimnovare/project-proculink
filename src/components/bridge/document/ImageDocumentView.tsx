@@ -7,7 +7,7 @@ import { RegionPicker } from "./RegionPicker";
 import type { SourcePick } from "./SourceDocumentBody";
 
 /** A photo or scan as the original. */
-export function ImageDocumentView({ blob, contentType, filename, highlight, marks, onPick }: { blob: Blob; contentType: string; filename: string; highlight?: SourceLocation | null; /** Values that need a look. */ marks?: readonly SourceLocation[]; onPick?(p: SourcePick): void }) {
+export function ImageDocumentView({ blob, contentType, filename, highlight, marks, onPick, zoom = 1 }: { blob: Blob; contentType: string; filename: string; highlight?: SourceLocation | null; /** Values that need a look. */ marks?: readonly SourceLocation[]; onPick?(p: SourcePick): void; /** 1 is the picture's own size, never wider than its pane. */ zoom?: number }) {
   const [url, setUrl] = useState<string | null>(null);
   // Created and revoked in the same effect so a StrictMode remount gets a fresh URL.
   useEffect(() => {
@@ -16,8 +16,8 @@ export function ImageDocumentView({ blob, contentType, filename, highlight, mark
     return () => URL.revokeObjectURL(u);
   }, [blob, contentType]);
   return (
-    <div className="relative inline-block max-w-full">
-      {url && <img src={url} alt={filename} className="block h-auto max-w-full" />}
+    <div className={zoom === 1 ? "relative inline-block max-w-full" : "relative mx-auto block"} style={zoom === 1 ? undefined : { width: `${zoom * 100}%` }}>
+      {url && <img src={url} alt={filename} className={zoom === 1 ? "block h-auto max-w-full" : "block h-auto w-full"} />}
       {marks?.map((m, i) => m.box && (m.page == null || m.page === 1) && <SourceHighlight key={i} box={m.box} tone="look" />)}
       {highlight?.box && <SourceHighlight box={highlight.box} />}
       {onPick && <RegionPicker page={1} onBox={(box) => onPick({ page: 1, box })} />}

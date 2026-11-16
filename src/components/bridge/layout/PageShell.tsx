@@ -12,7 +12,7 @@ import * as React from "react";
    Usage:
      <PageShell>            // narrow (forms, single-column) — 1040px
      <PageShell variant="wide">  // tables / dashboards — 1480px
-     <PageShell variant="full">  // a document beside its values — 1760px
+     <PageShell variant="full">  // a document beside its values — 2240px
 
    Server-component safe (no hooks / handlers).
    ===================================================================== */

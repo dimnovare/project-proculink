@@ -30,6 +30,7 @@ import {
 } from "@/lib/sourceDocument";
 import type { Box, SourceLocation } from "@/lib/api/documents";
 import { ImageDocumentView } from "./ImageDocumentView";
+import { ZoomButtons } from "./ZoomButtons";
 import { parseAddress, spreadsheetColumnName } from "@/lib/sourceAddress";
 import { scrollRegionProps } from "./scrollRegion";
 import {
@@ -88,9 +89,7 @@ export function SourceDocumentBody({ cacheKey, document: doc, bounded, highlight
   if (render === "image") {
     return (
       <Shell bounded={bounded}>
-        <div className={bounded ? "min-h-0 flex-1 overflow-auto" : "overflow-auto"}>
-          <ImageDocumentView blob={doc.blob} contentType={doc.contentType} filename={doc.filename ?? "Original document"} highlight={highlight} marks={marks} onPick={onPick} />
-        </div>
+        <ImagePane bounded={bounded} blob={doc.blob} contentType={doc.contentType} filename={doc.filename ?? "Original document"} highlight={highlight} marks={marks} onPick={onPick} />
         <DownloadRow document={doc} cacheKey={cacheKey} />
       </Shell>
     );
@@ -442,6 +441,19 @@ function TextView({
 }
 
 // ── Shared chrome ────────────────────────────────────────────────────────────
+
+/** A photo or scan with its zoom buttons above the area that scrolls. */
+function ImagePane({ bounded, ...image }: { bounded: boolean } & Omit<React.ComponentProps<typeof ImageDocumentView>, "zoom">) {
+  const [zoom, setZoom] = useState(1);
+  return (
+    <>
+      <div className="flex flex-shrink-0 items-center border-b border-border px-3 py-1.5"><ZoomButtons zoom={zoom} onZoom={setZoom} /></div>
+      <div className={bounded ? "min-h-0 flex-1 overflow-auto" : "overflow-auto"}>
+        <ImageDocumentView {...image} zoom={zoom} />
+      </div>
+    </>
+  );
+}
 
 function Shell({ bounded, children }: { bounded: boolean; children: React.ReactNode }) {
   // No `overflow-hidden` on the unbounded branch: the mobile card must grow with its content

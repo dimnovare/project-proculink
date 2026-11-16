@@ -12,6 +12,7 @@
 // The worker is resolved through `new URL(..., import.meta.url)`, so the bundler emits it as a
 // same-origin asset and `worker-src 'self'` covers it without a CDN entry.
 
+import { PagerButton, ZoomButtons } from "./ZoomButtons";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { PDFDocumentProxy } from "pdfjs-dist";
@@ -57,6 +58,7 @@ export interface PdfDocumentViewProps {
 
 export function PdfDocumentView({ cacheKey, blob, bounded, highlight, marks, onPick, regionLabel = "Original document" }: PdfDocumentViewProps) {
   const [page, setPage] = useState(1);
+  const [zoom, setZoom] = useState(1);
   // Turn to a newly pointed-at page (adjusting state during render, not an effect).
   const [seenPage, setSeenPage] = useState(highlight?.page);
   if (highlight?.page !== seenPage) {
@@ -93,23 +95,26 @@ export function PdfDocumentView({ cacheKey, blob, bounded, highlight, marks, onP
 
   return (
     <div className={bounded ? "flex min-h-0 flex-1 flex-col" : "flex flex-col"}>
-      {pageCount > 1 && (
-        <div className="flex flex-shrink-0 items-center gap-2 border-b border-border px-3 py-1.5">
-          <PagerButton disabled={current <= 1} onClick={() => setPage(current - 1)} label="Previous page">
-            ‹
-          </PagerButton>
-          <span className="font-mono text-[12.5px] text-ink-muted" aria-live="polite">
-            Page {current} of {pageCount}
-          </span>
-          <PagerButton
-            disabled={current >= pageCount}
-            onClick={() => setPage(current + 1)}
-            label="Next page"
-          >
-            ›
-          </PagerButton>
-        </div>
-      )}
+      <div className="flex flex-shrink-0 items-center gap-2 border-b border-border px-3 py-1.5">
+        {pageCount > 1 && (
+          <>
+            <PagerButton disabled={current <= 1} onClick={() => setPage(current - 1)} label="Previous page">
+              ‹
+            </PagerButton>
+            <span className="font-mono text-[12.5px] text-ink-muted" aria-live="polite">
+              Page {current} of {pageCount}
+            </span>
+            <PagerButton
+              disabled={current >= pageCount}
+              onClick={() => setPage(current + 1)}
+              label="Next page"
+            >
+              ›
+            </PagerButton>
+          </>
+        )}
+        <ZoomButtons zoom={zoom} onZoom={setZoom} />
+      </div>
       {/* Scrolls on both branches — vertically when bounded, horizontally on a phone when the
           page is wider than the card — so it is a keyboard stop either way. The ring is drawn
           INSIDE the box: the bounded shell clips, and a ring nobody can see is not a fix. */}
@@ -121,7 +126,7 @@ export function PdfDocumentView({ cacheKey, blob, bounded, highlight, marks, onP
             : "overflow-x-auto bg-surface-2 p-3") + " focus-visible:[outline-offset:-2px]"
         }
       >
-        <PdfPageCanvas doc={data} pageNumber={current} box={highlight?.page === current ? highlight.box : null} marks={marks?.flatMap((m) => (m.page === current && m.box ? [m.box] : []))} onPick={onPick} />
+        <PdfPageCanvas doc={data} pageNumber={current} zoom={zoom} box={highlight?.page === current ? highlight.box : null} marks={marks?.flatMap((m) => (m.page === current && m.box ? [m.box] : []))} onPick={onPick} />
       </div>
     </div>
   );
@@ -134,11 +139,20 @@ export function PdfDocumentView({ cacheKey, blob, bounded, highlight, marks, onP
  * from TanStack Query above. Rasterising to a canvas is imperative DOM work with a cancellation
  * handle, which is exactly what an effect is for.
  */
-function PdfPageCanvas({ doc, pageNumber, box, marks, onPick }: { doc: PDFDocumentProxy; pageNumber: number; box: Box | null; marks?: Box[]; onPick?(p: SourcePick): void }) {
+function PdfPageCanvas({ doc, pageNumber, zoom, box, marks, onPick }: { doc: PDFDocumentProxy; pageNumber: number; zoom: number; box: Box | null; marks?: Box[]; onPick?(p: SourcePick): void }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   // Fit to the full-width row, never to the shrink-to-fit highlight wrapper around the canvas.
   const rowRef = useRef<HTMLDivElement | null>(null);
   const [failed, setFailed] = useState(false);
+  // The row's width, in steps of 16px: the page is drawn again when its pane is made wider or narrower.
+  const [rowWidth, setRowWidth] = useState(0);
+  useEffect(() => {
+    const row = rowRef.current;
+    if (!row || typeof ResizeObserver === "undefined") return;
+    const seen = new ResizeObserver(() => setRowWidth(Math.round(row.clientWidth / 16) * 16));
+    seen.observe(row);
+    return () => seen.disconnect();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -152,7 +166,7 @@ function PdfPageCanvas({ doc, pageNumber, box, marks, onPick }: { doc: PDFDocume
 
         const parentWidth = rowRef.current?.clientWidth ?? 620;
         const base = pdfPage.getViewport({ scale: 1 });
-        const fit = Math.max(parentWidth, 240) / base.width;
+        const fit = (Math.max(parentWidth, 240) / base.width) * zoom;
         const dpr = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
         const scale = fit * Math.min(dpr, MAX_CANVAS_SCALE);
         const viewport = pdfPage.getViewport({ scale });
@@ -181,21 +195,21 @@ function PdfPageCanvas({ doc, pageNumber, box, marks, onPick }: { doc: PDFDocume
         /* cancelling an already-settled render task is not an error worth surfacing */
       }
     };
-  }, [doc, pageNumber]);
+  }, [doc, pageNumber, zoom, rowWidth]);
 
   return (
-    <div ref={rowRef} className="flex justify-center">
+    <div ref={rowRef} data-pdf-row>
       {failed ? (
         <p className="px-3 py-4 text-[12.5px] leading-relaxed text-ink-faint">
           This page couldn&rsquo;t be drawn. Download the file to read it.
         </p>
       ) : (
-        <div className="relative inline-block max-w-full">
+        <div className={`relative mx-auto w-fit ${zoom > 1 ? "" : "max-w-full"}`}>
           <canvas
             ref={canvasRef}
             data-testid="source-document-pdf-canvas"
             aria-label={`Page ${pageNumber} of the received document`}
-            className="block max-w-full border border-border bg-surface"
+            className={`block border border-border bg-surface ${zoom > 1 ? "max-w-none" : "max-w-full"}`}
           />
           {marks?.map((m, i) => <SourceHighlight key={i} box={m} tone="look" />)}
           {box && <SourceHighlight box={box} />}
@@ -203,30 +217,6 @@ function PdfPageCanvas({ doc, pageNumber, box, marks, onPick }: { doc: PDFDocume
         </div>
       )}
     </div>
-  );
-}
-
-function PagerButton({
-  children,
-  disabled,
-  onClick,
-  label,
-}: {
-  children: React.ReactNode;
-  disabled: boolean;
-  onClick: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      className="inline-flex h-6 w-6 items-center justify-center rounded border border-border text-ink-muted disabled:opacity-40"
-    >
-      {children}
-    </button>
   );
 }
 

@@ -15,8 +15,8 @@ export interface DocumentEdits {
   type(target: EditTarget, value: string): void;
   /** Enter or leaving a box: save now; never throws. */
   commit(): void;
-  /** After flush; locks the values while it runs. */
-  rows(req: Pick<EditValuesRequest, "addRowToTables" | "removeRows">): Promise<void>;
+  /** After flush; locks the values while it runs. Resolves false when the rows did not change. */
+  rows(req: Pick<EditValuesRequest, "addRowToTables" | "removeRows">): Promise<boolean>;
   state: SaveState;
   /** The connection failure behind "failed". */
   error: unknown;
@@ -57,6 +57,7 @@ export function useDocumentEdits(documentId: string): DocumentEdits {
       await qc.cancelQueries({ queryKey: ["document", documentId] });
       qc.setQueryData(["document", documentId], answer);
       qc.invalidateQueries({ queryKey: ["document-history", documentId] });
+      qc.invalidateQueries({ queryKey: ["output-preview", documentId] });
       // A saved value can change a list row: its number, sender, checks or status.
       qc.invalidateQueries({ queryKey: ["documents"] });
       const sent = new Map<string, string | null>([
@@ -91,8 +92,8 @@ export function useDocumentEdits(documentId: string): DocumentEdits {
   const commit = useCallback(() => { flush().catch(() => {}); }, [flush]);
 
   const rows = useCallback(async (req: Pick<EditValuesRequest, "addRowToTables" | "removeRows">) => {
-    try { await flush(); } catch { return; }   // the unsaved values say so with their own Try again
-    try { await rowChange.mutateAsync(req); } catch (e) { setRefusal(documentRefusalMessage(e)); }
+    try { await flush(); } catch { return false; }   // the unsaved values say so with their own Try again
+    try { await rowChange.mutateAsync(req); return true; } catch (e) { setRefusal(documentRefusalMessage(e)); return false; }
   }, [flush, rowChange]);
 
   /** A refused save resolves inside the hook (the values can no longer change), but a caller waiting to send must not go on. */
