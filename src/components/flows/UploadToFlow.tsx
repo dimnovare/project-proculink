@@ -274,7 +274,7 @@ export function UploadToFlow() {
         <UsageLine billing={billing.data} />
         {photo && target && (
           <PhotoCheck
-            file={photo} flows={[]} flowId="" lastUsedId={null} onFlow={() => {}}
+            file={photo}
             onBack={() => setPhoto(null)} onRetake={() => { setPhoto(null); camera.open(); }} onUse={() => { add([photo], target); setPhoto(null); }}
           />
         )}

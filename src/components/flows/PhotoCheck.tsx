@@ -4,9 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
-import type { Flow } from "@/lib/api/documents";
 import { PHOTO_ACCEPT } from "@/lib/fileKinds";
-import { FlowChoice } from "./FlowChoice";
 
 const two = (n: number) => String(n).padStart(2, "0");
 
@@ -35,15 +33,11 @@ export function useCamera(onPhoto: (file: File) => void, testId: string) {
 }
 
 /** "Check the photo", over the whole screen and the tab bar. onUse runs once however often it is pressed. */
-export function PhotoCheck({ file, flows, flowId, lastUsedId, onFlow, onBack, onRetake, onUse }: {
-  file: File; flows: readonly Flow[]; flowId: string; lastUsedId: string | null;
-  onFlow(id: string): void; onBack(): void; onRetake(): void; onUse(): void;
-}) {
+export function PhotoCheck({ file, onBack, onRetake, onUse }: { file: File; onBack(): void; onRetake(): void; onUse(): void }) {
   const panelRef = useRef<HTMLDivElement>(null);
   useDialogA11y({ open: true, onClose: onBack, panelRef });
   const titleId = useId();
   const used = useRef(false);
-  const [changing, setChanging] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
   // Created and revoked in the same effect so a StrictMode remount gets a fresh URL (as ImageDocumentView does).
   useEffect(() => {
@@ -51,7 +45,6 @@ export function PhotoCheck({ file, flows, flowId, lastUsedId, onFlow, onBack, on
     setUrl(u);
     return () => URL.revokeObjectURL(u);
   }, [file]);
-  const flow = flows.find((f) => f.id === flowId);
 
   return (
     <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="fixed inset-0 z-modal flex flex-col bg-surface">
@@ -65,20 +58,6 @@ export function PhotoCheck({ file, flows, flowId, lastUsedId, onFlow, onBack, on
         {url && <img src={url} alt="The photo you took" className="min-h-0 max-h-full max-w-full rounded-[8px] object-contain" />}
         <p className="m-0 max-w-[300px] text-center text-[14.5px] text-navy-text">Make sure the whole page is in the picture and the text is sharp.</p>
       </div>
-      {/* R26: with no flow found there is no name to print and nothing to change to. */}
-      {flow && (
-        <div className="flex min-h-[56px] items-center gap-2 bg-surface pl-4 pr-1.5">
-          <span className="text-[14px] text-ink-muted">Goes to</span>
-          <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-ink">{flow.name}</span>
-          <button type="button" aria-label="Change the flow this photo goes to" aria-expanded={changing} onClick={() => setChanging((c) => !c)}
-            className="min-h-[44px] px-2.5 text-[14px] font-semibold text-brand-blue">Change</button>
-        </div>
-      )}
-      {flow && changing && (
-        <div className="max-h-[40vh] overflow-auto bg-surface px-4 pb-3">
-          <FlowChoice compact flows={flows} value={flowId} lastUsedId={lastUsedId} onChange={onFlow} onDone={() => setChanging(false)} />
-        </div>
-      )}
       <div className="flex gap-2.5 border-t border-border bg-surface px-4 pt-2.5" style={{ paddingBottom: "max(26px, env(safe-area-inset-bottom))" }}>
         <Button variant="secondary" className="!h-12 rounded-[10px] text-base" onClick={onRetake}>Retake</Button>
         <Button variant="blue" className="!h-12 flex-1 rounded-[10px] text-base"

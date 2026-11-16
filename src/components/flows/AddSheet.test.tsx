@@ -3,7 +3,6 @@ import { render, screen, fireEvent, within, waitFor } from "@testing-library/rea
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import type { DocumentSummary, Flow } from "@/lib/api/documents";
-import { rememberFlow } from "@/lib/lastFlow";
 import { AddSheet } from "./AddSheet";
 import { photoName } from "./PhotoCheck";
 import { UploadQueueProvider } from "./UploadQueue";
@@ -11,6 +10,7 @@ import { UploadQueueProvider } from "./UploadQueue";
 const api = vi.hoisted(() => ({
   listFlows: vi.fn<() => Promise<Flow[]>>(),
   uploadDocument: vi.fn<(flowId: string, file: File) => Promise<DocumentSummary>>(),
+  addDocument: vi.fn<(file: File) => Promise<DocumentSummary>>(),
 }));
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("@/lib/api/documents", () => api);
@@ -41,20 +41,17 @@ beforeEach(() => {
 });
 
 describe("AddSheet", () => {
-  it("picks files or photos for the last flow used, and for another flow when asked", async () => {
-    rememberFlow("f2");
+  it("offers a photo, a file or the photos, and sends a chosen file to the workspace", async () => {
     api.listFlows.mockResolvedValue([flow("f1", "Supplier invoices"), flow("f2", "Delivery notes")]);
-    api.uploadDocument.mockResolvedValue(summary("d1", "a.pdf"));
+    api.addDocument.mockResolvedValue(summary("d1", "a.pdf"));
     const onClose = vi.fn();
     const first = mount(<AddSheet onClose={onClose} />);
     const sheet = within(await screen.findByRole("dialog", { name: "Add a document" }));
     for (const name of ["Take a photo", "Choose a file", "Choose from your photos", "Close"]) expect(sheet.getByRole("button", { name })).toBeInTheDocument();
     expect(screen.getByTestId("sheet-photos-input")).toHaveAttribute("accept", "image/jpeg,image/png");
-    fireEvent.click(sheet.getByRole("button", { name: "Goes to Delivery notes, last used. Choose another flow" }));
-    fireEvent.click(sheet.getByRole("radio", { name: /^Supplier invoices/ }));
-    expect(sheet.getByRole("button", { name: "Goes to Supplier invoices. Choose another flow" })).toHaveAttribute("aria-expanded", "false");
     fireEvent.change(screen.getByTestId("sheet-file-input"), { target: { files: [new File(["x"], "a.pdf")] } });
-    await waitFor(() => expect(api.uploadDocument).toHaveBeenCalledWith("f1", expect.objectContaining({ name: "a.pdf" })));
+    await waitFor(() => expect(api.addDocument).toHaveBeenCalledWith(expect.objectContaining({ name: "a.pdf" })));
+    expect(api.uploadDocument).not.toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith("/upload");
     expect(onClose).toHaveBeenCalledTimes(1);
     first.unmount();
@@ -65,12 +62,13 @@ describe("AddSheet", () => {
     expect(plain.queryByRole("button", { name: "Choose from your photos" })).toBeNull();
   });
 
-  it("checks a photo before it is sent: Back returns to the sheet, Retake takes another, Use this photo sends it once", async () => {
-    api.listFlows.mockResolvedValue([flow("f1", "Supplier invoices")]);
-    api.uploadDocument.mockResolvedValue(summary("d1", "photo.jpg"));
+  it("a photo checked in the sheet goes to the workspace, once, with no flow to choose", async () => {
+    api.listFlows.mockResolvedValue([flow("f1", "Supplier invoices"), flow("f2", "Delivery notes")]);
+    api.addDocument.mockResolvedValue(summary("d1", "photo.jpg"));
     const click = vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => {});
     mount(<AddSheet onClose={() => {}} />);
     const sheet = within(await screen.findByRole("dialog", { name: "Add a document" }));
+    expect(sheet.queryByRole("button", { name: /^Goes to/ })).toBeNull();
     const camera = screen.getByTestId("sheet-camera-input");
     expect(camera).toHaveAttribute("capture", "environment");
     fireEvent.click(sheet.getByRole("button", { name: "Take a photo" }));
@@ -90,11 +88,13 @@ describe("AddSheet", () => {
     expect(screen.getByRole("dialog", { name: "Add a document" })).toBeInTheDocument();
     shoot();
     check = within(screen.getByRole("dialog", { name: "Check the photo" }));
+    expect(check.queryByRole("button", { name: /^Change/ })).toBeNull();
     const use = check.getByRole("button", { name: "Use this photo" });
     fireEvent.click(use);
     fireEvent.click(use);
-    await waitFor(() => expect(api.uploadDocument).toHaveBeenCalledTimes(1));
-    expect(api.uploadDocument.mock.calls[0][1].name).toMatch(/^photo-\d{8}-\d{6}\.jpg$/);
+    await waitFor(() => expect(api.addDocument).toHaveBeenCalledTimes(1));
+    expect(api.uploadDocument).not.toHaveBeenCalled();
+    expect(api.addDocument.mock.calls[0][0].name).toMatch(/^photo-\d{8}-\d{6}\.jpg$/);
     expect(push).toHaveBeenCalledWith("/upload");
     expect(photoName(new Date(2026, 10, 15, 9, 3, 7), "image/png")).toBe("photo-20261115-090307.png");
   });

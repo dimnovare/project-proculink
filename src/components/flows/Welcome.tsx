@@ -176,7 +176,7 @@ export function Welcome({ flows, flowId }: { flows: readonly Flow[]; flowId?: st
       </div>
       {photo && (
         <PhotoCheck
-          file={photo} flows={known ? [known] : []} flowId={known?.id ?? ""} lastUsedId={null} onFlow={() => {}}
+          file={photo}
           onBack={() => setPhoto(null)} onRetake={() => { setPhoto(null); camera.open(); }} onUse={() => { go(photo); setPhoto(null); }}
         />
       )}
