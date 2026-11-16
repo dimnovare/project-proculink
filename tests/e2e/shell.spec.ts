@@ -163,4 +163,15 @@ test.describe("app shell", () => {
       expect(shown, `at ${width}`).toEqual({ tabs: mode === "tabs", menu: mode === "menu", links: mode === "links" });
     }
   });
+
+  test("at a tablet width the navigation panel lights Documents on a document's review", async ({ page }) => {
+    await preparePage(page, { dismissCookieBanner: true });
+    await page.setViewportSize({ width: 900, height: 900 });
+    await page.goto(DOCUMENT_URL);
+    await settle(page);
+    await page.getByRole("button", { name: "Open navigation" }).click();
+    const lit = page.getByRole("dialog", { name: "Navigation" }).locator('[aria-current="page"]');
+    await expect(lit).toHaveCount(1);
+    await expect(lit).toHaveText(/^\s*Documents/);
+  });
 });

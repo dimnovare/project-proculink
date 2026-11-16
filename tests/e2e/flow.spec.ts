@@ -331,6 +331,20 @@ test.describe("flow page", () => {
     expect(await sends(page)).toEqual([]);
   });
 
+  test("Arrives names the + button on a phone and the top bar's Upload from 768 up", async ({ page }) => {
+    const PHONE = "Or add a file with the + button at the bottom of the screen.";
+    const WIDE = "Or drop a file on this flow's Documents page, or press Upload in the top bar.";
+    await open(page, 390, at("arrives"));
+    for (const [width, shown, hidden] of [[390, PHONE, WIDE], [1440, WIDE, PHONE]] as const) {
+      await page.setViewportSize({ width, height: width < 768 ? 844 : 900 });
+      await page.goto(at("arrives"));
+      await settle(page);
+      const main = page.locator("#main-content");
+      await expect(main.getByText(shown, { exact: true }), `at ${width}`).toBeVisible();
+      await expect(main.getByText(hidden, { exact: true }), `at ${width}`).toBeHidden();
+    }
+  });
+
   const WIDTHS = [1440, 1024, 768, 390, 360] as const;
   const VIEWS = ["arrives", "read", "check", "send", "documents"] as const;
 
