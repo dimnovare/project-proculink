@@ -33,6 +33,9 @@ export function kindSentence(kind: string | null | undefined, sender: string | n
   return `${article(words)} ${words}${tail}`;
 }
 
+/** The kind sentence for a caller that joins more words to it ("…, 2 h ago"): the sender's own full stop goes, so nothing reads ".," (P13). */
+export const kindClause = (kind: string | null | undefined, sender: string | null | undefined) => kindSentence(kind, sender?.trim().replace(/\.$/, ""));
+
 /** Is this document in the inbox? undefined = not known, which draws neither the inbox answers nor Send. */
 export const inInbox = (summary: Pick<DocumentRow, "flowId" | "inInbox">, inbox: Inbox | undefined): boolean | undefined =>
   summary.inInbox ?? (inbox ? summary.flowId === inbox.flowId : undefined);

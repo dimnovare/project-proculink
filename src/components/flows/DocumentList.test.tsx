@@ -11,7 +11,7 @@ vi.mock("@/lib/api/documents", () => ({ sendDocument }));
 const row = (over: Partial<DocumentRow> = {}): DocumentRow => ({
   id: "d1", flowId: "f1", flowName: "Supplier invoices", fileName: "invoice-2291.pdf", status: "needs_review", statusReason: null,
   pageCount: null, billingUnits: 1, failedChecks: 0, createdAt: "2026-11-01T10:00:00Z", source: "upload", sourceRef: null,
-  number: null, sender: null, checks: [], sentAt: null, failedAt: null, stop: null, isSample: false, ...over,
+  number: null, sender: null, checks: [], sentAt: null, failedAt: null, stop: null, isSample: false, inInbox: false, ...over,
 });
 
 const tree = (qc: QueryClient, status = "ready") => (
@@ -61,6 +61,32 @@ describe("DocumentList", () => {
     expect(sentRow).not.toHaveTextContent("Sending");
     rerender(<QueryClientProvider client={qc}><DocumentList label="Documents: Needs you" showFlow sendable documents={[row({ id: "b" })]} /></QueryClientProvider>);
     expect(table.queryByRole("row", { name: /PO-48213\.pdf/ })).toBeNull();   // the server stopped listing it: the row goes
+  });
+
+  it("says what each document is, and a downloaded one is not sent", () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DocumentList label="Documents: All" showFlow sendable documents={[
+          row({ id: "i", fileName: "invoice-2292.pdf", kind: "Invoice", sender: "Example Supplier Ltd", number: "2292", inInbox: false }),
+          row({ id: "n", fileName: "statement.pdf", flowId: "inbox", flowName: "New documents", statusReason: "new_kind", kind: null, inInbox: true, createdAt: "2026-11-02T10:00:00Z" }),
+          row({ id: "d", fileName: "remittance.pdf", status: "sent", statusReason: "downloaded", inInbox: true, createdAt: "2026-10-30T10:00:00Z" }),
+        ]} />
+      </QueryClientProvider>,
+    );
+    const table = within(screen.getByRole("table", { name: "Documents: All" }));
+    const invoice = table.getByRole("row", { name: /invoice-2292\.pdf/ });
+    expect(within(invoice).getByText("An invoice from Example Supplier Ltd")).toBeInTheDocument();
+    const inbox = within(table.getByRole("row", { name: /statement\.pdf/ })).getAllByRole("cell");
+    expect(inbox[1]).toHaveTextContent(/^New documents$/);
+    expect(inbox[2]).toHaveTextContent("New kind");
+    expect(inbox[5]).toHaveTextContent(/^Open$/);
+    const downloaded = within(table.getByRole("row", { name: /remittance\.pdf/ })).getAllByRole("cell");
+    expect(downloaded[2]).toHaveTextContent("Downloaded");
+    expect(downloaded.filter((c) => /\bSent\b/.test(c.textContent ?? ""))).toEqual([]);
+    const phone = within(screen.getByTestId("documents-phone-list"));
+    const phoneInvoice = within(phone.getByRole("link", { name: /invoice-2292\.pdf/ }));
+    expect(phoneInvoice.getByText("An invoice from Example Supplier Ltd")).toBeInTheDocument();
+    expect(phoneInvoice.queryByText("Supplier invoices")).toBeNull();
   });
 
   it("a refused send says why on the row and keeps Send", async () => {

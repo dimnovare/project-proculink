@@ -3,7 +3,7 @@ import { ApiHttpError } from "@/lib/api/core";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { rowNeed, type ListedDocument } from "@/components/flows/DocumentList";
-import { inInbox, kindSentence } from "./documentKind";
+import { inInbox, kindClause, kindSentence } from "./documentKind";
 
 const row: ListedDocument = {
   id: "d", flowId: "f", flowName: "Supplier invoices", fileName: "invoice-2292.pdf", status: "received", statusReason: null,
@@ -28,6 +28,8 @@ describe("documentKind", () => {
       ["Bill of materials", null, "A bill of materials"], ["ASNs", "Sample Traders Ltd", "ASNs from Sample Traders Ltd"], ["Bonus", null, "A bonus"],
     ];
     for (const [kind, sender, said] of cases) expect(kindSentence(kind, sender), kind).toBe(said);
+    // P13: joined to more words by a comma, a sender's own full stop goes, so nothing reads ".,".
+    expect(`${kindClause("Statement", "Example Bank Ltd.")}, 2 h ago`).toBe("A statement from Example Bank Ltd, 2 h ago");
     expect(inInbox({ flowId: "f", inInbox: undefined }, undefined)).toBeUndefined();
     expect(inInbox({ flowId: "f", inInbox: false }, { flowId: "f", address: null, intakeId: null })).toBe(false);
     expect(inInbox({ flowId: "f" }, { flowId: "f", address: null, intakeId: null })).toBe(true);

@@ -8,6 +8,7 @@ import { Button, Pill, buttonClass } from "@/components/bridge/DSPrimitives";
 import { relativeTime } from "@/lib/relativeTime";
 import { DOCUMENT_STATUSES, documentStatus, WHOLE_DOCUMENT_CHECKS, type DocumentStatusRow } from "@/lib/documentStatusManifest";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { kindSentence } from "@/lib/documentKind";
 import { sendDocument, type DocumentRow, type DocumentSummary } from "@/lib/api/documents";
 import { BULK_SEND_KEY } from "./SelectionBar";
 
@@ -74,6 +75,7 @@ function Row({ d, showFlow, sendable, columns, onSent, selection }: {
   // While the selection bar is sending or downloading, a row's own Send waits.
   const bulk = useIsMutating({ mutationKey: BULK_SEND_KEY }) > 0;
   const need = rowNeed(d);
+  const line = kindSentence(d.kind, d.sender);
   const ticked = !!selection?.ids.has(d.id);
   return (
     <div role="row" className={`relative grid min-h-[64px] items-center gap-3 border-t border-border px-3 py-2 ${ticked ? "bg-brand-blue-soft" : "hover:bg-surface-2"}`} style={{ gridTemplateColumns: columns }}>
@@ -83,6 +85,7 @@ function Row({ d, showFlow, sendable, columns, onSent, selection }: {
           <Link href={href(d)} className="min-w-0 truncate text-[14.5px] font-semibold text-ink after:absolute after:inset-0">{d.fileName}</Link>
           {d.isSample && <Pill>Sample</Pill>}
         </div>
+        {line && <div className="truncate text-[12.5px] text-ink-muted">{line}</div>}
         {d.number && <div className="truncate font-mono text-[12.5px] text-ink-muted">{d.number}</div>}
       </div>
       {showFlow && <div role="cell" className="min-w-0 truncate text-[13px] text-ink-muted">{d.flowName}</div>}
@@ -93,7 +96,10 @@ function Row({ d, showFlow, sendable, columns, onSent, selection }: {
       <div role="cell"><StatusJourney stage={documentStatus(d.status, d.statusReason).stage} compact /></div>
       <div role="cell" className="text-[13px] text-ink-muted">{received(d)}</div>
       <div role="cell" className="text-right">
-        {d.status === "ready" && sendable && !selection ? (
+        {d.inInbox && (d.status === "needs_review" || d.status === "ready") ? (
+          // An inbox document is answered on its own screen, never sent from a row; one not known to be sorted is not sent either.
+          <span aria-hidden className={buttonClass("secondary", "sm")}>Open</span>
+        ) : d.status === "ready" && sendable && !selection && d.inInbox === false ? (
           <Button variant="secondary" size="sm" aria-label={`Send ${d.fileName}`} loading={send.isPending || bulk} onClick={() => send.mutate()}
             className="relative z-[1] !border-brand-green-deep !text-brand-green-deep">Send</Button>
         ) : d.status === "needs_review" ? (
@@ -151,6 +157,8 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
       <ul data-testid="documents-phone-list" aria-label={label} className="m-0 list-none p-0 lg:hidden">
         {drawn.map((d) => {
           const need = rowNeed(d);
+          // R17: one second line, what it is when known, otherwise where it is.
+          const line = kindSentence(d.kind, d.sender) ?? (showFlow ? d.flowName : null);
           return (
             <li key={d.id} className={`border-t border-border first:border-t-0 ${selection ? "flex items-stretch" : ""} ${selection?.ids.has(d.id) ? "bg-brand-blue-soft" : ""}`}>
               {selection && <Tick d={d} selection={selection} className="w-11 pl-2" />}
@@ -161,7 +169,7 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
                     <span data-testid="document-name" className="min-w-0 truncate text-[16px] font-semibold">{d.fileName}</span>
                     <span className="shrink-0 text-[13px] text-ink-muted">{received(d)}</span>
                   </div>
-                  {showFlow && <span className="truncate text-[14px] text-ink-muted">{d.flowName}</span>}
+                  {line && <span className="truncate text-[14px] text-ink-muted">{line}</span>}
                   <div className="flex flex-wrap gap-2">
                     <Pill tone={need.tone}>{need.text}</Pill>
                     {d.isSample && <Pill>Sample</Pill>}

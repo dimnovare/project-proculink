@@ -17,6 +17,7 @@ import { isChord } from "@/lib/shortcuts";
 import { listDocumentPage, listLookups, type DocumentRow, type Flow, type LookupSummary } from "@/lib/api/documents";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { documentHref } from "@/lib/reviewQueue";
+import { kindClause } from "@/lib/documentKind";
 import { pageTotal } from "@/lib/pageTotal";
 import { rowNeed } from "@/components/flows/DocumentList";
 import { Pill } from "./DSPrimitives";
@@ -112,7 +113,8 @@ export function CommandPalette({ onClose, onShortcuts }: { onClose: () => void; 
       heading: total !== undefined && total > rows.length ? `Documents, the newest ${rows.length} of ${total}` : "Documents",
       options: rows.map((d: DocumentRow) => ({
         id: `doc-${d.id}`, found: true, label: d.fileName, href: documentHref(d), icon: icon(FileText), tag: rowNeed(d),
-        sub: d.sender ? `From ${d.sender}, in ${d.flowName}` : `In ${d.flowName}`,
+        // R18: what it is, then where; "In {flow}" when neither its kind nor its sender is known.
+        sub: ((what) => (what ? `${what}, in ${d.flowName}` : `In ${d.flowName}`))(kindClause(d.kind, d.sender)),
       })),
     });
   }

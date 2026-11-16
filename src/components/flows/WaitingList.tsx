@@ -7,6 +7,7 @@ import type { DocumentPage } from "@/lib/api/documents";
 import { pageTotal } from "@/lib/pageTotal";
 import { relativeTime } from "@/lib/relativeTime";
 import { documentHref } from "@/lib/reviewQueue";
+import { kindClause, kindSentence } from "@/lib/documentKind";
 import { rowNeed } from "./DocumentList";
 
 /**
@@ -33,7 +34,7 @@ export function WaitingList({ queue, currentId }: { queue: DocumentPage; current
                 className={`grid gap-0.5 rounded-md px-2.5 py-2 no-underline ${here ? "bg-brand-blue-soft" : "hover:bg-surface-2"}`}
               >
                 <span className="truncate text-[13px] font-semibold text-ink">{d.fileName}</span>
-                <span className="truncate text-[12.5px] text-ink-muted">{d.flowName}{when && `, ${when}`}</span>
+                <span className="truncate text-[12.5px] text-ink-muted">{(kindSentence(d.kind, null) && kindClause(d.kind, d.sender)) || d.flowName}{when && `, ${when}`}</span>
                 <span className="min-w-0 [&>*]:max-w-full [&>*]:truncate"><Pill tone={need.tone}>{need.text}</Pill></span>
               </Link>
             </li>
