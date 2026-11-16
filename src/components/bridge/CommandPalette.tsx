@@ -98,6 +98,7 @@ export function CommandPalette({ onClose, onShortcuts }: { onClose: () => void; 
     { id: "upload", label: "Upload a document", href: "/upload", icon: icon(Upload) },
     { id: "new-flow", label: "New flow", href: "/flows/new", icon: icon(Plus) },
     { id: "activity", label: "Open Activity", href: "/operations/log", icon: icon(Activity) },
+    { id: "lookups", label: "Open Lookups", href: "/lookups", icon: icon(Table2) },
     { id: "shortcuts", label: "Keyboard shortcuts", run: onShortcuts, icon: icon(Keyboard) },
     { id: "settings", label: "Settings", href: "/settings", icon: icon(Settings) },
     { id: "help", label: "Open help", href: "/help", icon: icon(LifeBuoy) },

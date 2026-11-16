@@ -17,7 +17,7 @@ import { useHelpPanel } from "./HelpPanel";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { ShortcutsSheet } from "./ShortcutsSheet";
 import { UserChipMenu } from "./UserChipMenu";
-import { buildVisibleNav, isItemActive, PINNED_ACTION_HREF } from "./BridgeSidebar";
+import { buildVisibleNav, isTopBarActive, PINNED_ACTION_HREF, TOP_BAR_HREFS } from "./BridgeSidebar";
 
 interface BridgeTopbarProps {
   onMenuClick?: () => void;
@@ -27,7 +27,7 @@ interface BridgeTopbarProps {
 
 // ─── Page links (top bar, lg+) ───────────────────────────────────────────────
 // Structure, gating and active state are REUSED from BridgeSidebar
-// (buildVisibleNav / isItemActive) so the bar and the navigation panel can
+// (buildVisibleNav / isTopBarActive) so the bar and the navigation panel can
 // never drift.
 
 /**
@@ -49,7 +49,7 @@ function useTopNav() {
   const isAdmin = adminAccess === true;
   const { main, tail } = useMemo(() => buildVisibleNav(isAdmin), [isAdmin]);
   // Flatten grouped sections into a single ordered list for the horizontal row.
-  const items = useMemo(() => main.flatMap((s) => s.items), [main]);
+  const items = useMemo(() => main.flatMap((s) => s.items).filter((i) => TOP_BAR_HREFS.includes(i.href)), [main]);
 
   return { items, tail, pathname };
 }
@@ -122,7 +122,7 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
 
         <nav aria-label="Main" data-testid="topbar-nav" className="hidden shrink-0 self-stretch lg:flex">
           {navItems.map((item) => {
-            const active = isItemActive(pathname, item);
+            const active = isTopBarActive(pathname, item);
             return (
               <Link
                 key={item.href}

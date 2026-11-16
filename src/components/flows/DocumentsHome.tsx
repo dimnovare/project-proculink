@@ -222,6 +222,11 @@ export function DocumentsHome() {
           <button type="button" onClick={openSearch} className="inline-flex items-center font-medium text-brand-blue-deep underline">Search all documents</button>
           {pagePopulation(anyOldOrders.data).rows > 0 && <> or open <Link href="/archive" className="inline-flex items-center font-medium text-brand-blue-deep underline">Old orders</Link></>}.
         </p>
+        {/* R20: Activity is not in the top bar; it is reached from here. The page keeps its title "Activity" for now. */}
+        <p className="m-0 text-[13px] text-ink-muted">
+          What happened to each document, and when, is in{" "}
+          <Link href="/operations/log" className="inline-flex items-center font-medium text-brand-blue-deep underline">History</Link>.
+        </p>
         <p className="m-0 hidden text-[13px] text-ink-muted md:block">{`Press ${keyWord("Mod", apple)} K to find any document, flow or lookup.`}</p>
       </div>
     );

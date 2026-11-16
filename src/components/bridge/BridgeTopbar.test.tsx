@@ -24,12 +24,20 @@ describe("BridgeTopbar", () => {
     expect(document.querySelector("header")!.querySelectorAll("nav")).toHaveLength(1);
   });
 
-  it("is one row: one Main navigation with the five pages in order, and Upload", () => {
+  it("is one row: one Main navigation with three places, and Upload", () => {
+    // A page the bar does not carry lights the place it is reached from.
+    for (const [path, lit] of [["/lookups", "Flows"], ["/lookups/l1", "Flows"], ["/operations/log", "Documents"]]) {
+      mockPath = path;
+      render(<BridgeTopbar />);
+      const main = screen.getByRole("navigation", { name: "Main" });
+      expect(within(main).getAllByRole("link").filter((a) => a.getAttribute("aria-current") === "page").map((a) => a.textContent), path).toEqual([lit]);
+      cleanup();
+    }
     mockPath = "/flows";
     render(<BridgeTopbar />);
     const nav = screen.getByRole("navigation", { name: "Main" });
     expect(within(nav).getAllByRole("link").map((a) => [a.textContent, a.getAttribute("href")])).toEqual([
-      ["Documents", "/documents"], ["Flows", "/flows"], ["Lookups", "/lookups"], ["Activity", "/operations/log"], ["Settings", "/settings"],
+      ["Documents", "/documents"], ["Flows", "/flows"], ["Settings", "/settings"],
     ]);
     expect(within(nav).getByRole("link", { name: "Flows" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Upload a document" })).toHaveAttribute("href", "/upload");

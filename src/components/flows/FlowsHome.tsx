@@ -141,6 +141,11 @@ export function FlowsHome() {
           <h2 id="flows-heading" className="m-0 px-4 pb-2 pt-3.5 text-[14px] font-semibold text-ink">Your flows</h2>
           <FlowRows flows={flows.data} />
         </Card>
+        {/* R20: Lookups is not in the top bar; it is reached from here. */}
+        <p className="m-0 text-[13px] text-ink-muted">
+          The lists your flows use to change values are in{" "}
+          <Link href="/lookups" className="inline-flex items-center font-semibold underline">Lookups</Link>.
+        </p>
         {plan && typeof limit === "number" && (
           <p className="m-0 text-[13px] text-ink-muted">
             {`${flows.data.length} of ${limit} flows on ${planName(plan)}. Need more? `}
