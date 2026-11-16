@@ -169,12 +169,19 @@ describe("DocumentsHome", () => {
     expect(screen.queryByText(/being read/)).toBeNull();
   });
 
-  it("says you're all caught up when nothing needs you", async () => {
+  it("says you're all caught up when nothing needs you, and what a filter with nothing in it means", async () => {
     search.q = "show=needs-you";
     answers({ needs: 0, sent: 4 });
-    mount();
+    const first = mount();
     expect(await screen.findByRole("heading", { name: "You're all caught up." })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Upload a document" })).toHaveAttribute("href", "/upload");
+    first.unmount();
+    search.q = "show=failed";
+    mount();
+    expect(await screen.findByRole("heading", { name: "Nothing has failed." })).toBeInTheDocument();
+    expect(screen.getByText("Documents we couldn't read or couldn't send show here.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Show all documents" })).toHaveAttribute("href", "/documents?show=all");
+    expect(screen.queryByText("No documents here.")).toBeNull();
   });
 
   it("keeps the stopped alert above the tabs through a failed refresh, and closes a whole needs-you list", async () => {
