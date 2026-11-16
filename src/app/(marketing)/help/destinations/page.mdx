@@ -3,25 +3,25 @@ import { helpArticleMetadata } from "@/lib/seo";
 export const metadata = helpArticleMetadata({
   slug: "destinations",
   title: "Destinations — ProcuLink Help",
-  description: "Where a flow sends its output: email, a web address, an SFTP or FTPS server, an S3 bucket, Google Drive, Google Sheets, or a download.",
+  description: "Where a flow sends its file: email, a web address, an SFTP or FTPS server, an S3 bucket, Google Drive, Google Sheets, or a download.",
 });
 
 # Destinations
 
-Where a flow sends its output: email, a web address, an SFTP or FTPS server, an S3 bucket, Google Drive, Google Sheets, or a download.
+Where a flow sends its file: email, a web address, an SFTP or FTPS server, an S3 bucket, Google Drive, Google Sheets, or a download.
 
-A destination is a place an output goes. You set one up once and any output in your workspace can use it. Only a workspace admin can create one. You create a destination from an output: in the **Send to** list, choose **New destination…**. See [Send outputs to a destination](/help/guides/send-to-a-destination).
+A destination is a place a file goes. You set one up once and any file in your workspace can use it. Only a workspace admin can create one. You create a destination while you set up a file: in the **Send to** list, choose **New destination…**. See [Send files to a destination](/help/guides/send-to-a-destination).
 
 ## The kinds
 
 - **Download only.** Nothing is sent. The file is kept for you to download from the document. It shows as **Ready to download**.
-- **Email.** The output goes as an attachment to the addresses you list. You can add a reply-to address. The email comes from ProcuLink's sender address. It uses the **Subject** and **Message** you enter. Left blank, ProcuLink uses a default subject (the flow name and the file name) and a short message. A test send puts `[TEST]` in front of the subject. The attachment is named after the document.
+- **Email.** The file goes as an attachment to the addresses you list. You can add a reply-to address. The email comes from ProcuLink's sender address. It uses the **Subject** and **Message** you enter. Left blank, ProcuLink uses a default subject (the flow name and the file name) and a short message. A test send puts `[TEST]` in front of the subject. The attachment is named after the document.
 - **Web address (API).** We send the file to your URL with a POST or a PUT request. The file is the body of the request, with its own content type.
 - **SFTP.** We upload the file to a folder on your server. You sign in with a password or a private key.
 - **FTPS.** The same, over FTP with explicit TLS.
 - **S3 bucket.** We put the file in a folder of your bucket, on Amazon S3 or a service that works like it.
 - **Google Drive.** The file goes to a folder you choose.
-- **Google Sheets.** Each send adds the rows of a CSV output to the end of a sheet.
+- **Google Sheets.** Each send adds the rows of a CSV file to the end of a sheet.
 
 A destination needs a name, and the details for its kind. Passwords, keys and tokens are kept encrypted. See [Destination sign-in, keys and signing](/help/destination-sign-in).
 
@@ -37,13 +37,13 @@ A delivery counts as **Delivered** when the destination accepted it:
 - **SFTP and FTPS.** The upload finished. We write the file under a temporary name and rename it when it is whole, so your system never sees half a file.
 - **Email.** Our email service accepted the message. We cannot see whether anyone opened it.
 
-A document is **Sent** when every one of its outputs is delivered or ready to download. See [Documents and statuses](/help/documents-and-statuses).
+A document is **Sent** when every one of its files is delivered or ready to download. See [Documents and statuses](/help/documents-and-statuses).
 
 ## If a send fails
 
 We try again, up to three attempts in all. The second attempt comes about 30 minutes after the first, and the third about an hour after the second, each up to a fifth later. If the destination asks us to wait longer, we wait at least that long.
 
-While we wait, the delivery shows **Will retry** and the reason it failed. After the third failure it shows **Couldn't deliver** and the document shows **Couldn't send**. Fix the problem, then press **Send and open next** on the document again. Outputs already delivered are not sent twice.
+While we wait, the delivery shows **Will retry** and the reason it failed. After the third failure it shows **Couldn't deliver** and the document shows **Couldn't send**. Fix the problem, then press **Send and open next** on the document again. Files already delivered are not sent twice.
 
 Some failures are not tried again: the destination was deleted, its saved password cannot be read, or an earlier attempt may already have arrived. Check with the recipient before you send again in that last case.
 
@@ -51,9 +51,9 @@ Some failures are not tried again: the destination was deleted, its saved passwo
 
 When you set up a new flow, **Save and send a test** saves the destination and sends a small file marked `TEST_` that holds no document data. An email subject starts with `[TEST]`, and a web request carries an `X-ProcuLink-Test` header. A Google Sheets test adds no rows: it checks that we can open the spreadsheet and the tab you chose.
 
-An output built from documentation needs a passing test before it can be created. That test sends the output made from a real document in the flow, so it holds that document's values.
+A file built from documentation needs a passing test before it can be created. That test sends the file made from a real document in the flow, so it holds that document's values.
 
-You can also test a destination at any time under **Settings**, then **Destinations**. **Save and send a test** saves your changes and tests them in one go. When documents stopped because the destination failed, a passing test offers **Send it now** to send them again. See [Send outputs to a destination](/help/guides/send-to-a-destination).
+You can also test a destination at any time under **Settings**, then **Destinations**. **Save and send a test** saves your changes and tests them in one go. When documents stopped because the destination failed, a passing test offers **Send it now** to send them again. See [Send files to a destination](/help/guides/send-to-a-destination).
 
 ## Rules we apply
 

@@ -28,9 +28,9 @@ export interface SectionGuideEntry {
 
 const SET_UP_FIRST_FLOW = "/help/guides/set-up-your-first-flow";
 const FILES_WE_READ: HelpTask = { title: "Files we read", line: "The kinds of files we read, and what to expect from each.", href: "/help/what-we-read" };
-const BUILD_AN_OUTPUT: HelpTask = { title: "Build an output", line: "The file we make from each document, and its columns.", href: "/help/guides/build-an-output" };
+const BUILD_AN_OUTPUT: HelpTask = { title: "Make a file", line: "The file we make from each document, and its columns.", href: "/help/guides/build-an-output" };
 const IMPORT_A_LOOKUP: HelpTask = { title: "Import a lookup", line: "Make one from a table you already have.", href: "/help/guides/import-a-lookup" };
-const USE_A_LOOKUP: HelpTask = { title: "Use a lookup in an output", line: "Swap a column's value for the one the lookup gives.", href: "/help/lookups" };
+const USE_A_LOOKUP: HelpTask = { title: "Use a lookup in a file", line: "Swap a column's value for the one the lookup gives.", href: "/help/lookups" };
 const EMAIL_WHEN_NEEDED: HelpTask = { title: "Get an email when something needs you", line: "Choose what you are emailed about.", href: "/help/activity-and-notifications" };
 
 export const SECTION_GUIDES: SectionGuideEntry[] = [
@@ -90,7 +90,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
     tasks: [
       { title: "Publish your changes", line: "Publish a new version, or go back to an earlier one.", href: "/help/guides/publish-a-flow-version" },
       BUILD_AN_OUTPUT,
-      { title: "Send outputs to a destination", line: "Choose where each output goes, and send a test.", href: "/help/guides/send-to-a-destination" },
+      { title: "Send files to a destination", line: "Choose where each file goes, and send a test.", href: "/help/guides/send-to-a-destination" },
     ],
     startHere: "Changes you make here are a draft until you publish them.",
   },
@@ -102,7 +102,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       IMPORT_A_LOOKUP,
       USE_A_LOOKUP,
     ],
-    startHere: "Make a lookup from a table you already have, then use it in an output.",
+    startHere: "Make a lookup from a table you already have, then use it in a file.",
   },
   {
     route: "/lookups/[lookupId]",

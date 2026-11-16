@@ -45,14 +45,14 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
   });
 
   if (outputs.isError && !outputs.data) return <Failed error={outputs.error} retry={() => outputs.refetch()} />;
-  if (!outputs.data) return <Quiet>Loading outputs…</Quiet>;
+  if (!outputs.data) return <Quiet>Loading files…</Quiet>;
   const chosen = outputs.data.find((o) => o.id === outputId) ?? outputs.data[0];
   const preview = previewDocumentId ?? undefined;
 
   const ask = async (o: FlowOutput) => {
     if (deleting.current) return;
     deleting.current = true;
-    if (await confirm({ title: "Delete output", description: `Delete "${o.name}"? This cannot be undone.`, confirmLabel: "Delete", danger: true })) remove.mutate(o);
+    if (await confirm({ title: "Delete file", description: `Delete "${o.name}"? This cannot be undone.`, confirmLabel: "Delete", danger: true })) remove.mutate(o);
     else deleting.current = false;
   };
   const open = (o: FlowOutput) => {
@@ -66,11 +66,11 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
     <div className="grid gap-4 lg:grid-cols-[minmax(240px,300px)_minmax(0,1fr)] lg:items-start">
       <Card flush>
         <div className="grid gap-0.5 px-4 pt-3">
-          <h2 className="m-0 text-[16px] font-semibold text-ink">Outputs</h2>
-          <p className="m-0 text-[13px] text-ink-muted">Each output is one file made from every document in this flow.</p>
+          <h2 className="m-0 text-[16px] font-semibold text-ink">Files we make</h2>
+          <p className="m-0 text-[13px] text-ink-muted">For each document, we make this file.</p>
         </div>
         {outputs.data.length === 0 ? (
-          <div className="px-4 pt-3"><Quiet>No outputs yet.</Quiet></div>
+          <div className="px-4 pt-3"><Quiet>No file yet.</Quiet></div>
         ) : (
           <ul className="m-0 mt-2 list-none p-0">
             {outputs.data.map((o) => (
@@ -91,7 +91,7 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
             variant="secondary" className="w-full border-dashed border-brand-blue text-brand-blue" aria-expanded={adding}
             onClick={() => leave(() => setAdding(true))}
           >
-            Add an output
+            Make another file
           </Button>
         </div>
       </Card>
@@ -99,7 +99,7 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
       {adding ? (
         <OutputBuilder flow={flow} previewDocumentId={preview} onDone={() => setAdding(false)} onCreated={open} />
       ) : chosen ? (
-        <Card as="section" aria-label={`Edit the output ${chosen.name}`}>
+        <Card as="section" aria-label={`Edit the file ${chosen.name}`}>
           <div className="grid gap-4">
             <OutputEditor
               key={chosen.id} mode="draft" flow={flow} output={chosen} previewDocumentId={preview} previewFile={source.data?.summary.fileName}
@@ -107,7 +107,7 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
             />
             {remove.isError && <StatusNotice tone="error">{draftReason(remove.error)}</StatusNotice>}
             <div className="flex flex-wrap items-center gap-2 border-t border-border-faint pt-3">
-              <Button variant="ghost" loading={remove.isPending} onClick={() => ask(chosen)}>Delete this output</Button>
+              <Button variant="ghost" loading={remove.isPending} onClick={() => ask(chosen)}>Delete this file</Button>
               {!chosen.standard && (
                 <FlowLink href={`/flows/${flow.id}/outputs/${chosen.id}/advanced`} push className={buttonClass("ghost")}>Open in Advanced</FlowLink>
               )}

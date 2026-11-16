@@ -59,7 +59,7 @@ describe("LookupsHome", () => {
     expect(push).toHaveBeenCalledWith("/lookups/new-1");
     const banner = notice.closest("[data-notice-tone]") as HTMLElement;
     fireEvent.click(within(banner).getByRole("button", { name: "Undo" }));
-    expect(await screen.findByText("Couldn't undo. An output uses this lookup. Remove it from the output first.")).toBeTruthy();
+    expect(await screen.findByText("Couldn't undo. A file uses this lookup. Remove it from the file first.")).toBeTruthy();
     fireEvent.click(within(screen.getByText(/^Couldn't undo/).closest("[data-notice-tone]") as HTMLElement).getByRole("button", { name: "Undo" }));
     expect(await screen.findByText("Import undone. supplier-codes was deleted.")).toBeTruthy();
     expect(api.deleteLookup).toHaveBeenCalledTimes(2);

@@ -23,7 +23,7 @@ export type GuideSection =
   | "Get started"
   | "Check and teach"
   | "Send documents in"
-  | "Outputs and destinations"
+  | "Files and destinations"
   | "Lookups"
   | "Admin";
 
@@ -31,7 +31,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
   "Get started",
   "Check and teach",
   "Send documents in",
-  "Outputs and destinations",
+  "Files and destinations",
   "Lookups",
   "Admin",
 ];
@@ -41,7 +41,7 @@ export const SECTION_BLURB: Record<GuideSection, string> = {
   "Get started": "Set up a flow and take your first document through it.",
   "Check and teach": "Review what we read, teach a value, and publish changes to a flow.",
   "Send documents in": "Every way a document can reach a flow, set up step by step.",
-  "Outputs and destinations": "Build the output your system needs and send it on.",
+  "Files and destinations": "Build the file your system needs and send it on.",
   Lookups: "Translate values with a list you import.",
   Admin: "Internal runbooks. Visible only to ProcuLink admins.",
 };
@@ -170,9 +170,9 @@ export const GUIDES: Guide[] = [
   {
     slug: "build-an-output",
     href: "/help/guides/build-an-output",
-    title: "Build an output",
+    title: "Make a file",
     blurb: "Choose the fields and format your receiving system expects.",
-    section: "Outputs and destinations",
+    section: "Files and destinations",
     audience: "client",
     status: "live",
     minutes: 15,
@@ -181,9 +181,9 @@ export const GUIDES: Guide[] = [
   {
     slug: "build-an-output-from-a-sample",
     href: "/help/guides/build-an-output-from-a-sample",
-    title: "Build an output from a sample file",
-    blurb: "Upload a sample of the file your system expects and we propose the output to match.",
-    section: "Outputs and destinations",
+    title: "Make a file from a sample",
+    blurb: "Upload a sample of the file your system expects and we propose the file to match.",
+    section: "Files and destinations",
     audience: "client",
     status: "live",
     minutes: 10,
@@ -192,9 +192,9 @@ export const GUIDES: Guide[] = [
   {
     slug: "build-an-output-from-documentation",
     href: "/help/guides/build-an-output-from-documentation",
-    title: "Build an output from documentation",
-    blurb: "Upload your receiving system's documentation and we propose the output for you to check.",
-    section: "Outputs and destinations",
+    title: "Make a file from documentation",
+    blurb: "Upload your receiving system's documentation and we propose the file for you to check.",
+    section: "Files and destinations",
     audience: "client",
     status: "live",
     minutes: 10,
@@ -203,9 +203,9 @@ export const GUIDES: Guide[] = [
   {
     slug: "send-to-a-destination",
     href: "/help/guides/send-to-a-destination",
-    title: "Send outputs to a destination",
-    blurb: "Send a flow's output by email, to a web address, to an SFTP or FTPS server, to an S3 bucket, to Google Drive or Google Sheets, or as a download.",
-    section: "Outputs and destinations",
+    title: "Send files to a destination",
+    blurb: "Send a flow's file by email, to a web address, to an SFTP or FTPS server, to an S3 bucket, to Google Drive or Google Sheets, or as a download.",
+    section: "Files and destinations",
     audience: "client",
     status: "live",
     minutes: 15,

@@ -47,7 +47,7 @@ afterEach(() => { vi.useRealTimers(); vi.clearAllMocks(); });
 describe("FlowOutputs", () => {
   it("editing an output saves a draft, no Save button", async () => {
     mount();
-    const editor = within(await screen.findByRole("region", { name: "Edit the output Invoice CSV" }));
+    const editor = within(await screen.findByRole("region", { name: "Edit the file Invoice CSV" }));
     fireEvent.change(editor.getByRole("textbox", { name: "Column name, Item" }), { target: { value: "Code" } });
     await act(async () => { await vi.advanceTimersByTimeAsync(800); });
     await waitFor(() => expect(api.updateOutput).toHaveBeenCalledTimes(1));
@@ -59,7 +59,7 @@ describe("FlowOutputs", () => {
   it("send a test shows where it was pressed, and with nothing unpublished offers what was waiting", async () => {
     api.listDocumentPage.mockResolvedValue(waitingOne);
     mount();
-    const region = await screen.findByRole("region", { name: "Edit the output Invoice CSV" });
+    const region = await screen.findByRole("region", { name: "Edit the file Invoice CSV" });
     fireEvent.click(await within(region).findByRole("button", { name: "Send a test" }));
     await waitFor(() => expect(api.testOutput).toHaveBeenCalledTimes(1));
     expect(api.testOutput).toHaveBeenCalledWith("doc-1", expect.objectContaining({ destinationId: "dest-1", format: "csv" }));
@@ -70,7 +70,7 @@ describe("FlowOutputs", () => {
   it("after a test of unpublished changes, nothing waiting is offered to send", async () => {
     api.listDocumentPage.mockResolvedValue(waitingOne);
     mount({ ...flow, hasChanges: true });
-    const region = await screen.findByRole("region", { name: "Edit the output Invoice CSV" });
+    const region = await screen.findByRole("region", { name: "Edit the file Invoice CSV" });
     fireEvent.click(await within(region).findByRole("button", { name: "Send a test" }));
     expect(await within(region).findByText(/Test file arrived/)).toBeTruthy();
     expect(within(region).queryByRole("button", { name: "Send it now" })).toBeNull();

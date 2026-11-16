@@ -2,8 +2,8 @@ import { guideMetadata } from "@/lib/seo";
 
 export const metadata = guideMetadata({
   slug: "build-an-output-from-a-sample",
-  title: "Build an output from a sample file — ProcuLink guide",
-  description: "Upload a sample of the file your system expects and we propose the output to match.",
+  title: "Make a file from a sample — ProcuLink guide",
+  description: "Upload a sample of the file your system expects and we propose the file to match.",
 });
 
 import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
@@ -16,7 +16,7 @@ import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 
 <Step n={1} title="Upload the sample">
 
-Open the flow, go to the **We send** step, and select **Add an output**. Choose the **From a sample** tab. Drop your sample on the upload area, or choose it.
+Open the flow, go to the **We send** step, and select **Make another file**. Choose the **From a sample** tab. Drop your sample on the upload area, or choose it.
 
 <Outcome>
 We read the sample and open a **Check the values** form. Nothing is saved yet.
@@ -30,7 +30,7 @@ The screen says why the sample was refused, for example "This file is too large.
 
 <Step n={2} title="Check the proposed values">
 
-The output takes its file type from your sample, and its name from the sample's file name. You can change the name.
+The file we make takes its file type from your sample, and its name from the sample's file name. You can change the name.
 
 Each name we found in the sample is listed with a **Value** list beside it. We fill in the list in two ways:
 
@@ -51,12 +51,12 @@ If AI is not available to your workspace, only the matches by name are filled in
 
 <Step n={3} title="Choose where it goes and create it">
 
-In **Send to**, keep **Download only**, or choose a destination. See [Send outputs to a destination](/help/guides/send-to-a-destination). Then select **Create**.
+In **Send to**, keep **Download only**, or choose a destination. See [Send files to a destination](/help/guides/send-to-a-destination). Then select **Create**.
 
 Nothing is created until you select **Create**. To start again with another file, select **Choose a different file**.
 
 <Outcome>
-The output is saved, and its editor opens. There you can add a lookup swap, a fixed value or a send-when rule. See [Build an output](/help/guides/build-an-output).
+The file is saved, and its editor opens. There you can add a lookup swap, a fixed value or a send-when rule. See [Make a file](/help/guides/build-an-output).
 </Outcome>
 
 </Step>

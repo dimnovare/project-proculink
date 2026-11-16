@@ -205,7 +205,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
       : rows;
     return { ...body, template: sent ? fromSimple(sent, format) : current.template };
   };
-  const problemNow = !name.trim() ? "Give this output a name."
+  const problemNow = !name.trim() ? "Give this file a name."
     : sendWhen && !sendWhen.value.trim() ? COPY.send_when
     : [...(rows?.fields ?? []), ...(rows?.table?.columns ?? [])].some((r) => !r.name.trim()) ? (draft ? "Give every column a name." : "Give every row a name.")
     : null;
@@ -289,7 +289,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
   ));
   const logoField = format === "pdf" && (
     <Field label="Logo">
-      {!current ? <p className="text-[12.5px] text-ink-muted">Save the output first, then add a logo.</p>
+      {!current ? <p className="text-[12.5px] text-ink-muted">Save the file first, then add a logo.</p>
         : current.hasLogo ? <Button type="button" variant="secondary" loading={logo.isPending} onClick={() => logo.mutate(null)}>Remove logo</Button>
         : (
           <>
@@ -359,12 +359,12 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
             onChange={(e) => setSendWhen({ ...sendWhen, value: e.target.value })} />
         </div>
       )}
-      <p className="text-[12.5px] text-ink-muted">Send this output only for some documents, for example one output per recipient.</p>
+      <p className="text-[12.5px] text-ink-muted">Send this file only for some documents, for example one file per recipient.</p>
     </>
   );
   const externalNote = external && (
     <p className="text-[12.5px] text-ink-muted">
-      This output was set up outside this editor. You can change its name and destination here.
+      This file was set up outside this editor. You can change its name and destination here.
     </p>
   );
   const standardQuestions = standard && <StandardQuestions flow={flow} needs={current.needs ?? []} tableKey={tableKey} name={standardName(standard)} />;
@@ -517,7 +517,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
   }
 
   return (
-    <Card edge="green" title={current ? "Edit output" : "New output"}>
+    <Card edge="green" title={current ? "Edit file" : "New file"}>
       <form onSubmit={submit} className="grid gap-3">
         {nameField}
         {typeField}

@@ -62,7 +62,7 @@ export function lastSendWords(last: DestinationLastSend | null, now: Date): { te
   return { text, tone: words ? (last.ok ? "ok" : "failed") : "never" };
 }
 
-export const usedByWords = (n: number) => (n === 0 ? "Not used" : n === 1 ? "1 output" : `${n} outputs`);
+export const usedByWords = (n: number) => (n === 0 ? "Not used" : n === 1 ? "1 file" : `${n} files`);
 
 /** "/settings?tab=destinations", and "&open=<id>" when one is open ("new" for the new-destination form). */
 export const destinationsAddress = (open?: string) =>

@@ -41,7 +41,7 @@ export function DestinationsSection() {
     rows = (
       <div className="grid gap-1 p-4">
         <p className="m-0 text-[14px] font-semibold text-ink">No destinations yet.</p>
-        <p className="m-0 text-[14px] text-ink-muted">Add one here, or while you set up a flow&apos;s output.</p>
+        <p className="m-0 text-[14px] text-ink-muted">Add one here, or while you set up a flow&apos;s file.</p>
       </div>
     );
   else
@@ -153,7 +153,7 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
           {uses === undefined ? null : uses > 0 ? (
             <div className="grid gap-1 text-[13px] text-ink-muted">
               <p className="m-0">
-                {uses === 1 ? "One output uses this destination, so it can't be deleted." : `${uses} outputs use this destination, so it can't be deleted.`}
+                {uses === 1 ? "One file uses this destination, so it can't be deleted." : `${uses} files use this destination, so it can't be deleted.`}
               </p>
               <div className="flex flex-wrap gap-x-4 gap-y-1">
                 {d.usedBy.map((u) => (

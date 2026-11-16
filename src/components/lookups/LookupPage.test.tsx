@@ -99,7 +99,7 @@ describe("LookupPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete lookup" }));
     expect(screen.getByText("Delete “Item codes”? This can't be undone.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Delete lookup" }));
-    expect(await screen.findByText("An output uses this lookup. Remove it from the output first.")).toBeTruthy();
+    expect(await screen.findByText("A file uses this lookup. Remove it from the file first.")).toBeTruthy();
     expect(api.deleteLookup).toHaveBeenCalledTimes(1);
     // The delete was refused: what was typed is saved after all.
     await waitFor(() => expect(api.updateLookup).toHaveBeenLastCalledWith("l1", { name: "Item codes", entries: [{ from: "A", to: "typed" }] }));

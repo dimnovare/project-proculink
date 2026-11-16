@@ -71,7 +71,7 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return setProblem("Give this output a name.");
+    if (!name.trim()) return setProblem("Give this file a name.");
     setProblem(null);
     create.mutate();
   }

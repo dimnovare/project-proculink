@@ -3,7 +3,7 @@ export type HelpCategory =
   | "Documents"
   | "Flows"
   | "Sending in"
-  | "Outputs and destinations"
+  | "Files and destinations"
   | "Lookups"
   | "Account"
   | "API";
@@ -87,7 +87,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "flows",
     title: "Flows: values, automation and versions",
-    blurb: "How a flow holds the values to read, the output and the destination, and how to change it safely.",
+    blurb: "How a flow holds the values to read, the file and the destination, and how to change it safely.",
     category: "Flows",
     keywords: ["flow", "fields", "automation", "versions", "publish", "restore", "advanced"],
     readMin: 5,
@@ -110,17 +110,17 @@ export const HELP_ARTICLES: HelpArticle[] = [
   },
   {
     slug: "outputs",
-    title: "Output formats",
+    title: "File formats",
     blurb: "The formats a flow can produce, and how each field gets its value.",
-    category: "Outputs and destinations",
+    category: "Files and destinations",
     keywords: ["output", "csv", "json", "xml", "excel", "xlsx", "pdf", "text", "fixed-width", "format"],
     readMin: 5,
   },
   {
     slug: "destinations",
     title: "Destinations",
-    blurb: "Where a flow sends its output: email, a web address, an SFTP or FTPS server, an S3 bucket, Google Drive, Google Sheets, or a download.",
-    category: "Outputs and destinations",
+    blurb: "Where a flow sends its file: email, a web address, an SFTP or FTPS server, an S3 bucket, Google Drive, Google Sheets, or a download.",
+    category: "Files and destinations",
     keywords: ["destination", "email", "webhook", "http", "sftp", "ftps", "s3", "google drive", "google sheets", "download", "delivery"],
     readMin: 4,
   },
@@ -128,7 +128,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     slug: "destination-sign-in",
     title: "Destination sign-in, keys and signing",
     blurb: "How to give a destination the login, key or token it asks for.",
-    category: "Outputs and destinations",
+    category: "Files and destinations",
     keywords: ["sign in", "credentials", "oauth2", "token", "ssh key", "private key", "signing", "secret", "ppk"],
     readMin: 4,
   },
@@ -188,7 +188,7 @@ export const CATEGORY_ORDER: HelpCategory[] = [
   "Documents",
   "Flows",
   "Sending in",
-  "Outputs and destinations",
+  "Files and destinations",
   "Lookups",
   "Account",
   "API",

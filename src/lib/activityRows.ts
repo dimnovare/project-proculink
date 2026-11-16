@@ -163,7 +163,7 @@ export function activityView(e: ActivityEvent, ctx: { who: string; destinationNa
     case "document.sent":
       sentence = fileSentence("Started sending ", "");
       tag = { label: "Sending", tone: "neutral" };
-      fact("Outputs", p("outputs"));
+      fact("Files", p("outputs"));
       fact("Flow version", version);
       break;
     case "document.delivered":
@@ -179,7 +179,7 @@ export function activityView(e: ActivityEvent, ctx: { who: string; destinationNa
       fact("Attempts", attempts && `${attempts}, the last at ${activityTime(e.ts)}.${failedSend ? " We stopped there." : ""}`);
       fact("The server's reply", p("responseCode"), { mono: true });
       fact("File", p("file"), { mono: true });
-      fact("Output", output && (version ? `${output}, flow version ${version}` : output));
+      fact("File", output && (version ? `${output}, flow version ${version}` : output));
       fact("Started by", e.startedAt ? (e.actorId ? `${ctx.who} pressed Send at ${activityTime(e.startedAt)}` : `Started automatically at ${activityTime(e.startedAt)}`) : undefined);
       break;
     }

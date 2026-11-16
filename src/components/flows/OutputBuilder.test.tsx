@@ -54,7 +54,7 @@ describe("OutputBuilder", () => {
     render(<QueryClientProvider client={new QueryClient()}><OutputBuilder flow={flow as never} onDone={() => {}} /></QueryClientProvider>);
     fireEvent.click(screen.getByRole("tab", { name: "Standards" }));
     fireEvent.click(screen.getByRole("button", { name: "Use cXML" }));
-    expect(await screen.findByText("Edit output")).toBeTruthy();
+    expect(await screen.findByText("Edit file")).toBeTruthy();
     expect(api.createOutput).toHaveBeenCalledWith("f", expect.objectContaining({ name: "cXML", format: "", standard: "cxml-1-2" }));
   });
 

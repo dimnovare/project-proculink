@@ -10,7 +10,7 @@ import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 
 <Prereqs>
 - A flow with at least one document in it. See [Set up your first flow](/help/guides/set-up-your-first-flow).
-- At least one output on the flow. Without one, there is nothing to send.
+- At least one file set up on the flow. Without one, there is nothing to send.
 </Prereqs>
 
 <Step n={1} title="Open a document that needs you">
@@ -53,9 +53,9 @@ The flagged checks go away as you fix what they pointed at.
 
 </Step>
 
-<Step n={4} title="Look at the outputs">
+<Step n={4} title="Look at the files">
 
-Under **What we'll send**, each output shows its file type and where it goes. Select **Preview** to see the exact file that will be sent. An open preview follows what you type, and it is open again on the next document until you choose **Hide preview**. If an output uses a lookup and a value had no match, the preview lists the values with no match and lets you add one.
+Under **What we'll send**, each file shows its type and where it goes. Select **Preview** to see the exact file that will be sent. An open preview follows what you type, and it is open again on the next document until you choose **Hide preview**. If a file uses a lookup and a value had no match, the preview lists the values with no match and lets you add one.
 
 <Outcome>
 You have seen the file that will be sent.
@@ -71,16 +71,16 @@ At a keyboard, Ctrl Enter (Cmd Enter on a Mac) does the same, after saving what 
 
 **Skip** leaves a document for later and opens the next one. When nothing else needs you, Documents says so.
 
-To follow a document you sent, open it again from **Documents**. Under **What we'll send**, **Deliveries** shows each output's progress: **Waiting**, **Sending**, **Delivered**, **Ready to download**, **Will retry** or **Couldn't deliver**. An output with **Download** next to it has a file you can save.
+To follow a document you sent, open it again from **Documents**. Under **What we'll send**, **Deliveries** shows each file's progress: **Waiting**, **Sending**, **Delivered**, **Ready to download**, **Will retry** or **Couldn't deliver**. A file with **Download** next to it is ready to save.
 
 <Outcome>
-The next document that needs you is open, or Documents says nothing else needs you. With a destination, the one you sent shows **Sending** first and becomes **Sent** once every delivery has finished. An output that is download-only counts as done at once.
+The next document that needs you is open, or Documents says nothing else needs you. With a destination, the one you sent shows **Sending** first and becomes **Sent** once every delivery has finished. A file that is download-only counts as done at once.
 </Outcome>
 
 <IfThisFails>
-- **Couldn't send.** Read the message under the delivery, fix the cause (for example the destination's address or sign-in), and press **Send and open next** again. Outputs that were already delivered are not sent again.
+- **Couldn't send.** Read the message under the delivery, fix the cause (for example the destination's address or sign-in), and press **Send and open next** again. Files that were already delivered are not sent again.
 - **Nothing was sent: your last change isn't saved yet.** Select **Try again** beside **Not saved yet**, then send again.
-- **No output is set to send this document.** Check the **Send when** condition on the flow's outputs.
+- **No file is set to send this document.** Check the **Send when** condition on the flow's files.
 - **Couldn't read.** Press **Try again** if it is offered. See [Troubleshooting](/help/troubleshooting).
 </IfThisFails>
 

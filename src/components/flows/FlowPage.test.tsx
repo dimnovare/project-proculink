@@ -136,7 +136,7 @@ describe("FlowPage", () => {
       const { unmount } = renderPage();
       await screen.findByRole("button", { name: "Publish changes" });
       if (step === "send") {
-        const editor = within(await screen.findByRole("region", { name: "Edit the output Invoice CSV" }));
+        const editor = within(await screen.findByRole("region", { name: "Edit the file Invoice CSV" }));
         await editor.findByText("Invoice 1001");
         fireEvent.click(await editor.findByRole("button", { name: "Send a test" }));
         await editor.findByText(/Test file arrived/);

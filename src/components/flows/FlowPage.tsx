@@ -46,11 +46,11 @@ function useStepSummaries(flow: Flow): Record<FlowStep, string | null> {
   const values = flow.fields.fields.length + flow.fields.tables.reduce((n, t) => n + t.columns.length, 0);
   const tables = flow.fields.tables.length;
   let send: string | null = null;
-  if (outputs.data?.length === 0) send = "No outputs yet";
-  else if (outputs.data?.length === 1) send = "1 output";
+  if (outputs.data?.length === 0) send = "No file yet";
+  else if (outputs.data?.length === 1) send = "1 file";
   else if (outputs.data && destinations.data) {
     const names = [...new Set(outputs.data.flatMap((o) => destinations.data.find((d) => d.id === o.destinationId)?.name ?? []))];
-    send = `${outputs.data.length} outputs${names.length ? `, to ${and(names)}` : ""}`;
+    send = `${outputs.data.length} files${names.length ? `, to ${and(names)}` : ""}`;
   }
   return {
     arrives: ways ? ways[0].toUpperCase() + ways.slice(1) : null,
