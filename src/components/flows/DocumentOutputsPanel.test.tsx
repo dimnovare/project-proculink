@@ -19,6 +19,7 @@ const detail = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
   api.listOutputs.mockResolvedValue([{ id: "o", flowId: "f", name: "Totals", format: "csv", tableKey: null, destinationId: null, template: {}, createdAt: "" }]);
   api.listDestinations.mockResolvedValue([]);
   api.getFlow.mockResolvedValue({ id: "f", fields: { fields: [], tables: [] } });

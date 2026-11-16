@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -13,8 +13,8 @@ import { SourceDocumentBody, scrollTo, type SourcePick } from "@/components/brid
 import { DOCX_MEDIA_TYPE, sourceRenderFor } from "@/lib/sourceDocument";
 import { useLgViewport } from "@/components/bridge/document/useSourceDocument";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { useShortcut } from "@/hooks/useShortcut";
-import { ariaOf } from "@/lib/shortcuts";
+import { useApple, useShortcut } from "@/hooks/useShortcut";
+import { ariaOf, keyWord } from "@/lib/shortcuts";
 import { useDocumentEdits } from "@/hooks/useDocumentEdits";
 import { reviewQueueQuery } from "@/hooks/useDocumentEngine";
 import { reviewMarks } from "@/lib/reviewMarks";
@@ -142,8 +142,10 @@ const PANES: readonly { id: PaneId; title: string }[] = [
 const DOTS = { blue: "bg-brand-blue", navy: "bg-navy", green: "bg-brand-green" } as const;
 
 /** One of the three panes. Used by 14.5's first run too (R24). Below lg it is the panel of its tab (R15). */
-export function Pane({ id, title, dot, aside, hidden, children }: {
+export function Pane({ id, title, dot, aside, hidden, sticky, children }: {
   id: PaneId; title: string; dot: keyof typeof DOTS; aside?: ReactNode; hidden?: boolean; children: ReactNode;
+  /** Where the original sticks and how tall it is, from lg. Absent: it has its height and scrolls with the page. */
+  sticky?: string;
 }) {
   const isLg = useLgViewport();
   const original = id === "original";
@@ -151,7 +153,7 @@ export function Pane({ id, title, dot, aside, hidden, children }: {
     <Card
       flush as="section" id={`review-pane-${id}`} role={isLg ? undefined : "tabpanel"} tabIndex={isLg ? undefined : 0}
       aria-labelledby={isLg ? `review-heading-${id}` : `review-tab-${id}`}
-      className={`min-w-0 ${hidden ? "max-lg:hidden" : ""} ${original ? "flex flex-col lg:sticky lg:top-0 lg:h-[calc(100vh-150px)]" : ""}`}
+      className={`min-w-0 ${hidden ? "max-lg:hidden" : ""} ${original ? `flex flex-col ${sticky ? `lg:!sticky ${sticky}` : "lg:h-[calc(100vh-150px)]"}` : ""}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-2 pt-3.5">
         <h2 id={`review-heading-${id}`} className="m-0 flex items-center gap-2 text-[13px] font-semibold text-ink">
@@ -191,6 +193,50 @@ export function PaneTabs({ panes, active, onSelect }: {
   );
 }
 
+/** How much of the row the original takes, in percent: dragged, or moved with the arrow keys, and remembered on this device. */
+const SPLIT_KEY = "plk:review-split";
+const SPLIT = { min: 25, max: 65, start: 42 };
+const clampSplit = (n: number) => Math.min(SPLIT.max, Math.max(SPLIT.min, Math.round(n)));
+function useSplit() {
+  const [split, set] = useState(() => {
+    try { const n = Number(localStorage.getItem(SPLIT_KEY)); return n ? clampSplit(n) : SPLIT.start; } catch { return SPLIT.start; }
+  });
+  const save = (n: number) => {
+    const v = clampSplit(n);
+    set(v);
+    try { localStorage.setItem(SPLIT_KEY, String(v)); } catch { /* remembered for this visit only */ }
+  };
+  return [split, save] as const;
+}
+
+/** The handle between the original and its values, from lg. Its parent is the row it divides. */
+function SplitGrip({ split, onChange, className }: { split: number; onChange(n: number): void; className: string }) {
+  const drag = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const row = e.currentTarget.parentElement!.getBoundingClientRect();
+    onChange(((e.clientX - row.left) / row.width) * 100);
+  };
+  return (
+    <div
+      role="separator" aria-orientation="vertical" aria-label="Width of the original" aria-valuenow={split} aria-valuemin={SPLIT.min} aria-valuemax={SPLIT.max} tabIndex={0}
+      data-testid="review-split" className={`group hidden cursor-col-resize touch-none items-center justify-center rounded lg:flex ${className}`}
+      onPointerDown={(e) => { e.preventDefault(); e.currentTarget.focus(); e.currentTarget.setPointerCapture(e.pointerId); }}
+      onPointerMove={(e) => { if (e.currentTarget.hasPointerCapture(e.pointerId)) drag(e); }}
+      onDoubleClick={() => onChange(SPLIT.start)}
+      onKeyDown={(e) => {
+        const step = e.key === "ArrowLeft" ? -2 : e.key === "ArrowRight" ? 2 : 0;
+        if (step) { e.preventDefault(); onChange(split + step); }
+      }}
+    >
+      <span aria-hidden className="h-11 w-1 rounded-full bg-border-strong group-hover:bg-brand-blue group-focus-visible:bg-brand-blue" />
+    </div>
+  );
+}
+
+/** Where the original and the handle stick under the page's one-row header, and how tall they are. */
+const UNDER_HEADER = "lg:top-[73px] lg:h-[calc(100dvh-152px)]";
+/** A key held down never presses Send again and again. */
+const noRepeat = (e: ReactKeyboardEvent) => { if (e.repeat) e.preventDefault(); };
+
 /** A change typed on this document could not be saved, so nothing was sent. */
 const UNSAVED = new Error("unsaved");
 const UNSAVED_TEXT = "Nothing was sent: your last change isn't saved yet.";
@@ -223,6 +269,10 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   const router = useRouter();
   const enabled = useTenantQueriesEnabled();
   const isLg = useLgViewport();
+  const apple = useApple();
+  const [split, setSplit] = useSplit();
+  // The value Enter came from when it moved the cursor to Send: typing on goes back into it.
+  const walked = useRef<HTMLInputElement | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [tab, setTab] = useState<PaneId>("read");
   const [spot, setSpot] = useState<SourceLocation | null>(null);
@@ -344,6 +394,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   return (
     <PageShell variant="full">
       <PageHeader
+        compact
         title={summary?.fileName ?? "Document"}
         sub={summary && (
           <span data-testid="review-sub">
@@ -359,7 +410,14 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
             {status.editable ? (
               <>
                 {canSkip && <Button variant="secondary" className="hidden md:inline-flex" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
-                <Button variant="send" className="hidden md:inline-flex" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}>Send and open next</Button>
+                <Button id="review-send" variant="send" className="hidden md:inline-flex" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}
+                  // After Enter brought the cursor here, only Enter sends: a space or a letter is typing, and goes back into the value.
+                  onKeyDown={(e) => { noRepeat(e); if (walked.current && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) walked.current.focus(); }}
+                  onBlur={() => { walked.current = null; }}
+                >
+                  Send and open next
+                  <kbd aria-hidden className="hidden h-[22px] items-center rounded bg-brand-green-deep px-1.5 font-sans text-[12.5px] font-semibold lg:inline-flex">{keyWord("Mod", apple)} Enter</kbd>
+                </Button>
               </>
             ) : nextNow && <Link replace href={documentHref(nextNow)} className={`${buttonClass("send", "md")} hidden items-center md:inline-flex`}>Review next</Link>}
           </div>
@@ -382,8 +440,8 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
           {doc.isError && <Failed error={doc.error} retry={() => doc.refetch()} />}
           <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} scansOn={flow.data?.scansOn} uploadHref={`/flows/${summary.flowId}?tab=documents`} />
           <PaneTabs panes={PANES} active={tab} onSelect={(id) => setTab(id as PaneId)} />
-          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-            <Pane id="original" title="Original" dot="blue" hidden={tab !== "original"}>
+          <div className="grid items-start gap-4 lg:gap-x-1 lg:grid-cols-[minmax(280px,var(--split))_10px_minmax(0,1fr)]" style={{ "--split": `${split}%` } as CSSProperties}>
+            <Pane id="original" title="Original" dot="blue" hidden={tab !== "original"} sticky={UNDER_HEADER}>
               {located && <p className="m-0 hidden px-4 pb-2 text-[12.5px] text-ink-muted lg:block">Click a value on the right to see where it came from.</p>}
               {teach && <TeachBanner key={teachMutation.submittedAt} label={teach.label} render={originalKind} mutation={teachMutation} onCancel={cancelTeach} onSave={(value) => teachMutation.mutate({ ...teachMutation.variables, value })} />}
               {(isLg || tab === "original") && (
@@ -393,6 +451,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
                 />
               )}
             </Pane>
+            <SplitGrip split={split} onChange={setSplit} className={`lg:sticky ${UNDER_HEADER}`} />
             {/* From lg the values sit above the outputs, so both get the width a table needs. */}
             <div className="grid min-w-0 gap-4 max-lg:contents">
             <Pane
@@ -410,6 +469,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
                 </div>
               ) : (
                 <ReadValuesPanel detail={doc.data} editable={status.editable} edits={edits} marks={marks} history={history} onLocate={setSpot} flow={flow.data}
+                  walk={isLg && status.editable} onChecked={(from) => { document.getElementById("review-send")?.focus(); walked.current = from; }}
                   onTeach={canTeach ? (t) => { setTeach(t); setTaught(null); setTab("original"); teachMutation.reset(); } : undefined}
                 />
               )}

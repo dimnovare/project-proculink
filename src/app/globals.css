@@ -184,7 +184,7 @@
   --tap-min:          44px;     /* minimum interactive hit area on mobile */
   --container-narrow: 1040px;   /* page content max-width — forms / single-column */
   --container-wide:   1480px;   /* page content max-width — tables / dashboards */
-  --container-full:   1760px;   /* page content max-width — the review screen: a document beside its values */
+  --container-full:   2240px;   /* page content max-width — the review screen: a document beside its values, up to a 2560 screen */
   --page-gutter:      16px;     /* base (mobile) horizontal gutter; desktop ramps to 24/34px via PageShell */
 }
 

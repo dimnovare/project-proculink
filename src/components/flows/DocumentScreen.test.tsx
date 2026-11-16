@@ -363,3 +363,27 @@ describe("DocumentScreen", () => {
   });
 });
 
+describe("DocumentScreen values", () => {
+  it("folds the empty values behind one line, and says whether the rows add up to the total", async () => {
+    const d = withValues([["number", "INV-1", 0.95, false], ["buyer", null, 0, false], ["currency", "", 0, false]]);
+    const cell = (value: string) => ({ value, confidence: 0.95, location: null, notOnPage: false, edited: false });
+    const read = {
+      ...d.read,
+      fields: [...d.read.fields, { ...field("30.00"), key: "total", label: "Total", meaning: "total_net" }],
+      tables: [{
+        key: "lines", label: "Lines", listed: true, columns: [{ key: "amount", label: "Amount", type: "number", meaning: "line_amount" }],
+        rows: [{ cells: { amount: cell("10.00") } }, { cells: { amount: cell("20.00") } }],
+      }],
+    };
+    api.getDocument.mockResolvedValue({ ...d, read });
+    api.editDocumentValues.mockResolvedValue({ ...d, read });
+    renderScreen();
+    expect(await screen.findByText("2 values are empty: buyer, currency.")).toBeInTheDocument();
+    expect(screen.getByLabelText("buyer").closest("[hidden]")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Show them" }));
+    expect(screen.getByLabelText("buyer").closest("[hidden]")).toBeNull();
+    expect(screen.getByTestId("rows-sum")).toHaveTextContent("The rows add up to 30.00, the same as Total.");
+    fireEvent.change(screen.getByLabelText("Lines row 2 Amount"), { target: { value: "25" } });
+    expect(screen.getByTestId("rows-sum")).toHaveTextContent("The rows add up to 35.00. Total says 30.00.");
+  });
+});

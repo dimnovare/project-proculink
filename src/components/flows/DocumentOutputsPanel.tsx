@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
@@ -64,31 +65,51 @@ const outputLine = (o: FlowOutput, destinations: readonly { id: string; name: st
 };
 const goOut = (n: number) => (n === 1 ? "It goes" : n === 2 ? "Both go" : `All ${n} go`) + " out when you send this document.";
 
+/** The outputs whose preview was left open, remembered on this device: open on the next document too. */
+const OPEN_KEY = "plk:review-preview-open";
+const openOutputs = (): string[] => {
+  try { const ids: unknown = JSON.parse(localStorage.getItem(OPEN_KEY) ?? "[]"); return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === "string") : []; } catch { return []; }
+};
+
 // Owns its own preview so opening one output never replaces another's.
-function OutputRow({ o, flowId, documentId, flowFields, destinations }: {
+function OutputRow({ o, flowId, documentId, flowFields, destinations, live }: {
   o: FlowOutput; flowId: string; documentId: string; flowFields: Flow["fields"] | undefined; destinations: readonly { id: string; name: string }[] | undefined;
+  /** The values can still change: an open preview is made again after each saved change. */
+  live: boolean;
 }) {
-  const preview = useMutation({ mutationFn: () => previewOutput(documentId, o.id, { published: true }) });
+  const enabled = useTenantQueriesEnabled();
+  const [open, setOpen] = useState(() => openOutputs().includes(o.id));
+  const toggle = () => {
+    setOpen(!open);
+    const rest = openOutputs().filter((id) => id !== o.id);
+    try { localStorage.setItem(OPEN_KEY, JSON.stringify((open ? rest : [...rest, o.id]).slice(-50))); } catch { /* open for this visit only */ }
+  };
+  // Keyed by the document: a saved value invalidates it (useDocumentEdits), so it is made again.
+  const preview = useQuery({
+    queryKey: ["output-preview", documentId, o.id], queryFn: () => previewOutput(documentId, o.id, { published: true }),
+    enabled: enabled && open, refetchOnWindowFocus: false, retry: false,
+  });
   return (
-    <div className={`grid min-w-0 content-start gap-1.5 rounded-md border border-border p-3 ${preview.data || preview.isError ? "col-span-full" : ""}`}>
+    <div className={`grid min-w-0 content-start gap-1.5 rounded-md border border-border p-3 ${open ? "col-span-full" : ""}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="grid">
           <span className="text-[13px] font-medium text-ink">{o.name}</span>
           <span className="text-[12.5px] text-ink-muted">{outputLine(o, destinations)}</span>
           {o.sendWhen && <span className="text-[12.5px] text-ink-muted">{describeSendWhen(o.sendWhen, flowFields)}</span>}
         </span>
-        <span className="flex gap-2">
-          <Button size="sm" variant="secondary" loading={preview.isPending} onClick={() => preview.mutate()}>Preview</Button>
+        <span className="flex flex-wrap items-center gap-2">
+          {open && live && <span className="text-[12.5px] text-ink-muted">{preview.isFetching ? "Updating…" : "Updates as you type"}</span>}
+          <Button size="sm" variant="secondary" aria-expanded={open} loading={open && preview.isLoading} onClick={toggle}>{open ? "Hide preview" : "Preview"}</Button>
           {!o.standard && <Link href={`/flows/${flowId}/outputs/${o.id}/advanced?document=${documentId}`} className={`${buttonClass("secondary", "sm")} inline-flex items-center`}>Open in Advanced</Link>}
         </span>
       </div>
-      {preview.isError && <StatusNotice tone="error">{documentRefusalMessage(preview.error)}</StatusNotice>}
-      {preview.data && (
+      {open && preview.isError && <StatusNotice tone="error">{documentRefusalMessage(preview.error)}</StatusNotice>}
+      {open && preview.data && (
         <div className="grid gap-1">
           <span className="font-mono text-[12.5px] text-ink-muted">{preview.data.fileName}</span>
           <pre className="m-0 max-h-72 overflow-auto rounded border border-border bg-surface2 p-2.5 font-mono text-[12.5px] text-ink">{preview.data.content}</pre>
           {preview.data.lookupMisses?.length ? (
-            <LookupMisses documentId={documentId} outputId={o.id} misses={preview.data.lookupMisses} onChanged={() => preview.mutate()} />
+            <LookupMisses documentId={documentId} outputId={o.id} misses={preview.data.lookupMisses} onChanged={() => void preview.refetch()} />
           ) : null}
         </div>
       )}
@@ -111,6 +132,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
     },
   });
   const list = outputs.data;
+  const editable = documentStatus(doc.summary.status, doc.summary.statusReason).editable;
   const addLink = `/flows/${flowId}?tab=outputs`;
 
   return (
@@ -121,7 +143,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
         : list.length > 0 && (
           <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr))]">
             {list.map((o) => (
-              <OutputRow key={o.id} o={o} flowId={flowId} documentId={documentId} flowFields={flow.data?.fields} destinations={destinations.data} />
+              <OutputRow key={o.id} o={o} flowId={flowId} documentId={documentId} flowFields={flow.data?.fields} destinations={destinations.data} live={editable} />
             ))}
           </div>
         )}
@@ -129,7 +151,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
         : !deliveries.data ? <Quiet>Loading deliveries…</Quiet>
         : deliveries.data.length === 0 && (
           <p className="m-0 text-[12.5px] text-ink-muted">
-            Nothing has been sent yet.{list?.length && !list.some((o) => o.sendWhen) && documentStatus(doc.summary.status, doc.summary.statusReason).editable ? ` ${goOut(list.length)}` : ""}
+            Nothing has been sent yet.{list?.length && !list.some((o) => o.sendWhen) && editable ? ` ${goOut(list.length)}` : ""}
           </p>
         )}
       {list && (list.length > 0 ? (

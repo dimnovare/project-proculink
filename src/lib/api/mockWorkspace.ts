@@ -61,8 +61,8 @@ const find = <X extends { id: string }>(list: X[], id: string, what: string): X 
 
 // The built-in sample (invented): nine values, one table, one value hard to read.
 const at = (page: number) => ({ page, box: null, address: null });
-const value = (label: string, v: string, type = "text", confidence = 0.97): ReadField => ({
-  key: label.toLowerCase().replaceAll(" ", "_"), label, value: v, type, meaning: null, confidence, location: at(1), notOnPage: false, listed: true, edited: false,
+const value = (label: string, v: string, type = "text", confidence = 0.97, meaning: string | null = null): ReadField => ({
+  key: label.toLowerCase().replaceAll(" ", "_"), label, value: v, type, meaning, confidence, location: at(1), notOnPage: false, listed: true, edited: false,
 });
 const LINE_COLUMNS = ["Code", "Item", "Qty", "Price", "Amount"];
 const LINES = [["KS-100", "Copy paper A4", "20", "24.50", "490.00"], ["KS-220", "Toner cartridge", "4", "168.35", "673.40"], ["KS-310", "Archive boxes", "10", "14.00", "140.00"]];
@@ -71,11 +71,11 @@ const readOf = (kindLabel: string): ReadResult => ({
   fields: [
     value("Invoice number", "INV-2250"), value("Date", "2026-11-21", "date"), value("Supplier", "Kestrel Supplies"),
     value("Supplier address", "Harbour Road 4, Turku"), value("Bill to", "Nordlys Trading"), value("Currency", "EUR"),
-    value("Total", "1303.40", "number"), value("Payment terms", "30 days"), value("Reference", "2250-NT", "text", 0.62),
+    value("Total", "1303.40", "number", 0.97, "total_net"), value("Payment terms", "30 days"), value("Reference", "2250-NT", "text", 0.62),
   ],
   tables: [{
     key: "lines", label: "Lines", listed: true,
-    columns: LINE_COLUMNS.map((c) => ({ key: c.toLowerCase(), label: c, type: "text", meaning: null })),
+    columns: LINE_COLUMNS.map((c) => ({ key: c.toLowerCase(), label: c, type: "text", meaning: c === "Amount" ? "line_amount" : null })),
     rows: LINES.map((row) => ({ cells: Object.fromEntries(row.map((v, i) => [LINE_COLUMNS[i].toLowerCase(), { value: v, confidence: 0.97, location: at(1), notOnPage: false, edited: false }])) })),
   }],
 });

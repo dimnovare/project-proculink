@@ -211,4 +211,80 @@ test.describe("Review", () => {
       expect((await measure(page)).filled, `exactly one filled button at ${width}`).toHaveLength(1);
     }
   });
+
+  test("Enter goes through the values to check and stops on Send without sending; a table takes arrow keys and a paste", async ({ page }) => {
+    await preparePage(page, { dismissCookieBanner: true });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/flows/flow-1/documents/doc-1");
+    await settle(page);
+    const read = page.getByRole("region", { name: "What we read" });
+    await expect(read.getByLabel("Date")).toBeFocused();                       // the cursor starts in the first value to check
+    await page.keyboard.press("Enter");
+    await expect(read.getByLabel("Supplier")).toBeFocused();
+    // Enter held down: the first press moves to Send, the repeats press nothing.
+    await page.keyboard.down("Enter");
+    await page.keyboard.down("Enter");
+    await page.keyboard.down("Enter");
+    await page.keyboard.up("Enter");
+    const header = page.getByTestId("review-header-actions");
+    await expect(header.getByRole("button", { name: "Send and open next" })).toBeFocused();
+    await page.waitForTimeout(500);
+    await expect(page).toHaveURL(/\/documents\/doc-1$/);                       // the key that moved the focus did not press the button
+    await expect(header).toContainText("2 values to check");
+    // Typing on after that Enter is typing, not a press of Send: a space and letters go back into the value.
+    await page.keyboard.press("Space");
+    await page.keyboard.type("Ltd");
+    await expect(read.getByLabel("Supplier")).toBeFocused();
+    await expect(read.getByLabel("Supplier")).toHaveValue(" Ltd");
+    await expect(page).toHaveURL(/\/documents\/doc-1$/);
+    // The value is saved and no longer needs a look: it moves to the other group and keeps the cursor.
+    await expect(header).toContainText("1 value to check", { timeout: 10_000 });
+    await expect(read.getByLabel("Supplier")).toBeFocused();
+    const cell = (row: number, column: string) => read.getByLabel(`Lines row ${row} ${column}`);
+    await cell(1, "Item code").focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(cell(2, "Item code")).toBeFocused();
+    await cell(2, "Item code").evaluate((el, text) => {
+      const data = new DataTransfer();
+      data.setData("text/plain", text);
+      el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+    }, "B-201\t6\t61.00\nC-301\t3\t121.00\nD-400\t1\t9.00");
+    await expect(cell(2, "Item code")).toHaveValue("B-201");
+    await expect(cell(3, "Unit price")).toHaveValue("121.00");
+    await expect(cell(4, "Quantity")).toHaveValue("1");                         // a fourth row was added for the third pasted line
+  });
+
+  test("on a wide screen the original stays in view beside its values, the handle between them moves, and no table scrolls sideways", async ({ page }) => {
+    await preparePage(page, { dismissCookieBanner: true });
+    const original = page.locator("#review-pane-original");
+    const read = page.locator("#review-pane-read");
+    for (const [width, height] of [[1920, 1080], [2560, 1440]] as const) {
+      await page.setViewportSize({ width, height });
+      await page.goto("/flows/flow-1/documents/doc-1");
+      await settle(page);
+      const [o, r] = [(await original.boundingBox())!, (await read.boundingBox())!];
+      expect(Math.abs(o.y - r.y), `the two panes start level at ${width}`).toBeLessThanOrEqual(1);
+      expect(r.x + r.width, `the values reach the right edge of the page at ${width}`).toBeGreaterThan(width - 200);
+      expect(await read.locator(".overflow-x-auto").evaluateAll((els) => els.map((e) => e.scrollWidth - e.clientWidth)), `no table scrolls sideways at ${width}`).toEqual([0]);
+    }
+    // A short window, scrolled to the end: the bar with Send and the original are both still on screen.
+    await page.setViewportSize({ width: 1920, height: 640 });
+    await page.evaluate(() => { for (const el of document.querySelectorAll("main, main *")) if (el.scrollHeight > el.clientHeight + 1) el.scrollTop = el.scrollHeight; });
+    const bar = (await page.getByTestId("review-header-actions").boundingBox())!;
+    expect(bar.y, "the bar stays at the top").toBeLessThan(120);
+    const stuck = (await original.boundingBox())!;
+    expect(stuck.y, "the original stays under the bar").toBeGreaterThanOrEqual(bar.y + bar.height - 1);
+    expect(stuck.y, "the original stays in view").toBeLessThan(220);
+    // Dragging the handle gives the original more room, and the choice is kept.
+    const grip = (await page.getByRole("separator", { name: "Width of the original" }).boundingBox())!;
+    const y = grip.y + grip.height / 2;
+    await page.mouse.move(grip.x + grip.width / 2, y);
+    await page.mouse.down();
+    await page.mouse.move(grip.x + 220, y, { steps: 6 });
+    await page.mouse.up();
+    expect((await original.boundingBox())!.width, "the original is wider after the drag").toBeGreaterThan(stuck.width + 150);
+    await page.reload();
+    await settle(page);
+    expect((await original.boundingBox())!.width, "the width is remembered").toBeGreaterThan(stuck.width + 150);
+  });
 });

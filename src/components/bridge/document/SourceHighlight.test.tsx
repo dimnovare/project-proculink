@@ -80,7 +80,7 @@ describe("highlight", () => {
 
   it("the PDF page is sized to its row, not to the highlight wrapper", async () => {
     const width = vi.spyOn(Element.prototype, "clientWidth", "get").mockImplementation(function (this: Element) {
-      return this.classList.contains("justify-center") ? 800 : 300;
+      return this.hasAttribute("data-pdf-row") ? 800 : 300;
     });
     try {
       const blob = new Blob(["%PDF"], { type: "application/pdf" });
