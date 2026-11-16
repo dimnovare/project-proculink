@@ -5,7 +5,7 @@ vi.mock("./core", async (importOriginal) => ({ ...(await importOriginal<typeof i
 import { listFlows } from "./documents";
 import { MOCK_DOCUMENT_NUMBER, MOCK_ENGINE_IDS, mockEngineFetch, resetMockEngine } from "./mockEngine";
 import { pageTotal } from "../pageTotal";
-import type { ActivityResult, Destination, DocumentDelivery, DocumentDetail, DocumentPage, DocumentSummary, Flow, Lookup, LookupSummary } from "./documents";
+import type { ActivityResult, Destination, DocumentDelivery, DocumentDetail, DocumentPage, DocumentSummary, Flow, FlowOutput, Lookup, LookupSummary, SetUpResult } from "./documents";
 import type { ApiHttpError } from "./core";
 
 beforeEach(resetMockEngine);
@@ -180,4 +180,46 @@ it("answers nothing while the browser is offline, as the network would", async (
   const onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
   await expect(mockEngineFetch("/documents")).rejects.toThrow(new TypeError("Failed to fetch"));
   onLine.mockRestore();
+});
+
+it("sorts a document added without a flow, and answers move, set-up and download like the server", async () => {
+  const add = (name: string) => { const body = new FormData(); body.append("file", new File(["x"], name)); return mockEngineFetch<DocumentSummary>("/documents", { method: "POST", body }); };
+  const [inv, note, odd] = [await add("invoice-2301.pdf"), await add("delivery-note-88.pdf"), await add("scan-1.pdf")];
+  expect(inv).toMatchObject({ flowId: "flow-inbox", flowName: "New documents", status: "received" });
+  await new Promise((r) => setTimeout(r, 1600));
+  const rows = (await mockEngineFetch<DocumentPage>("/documents?page=1&pageSize=20")).items;
+  const by = (id: string) => rows.find((d) => d.id === id)!;
+  expect(by(inv.id)).toMatchObject({ flowId: MOCK_ENGINE_IDS.flow, kind: "Invoice", inInbox: false, status: "needs_review", statusReason: null });
+  expect(by(note.id)).toMatchObject({ flowName: "Delivery notes", statusReason: "check_sort", inInbox: false });
+  expect(by(odd.id)).toMatchObject({ flowId: "flow-inbox", kind: null, statusReason: "new_kind", inInbox: true });
+  await expect(mockEngineFetch(`/documents/${odd.id}/move`, { method: "POST", body: '{"flowId":"flow-inbox"}' })).rejects.toMatchObject({ status: 404, body: { error: "flow_not_found" } });
+  await expect(mockEngineFetch(`/documents/${odd.id}/download`, { method: "POST", body: '{"format":"pdf"}' }, "blob")).rejects.toMatchObject({ status: 400, body: { error: "invalid_format" } });
+  expect(await mockEngineFetch(`/documents/${odd.id}/download`, { method: "POST", body: '{"format":"csv"}' }, "blob")).toBeInstanceOf(Blob);
+  expect(await mockEngineFetch(`/documents/${odd.id}/download`, { method: "POST", body: '{"format":"xlsx"}' }, "blob")).toBeInstanceOf(Blob);
+  const history = await mockEngineFetch<{ action: string }[]>(`/documents/${odd.id}/history`);
+  expect(history.filter((h) => h.action === "document.downloaded")).toHaveLength(1);
+  await expect(mockEngineFetch(`/documents/${odd.id}/set-up`, { method: "POST", body: "{}" })).rejects.toMatchObject({ status: 409, body: { error: "not_movable" } }); // downloaded: sent
+  await expect(mockEngineFetch(`/documents/${inv.id}/set-up`, { method: "POST", body: "{}" })).rejects.toMatchObject({ status: 409, body: { error: "not_in_inbox" } });
+  await expect(mockEngineFetch("/flows/flow-inbox/outputs")).rejects.toMatchObject({ status: 404 });
+  expect((await mockEngineFetch<Flow[]>("/flows")).some((f) => f.id === "flow-inbox")).toBe(false);
+  expect(await mockEngineFetch(`/documents/${note.id}/move`, { method: "POST", body: `{"flowId":"${MOCK_ENGINE_IDS.flow}"}` })).toMatchObject({ flowName: "Supplier invoices", status: "received" });
+
+  // The seeded inbox states, behind the session flag (read once per page load).
+  sessionStorage.setItem("proculink.mock.inbox", "on");
+  vi.resetModules();
+  const f = (await import("./mockEngine")).mockEngineFetch;
+  const seeded = (await f<DocumentPage>("/documents?page=1&pageSize=50")).items.filter((d) => d.id.startsWith("doc-in-"));
+  expect(seeded.map((d) => [d.id, d.status, d.statusReason, d.inInbox])).toEqual([
+    ["doc-in-1", "needs_review", "new_kind", true], ["doc-in-2", "needs_review", "choose_flow", true], ["doc-in-3", "needs_review", "check_sort", false],
+    ["doc-in-4", "sent", "downloaded", true], ["doc-in-5", "read_failed", "unreadable_file", true], ["doc-in-6", "needs_review", "duplicate_file", true],
+    ["doc-in-7", "sent", null, false],
+  ]);
+  expect(await f("/documents/doc-in-2/sort-flows")).toEqual([{ id: "flow-4", name: "Remittance advices" }, { id: "flow-1", name: "Supplier invoices" }]);
+  expect((await f<DocumentDetail>("/documents/doc-in-6")).summary).not.toHaveProperty("inInbox");
+  await expect(f("/documents/doc-in-6/set-up", { method: "POST", body: "{}" })).rejects.toMatchObject({ status: 409, body: { error: "not_movable" } });
+  expect(await f("/documents/doc-in-2/move", { method: "POST", body: '{"flowId":"flow-4"}' })).toMatchObject({ status: "needs_review", statusReason: "duplicate_file" });
+  const made = await f<SetUpResult>("/documents/doc-in-1/set-up", { method: "POST", body: '{"name":"Supplier invoices"}' });
+  expect(made).toMatchObject({ flowName: "Supplier invoices 2", document: { flowId: made.flowId, status: "needs_review", statusReason: null } });
+  expect((await f<FlowOutput[]>(`/flows/${made.flowId}/outputs`)).map((o) => [o.name, o.format, o.destinationId])).toEqual([["CSV file", "csv", null]]);
+  sessionStorage.removeItem("proculink.mock.inbox");
 });

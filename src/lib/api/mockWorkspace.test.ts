@@ -47,4 +47,12 @@ describe("empty-workspace mock", () => {
     await mockEngineFetch(`/flows/${flow.id}/publish`, { method: "POST" });
     await expect(mockEngineFetch(`/flows/${flow.id}/publish`, { method: "POST" })).rejects.toMatchObject({ status: 409, body: { error: "nothing_to_publish" } });
   });
+
+  it("answers an empty inbox and fails loudly on the rest", async () => {
+    expect(await mockEngineFetch("/inbox")).toMatchObject({ flowId: "ws-inbox", address: null });
+    const body = new FormData();
+    body.append("file", new File(["x"], "invoice-2292.pdf"));
+    await expect(mockEngineFetch("/documents", { method: "POST", body })).rejects.toThrow("the inbox is not implemented");
+    await expect(mockEngineFetch("/documents/doc-1/move", { method: "POST", body: "{}" })).rejects.toThrow("the inbox is not implemented");
+  });
 });

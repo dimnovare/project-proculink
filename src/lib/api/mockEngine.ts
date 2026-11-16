@@ -16,13 +16,13 @@ import { REVIEW_CONFIDENCE } from "../reviewMarks";
 import { mockSourceBytesForKey } from "./mockSourceDocument";
 import type {
   Destination, DocumentCheck, DocumentDelivery, DocumentDetail, DocumentRow, DocumentSummary, EditValuesRequest, Flow, FlowField, FlowIntake, FlowOutput, FlowSummary,
-  FlowVersion, Lookup, LookupCandidate, LookupEntry, LookupSummary, NotificationSettings, OutputPreview, ReadCell, ReadResult,
+  FlowVersion, Lookup, LookupCandidate, LookupEntry, LookupSummary, NotificationSettings, OutputPreview, ReadCell, ReadResult, SetUpResult,
 } from "./documents";
 import type { OutputNode } from "./types";
 import { mockAuditPage } from "./mockAudit";
 import { MOCK_SAMPLE_FILE, MOCK_STATE_KEY, mockWorkspaceOn, workspaceFetch } from "./mockWorkspace";
 
-export const MOCK_ENGINE_IDS = { flow: "flow-1", setupFlow: "flow-2", document: "doc-1", lookup: "lookup-1", output: "out-1" } as const;
+export const MOCK_ENGINE_IDS = { flow: "flow-1", setupFlow: "flow-2", document: "doc-1", lookup: "lookup-1", output: "out-1", inbox: "flow-inbox" } as const;
 /** The document number every fixture read carries — specs assert against this, never a literal. */
 export const MOCK_DOCUMENT_NUMBER = "INV-1001";
 
@@ -63,6 +63,10 @@ const quietFlow = (id: string, name: string, automation: Flow["automation"], doc
 const flow3 = quietFlow("flow-3", "Purchase orders", "review", 2);
 const flow4 = quietFlow("flow-4", "Remittance advices", "auto", 1);
 const FLOWS = [flow1, flow2, flow3, flow4];
+/** The workspace's inbox. Never in FLOWS, so `GET /flows`, the flow limit and `pick(FLOWS, …)` never see it. */
+const INBOX: Flow = { ...flow2, id: MOCK_ENGINE_IDS.inbox, name: "New documents", documentCount: 0, automation: "review" };
+/** The kind each default flow's documents were read as. */
+const KINDS: Record<string, string> = { [flow1.id]: "Invoice", [flow2.id]: "Delivery note", [flow3.id]: "Purchase order", [flow4.id]: "Remittance advice" };
 const versions: FlowVersion[] = [{ versionNo: 1, publishedAt: T, publishedBy: null, live: true }];
 
 const cell = (value: string, r: number, c: number): ReadCell => ({
@@ -95,9 +99,16 @@ const doc = (n: number, f: Flow, status: string, facts: Partial<DocumentRow> = {
   id: `doc-${n}`, flowId: f.id, flowName: f.name, fileName: `invoice-${1000 + n}.csv`, status, statusReason: null, pageCount: null,
   billingUnits: 1, failedChecks: 0, createdAt: `2026-05-2${n}T09:00:00Z`, source: "upload", sourceRef: null,
   flowVersion: f.publishedVersion ?? null,
-  number: null, sender: null, checks: [], sentAt: null, failedAt: null, stop: null, isSample: false,
+  number: null, sender: f === INBOX ? null : "Example Supplier Ltd", checks: [], sentAt: null, failedAt: null, stop: null, isSample: false,
+  kind: status === STATUS.read_failed ? null : KINDS[f.id] ?? null, inInbox: f === INBOX,
   ...facts,
 });
+/** An inbox document no flow holds the kind of: it waits for a person. */
+const NEW_KIND: Partial<DocumentRow> = { status: STATUS.needs_review, statusReason: "new_kind", checks: ["fields_unconfirmed"], failedChecks: 1 };
+/** Sessions that set sessionStorage "proculink.mock.inbox" to "on" also get the inbox states below (read once per page load). */
+const INBOX_ON = (() => { try { return sessionStorage.getItem("proculink.mock.inbox") === "on"; } catch { return false; } })();
+const seed = (n: number, f: Flow, fileName: string, status: string, kind: string | null, sender: string | null, facts: Partial<DocumentRow> = {}) =>
+  doc(0, f, status, { id: `doc-in-${n}`, fileName, kind, sender, createdAt: `2026-06-01T08:0${9 - n}:00Z`, ...facts });
 /** Newest is `doc-7`. Three wait for review or sending (`doc-1`, `doc-2`, `doc-5`); two failed (`doc-4`, `doc-6`). */
 const ROWS: DocumentRow[] = [
   doc(1, flow1, STATUS.needs_review, { failedChecks: 2, checks: ["low_confidence", "required_missing"], number: MOCK_DOCUMENT_NUMBER, sender: "Example Supplier Ltd" }),
@@ -110,8 +121,18 @@ const ROWS: DocumentRow[] = [
   doc(6, flow4, STATUS.read_failed, { statusReason: "unreadable_file", failedAt: "2026-05-26T09:02:00Z" }),
   doc(7, flow3, STATUS.sent, { isSample: true, sentAt: DOC_7_SENT_AT }),
 ];
+if (INBOX_ON) ROWS.push(
+  seed(1, INBOX, "statement-0412.pdf", STATUS.needs_review, "Statement", "Example Bank Ltd", NEW_KIND),
+  seed(2, INBOX, "invoice-7781.pdf", STATUS.needs_review, "Invoice", "Sample Traders Ltd", { ...NEW_KIND, statusReason: "choose_flow" }),
+  seed(3, flow2, "delivery-note-5521.pdf", STATUS.needs_review, "Delivery note", "Example Freight Ltd", { statusReason: "check_sort" }),
+  seed(4, INBOX, "price-list.xlsx", STATUS.sent, "Price list", "Example Supplier Ltd", { statusReason: "downloaded" }),
+  seed(5, INBOX, "scan-0003.jpg", STATUS.read_failed, null, null, { statusReason: "unreadable_file", failedAt: "2026-06-01T08:04:00Z" }),
+  seed(6, INBOX, "invoice-1002.pdf", STATUS.needs_review, null, null, { statusReason: "duplicate_file", checks: ["in_workspace"], failedChecks: 1 }),
+  // flow-4 also holds an invoice (so doc-in-2 has two flows to choose from), with doc-in-2's file: moving it there holds it.
+  seed(7, flow4, "invoice-7781.pdf", STATUS.sent, "Invoice", "Sample Traders Ltd", { sentAt: "2026-06-01T08:03:00Z" }),
+);
 /** What the bare list and every other summary carry: a row without the facts only pages send. */
-const summaryOf = ({ number, sender, checks, sentAt, failedAt, stop, isSample, ...s }: DocumentRow): DocumentSummary => s;
+const summaryOf = ({ number, sender, checks, sentAt, failedAt, stop, isSample, kind, inInbox, ...s }: DocumentRow): DocumentSummary => s;
 const DOCS = ROWS.map(summaryOf);
 const hardToRead = (key: string, label: string): DocumentCheck =>
   ({ code: "low_confidence", passed: false, fieldKey: key, message: `${label} was hard to read. Please check it.` });
@@ -121,12 +142,17 @@ const FAILED_CHECKS: Record<string, DocumentCheck> = {
   low_confidence: hardToRead("date", "Date"),
   required_missing: notFound("supplier", "Supplier"),
   duplicate: { code: "duplicate", passed: false, fieldKey: null, message: "A document with this number was already received." },
+  // The server's sentences (DocumentChecks, DocumentIntakeService.HoldAsDuplicateFile).
+  fields_unconfirmed: { code: "fields_unconfirmed", passed: false, fieldKey: null, message: "The fields to read have not been confirmed yet." },
+  in_workspace: { code: "duplicate", passed: false, fieldKey: null, message: "This file is already in your workspace." },
+  duplicate_file: { code: "duplicate", passed: false, fieldKey: null, message: "This file was already uploaded to this flow." },
 };
 const detail = (id: string): DocumentDetail => {
-  const s = summaryOf(live(pick(ROWS, id, "document")));
+  const row = live(pick(ROWS, id, "document"));
+  const s = summaryOf(row);
   const st = now(id);
   return {
-    summary: s, contentType: s.fileName.endsWith(".pdf") ? "application/pdf" : "text/csv", read: st.read, senderLabel: "Example Supplier Ltd",
+    summary: s, contentType: s.fileName.endsWith(".pdf") ? "application/pdf" : "text/csv", read: { ...st.read, kindLabel: row.kind ?? null }, senderLabel: row.sender ?? null,
     checks: st.failed.length ? st.failed : [{ code: "total_present", passed: true, fieldKey: "total", message: "Total found." }],
   };
 };
@@ -173,7 +199,7 @@ function editValues(id: string, body: Body): DocumentDetail {
   if (!documentStatus(was.status, row.statusReason).editable) refuse(409, "not_editable");
   const { fields = [], cells = [], addRowToTables = [], removeRows = [] } = body as EditValuesRequest;
   if (fields.length + cells.length + addRowToTables.length + removeRows.length === 0) refuse(400, "no_changes");
-  const flow = pick(FLOWS, row.flowId, "flow");
+  const flow = row.flowId === INBOX.id ? INBOX : pick(FLOWS, row.flowId, "flow");
   const copy: ReadResult = structuredClone(was.read);
   for (const e of fields) {
     let f = copy.fields.find((x) => x.key === e.key);
@@ -207,7 +233,7 @@ function editValues(id: string, body: Body): DocumentDetail {
     const v = copy.fields.find((x) => x.key === f.key);
     if (!v?.value?.trim()) return [notFound(f.key, f.label)];
     return v.confidence < REVIEW_CONFIDENCE ? [hardToRead(f.key, f.label)] : [];
-  }).concat(was.failed.filter((c) => c.code === "duplicate"));
+  }).concat(was.failed.filter((c) => c.code === "duplicate"), flow === INBOX ? [FAILED_CHECKS.fields_unconfirmed] : []);
   const status = was.status === STATUS.send_failed ? was.status : failed.length ? STATUS.needs_review : STATUS.ready;
   remembered.set(id, { ...was, status, read: copy, failed });
   return detail(id);
@@ -266,8 +292,9 @@ outputs.push({
   // Its own columns, with no lookup step: what uses a lookup stays the one flow whose output swaps a value.
   template: { format: "csv", root: { name: "row", nodeType: "object", children: [outputs[0].template.root.children![0]] } },
 });
-const intakesOf = (flowId: string) => (flowId === flow1.id ? intakes : []);
-const outputsOf = (flowId: string) => outputs.filter((o) => o.flowId === flowId);
+// The inbox has no flow routes on the server: they answer 404 flow_not_found. Other unknown ids keep these answers.
+const intakesOf = (flowId: string) => (flowId === INBOX.id ? missing("flow", flowId) : flowId === flow1.id ? intakes : []);
+const outputsOf = (flowId: string) => (flowId === INBOX.id ? missing("flow", flowId) : outputs.filter((o) => o.flowId === flowId));
 /** What the list carries per flow, derived from the fixtures above, never typed. */
 const flowSummaryOf = (f: Flow): FlowSummary => {
   const rows = ROWS.filter((d) => d.flowId === f.id);
@@ -423,25 +450,108 @@ const upload = (flow: Flow, body: Body): DocumentSummary => {
   uploaded.add(key);
   const row = doc(0, flow, held ? STATUS.needs_review : STATUS.reading, {
     id: `doc-up-${++uploads}`, fileName: file.name, createdAt: new Date().toISOString(),
-    ...(held && { statusReason: "duplicate_file", checks: ["duplicate"], failedChecks: 1 }),
+    ...(held && { statusReason: "duplicate_file", checks: [flow === INBOX ? "in_workspace" : "duplicate"], failedChecks: 1 }),
   });
-  if (!held) reads.set(row.id, {
-    at: Date.now() + 1500,
-    facts: file.name.toLowerCase().endsWith(".csv") ? { status: STATUS.ready } : { status: STATUS.needs_review, failedChecks: 1, checks: ["low_confidence"] },
-  });
+  if (!held) reads.set(row.id, { at: Date.now() + 1500, facts: flow === INBOX ? sortFacts(file.name) : readFacts(file.name) });
   ROWS.push(row);
   DOCS.push(summaryOf(row));
   return { ...summaryOf(row), status: held ? row.status : STATUS.received };
 };
-/** An uploaded row whose time has come takes its read status, in ROWS and DOCS both. Until then it answers as `reading`. */
+const readFacts = (name: string): Partial<DocumentRow> =>
+  name.toLowerCase().endsWith(".csv") ? { status: STATUS.ready } : { status: STATUS.needs_review, failedChecks: 1, checks: ["low_confidence"] };
+/** Where the inbox read puts a document, by its file name: certain for an invoice, not certain for a delivery note, else it waits. */
+const sortFacts = (name: string): Partial<DocumentRow> => {
+  const n = name.toLowerCase();
+  const to = (f: Flow, kind: string, sender: string, facts: Partial<DocumentRow>) => ({ flowId: f.id, flowName: f.name, kind, sender, inInbox: false, ...facts });
+  if (n.includes("invoice")) return to(flow1, "Invoice", "Example Supplier Ltd", readFacts(n));
+  if (n.includes("delivery") || n.includes("cmr")) return to(flow2, "Delivery note", "Example Freight Ltd", { status: STATUS.needs_review, statusReason: "check_sort" });
+  return n.includes("statement") ? { kind: "Statement", sender: "Example Bank Ltd", ...NEW_KIND } : { kind: null, sender: null, ...NEW_KIND };
+};
+/** A row's new facts, in ROWS and DOCS both. A person's edits are kept under the new status with `keep`, otherwise dropped. */
+const setRow = (id: string, facts: Partial<DocumentRow>, keep = false): DocumentRow => {
+  const row = Object.assign(pick(ROWS, id, "document"), facts);
+  Object.assign(pick(DOCS, id, "document"), summaryOf(row));
+  const was = remembered.get(id);
+  if (was && keep) remembered.set(id, { ...was, status: row.status });
+  else remembered.delete(id);
+  return row;
+};
+/** A row whose read time has come takes its read facts. Until then it answers as `reading` (or `received`, after a move). */
 const settleReads = () => {
   for (const [id, { at, facts }] of reads) {
     if (Date.now() < at) continue;
-    const row = Object.assign(pick(ROWS, id, "document"), facts);
-    Object.assign(pick(DOCS, id, "document"), summaryOf(row));
+    const from = pick(ROWS, id, "document").flowId;
+    const row = setRow(id, facts);
+    if (facts.flowId) log(id, "document.sorted", { fromFlowId: from, flowId: row.flowId, flow: row.flowName, certain: row.statusReason !== "check_sort", duplicateFile: false, newFlow: false }, null);
     reads.delete(id);
   }
 };
+
+/** Each document's history written in this page load, after the fixture's two rows. */
+const logged = new Map<string, { action: string; at: string; userId: string | null; payload: Body }[]>();
+const log = (id: string, action: string, payload: Body, userId: string | null = "user_member_a") =>
+  logged.set(id, [...(logged.get(id) ?? []), { action, at: new Date().toISOString(), userId, payload }]);
+/** Like InboxController.Move's guard: only a document that needs review or is ready, and is editable, moves. */
+const movable = (row: DocumentRow) => {
+  const status = now(row.id).status;
+  return (status === STATUS.needs_review || status === STATUS.ready) && documentStatus(status, row.statusReason).editable;
+};
+/** Puts the document in `to`: held as a duplicate when that flow already has the same file, otherwise read there 1.5 s later. */
+const place = (row: DocumentRow, to: Flow, newFlow: boolean) => {
+  const duplicateFile = ROWS.some((d) => d.id !== row.id && d.flowId === to.id && d.fileName === row.fileName && !d.isSample);
+  log(row.id, "document.moved", { fromFlowId: row.flowId, flowId: to.id, flow: to.name, certain: true, duplicateFile, newFlow });
+  const hold = duplicateFile ? { status: STATUS.needs_review, statusReason: "duplicate_file", checks: ["duplicate_file"], failedChecks: 1 } : null;
+  setRow(row.id, { flowId: to.id, flowName: to.name, inInbox: false, ...(hold ?? (newFlow
+    ? { status: STATUS.needs_review, statusReason: null, checks: [], failedChecks: 0 }
+    : { status: STATUS.received, statusReason: null, checks: [], failedChecks: 0 })) });
+  if (!hold && !newFlow) reads.set(row.id, { at: Date.now() + 1500, facts: readFacts(row.fileName) });
+  return summaryOf(live(row));
+};
+/** Like InboxController.Move: refusals in its order; the flow it is already in confirms the sort. */
+function moveTo(id: string, b: Body): DocumentSummary {
+  settleReads();
+  const row = pick(ROWS, id, "document");
+  const to = FLOWS.find((f) => f.id === b.flowId) ?? missing("flow", String(b.flowId));
+  if (!movable(row)) refuse(409, "not_movable");
+  if (to.id !== row.flowId) return place(row, to, false);
+  return summaryOf(live(setRow(id, { statusReason: null }, true)));
+}
+let setUps = 0;
+/** Like InboxController.SetUp: a new flow, with its "CSV file" output, named as asked or after the kind; a taken name gets " 2". */
+function setUp(id: string, b: Body): SetUpResult {
+  settleReads();
+  const row = pick(ROWS, id, "document");
+  if (row.flowId !== INBOX.id) refuse(409, "not_in_inbox");
+  if (!movable(row)) refuse(409, "not_movable");
+  const asked = typeof b.name === "string" && b.name.trim() ? b.name.trim() : !row.kind ? "Documents" : row.kind.endsWith("s") ? row.kind : `${row.kind}s`;
+  const taken = new Set([...FLOWS, INBOX].map((f) => f.name.toLowerCase()));
+  let name = asked;
+  for (let n = 2; taken.has(name.toLowerCase()); n++) name = `${asked} ${n}`;
+  const flow: Flow = { ...flow1, id: `flow-set-up-${++setUps}`, name, documentCount: 1, createdAt: new Date().toISOString(), publishedVersion: null, hasChanges: false, noCorrectionStreak: null };
+  FLOWS.push(flow);
+  outputs.push({ ...outputs[1], id: `out-${flow.id}`, flowId: flow.id, name: "CSV file", format: "csv", destinationId: null });
+  return { flowId: flow.id, flowName: name, document: place(row, flow, true) };
+}
+const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+/** Like InboxController.Download: refusals in its order; the first download marks it downloaded, a second one writes nothing. */
+function download(id: string, b: Body): Blob {
+  settleReads();
+  const row = pick(ROWS, id, "document");
+  if (row.flowId !== INBOX.id) refuse(409, "not_in_inbox");
+  const status = now(id).status;
+  const downloaded = status === STATUS.sent && row.statusReason === "downloaded";
+  if (row.statusReason === "duplicate_file" || !(downloaded || status === STATUS.needs_review || status === STATUS.ready)) refuse(409, "not_read");
+  if (b.format !== "xlsx" && b.format !== "csv") refuse(400, "invalid_format");
+  if (!downloaded) {
+    log(id, "document.downloaded", { format: b.format });
+    setRow(id, { status: STATUS.sent, statusReason: "downloaded" }, true);
+  }
+  return new Blob([CSV], { type: b.format === "csv" ? "text/csv" : XLSX });
+}
+let inboxAddresses = 0;
+const inboxAnswer = () => ({
+  flowId: INBOX.id, address: `documents-${(0x7f3a + inboxAddresses).toString(16)}@inbound.example.test`, intakeId: "intake-inbox", scansOn: true, formatsOn: true,
+});
 
 const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   // Like the server's list: a summary per flow, and none of the single response's draft facts.
@@ -501,11 +611,22 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   }],
   ["GET", re`/documents/${S}`, (m) => (settleReads(), detail(m[1]))],
   ["PATCH", re`/documents/${S}/values`, (m, _q, b) => editValues(m[1], b)],
-  ["POST", re`/documents/${S}/teach`, (m) => detail(m[1])],
+  ["POST", re`/documents/${S}/teach`, (m) => (pick(ROWS, m[1], "document").flowId === INBOX.id ? refuse(409, "not_in_flow") : detail(m[1]))],
   ["GET", re`/documents/${S}/history`, (m) => {
     pick(DOCS, m[1], "document");
-    return [{ action: "received", at: "2026-05-20T09:00:00Z", userId: null, payload: null }, { action: "read", at: "2026-05-20T09:01:00Z", userId: null, payload: null }];
+    return [{ action: "received", at: "2026-05-20T09:00:00Z", userId: null, payload: null }, { action: "read", at: "2026-05-20T09:01:00Z", userId: null, payload: null },
+      ...(logged.get(m[1]) ?? [])];
   }],
+  ["GET", re`/inbox`, inboxAnswer],
+  ["POST", re`/inbox/new-address`, () => (inboxAddresses++, inboxAnswer())],
+  ["POST", re`/documents`, (_m, _q, b) => upload(INBOX, b)],
+  // As InboxController.SortFlows: the flows already holding a document of this one's kind, by name.
+  ["GET", re`/documents/${S}/sort-flows`, (m) => {
+    const kind = pick(ROWS, m[1], "document").kind;
+    return kind ? FLOWS.filter((f) => ROWS.some((d) => d.flowId === f.id && d.kind === kind && !d.isSample)).sort(byName).map(({ id, name }) => ({ id, name })) : [];
+  }],
+  ["POST", re`/documents/${S}/move`, (m, _q, b) => moveTo(m[1], b)],
+  ["POST", re`/documents/${S}/set-up`, (m, _q, b) => setUp(m[1], b)],
   ["POST", re`/documents/${S}/retry-read`, (m) => summaryOf(live(pick(ROWS, m[1], "document")))],
   ["POST", re`/documents/${S}/send`, (m) => send(m[1])],
   ["GET", re`/documents/${S}/deliveries`, (m) => now(m[1]).deliveries ?? []],
@@ -554,7 +675,13 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["POST", re`/flows/${S}/intakes/${S}/new-address`, () => intakes[0]],
   ["POST", re`/flows/${S}/intakes/${S}/test`, () => TEST_OK],
   ["GET", re`/flows/${S}/outputs`, (m) => outputsOf(m[1])],
-  ["POST", re`/flows/${S}/outputs`, (_m, _q, b) => echo(outputs[0], b)],
+  // A set-up flow keeps what is saved to it, so its first run can finish; other flows get the echo.
+  ["POST", re`/flows/${S}/outputs`, (m, _q, b) => {
+    if (!m[1].startsWith("flow-set-up-")) return echo(outputs[0], b);
+    const made = { ...echo(outputs[0], b), id: `out-${m[1]}-${outputs.length}`, flowId: m[1] };
+    outputs.push(made);
+    return made;
+  }],
   ["PUT", re`/flows/${S}/outputs/${S}`, (m, _q, b) => echo(pick(outputs, m[2], "output"), b)],
   ["DELETE", re`/flows/${S}/outputs/${S}`, () => undefined],
   ["PUT", re`/flows/${S}/outputs/${S}/logo`, () => undefined],
@@ -579,12 +706,13 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
 
 // The original is served by file name, like the real download: a `.pdf` document gets real PDF bytes,
 // so pdf.js renders it in the browser; everything else is the fixture CSV.
-const BLOBS: [RegExp, (m: string[]) => Blob][] = [
-  [re`/documents/${S}/source`, (m) => {
+const BLOBS: [method: string, pattern: RegExp, run: (m: string[], body: Body) => Blob][] = [
+  ["GET", re`/documents/${S}/source`, (m) => {
     const name = pick(DOCS, m[1], "document").fileName;
     return name.endsWith(".pdf") ? mockSourceBytesForKey(name)!.blob : new Blob([CSV], { type: "text/csv" });
   }],
-  [re`/documents/${S}/deliveries/${S}/file`, () => new Blob([preview.content], { type: "text/csv" })],
+  ["GET", re`/documents/${S}/deliveries/${S}/file`, () => new Blob([preview.content], { type: "text/csv" })],
+  ["POST", re`/documents/${S}/download`, (m, b) => download(m[1], b)],
 ];
 
 function bodyOf(init?: RequestInit): Body {
@@ -614,10 +742,10 @@ export async function mockEngineFetch<T>(path: string, init?: RequestInit, as: "
     const owned = workspaceFetch(method, pathname, new URLSearchParams(query), bodyOf(init));
     if (owned) return owned.answer as T;
   }
-  if (as === "blob" && method === "GET") {
-    for (const [pattern, run] of BLOBS) {
-      const m = pattern.exec(pathname);
-      if (m) return run(m) as T;
+  if (as === "blob") {
+    for (const [verb, pattern, run] of BLOBS) {
+      const m = verb === method ? pattern.exec(pathname) : null;
+      if (m) return run(m, bodyOf(init)) as T;
     }
     throw new Error(`mock engine: no file fixture for ${pathname}`);
   }

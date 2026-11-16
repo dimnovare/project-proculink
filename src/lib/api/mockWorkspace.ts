@@ -349,6 +349,10 @@ const ROUTES: Route[] = [
  *  ApiHttpError-shaped refusals exactly as the server does. A path or parameter under those
  *  prefixes that it does not implement throws `mock workspace: no route for ${method} ${path}`. */
 export function workspaceFetch(method: string, path: string, query: URLSearchParams, body: unknown): { answer: unknown } | undefined {
+  // An empty workspace has an empty inbox; adding to it, and its answers, are not built here.
+  if (method === "GET" && path === "/inbox") return { answer: { flowId: "ws-inbox", address: null, intakeId: null } };
+  if (/^\/inbox(\/|$)/.test(path) || (method === "POST" && path === "/documents") || /^\/documents\/[^/]+\/(move|set-up|download|sort-flows)$/.test(path))
+    throw new Error(`mock workspace: the inbox is not implemented (${method} ${path})`);
   if (!/^\/(flows|documents|destinations|linked-accounts)(\/|$)/.test(path)) return undefined;
   for (const [verb, pattern, run] of ROUTES) {
     const m = verb === method ? pattern.exec(path) : null;
