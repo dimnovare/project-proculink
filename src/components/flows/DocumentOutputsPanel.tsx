@@ -139,7 +139,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
     <div className="grid gap-3">
       {destinations.isError && <Failed error={destinations.error} retry={() => destinations.refetch()} />}
       {outputs.isError && !list ? <Failed error={outputs.error} retry={() => outputs.refetch()} />
-        : !list ? <Quiet>Loading outputs…</Quiet>
+        : !list ? <Quiet>Loading files…</Quiet>
         : list.length > 0 && (
           <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr))]">
             {list.map((o) => (
@@ -156,9 +156,9 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
         )}
       {list && (list.length > 0 ? (
         <p className="m-0 text-[12.5px] text-ink-muted">
-          Want another file from this document? <Link href={addLink} className="text-brand-blue underline">Add an output</Link>
+          Want another file from this document? <Link href={addLink} className="text-brand-blue underline">Make another file</Link>
         </p>
-      ) : <Link href={addLink} className="inline-flex items-center text-[13px] text-brand-blue">Add an output to this flow</Link>)}
+      ) : <Link href={addLink} className="inline-flex items-center text-[13px] text-brand-blue">Make a file for this flow</Link>)}
       {!!deliveries.data?.length && <Deliveries documentId={documentId} deliveries={deliveries.data} />}
     </div>
   );

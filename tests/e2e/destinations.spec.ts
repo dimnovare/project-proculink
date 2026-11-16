@@ -87,7 +87,7 @@ test.describe("destinations", () => {
     await page.getByRole("link", { name: "Fix the destination" }).click();
     await expect(page).toHaveURL(/\/settings\?tab=destinations&open=dest-1$/);
     const panel = page.getByRole("region", { name: "Edit Accounting inbox" });
-    await expect(panel).toContainText("One output uses this destination, so it can't be deleted.");
+    await expect(panel).toContainText("One file uses this destination, so it can't be deleted.");
     await panel.getByRole("button", { name: "Save and send a test" }).click();
     await expect(panel.getByText(/^Test file arrived at \d\d:\d\d\.$/)).toBeVisible();
     const band = panel.getByTestId("destination-waiting");
@@ -185,7 +185,7 @@ test.describe("destinations", () => {
     // In use: named, linked, and no way to delete it.
     await page.getByRole("button", { name: "Edit Accounting inbox" }).click();
     const inUse = page.getByRole("region", { name: "Edit Accounting inbox" });
-    await expect(inUse).toContainText("One output uses this destination, so it can't be deleted.");
+    await expect(inUse).toContainText("One file uses this destination, so it can't be deleted.");
     await expect(inUse.getByRole("link", { name: "Invoice CSV in Supplier invoices" })).toHaveAttribute("href", "/flows/flow-1?tab=outputs");
     await expect(inUse.getByRole("button", { name: "Delete destination" })).toHaveCount(0);
     // Unused: asked first; Keep leaves it, Delete removes the row.

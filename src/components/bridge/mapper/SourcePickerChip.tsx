@@ -139,7 +139,7 @@ export function SourcePickerChip({
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
-        title={unsourced ? "Pick the incoming field that fills this output" : `Source: ${currentLabel} — click to change`}
+        title={unsourced ? "Pick the value we read that fills this field" : `Source: ${currentLabel} — click to change`}
         style={{
           display: "inline-flex", alignItems: "center", gap: 5, maxWidth: 200,
           height: 26, padding: "0 11px", borderRadius: 999,

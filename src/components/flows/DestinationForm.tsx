@@ -36,10 +36,12 @@ const CONFIG_FIELDS: Record<string, [label: string, kind: Kind]> = {
   // No attachmentFileName box: a flow send always names the attachment after the document.
 };
 
+/** The common places first; the server kinds are grouped under "A server or another system" (plan 16a R17). */
 const PROTOCOLS = {
-  http: "Web address (API)", sftp: "SFTP", ftps: "FTPS", email: "Email", s3: "S3 bucket",
-  google_drive: "Google Drive", google_sheets: "Google Sheets",
+  email: "Email", google_drive: "Google Drive", google_sheets: "Google Sheets",
+  sftp: "SFTP", ftps: "FTPS", s3: "S3 bucket", http: "Web address (API)",
 } as const;
+const SERVER = new Set(["sftp", "ftps", "s3", "http"]);
 type Protocol = keyof typeof PROTOCOLS;
 const isGoogle = (p: string): p is "google_drive" | "google_sheets" => p === "google_drive" || p === "google_sheets";
 const DEFAULTS: Record<Protocol, Record<string, unknown>> = {
@@ -119,7 +121,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
   const filled = useOnFlowPage() ? "secondary" : "primary";
   const [current, setCurrent] = useState(destination);
   const [name, setName] = useState(destination?.name ?? chosen?.name ?? "");
-  const first = (chosen?.protocols[0] ?? "http") as Protocol;
+  const first = (chosen?.protocols[0] ?? (preset ? "http" : "email")) as Protocol;
   const [protocol, setProtocol] = useState<Protocol>((destination?.protocol as Protocol) ?? first);
   const [config, setConfig] = useState<Record<string, unknown>>(
     destination?.config ?? { ...DEFAULTS[first], ...(preset && { url: preset.url, ...(preset.method && { method: preset.method.toUpperCase() }) }) });
@@ -239,6 +241,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
   const fields = keys.filter((k) => k in CONFIG_FIELDS);
   const folded = [...fields.filter((k) => FOLDED.has(k)).map(configField), ...credFields.filter(([k]) => FOLDED.has(k)).map(credField)];
   const note = TEST_NOTE[protocol];
+  const offered = Object.entries(PROTOCOLS).filter(([id]) => (chosen ? chosen.protocols.includes(id) : googleOn || !isGoogle(id) || id === protocol));
 
   const body = (
     // Not a <form>: this sits inside the output and draft-review forms, and a nested form's Save
@@ -264,8 +267,13 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
             }}
           >
             {!Object.hasOwn(PROTOCOLS, protocol) && <option value={protocol}>{protocol}</option>}
-            {Object.entries(PROTOCOLS).filter(([id]) => (chosen ? chosen.protocols.includes(id) : googleOn || !isGoogle(id) || id === protocol))
-              .map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+            {offered.filter(([id]) => chosen || !SERVER.has(id)).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+            {/* The first run already chose the server tile, so its two kinds need no group of their own. */}
+            {!chosen && offered.some(([id]) => SERVER.has(id)) && (
+              <optgroup label="A server or another system">
+                {offered.filter(([id]) => SERVER.has(id)).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+              </optgroup>
+            )}
           </select>
         </Field>
       )}

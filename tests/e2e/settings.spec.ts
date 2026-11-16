@@ -136,6 +136,28 @@ test.describe("settings", () => {
     expect(width).toBeLessThanOrEqual(1230);
   });
 
+  test("at 1440: tab=api opens Workspace with For developers open; plain Settings has it closed and no keys drawn", async ({ page }) => {
+    await preparePage(page, { dismissCookieBanner: true });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const developers = page.locator("details").filter({ has: page.locator("summary", { hasText: "For developers" }) });
+    await page.goto("/settings?tab=api");
+    await expect(tabs(page).locator("[aria-current=page]")).toHaveText("Workspace");
+    await expect(developers).toHaveAttribute("open", "");
+    await expect(page.getByRole("button", { name: "Create key" })).toBeVisible();
+
+    await page.goto("/settings");
+    await expect(tabs(page).locator("[aria-current=page]")).toHaveText("Workspace");
+    await expect(developers.locator("summary")).toBeVisible();
+    await expect(developers).not.toHaveAttribute("open", "");
+    // The keys section is not in the page while closed, so its list is not asked for. (In mock mode the keys come
+    // from the in-memory client, not a request, so the request itself cannot be watched here: the unit test does that.)
+    await expect(page.getByRole("button", { name: "Create key" })).toHaveCount(0);
+    await expect(page.getByTestId("api-keys-table")).toHaveCount(0);
+    await expect(page.getByText("No API keys yet.")).toHaveCount(0);
+    await developers.locator("summary").click();
+    await expect(page.getByRole("button", { name: "Create key" })).toBeVisible();
+  });
+
   test("Plan & billing says the mock's trial in the registry's words, lists its upgrades, and Annual changes the prices in place", async ({ page }) => {
     await preparePage(page, { dismissCookieBanner: true });
     await page.setViewportSize({ width: 1440, height: 1000 });
@@ -205,12 +227,22 @@ test.describe("settings", () => {
     await page.keyboard.press("Escape");
     await expect(second.dialog).toHaveCount(0);
     expect(await kept(second.raw)).toBe(false);
+    await tabs(page).getByRole("button", { name: "Destinations" }).click();
+    // Destinations is shown (Workspace and its keys are gone) before Workspace is pressed again.
+    await expect(page).toHaveURL(/\/settings\?tab=destinations$/);
+    await expect(page.getByTestId("api-keys-table")).toHaveCount(0);
     await tabs(page).getByRole("button", { name: "Workspace" }).click();
-    await tabs(page).getByRole("button", { name: "API keys" }).click();
+    await expect(page).toHaveURL(/\/settings\?tab=org$/);
+    // Workspace is drawn again on tab=org, so For developers is closed: opened, the list is asked for again.
+    const developers = page.locator("details").filter({ has: page.locator("summary", { hasText: "For developers" }) });
+    await expect(developers).not.toHaveAttribute("open", "");
+    await developers.locator("summary").click();
     await expect(page.getByTestId("api-keys-table")).toContainText("Warehouse system");
     expect(await kept(first.raw) || await kept(second.raw)).toBe(false);
 
     await page.reload();
+    // Reloaded on tab=org, For developers opens closed: opened, the keys list again, without the raw key.
+    await page.locator("summary", { hasText: "For developers" }).click();
     await expect(page.getByRole("button", { name: "Create key" })).toBeVisible();
     expect(await kept(first.raw) || await kept(second.raw)).toBe(false);
   });
@@ -245,9 +277,10 @@ test.describe("settings", () => {
     { tab: "org", address: "/settings?tab=org", filled: [] },
     { tab: "destinations", address: "/settings?tab=destinations&open=dest-1", filled: ["Save and send a test"] },
     { tab: "billing", address: "/settings?tab=billing", filled: [`Upgrade to ${PLAN_BY_ID[nextPlanFor("pilot", true)!].name}`] },
-    { tab: "api", address: "/settings?tab=api", filled: ["Create key"] },
+    // API keys live in Workspace, under For developers: `tab=api` opens it there, and only then is Create key drawn.
+    { tab: "org (For developers open)", address: "/settings?tab=api", filled: ["Create key"] },
     {
-      tab: "api (form open)", address: "/settings?tab=api", filled: ["Create key"],
+      tab: "org (For developers, key form open)", address: "/settings?tab=api", filled: ["Create key"],
       open: async (page) => { await page.getByRole("button", { name: "Create key" }).click(); await page.getByLabel("Name").fill("Accounting system"); },
     },
   ];

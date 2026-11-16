@@ -56,11 +56,11 @@ function accessibleNames(): string[] {
 }
 
 describe("<GhostWire> — a suggestion nothing scored", () => {
-  it("names its controls 'saved mapping suggestion', never 'AI'", () => {
+  it("names its controls as a saved mapping's suggestion, never 'AI'", () => {
     draw(SAVED);
 
-    const accept = screen.getByLabelText(/^Accept saved mapping suggestion:/);
-    const dismiss = screen.getByLabelText(/^Dismiss saved mapping suggestion:/);
+    const accept = screen.getByLabelText(/^Accept suggestion: A saved mapping suggests this\./);
+    const dismiss = screen.getByLabelText(/^Dismiss suggestion: A saved mapping suggests this\./);
 
     expect(accept).toBeTruthy();
     expect(dismiss).toBeTruthy();
@@ -70,7 +70,7 @@ describe("<GhostWire> — a suggestion nothing scored", () => {
   it("says where the suggestion came from instead of quoting a confidence", () => {
     draw(SAVED);
     expect(
-      screen.getByLabelText("Accept saved mapping suggestion: saved mapping for this supplier (saved supplier mapping)"),
+      screen.getByLabelText("Accept suggestion: A saved mapping suggests this."), // said once, not three times
     ).toBeTruthy();
   });
 
@@ -129,7 +129,7 @@ describe("<GhostWire> — an older backend that omits `basis`", () => {
   it("reads a null confidence as a saved mapping rather than inventing a number", () => {
     const legacy: MappingSuggestion = { ...SAVED, basis: undefined };
     const { container } = draw(legacy);
-    expect(screen.getByLabelText(/^Accept saved mapping suggestion:/)).toBeTruthy();
+    expect(screen.getByLabelText(/^Accept suggestion: A saved mapping suggests this\./)).toBeTruthy();
     expect(container.textContent).not.toMatch(/\d/);
   });
 

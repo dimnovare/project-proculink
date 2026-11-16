@@ -8,7 +8,7 @@ import { fileRefusal } from "@/lib/fileKinds";
 
 /** A drop zone with a hidden file input. Refuses the wrong type or an oversize file before `onFile`; `error` is the caller's own refusal to show. */
 export function FileDrop({ accept, maxBytes, prompt, busyLabel, busy, error, onFile, variant = "secondary" }: {
-  accept: string; maxBytes: number; prompt: string; busyLabel?: string; busy?: boolean; error?: string | null; onFile(file: File): void;
+  accept: string; maxBytes: number; prompt: React.ReactNode; busyLabel?: string; busy?: boolean; error?: string | null; onFile(file: File): void;
   /** The button's look: "blue" where choosing a file is the screen's one filled action. */
   variant?: "secondary" | "blue";
 }) {

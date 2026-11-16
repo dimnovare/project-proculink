@@ -72,6 +72,16 @@ describe("FlowPage", () => {
     expect(within(down.container).queryByText("We can't find that page")).toBeNull();
   });
 
+  it("the header says In use only for a flow with a saved setup", async () => {
+    for (const publishedVersion of [1, null, undefined]) {
+      api.getFlow.mockResolvedValue({ ...flow, publishedVersion });
+      const { unmount } = renderPage();
+      await screen.findByRole("heading", { level: 1, name: "Supplier invoices" });
+      expect(screen.queryAllByText("In use").length, `publishedVersion ${publishedVersion}`).toBe(publishedVersion === 1 ? 1 : 0);
+      unmount();
+    }
+  });
+
   it("the strip marks the chosen step and an old tab name still works", async () => {
     search.q = "tab=fields";
     renderPage();
@@ -134,16 +144,16 @@ describe("FlowPage", () => {
     for (const step of ["arrives", "read", "check", "send"]) {
       search.q = `tab=${step}`;
       const { unmount } = renderPage();
-      await screen.findByRole("button", { name: "Publish changes" });
+      await screen.findByRole("button", { name: "Use these changes" });
       if (step === "send") {
-        const editor = within(await screen.findByRole("region", { name: "Edit the output Invoice CSV" }));
+        const editor = within(await screen.findByRole("region", { name: "Edit the file Invoice CSV" }));
         await editor.findByText("Invoice 1001");
         fireEvent.click(await editor.findByRole("button", { name: "Send a test" }));
         await editor.findByText(/Test file arrived/);
       }
       if (step === "arrives") await screen.findByRole("button", { name: "Add a pickup" });
       const fills = [...document.body.querySelectorAll("button, a")].filter(filled);
-      expect(fills.map((b) => b.textContent), step).toEqual(["Publish changes"]);
+      expect(fills.map((b) => b.textContent), step).toEqual(["Use these changes"]);
       unmount();
     }
   });

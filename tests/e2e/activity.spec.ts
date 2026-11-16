@@ -109,11 +109,12 @@ test.describe("activity", () => {
     await expect(page).toHaveURL(/\/operations\/log$/);
     await expect(pager(page)).toContainText("Showing the newest 50 of 61.");
 
-    // A search looks at documents only: the published flow is not among its rows.
+    // A search looks at documents only: the flow version put in use is not among its rows.
+    await expect(rows(page).filter({ hasText: "was put in use" }).first(), "the row the search must leave out is there before it").toBeVisible();
     await page.getByRole("searchbox", { name: "Search activity" }).fill("invoice-1003");
     await expect(rows(page).first()).toContainText("invoice-1003");
     await expect(pager(page)).toContainText(/Showing all \d+\./);
-    await expect(rows(page).filter({ hasText: "was published" })).toHaveCount(0);
+    await expect(rows(page).filter({ hasText: "was put in use" })).toHaveCount(0);
 
     // Export hands over a CSV of the tab, and a second press while it runs does nothing.
     await page.getByRole("searchbox", { name: "Search activity" }).fill("");

@@ -24,6 +24,19 @@ export const metadata = pageMetadata({
 // those entries byte for byte.
 const ENTRIES = [
   {
+    version: "v2.2",
+    date: "16 November 2026",
+    items: [
+      "On a flow's We send step, each file leads with where it goes and Send a test.",
+      "Make another file: one press of Create makes a CSV with every value we read.",
+      "Standard formats are listed by family, the ones that fit your documents first.",
+      "We read shows one More for each value, holding its type, its meaning and whether it is required.",
+      "Your first flow offers the common places to send a file first, and a server is one press away.",
+      "Changes inside a flow say whether they are in use, with Use these changes and Undo my changes.",
+      "Settings has three tabs: Workspace, Destinations, and Plan & billing. API keys are under Workspace, in For developers.",
+    ],
+  },
+  {
     version: "v2.1",
     date: "15 November 2026",
     items: [

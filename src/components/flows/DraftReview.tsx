@@ -62,16 +62,14 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
     mutationFn: () => {
       return createOutput(flow.id, { name: name.trim(), format: draft.format, tableKey: draft.tableKey, destinationId, template: sent });
     },
-    onSuccess: (saved) => {
-      qc.invalidateQueries({ queryKey: ["outputs", flow.id] });
-      onCreated(saved);
-    },
+    // The caller puts the saved file into the list before it asks for the list again (OutputBuilder).
+    onSuccess: (saved) => onCreated(saved),
     onError: (e) => setProblem(documentRefusalMessage(e)),
   });
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return setProblem("Give this output a name.");
+    if (!name.trim()) return setProblem("Give this file a name.");
     setProblem(null);
     create.mutate();
   }

@@ -10,7 +10,7 @@ export interface DocumentStatusRow {
   editable: boolean;
 }
 
-export const DOCUMENT_STATUSES: Record<string, DocumentStatusRow> = {
+const ROWS = {
   received: { label: "Received", tone: "working", stage: 0, needsYou: false, editable: false },
   reading: { label: "Reading", tone: "working", stage: 1, needsYou: false, editable: false },
   read_failed: { label: "Couldn't read", tone: "error", stage: { failed: 1 }, needsYou: true, editable: false },
@@ -19,7 +19,11 @@ export const DOCUMENT_STATUSES: Record<string, DocumentStatusRow> = {
   sending: { label: "Sending", tone: "working", stage: 4, needsYou: false, editable: false },
   sent: { label: "Sent", tone: "success", stage: 4, needsYou: false, editable: false },
   send_failed: { label: "Couldn't send", tone: "error", stage: { failed: 4 }, needsYou: true, editable: true },
-};
+} satisfies Record<string, DocumentStatusRow>;
+export const DOCUMENT_STATUSES: Record<string, DocumentStatusRow> = ROWS;
+
+/** Each status by name (`STATUS.sent` is `"sent"`), so code compares against the manifest, not a typed string. */
+export const STATUS = Object.fromEntries(Object.keys(ROWS).map((k) => [k, k])) as { readonly [K in keyof typeof ROWS]: K };
 
 /** Checks about the whole document; each fails at most once. Every other failed check is about a value.
  *  Mirrors `ProcuLink.Core/Documents/DocumentChecks.cs` (pinned by backendMirror.test.ts). */

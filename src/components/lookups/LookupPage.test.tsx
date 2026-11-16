@@ -2,10 +2,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, screen, within, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
+import { flowAddress } from "@/lib/flowSteps";
 import { LookupPage } from "./LookupPage";
 import { LookupNoticeBanner, showLookupNotice } from "./lookupNotice";
 
-const api = vi.hoisted(() => ({ getLookup: vi.fn(), updateLookup: vi.fn(), deleteLookup: vi.fn() }));
+const api = vi.hoisted(() => ({ getLookup: vi.fn(), updateLookup: vi.fn(), deleteLookup: vi.fn(), listFlows: vi.fn(() => new Promise(() => {})) }));
 vi.mock("@/lib/api/documents", () => api);
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -17,6 +18,17 @@ const table = () => screen.getByRole("table", { name: "Rows of Item codes" });
 beforeEach(() => { vi.clearAllMocks(); showLookupNotice(null); api.updateLookup.mockImplementation(async (_id, b) => ({ ...lookup(b.entries), name: b.name, updatedAt: new Date().toISOString() })); });
 
 describe("LookupPage", () => {
+  it("an unused lookup says how to use it and links to each flow's We send", async () => {
+    api.getLookup.mockResolvedValue(lookup([{ from: "KS-100", to: "A" }]));
+    let answer!: (flows: unknown) => void;
+    api.listFlows.mockReturnValueOnce(new Promise((r) => { answer = r; }));
+    show();
+    expect(await screen.findByText(/^Not used yet\. To use it, open a flow, go to We send, open a file, choose More options and pick this lookup for a column\.$/)).toBeTruthy();
+    expect(screen.queryByRole("list", { name: "Your flows" })).toBeNull(); // nothing drawn as empty while the flows load
+    await act(async () => answer([{ id: "flow-1", name: "Supplier invoices" }]));
+    expect(await screen.findByRole("link", { name: "Supplier invoices" })).toHaveAttribute("href", flowAddress("flow-1", "send"));
+  });
+
   it("a change saves the whole table, and a row the server would refuse is held back and says why", async () => {
     api.getLookup.mockResolvedValue(lookup([{ from: "KS-100", to: "A" }, { from: "KS-200", to: "B" }]));
     show();
@@ -99,7 +111,7 @@ describe("LookupPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete lookup" }));
     expect(screen.getByText("Delete “Item codes”? This can't be undone.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Delete lookup" }));
-    expect(await screen.findByText("An output uses this lookup. Remove it from the output first.")).toBeTruthy();
+    expect(await screen.findByText("A file uses this lookup. Remove it from the file first.")).toBeTruthy();
     expect(api.deleteLookup).toHaveBeenCalledTimes(1);
     // The delete was refused: what was typed is saved after all.
     await waitFor(() => expect(api.updateLookup).toHaveBeenLastCalledWith("l1", { name: "Item codes", entries: [{ from: "A", to: "typed" }] }));

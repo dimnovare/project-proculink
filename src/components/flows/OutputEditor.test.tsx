@@ -1,15 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { FlowDraftProvider } from "./flowDraft";
 import { OutputEditor } from "./OutputEditor";
 
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn() }) }));
 
 const api = vi.hoisted(() => ({
   listDestinations: vi.fn(), listLookups: vi.fn(), updateOutput: vi.fn(), createOutput: vi.fn(), previewOutput: vi.fn(), saveFlowFields: vi.fn(), checkOutput: vi.fn(),
-  createDestination: vi.fn(),
+  createDestination: vi.fn(), listDocuments: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
+vi.mock("./UploadQueue", () => ({ useUploadQueue: () => ({ add: vi.fn() }) }));
 
 const flow = { id: "f", fields: { fields: [{ key: "supplier", label: "Supplier" }], tables: [] } };
 const output = {
@@ -212,5 +215,98 @@ describe("OutputEditor", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Send a test" })).toBeNull();
+  });
+});
+
+describe("OutputEditor on the flow page (draft)", () => {
+  const renderDraft = (o: unknown) => render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <FlowDraftProvider flowId="f">
+        <OutputEditor mode="draft" flow={flow as never} output={o as never} previewDocumentId="d" onSaved={() => {}} onCancel={() => {}} />
+      </FlowDraftProvider>
+    </QueryClientProvider>,
+  );
+  const withColumnNamed = (name: string) => ({ root: { name: "document", nodeType: "object", children: [
+    { name, nodeType: "field", children: [], rule: { outputPath: name, canonicalField: "supplier", fieldManipulators: [] } },
+  ] } });
+  beforeEach(() => {
+    localStorage.clear();
+    api.previewOutput.mockResolvedValue({ contentType: "text/csv", fileName: "a.csv", content: "Supplier", lookupMisses: [] });
+  });
+
+  it("a column problem opens the columns and is said outside them", async () => {
+    localStorage.setItem("plk:columns-open", "0");
+    renderDraft({ ...output, template: withColumnNamed("") });
+    expect(await screen.findByText("Give every column a name.")).toBeInTheDocument();
+    const box = screen.getByRole("textbox", { name: /^Column name,/ });
+    expect(screen.queryByRole("button", { name: "Done with the columns" })).toBeNull();     // a problem: nothing folds it away
+    // Typing the first letter ends the problem; the editor stays open under the cursor and nothing is written.
+    box.focus();
+    fireEvent.change(box, { target: { value: "S" } });
+    expect(screen.getByRole("textbox", { name: "Column name, S" })).toBe(document.activeElement);
+    expect(localStorage.getItem("plk:columns-open")).toBe("0");
+  });
+
+  it("a column whose value we no longer read is said and not folded away", () => {
+    localStorage.setItem("plk:columns-open", "0");
+    renderDraft({ ...output, template: { root: { name: "document", nodeType: "object", children: [
+      { name: "Region", nodeType: "field", children: [], rule: { outputPath: "Region", canonicalField: "region", fieldManipulators: [] } },
+    ] } } });
+    expect(screen.getByText("A column takes its value from something we no longer read. Choose another value for it.")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Column name, Region" })).toBeInTheDocument();
+  });
+
+  it("a destination the list does not name is never shown as Download only, and no test is sent to it", async () => {
+    renderDraft({ ...output, destinationId: "D9" });
+    const select = screen.getByRole("combobox", { name: "Send to" }) as HTMLSelectElement;
+    expect(select.selectedOptions[0].textContent).toBe("Loading destinations…");
+    await waitFor(() => expect(select.selectedOptions[0].textContent).toBe("A destination that no longer exists"));
+    expect(screen.getByRole("button", { name: "Send a test" })).toBeDisabled();
+    expect(screen.getByText("Choose where to send it first.")).toBeInTheDocument();
+  });
+
+  it("a clean file leads with where it goes, the columns closed, even when storage throws", async () => {
+    api.listDestinations.mockResolvedValue([{ id: "D1", name: "Accounting server", protocol: "sftp", config: { host: "sftp.example.test", remotePath: "/in" }, hasCredentials: true }]);
+    const get = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("blocked"); });
+    renderDraft({ ...output, destinationId: "D1" });
+    expect(await screen.findByText("Accounting server")).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Send to" })).toBeNull();
+    const columns = screen.getByRole("button", { name: "Change the columns" });
+    expect(columns).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("textbox", { name: /^Column name,/ })).toBeNull();
+    get.mockRestore();
+  });
+
+  it("the Send to fold says its state and keeps focus where the person is", async () => {
+    api.listDestinations.mockResolvedValue([{ id: "D1", name: "Accounting server", protocol: "sftp", config: { host: "sftp.example.test", remotePath: "/in" }, hasCredentials: true }]);
+    renderDraft({ ...output, destinationId: "D1" });
+    const change = await screen.findByRole("button", { name: "Change where it goes" });
+    expect(change).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(change);
+    expect(screen.getByRole("combobox", { name: "Send to" })).toBe(document.activeElement);
+    const done = screen.getByRole("button", { name: "Done choosing where it goes" });
+    expect(done).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(done);
+    expect(screen.getByRole("button", { name: "Change where it goes" })).toBe(document.activeElement);
+  });
+
+  it("remembered open, the columns open; Done closes them and remembers that", () => {
+    localStorage.setItem("plk:columns-open", "1");
+    renderDraft(output);
+    expect(screen.getByRole("textbox", { name: "Column name, Supplier" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Done with the columns" }));
+    expect(screen.queryByRole("textbox", { name: "Column name, Supplier" })).toBeNull();
+    expect(localStorage.getItem("plk:columns-open")).toBe("0");
+  });
+  it("with no document yet, an automatic flow with a destination says a dropped document is also sent", async () => {
+    api.listDocuments.mockResolvedValue([]);
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <FlowDraftProvider flowId="f">
+          <OutputEditor mode="draft" flow={{ ...flow, automation: "auto" } as never} output={{ ...output, destinationId: "D1" } as never} onSaved={() => {}} onCancel={() => {}} />
+        </FlowDraftProvider>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("This flow sends automatically, so this document is also sent.")).toBeInTheDocument();
   });
 });

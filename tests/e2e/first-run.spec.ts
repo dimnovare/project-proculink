@@ -1,6 +1,6 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
 import { preparePage, settle } from "./a11yHarness";
-import { MOCK_SAMPLE_FILE } from "../../src/lib/api/mockWorkspace";
+import { MOCK_DELIVERY_ERROR, MOCK_SAMPLE_FILE } from "../../src/lib/api/mockWorkspace";
 import { destinationNameFor, foundSummary, suggestFlowName } from "../../src/lib/firstRun";
 import { documentStatus } from "../../src/lib/documentStatusManifest";
 import { limitRefusalCopy, readLimitRefusal } from "../../src/lib/limitRefusal";
@@ -15,7 +15,32 @@ import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "../../sr
 const WIDTHS = [1440, 768, 390, 360] as const;
 const PHONE = 640; // below this the global phone rule makes every control 44px tall
 const STATE = "proculink.mock.state";
-const SEND_BUTTON = /^(Send .* now|Make the file and download it)$/; // the two buttons that call the send request
+const SEND_BUTTON = /^Send .* now$/; // the button that sends to a destination (Finish with Download also sends, to Documents)
+const FOLD = /^A server or another system/;
+/** The server kinds sit behind one press: open the fold, then pick SFTP or FTPS. */
+const pickServer = async (page: Page) => {
+  await page.getByRole("button", { name: FOLD }).click();
+  await page.getByTestId("send-tile-server").click();
+};
+/** At 1440: the common places as tiles, then the fold below them; one press shows the three server kinds, focus on the first. */
+async function serverFold(page: Page) {
+  const group = page.getByRole("radiogroup", { name: "Where should the file go?" });
+  const ids = () => group.getByRole("radio").evaluateAll((rs) => rs.map((r) => r.getAttribute("data-testid")));
+  const common = ["send-tile-download", "send-tile-email", "send-tile-google_drive", "send-tile-google_sheets"];
+  expect(await ids(), "the common places, in order, and no server kind yet").toEqual(common);
+  const fold = page.getByRole("button", { name: FOLD });
+  await expect(fold).toHaveAttribute("aria-expanded", "false");
+  const [g, f] = [(await group.boundingBox())!, (await fold.boundingBox())!];
+  expect(f.y, "the fold sits below the tiles").toBeGreaterThanOrEqual(g.y + g.height - 0.5);
+  await fold.click();
+  await expect(fold).toHaveAttribute("aria-expanded", "true");
+  expect(await ids()).toEqual([...common, "send-tile-server", "send-tile-s3", "send-tile-http"]);
+  await expect(page.getByTestId("send-tile-server")).toBeFocused();
+  await fold.click();
+  await expect(fold).toBeFocused();
+  expect(await ids()).toEqual(common);
+}
+const DOWNLOAD_LINE ="Press Finish and we make your first file. You will find it in Documents, ready to download.";
 const pdf = (name: string) => ({ name, mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n% invented test file\n") });
 
 type MockState = {
@@ -177,7 +202,7 @@ test.describe("First run", () => {
     await expect(page.getByRole("button", { name: SEND_BUTTON })).toHaveCount(0);
     await atEveryWidth(page, "step 3, our sample", ["Finish"]);
     // With a destination form open, Finish is still the one filled button and nothing can send.
-    await page.getByTestId("send-tile-server").click();
+    await pickServer(page);
     await expect(page.getByText(`We'll save this destination as ${destinationNameFor("sftp", suggestFlowName("Invoice")!)}.`)).toBeVisible();
     await expect(page.getByRole("button", { name: SEND_BUTTON })).toHaveCount(0);
     await atEveryWidth(page, "step 3, our sample with a destination form open", ["Finish"]);
@@ -197,7 +222,7 @@ test.describe("First run", () => {
     await page.goBack();
     await expect(page.getByText("This flow is set up.")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("link", { name: "Open the flow" })).toHaveAttribute("href", `/flows/${flowId}`);
-    await expect(page.getByRole("button", { name: /^(Send|Make the file|Finish)/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^(Send|Finish)/ })).toHaveCount(0);
     expect(await sends(page)).toBe(0);
     expect((await mockState(page))!.docs.find((d) => d.id === doc.id)!.status, "our sample is never sent").not.toBe("sent");
   });
@@ -215,11 +240,11 @@ test.describe("First run", () => {
     await page.getByRole("button", { name: "Looks right, next" }).click();
     await expect(page).toHaveURL(/step=send/);
     const finish = page.getByRole("region", { name: "Finish", exact: true });
-    await expect(finish.getByText("Your document is ready. You download it as a CSV file.")).toBeVisible({ timeout: 15_000 });
+    await expect(finish.getByText(DOWNLOAD_LINE)).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("radio", { name: /^Google Drive/ })).toHaveCount(0);
-    await atEveryWidth(page, "step 3, Download", ["Make the file and download it"]);
+    await atEveryWidth(page, "step 3, Download", ["Finish"]);
 
-    await page.getByTestId("send-tile-server").click();
+    await pickServer(page);
     const server = destinationNameFor("sftp", flowName);
     await expect(page.getByText(`We'll save this destination as ${server}.`)).toBeVisible();
     const send = finish.getByRole("button", { name: "Send delivery-note.pdf now" });
@@ -252,6 +277,35 @@ test.describe("First run", () => {
     expect(await sends(page)).toBe(1);
 
     await googleAndAFailedTest(browser);
+  });
+
+  test("Download: Finish makes the file through the workspace mock and moves on; a delivery that fails keeps the step and says why", async ({ page, browser }) => {
+    for (const fails of [false, true]) {
+      const p = fails ? await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage() : page;
+      await newWorkspace(p, fails ? { "proculink.mock.deliveryFails": "on" } : {});
+      await p.setViewportSize({ width: 1440, height: 900 });
+      await uploadAndCheck(p, "delivery-note.pdf");
+      await expect(p.getByRole("button", { name: "Looks right, next" })).toBeVisible({ timeout: 15_000 });
+      await p.getByRole("button", { name: "Looks right, next" }).click();
+      await expect(p).toHaveURL(/step=send/);
+      const finish = p.getByRole("region", { name: "Finish", exact: true });
+      await expect(finish.getByText(DOWNLOAD_LINE)).toBeVisible({ timeout: 15_000 });
+      await expect(p.getByTestId("send-tile-download")).toHaveAttribute("aria-checked", "true");
+      const flowId = flowIdOf(p);
+      const docId = docIdOf(p);
+      await finish.getByRole("button", { name: "Finish", exact: true }).click();
+      if (!fails) {
+        await expect(p).toHaveURL(new RegExp(`/flows/${flowId}$`), { timeout: 30_000 });
+        const after = (await mockState(p))!;
+        expect(after.deliveries[docId], "one file, stored to download").toEqual([expect.objectContaining({ status: "stored" })]);
+        expect(after.docs.find((d) => d.id === docId)!.status).toBe("sent");
+      } else {
+        await expect(finish.getByText(MOCK_DELIVERY_ERROR)).toBeVisible({ timeout: 15_000 });
+        await expect(p).toHaveURL(/step=send/);
+        expect((await mockState(p))!.deliveries[docId], "the one send was made, and failed").toEqual([expect.objectContaining({ status: "dead_letter" })]);
+        await p.context().close();
+      }
+    }
   });
 
   test("on a phone: the welcome, a refusal with a way on, and nothing under the tab bar", async ({ page }) => {
@@ -361,11 +415,12 @@ async function googleAndAFailedTest(browser: Browser) {
   await page.getByRole("button", { name: "Looks right, next" }).click();
   await expect(page).toHaveURL(/step=send/);
   const finish = page.getByRole("region", { name: "Finish", exact: true });
-  await expect(finish.getByText("Your document is ready. You download it as a CSV file.")).toBeVisible({ timeout: 15_000 });
+  await expect(finish.getByText(DOWNLOAD_LINE)).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("radio", { name: /^Google Drive/ })).toBeVisible();
   await expect(page.getByRole("radio", { name: /^Google Sheets/ })).toBeVisible();
+  await serverFold(page);
 
-  await page.getByTestId("send-tile-server").click();
+  await pickServer(page);
   const flow = (await mockState(page))!.flows[0];
   const server = destinationNameFor("sftp", flow.name);
   await page.getByLabel("Server", { exact: true }).fill("sftp.example.test");

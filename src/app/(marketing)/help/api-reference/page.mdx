@@ -14,7 +14,7 @@ For a walk-through, see [Send documents by API](/help/guides/send-documents-by-a
 
 ## Keys
 
-Create a key in **Settings**, under **API keys**. Only a workspace admin can create one. Send it in the `X-ProcuLink-Key` header on every call. A key works for every flow in the workspace, not for one flow. A missing, unknown, revoked or expired key is answered with `401`.
+Create a key in **Settings**: under **Workspace**, open **For developers**. Only a workspace admin can create one. Send it in the `X-ProcuLink-Key` header on every call. A key works for every flow in the workspace, not for one flow. A missing, unknown, revoked or expired key is answered with `401`.
 
 ## Send a file
 
@@ -97,7 +97,7 @@ We send a `POST` with a JSON body. The events are:
 
 - `document.read` when reading is done.
 - `document.read_failed` when reading failed.
-- `document.sent` when every output was delivered, or is ready to download.
+- `document.sent` when every file we make was delivered, or is ready to download.
 - `document.send_failed` when a send ended in failure.
 - `document.test` when you select **Save and send a test** with a web address filled in.
 

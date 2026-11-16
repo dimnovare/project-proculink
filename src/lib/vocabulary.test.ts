@@ -908,6 +908,7 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     const count = Number(/checked (\d+) navigation label/.exec(out)?.[1]);
     // 27 -> 25 on 2026-11-13: the Issues and System status tabs went with their pages.
     // 25 -> 11 the same day: the hub tabs, hub labels, inbox filter chips and order nav went.
-    expect(count).toBeGreaterThanOrEqual(11);
+    // 11 -> 10 on 2026-11-16: Settings' API keys tab moved under Workspace, For developers (plan 16a).
+    expect(count).toBeGreaterThanOrEqual(10);
   });
 });

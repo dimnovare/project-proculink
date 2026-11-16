@@ -21,13 +21,13 @@ describe("FlowVersionsPanel", () => {
     api.restoreFlowVersion.mockResolvedValue({ id: "f" });
     render(<QueryClientProvider client={new QueryClient()}><FlowVersionsPanel flowId="f" /></QueryClientProvider>);
     const live = (await screen.findByText("Version 2")).closest("li")!;
-    expect(within(live).getByText("Live")).toBeTruthy();
+    expect(within(live).getByText("In use")).toBeTruthy();
     expect(within(live).queryByRole("button", { name: "Restore" })).toBeNull();
     const older = screen.getByText("Version 1").closest("li")!;
     expect(within(older).getByText(/by a@b\.co/)).toBeTruthy();
     fireEvent.click(within(older).getByRole("button", { name: "Restore" }));
     await waitFor(() => expect(api.restoreFlowVersion).toHaveBeenCalledWith("f", 1));
     expect(vi.mocked(window.confirm).mock.calls[0][0]).toContain("Restore version 1?");
-    expect(await screen.findByText("Version 1 is back in your changes. Publish to make it live.")).toBeTruthy();
+    expect(await screen.findByText("Version 1 is back in your changes. Press Use these changes to put it in use.")).toBeTruthy();
   });
 });

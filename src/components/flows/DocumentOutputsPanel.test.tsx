@@ -65,7 +65,7 @@ describe("DocumentOutputsPanel", () => {
     expect(await panel.findByText("CSV to Accounting inbox")).toBeInTheDocument();
     expect(panel.getByText("PDF, download only")).toBeInTheDocument();
     expect(panel.getByText("Nothing has been sent yet. Both go out when you send this document.")).toBeInTheDocument();
-    expect(panel.getByRole("link", { name: "Add an output" })).toHaveAttribute("href", "/flows/f?tab=outputs");
+    expect(panel.getByRole("link", { name: "Make another file" })).toHaveAttribute("href", "/flows/f?tab=outputs");
     expect(panel.queryByRole("heading", { name: "Deliveries" })).toBeNull();
     expect(panel.queryByRole("button", { name: /^Send/ })).toBeNull();
   });

@@ -225,14 +225,15 @@ test.describe("help panel", () => {
   });
 
   /** For each screen: the controls its three tasks and Start here send a person to. */
-  const NAMED_CONTROLS: Record<string, { role: "link" | "button" | "tab" | "radio"; name: RegExp }[]> = {
+  // "summary" is a fold's opening line (a <summary>, which has no button role): For developers on Settings holds the API keys.
+  const NAMED_CONTROLS: Record<string, { role: "link" | "button" | "tab" | "radio" | "summary"; name: RegExp }[]> = {
     "/documents": [
       { role: "tab", name: /^Needs you/ }, { role: "link", name: /^Review next/ },
       { role: "tab", name: /^Sent/ }, { role: "tab", name: /^All/ },
     ],
     "/flows": [{ role: "link", name: /^Supplier invoices$/ }, { role: "button", name: /^New flow$/ }],
     "/settings": [
-      { role: "button", name: /^Plan & billing$/ }, { role: "button", name: /^API keys$/ }, { role: "button", name: /^Workspace$/ },
+      { role: "button", name: /^Plan & billing$/ }, { role: "summary", name: /^For developers/ }, { role: "button", name: /^Workspace$/ },
     ],
     "/upload": [
       { role: "radio", name: /Supplier invoices/ }, { role: "button", name: /^Choose files$/ },
@@ -249,7 +250,10 @@ test.describe("help panel", () => {
       await expect(region).toContainText(guide.screen);
       for (const t of guide.tasks) await expect(region.getByRole("link", { name: new RegExp(`^${t.title.replace(/[.*+?^${}()|[\]\\"]/g, "\\$&")}`) })).toBeVisible();
       const main = page.locator(MAIN);
-      for (const c of controls) await expect(main.getByRole(c.role, { name: c.name }).first(), `${path} has no ${c.role} ${c.name}`).toBeVisible();
+      for (const c of controls) {
+        const control = c.role === "summary" ? main.locator("summary").filter({ hasText: c.name }) : main.getByRole(c.role, { name: c.name });
+        await expect(control.first(), `${path} has no ${c.role} ${c.name}`).toBeVisible();
+      }
       // Settings opens on Workspace, which saves as you type and has no filled button (plan 14.7b).
       expect(await filledButtons(page), "the screen's filled buttons with the panel open").toHaveLength(path === "/settings" ? 0 : 1);
     });

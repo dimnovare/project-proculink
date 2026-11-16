@@ -21,7 +21,7 @@ export const ACTIVITY_TABS: readonly { key: ActivityTabKey; label: string; actio
     // A destination test and the platform's own admin rows are not changes a person made here; they stay under All.
     actions: AUDIT_ACTION_FACTS.filter((f) => f.reachable && f.kind === "edited" && f.action !== "destination.tested" && !f.action.startsWith("admin."))
       .map((f) => f.action),
-    emptyTitle: "No changes yet.", emptySub: "Edited values, published versions and settings changes show here.",
+    emptyTitle: "No changes yet.", emptySub: "Edited values, versions put in use and settings changes show here.",
   },
 ];
 export const ACTIVITY_PAGE_SIZE = 50;
@@ -163,7 +163,7 @@ export function activityView(e: ActivityEvent, ctx: { who: string; destinationNa
     case "document.sent":
       sentence = fileSentence("Started sending ", "");
       tag = { label: "Sending", tone: "neutral" };
-      fact("Outputs", p("outputs"));
+      fact("Files", p("outputs"));
       fact("Flow version", version);
       break;
     case "document.delivered":
@@ -178,13 +178,17 @@ export function activityView(e: ActivityEvent, ctx: { who: string; destinationNa
       fact("Destination", destName && (channel ? `${destName}, ${channel}` : destName));
       fact("Attempts", attempts && `${attempts}, the last at ${activityTime(e.ts)}.${failedSend ? " We stopped there." : ""}`);
       fact("The server's reply", p("responseCode"), { mono: true });
-      fact("File", p("file"), { mono: true });
-      fact("Output", output && (version ? `${output}, flow version ${version}` : output));
+      {
+        // One fact named "File": the delivered file's name, with the file's setup and flow version beside it.
+        const setup = output && (version ? `${output}, flow version ${version}` : output);
+        const file = p("file");
+        fact("File", file && setup ? `${file} (${setup})` : file ?? setup, file && !setup ? { mono: true } : {});
+      }
       fact("Started by", e.startedAt ? (e.actorId ? `${ctx.who} pressed Send at ${activityTime(e.startedAt)}` : `Started automatically at ${activityTime(e.startedAt)}`) : undefined);
       break;
     }
     case "flow.published":
-      sentence = { before: version ? `Version ${version} of ` : "A new version of ", strong: e.flowName, after: e.flowName ? " was published" : "a flow was published" };
+      sentence = { before: version ? `Version ${version} of ` : "A new version of ", strong: e.flowName, after: e.flowName ? " was put in use" : "a flow was put in use" };
       tag = { label: "Change", tone: "neutral" };
       break;
     default:

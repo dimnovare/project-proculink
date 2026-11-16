@@ -4,13 +4,15 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 
 const RAW = "example-not-a-real-key-1";
-const nav = vi.hoisted(() => ({ replace: vi.fn() }));
+const nav = vi.hoisted(() => ({ replace: vi.fn(), query: "tab=api" }));
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams("tab=api"),
+  useSearchParams: () => new URLSearchParams(nav.query),
   useRouter: () => ({ replace: nav.replace }),
   usePathname: () => "/settings",
 }));
 vi.mock("@clerk/nextjs", () => ({ useOrganization: () => ({ organization: undefined }), useUser: () => ({ user: undefined }), useClerk: () => ({}) }));
+vi.mock("@/components/flows/NotificationEmailSection", () => ({ NotificationEmailSection: () => null }));
+vi.mock("@/components/pwa/InstallPanel", () => ({ InstallPanel: () => null }));
 const api = vi.hoisted(() => ({ getApiKeys: vi.fn(), createApiKey: vi.fn() }));
 vi.mock("@/lib/api-client", async (o) => ({
   ...(await o<typeof import("@/lib/api-client")>()),
@@ -30,6 +32,31 @@ function mount() {
 }
 
 describe("Settings › API keys", () => {
+  it("tab=api opens Workspace with For developers open", async () => {
+    api.getApiKeys.mockResolvedValue([]);
+    mount();
+    const tabs = within(screen.getByRole("navigation", { name: "Settings sections" }));
+    expect(tabs.getByRole("button", { name: "Workspace" })).toHaveAttribute("aria-current", "page");
+    expect(tabs.queryByRole("button", { name: "API keys" })).toBeNull();
+    expect(screen.getByText("For developers").closest("details")).toHaveAttribute("open");
+    expect(await screen.findByRole("button", { name: "Create key" })).toBeInTheDocument();
+  });
+
+  it("plain Settings does not ask for the keys; opening For developers asks once", async () => {
+    nav.query = "";
+    api.getApiKeys.mockClear().mockResolvedValue([]);
+    mount();
+    const developers = screen.getByText("For developers").closest("details")!;
+    expect(developers).not.toHaveAttribute("open");
+    await new Promise((r) => setTimeout(r, 50));
+    expect(api.getApiKeys).not.toHaveBeenCalled();
+    developers.open = true;
+    fireEvent(developers, new Event("toggle"));
+    expect(await screen.findByRole("button", { name: "Create key" })).toBeInTheDocument();
+    expect(api.getApiKeys).toHaveBeenCalledTimes(1);
+    nav.query = "tab=api";
+  });
+
   it("a new key is shown once: after I've saved it, it is in no element, no cache and no address", async () => {
     api.getApiKeys.mockResolvedValueOnce([]).mockResolvedValue([key]);
     api.createApiKey.mockResolvedValue({ ...key, rawKey: RAW });

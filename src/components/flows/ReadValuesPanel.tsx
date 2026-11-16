@@ -60,7 +60,7 @@ function pointAt(onLocate: ((l: SourceLocation | null) => void) | undefined, l: 
   return { onMouseEnter: () => onLocate(l), onFocus: () => onLocate(l), onMouseLeave: () => onLocate(null), onBlur: () => onLocate(null) };
 }
 
-export const ADDED_TO_CHANGES = "Added to your changes. Publish them to read this field on new documents.";
+export const ADDED_TO_CHANGES = "Added to your changes. Use them to read this field on new documents.";
 
 /** What the read found that a confirmed flow does not have yet, each one click from joining it. */
 function NewFields({ flow, read, docId }: { flow: Flow; read: DocumentDetail["read"]; docId: string }) {

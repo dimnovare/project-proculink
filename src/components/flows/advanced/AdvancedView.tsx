@@ -51,7 +51,7 @@ export function AdvancedView({ flowId, outputId, documentId }: { flowId: string;
     <PageShell variant="wide">
       <PageHeader
         title={output?.name ?? "Advanced view"}
-        sub="Advanced view. Map this output field by field."
+        sub="Advanced view. Map this file field by field."
         back={{ href: `/flows/${flowId}`, label: flow.data?.name ?? "Flow" }}
         actions={
           <span className="inline-flex items-center gap-3 text-[12px]">
@@ -67,8 +67,8 @@ export function AdvancedView({ flowId, outputId, documentId }: { flowId: string;
       </div>
       <div className="hidden lg:block">
         {failed ? <Failed error={failed.error} retry={() => failed.refetch()} />
-          : missing ? <Quiet>This output no longer exists.</Quiet>
-          : output?.standard ? <Quiet>This output follows a standard, so there is nothing to map.</Quiet>
+          : missing ? <Quiet>This file no longer exists.</Quiet>
+          : output?.standard ? <Quiet>This file follows a standard, so there is nothing to map.</Quiet>
           : !adapter || !output ? <Quiet>Loading…</Quiet>
           : (
             <div data-testid="advanced-workbench">

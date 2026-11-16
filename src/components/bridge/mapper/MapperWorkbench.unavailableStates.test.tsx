@@ -111,7 +111,7 @@ describe("MapperWorkbench — the catalog hints could not be fetched", () => {
 
     renderWorkbench();
 
-    expect(catalogButton().getAttribute("title")).not.toContain("No catalog hints for this order");
+    expect(catalogButton().getAttribute("title")).not.toContain("No catalog hints for this document");
   });
 
   it("says the hints could not be loaded", () => {
@@ -130,7 +130,7 @@ describe("MapperWorkbench — the catalog hints could not be fetched", () => {
     renderWorkbench();
 
     const title = catalogButton().getAttribute("title") ?? "";
-    expect(title).toContain("No catalog hints for this order");
+    expect(title).toContain("No catalog hints for this document");
     expect(catalogButton().textContent).not.toContain("unavailable");
   });
 

@@ -331,11 +331,11 @@ export function OutgoingPane({
             background: "#F6F8FC", color: "#5E6779", fontSize: 11.5, lineHeight: 1.5,
           }}
         >
-          This supplier uses a structured format ({structuredFormatLabel(outputFormat)}). Fields like
-          contact and addresses are filled in automatically from the order — adding or editing fields
-          here won&rsquo;t change what&rsquo;s sent.{" "}
+          This file has a fixed structure ({structuredFormatLabel(outputFormat)}). We fill in fields
+          like contact and addresses from the document. Adding or changing fields here doesn&rsquo;t
+          change what is sent.{" "}
           <span style={{ color: "var(--ink-faint)" }}>
-            To change the structure, edit the supplier&rsquo;s output setup.
+            To send another structure, choose another standard on We send.
           </span>
         </div>
       )}
@@ -349,8 +349,8 @@ export function OutgoingPane({
       {targetFields.length === 0 ? (
         <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "12px", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
           {canAddField
-            ? "No output fields yet — add one to start shaping the delivered document."
-            : "This output has no declared fields."}
+            ? "No fields in this file yet. Add one to start shaping it."
+            : "This file has no fields."}
         </div>
       ) : pickerMode ? (
         <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "10px", display: "flex", flexDirection: "column", gap: 6 }}>
@@ -503,10 +503,10 @@ function AutoFilledSection({ fields }: { fields?: AutoFilledFields | null }) {
     <div style={{ padding: "10px 12px", borderBottom: "1px solid #EEF0F4", background: "#FBFBFD" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
         <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#5E6779" }}>
-          Filled automatically from the order
+          Filled in from the document
         </span>
         <span
-          title="These come straight from the order and can't be edited here."
+          title="These come straight from the document and can't be edited here."
           style={{ fontSize: 9.5, fontWeight: 700, color: "#5E6779", background: "#F1F3F7", border: "1px solid #E5E8EE", borderRadius: 4, padding: "1px 6px", letterSpacing: "0.02em" }}
         >
           read-only
@@ -696,7 +696,7 @@ function OutgoingRow({
               if (e.key === "Enter") commitRename();
               if (e.key === "Escape") { setDraftPath(field.outputPath); setRenaming(false); }
             }}
-            aria-label={`Rename output field ${field.outputPath}`}
+            aria-label={`Rename the field ${field.outputPath}`}
             style={{
               flex: "0 1 38%", minWidth: 0, boxSizing: "border-box", padding: "3px 6px",
               borderRadius: 5, border: "1px solid #A9D3AF", fontSize: 11.5,
@@ -727,11 +727,11 @@ function OutgoingRow({
             // button is disabled and falls back to its own text, so nothing announces a
             // "Select output field" control that does nothing.
             aria-label={
-              canRename ? `Rename output field ${field.outputPath}`
-                : onSelect ? `Select output field ${field.label || field.outputPath}`
+              canRename ? `Rename the field ${field.outputPath}`
+                : onSelect ? `Select the field ${field.label || field.outputPath}`
                   : undefined
             }
-            title={canRename ? "Rename output field" : field.outputPath}
+            title={canRename ? "Rename the field" : field.outputPath}
             style={{
               flex: "0 1 38%", minWidth: 0, textAlign: "left", border: "none", background: "none",
               cursor: canRename ? "text" : onSelect ? "pointer" : "default",
@@ -827,7 +827,7 @@ function OutgoingRow({
                   onClick={(e) => { e.stopPropagation(); setTransformOpen((o) => !o); }}
                 />
               ) : (
-                <RowChipButton label="Edit value" lit={actionsLit} disabled reason="Editing the value needs an editable mapping (open the order or a draft revision)" />
+                <RowChipButton label="Edit value" lit={actionsLit} disabled reason="You can't change this value here." />
               )}
               {transformOpen && (
                 <TransformPopover
@@ -986,7 +986,7 @@ function NotCheckedSummary({ count }: { count: number }) {
             {count} required field{count === 1 ? "" : "s"} not checked yet
           </span>
           <span style={{ display: "block", marginTop: 2, fontSize: 11.5, lineHeight: 1.45, color: "var(--ink-muted)" }}>
-            This order&rsquo;s values aren&rsquo;t loaded, so we can&rsquo;t tell whether these have a source.
+            This document&rsquo;s values aren&rsquo;t loaded, so we can&rsquo;t tell whether these have a source.
           </span>
         </span>
       </span>
@@ -1097,7 +1097,7 @@ function OutgoingStatusTag({
 function NeedsValueTag() {
   return (
     <span
-      title="This field must be set before going live — map an incoming field to it or enter a fixed value."
+      title="This field must be set before the file is sent — map a value we read to it or enter a fixed value."
       style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, color: "#8A5310", background: "#FAF1DD", border: "1px solid #F1E2BE", borderRadius: 4, padding: "1px 6px", flexShrink: 0 }}
     >
       needs a value
@@ -1230,7 +1230,7 @@ function AddOutputFieldMenu({
         }}
       >
         <span aria-hidden style={{ fontSize: 14, lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", width: 12, height: 12, marginTop: -1 }}>+</span>
-        Add output field
+        Add a field
       </button>
 
       {open && (
@@ -1240,7 +1240,7 @@ function AddOutputFieldMenu({
           <div
             ref={popoverRef}
             role="dialog"
-            aria-label="Add an output field"
+            aria-label="Add a field to the file"
             data-plk-nonmodal="popover"
             style={{
               position: "absolute", right: 0, zIndex: 31, width: 340,
@@ -1268,7 +1268,7 @@ function AddOutputFieldMenu({
                   }
                 }}
                 placeholder="Search fields, or type a new name…"
-                aria-label="Search output fields or type a new field name"
+                aria-label="Search fields or type a new field name"
                 style={{ width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 7, border: "1px solid #DCE0E8", fontSize: 11.5, color: "#0B1A2F" }}
               />
             </div>
@@ -1277,7 +1277,7 @@ function AddOutputFieldMenu({
               {matches.header.length === 0 && matches.line.length === 0 ? (
                 <div style={{ padding: "8px 6px", fontSize: 10.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
                   {available.length === 0
-                    ? "Every standard field is already in the output. Type a name below to add a custom field."
+                    ? "Every standard field is already in the file. Type a name below to add a custom field."
                     : "No standard field matches. Add it as a custom field below."}
                 </div>
               ) : (

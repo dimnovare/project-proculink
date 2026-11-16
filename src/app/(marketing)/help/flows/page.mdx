@@ -3,29 +3,29 @@ import { helpArticleMetadata } from "@/lib/seo";
 export const metadata = helpArticleMetadata({
   slug: "flows",
   title: "Flows: values, automation and versions — ProcuLink Help",
-  description: "How a flow holds the values to read, the output and the destination, and how to change it safely.",
+  description: "How a flow holds the values to read, the file and the destination, and how to change it safely.",
 });
 
 # Flows: values, automation and versions
 
-How a flow holds the values to read, the output and the destination, and how to change it safely.
+How a flow holds the values to read, the file and the destination, and how to change it safely.
 
 ## What a flow holds
 
 A flow is one setup for one kind of document. Its page has four steps, with **Documents** and **History** beside them:
 
 - **Arrives.** How documents reach the flow: upload, the flow's email address, pickups from a mailbox or server, and the API. See [Ways to send documents in](/help/intake-channels).
-- **We read.** The values and tables to read from every document, each with a name, a type and a **Required** tick.
+- **We read.** The values and tables to read from every document, each with a name and an example. **More** on a value holds its **Required** tick, its type and its meaning.
 - **You check.** Whether documents wait for you or are sent on their own.
-- **We send.** The outputs: the files to make, each sent to a destination. An output can have a **Send when** condition, so one flow can send different documents to different places. See [Output formats](/help/outputs).
+- **We send.** The files we make, each sent to a destination. A file can have a **Send when** condition, so one flow can send different documents to different places. See [Files we make](/help/outputs).
 
 **Documents** lists the newest documents in this flow. **History** lists its versions.
 
 ## What we read
 
-The first time, upload one document like the ones you will receive. We read it, and **We read** lists the values we found. Untick what you do not need, rename values, set types and tick **Required** for values that must always be there. Then press **Looks right, next** while you set up a new flow, or **Keep these values** on the flow's **We read** step.
+The first time, drop one document like the ones you will receive on **We read**, or press **Choose a file** there. We read it, and **We read** lists the values we found. Untick what you do not need and rename values. Under **More**, tick **Required** for values that must always be there: we mark the value when it is missing from a document. Then press **Looks right, next** while you set up a new flow, or **Keep these values** on the flow's **We read** step.
 
-Every later document is read into these values. After that, changes save as a draft. If the latest document has something extra, it appears under **New values we noticed**, with **Add** beside it.
+Every later document is read into these values. Once the setup is saved, changes to these values wait until you use them. If the latest document has something extra, it appears under **New values we noticed**, with **Add** beside it.
 
 ## Automation
 
@@ -38,15 +38,15 @@ The flow shows how many recent documents were sent without a correction. Use it 
 
 ## Versions
 
-A flow can be published. Publishing saves its values and outputs as a numbered version. New documents are read and sent with the live version, so you can change a flow without breaking what is running.
+Each time you use your changes, the flow keeps its values and files as a numbered version. New documents are read and sent with the setup in use, so you can change a flow without breaking what is running.
 
-Changes to the values and the outputs save as a draft as you make them. While a draft is waiting, a bar under each step says so. Before the first publish, changes apply straight away and the bar offers only **Publish**. After that, you can **Publish changes** or **Discard**. The flow's name, its mode and how documents arrive are not part of a draft: they change at once.
+Changes to the values and the files save as you make them. While a change is not in use yet, a bar under each step says so. Before the first save of the setup, changes are in use straight away and the bar offers only **Save this setup**. After that, you can **Use these changes** or **Undo my changes**. The flow's name, its mode and how documents arrive do not wait: they change at once.
 
-**History** lists every version with the date and who published it. You can restore an earlier one. Restoring puts it back into your changes. It goes live only when you publish. Publishing and restoring are for workspace admins. See [Publish and restore flow versions](/help/guides/publish-a-flow-version).
+**History** lists every version with the date and who put it in use. You can restore an earlier one. Restoring puts it back into your changes. It is in use only after you press **Use these changes**. Putting changes in use and restoring are for workspace admins. See [Use changes and restore earlier versions](/help/guides/publish-a-flow-version).
 
 ## The Advanced view
 
-Each output you built yourself has an **Open in Advanced** link. It opens a wider workbench for finer control, and it needs a larger screen. Most flows never need it.
+Each file you built yourself has an **Open in Advanced** link. It opens a wider workbench for finer control, and it needs a larger screen. Most flows never need it.
 
 ## How many flows
 

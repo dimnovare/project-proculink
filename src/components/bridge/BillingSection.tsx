@@ -522,7 +522,7 @@ export function BillingSection() {
               id="b-change"
               title="Change plan"
               sub={rows[0] && DOCUMENT_PLAN_IDS.includes(rows[0].plan.id)
-                ? "Every paid plan has every way in, every output and every check. Plans differ only by documents a month and flows."
+                ? "Every paid plan has every way in, every file type and every check. Plans differ only by documents a month and flows."
                 : undefined}
             >
               {rows.length === 0 ? (
