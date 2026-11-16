@@ -95,4 +95,12 @@ describe("Welcome", () => {
     expect(api.createFlow).not.toHaveBeenCalled();
     expect(api.uploadDocument.mock.calls[0][0]).toBe("f-1");
   });
+
+  it("a later flow is told it is set up from this document, not the first", () => {
+    const flows: Flow[] = [{ ...emptyFlow, id: "f-1", name: "Invoices", fieldsConfirmed: true, documentCount: 3 }, { ...emptyFlow, id: "f-2" }];
+    render(<Welcome flows={flows} flowId="f-2" />, { wrapper });
+    const what = screen.getByRole("heading", { name: "What is a flow?" }).closest("section")!.textContent;
+    expect(what).toContain("We set this flow up from this document.");
+    expect(what).not.toContain("your first flow");
+  });
 });
