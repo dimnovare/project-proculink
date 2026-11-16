@@ -70,7 +70,7 @@ describe("<GhostWire> — a suggestion nothing scored", () => {
   it("says where the suggestion came from instead of quoting a confidence", () => {
     draw(SAVED);
     expect(
-      screen.getByLabelText("Accept saved mapping suggestion: saved mapping for this supplier (saved supplier mapping)"),
+      screen.getByLabelText("Accept saved mapping suggestion: saved mapping for this supplier (saved mapping)"),
     ).toBeTruthy();
   });
 

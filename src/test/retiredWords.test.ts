@@ -71,10 +71,9 @@ const inDir = (dir: string) => (readdirSync(join(ROOT, dir), { recursive: true }
   .map((f) => `${dir}/${f.replace(/\\/g, "/")}`)
   .filter((f) => /\.tsx?$/.test(f) && !/\.test\./.test(f));
 
-/** Files whose old "output" words a LATER task of plan 16a removes; the release words are read in them too.
- *  Nothing else may be listed here. */
-const LATER = (f: string) =>
-  f.startsWith("src/components/flows/advanced/");          // Task 9: the Advanced view and its mapper words
+/** The Advanced view's mapper: it is mounted only inside a flow (`AdvancedView`), so its words are a document's words,
+ *  toolbar and orientation included (they are hidden there today, and would be read if shown). */
+const MAPPER = inDir("src/components/bridge/mapper");
 
 /** Person-read files outside those folders that this guard read before it was widened. */
 const OTHER_FILES = [
@@ -91,9 +90,8 @@ const OTHER_FILES = [
 const MANIFEST = "src/lib/auditActionManifest.ts";
 const labels = (source: string) => [...source.matchAll(/\blabel: "([^"]*)"/g)].map((m) => m[1]);
 
-/** Every file read, LATER ones included: the release words were all renamed by Task 2, so only "output" waits. */
-const ALL = [...APP_DIRS.flatMap(inDir), ...OTHER_FILES, ...HELP_PAGES];
-const CORPUS = ALL.filter((f) => !LATER(f));
+/** Every file read. */
+const CORPUS = [...APP_DIRS.flatMap(inDir), ...OTHER_FILES, ...HELP_PAGES];
 
 const RETIRED: { word: RegExp; files: string[] }[] = [
   { word: /\boutputs?\b/i, files: CORPUS },
@@ -101,7 +99,9 @@ const RETIRED: { word: RegExp; files: string[] }[] = [
   // pipeline's status vocabulary (problemCopy.ts, statusVocabulary.test.ts), outside this piece.
   // "publish" with no leading boundary, so "Republish" and "unpublished" are caught too. "draft" since Task 6: the
   // screens say "changes" and "not in use yet"; code names such as useDraftPart and FlowDraftProvider are not words.
-  { word: /publish|\bdiscard|\bdrafts?\b|\blive, version\b|\bis live\b/i, files: [...ALL, MANIFEST] },
+  { word: /publish|\bdiscard|\bdrafts?\b|\blive, version\b|\bis live\b/i, files: [...CORPUS, ...MAPPER, MANIFEST] },
+  // The mapper speaks of the document and the file: no order, supplier, output or engine words (plan 16a R19, R20).
+  { word: /\b(orders?|suppliers?|canonical|deterministic|outputs?)\b/i, files: MAPPER },
 ];
 
 const textOf = (f: string) => (f.endsWith(".mdx") ? mdxText : f === MANIFEST ? labels : personText)(read(f));
@@ -117,6 +117,10 @@ describe("retired words stay retired in what a person reads", () => {
     expect(hitsFor(RETIRED[1])).toEqual([]);
   });
 
+  it("no person-read word in the Advanced view's mapper says order, supplier or output", () => {
+    expect(hitsFor(RETIRED[2])).toEqual([]);
+  });
+
   it("sees the defect it guards against, and reads enough", () => {
     expect(personText(`const a = <h2>Add an output</h2>; // an output in a comment\nconst k = ["outputs", id];`)).toEqual(["Add an output"]);
     expect(mdxText("Press **Add an output**. See [the guide](/help/guides/build-an-output).")).toEqual(["Press **Add an output**. See the guide."]);
@@ -124,6 +128,8 @@ describe("retired words stay retired in what a person reads", () => {
     expect(personText("<Button>Publish changes</Button>").filter((t) => RETIRED[1].word.test(t))).toEqual(["Publish changes"]);
     expect(["Republish", "3 unpublished changes", "This flow is live.", "In use"].filter((t) => RETIRED[1].word.test(t))).toEqual(["Republish", "3 unpublished changes", "This flow is live."]);
     expect(["Changes save as a draft.", "Drafts", "useDraftPart needs a FlowDraftProvider."].filter((t) => RETIRED[1].word.test(t))).toEqual(["Changes save as a draft.", "Drafts"]);
+    expect(["This order arrived already-structured", "Supplier-ready output preview", "Show the file this document arrived as"].filter((t) => RETIRED[2].word.test(t)))
+      .toEqual(["This order arrived already-structured", "Supplier-ready output preview"]);
     expect(labels(`{ action: "flow.published", label: "Version published", note: "was published" }`)).toEqual(["Version published"]);
     expect(personText("const s = `${n} outputs`;")).toEqual(["outputs"]);
     expect(personText('const s = `${n} output${n === 1 ? "" : "s"}`;').filter((t) => RETIRED[0].word.test(t))).toEqual(["output"]);
@@ -132,8 +138,10 @@ describe("retired words stay retired in what a person reads", () => {
     expect(personText("const s = `Output: ${name}`; const r = `/flows/${id}/outputs/${o}`;")).toEqual(["Output:"]);
     // Anti-vacuity: every folder yields a file, and the corpus yields person-read text to check.
     for (const dir of [...APP_DIRS, HELP]) expect(CORPUS.some((f) => f.startsWith(dir.replace(/\\/g, "/") + "/")), dir).toBe(true);
-    // Measured 2026-11-16: 4,550 person-read strings (LookupPage.tsx read since Task 8) and 31 help pages. Raise these floors when the corpus grows; never lower them.
-    expect(CORPUS.flatMap(textOf).length).toBeGreaterThanOrEqual(4100);
+    // Measured 2026-11-16: 4,580 person-read strings (the Advanced view read since Task 9), 750 in the mapper, and 31 help pages. Raise these floors when the corpus grows; never lower them.
+    expect(CORPUS.flatMap(textOf).length).toBeGreaterThanOrEqual(4150);
+    expect(MAPPER).toContain("src/components/bridge/mapper/MapperWorkbench.tsx");
+    expect(MAPPER.flatMap(textOf).length).toBeGreaterThanOrEqual(700);
     expect(HELP_PAGES.filter((f) => f.endsWith(".mdx")).length).toBeGreaterThanOrEqual(30);
   });
 });

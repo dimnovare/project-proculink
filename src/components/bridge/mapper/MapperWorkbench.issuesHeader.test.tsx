@@ -111,7 +111,7 @@ describe("MapperWorkbench — the Issues column head (WP-39 §4.3)", () => {
 
     const head = screen.getByTestId("issues-column-head");
     expect(within(head).queryByText("Nothing to fix")).toBeNull();
-    expect(within(head).getByText("Something else stopped this order")).toBeInTheDocument();
+    expect(within(head).getByText("Something else stopped this document")).toBeInTheDocument();
     expect(hasGreenTick()).toBe(false);
   });
 
@@ -147,7 +147,7 @@ describe("MapperWorkbench — an unreadable verdict never renders as an all-clea
     renderWorkbench({ issuesOpenCount: 0, issuesVerdict: "unknown" });
 
     expect(document.body.textContent).not.toContain("Nothing to fix");
-    expect(document.body.textContent).toContain("We can't confirm this order is clear");
+    expect(document.body.textContent).toContain("We can't confirm this document is clear");
     expect(hasGreenTick()).toBe(false);
   });
 
@@ -156,7 +156,7 @@ describe("MapperWorkbench — an unreadable verdict never renders as an all-clea
     // told us this order stopped; only that we cannot read its state.
     renderWorkbench({ issuesOpenCount: 0, issuesVerdict: "unknown" });
 
-    expect(document.body.textContent).not.toContain("Something else stopped this order");
+    expect(document.body.textContent).not.toContain("Something else stopped this document");
   });
 
   it("treats an omitted verdict as unknown, not as zero issues", () => {

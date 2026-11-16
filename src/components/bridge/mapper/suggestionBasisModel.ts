@@ -59,4 +59,4 @@ export function suggestionConfidenceDisplay(
 export const SAVED_MAPPING_LABEL = "Saved mapping";
 
 /** Tooltip for that marker — says where it came from without claiming a score. */
-export const SAVED_MAPPING_TITLE = "Read back from this supplier's saved mapping — not scored";
+export const SAVED_MAPPING_TITLE = "Read back from this file's saved mapping, not scored";

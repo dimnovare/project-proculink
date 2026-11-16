@@ -363,7 +363,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     try { localStorage.setItem("plk-mapper-orient-seen", "1"); } catch { /* ignore */ }
     setShowOrientation(false);
   }, []);
-  const orientationSupplier = supplierName?.trim() || "supplier";
+  const orientationFile = supplierName?.trim() || "the file";
 
   // Connections (wires) are ON by default so the order workbench opens on the signature
   // received→output wire view (handoff reference). The toggle still hides them for dense orders.
@@ -668,10 +668,10 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   // when the fetch had failed. The unavailable branch says so instead, and never claims the
   // lines agree with a catalog nobody read.
   const catalogTitle = model.catalogUnavailable
-    ? "We couldn’t load the catalog hints for this order, so we can’t tell whether any line differs from the supplier’s catalog. Reload to try again."
+    ? "We couldn’t load the catalog hints for this document, so we can’t tell whether any line differs from the receiver’s catalog. Reload to try again."
     : catalogHintCount > 0
       ? "Jump to the lines with catalog price/code hints — apply each per line"
-      : "No catalog hints for this order. Add a supplier catalog, or no lines differ from it.";
+      : "No catalog hints for this document. Add the receiver’s catalog, or no lines differ from it.";
   const catalogLabel = catalogHintCount > 0
     ? `Fill from catalog · ${catalogHintCount}`
     : model.catalogUnavailable
@@ -777,7 +777,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           aria-expanded={outputExpanded}
           title={outputExpanded
             ? "Hide the already-mapped fields and show only what needs attention"
-            : "Show every output field, including the ones already mapped"}
+            : "Show every field of the file, including the ones already mapped"}
           style={{
             display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 8,
             padding: "5px 11px", borderRadius: 999, fontSize: 11, fontWeight: 700,
@@ -875,7 +875,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
               type="button"
               onClick={() => setShowConnections((v) => !v)}
               aria-pressed={showConnections}
-              title={showConnections ? "Hide the connection wires" : "Show the connection wires between received and output fields"}
+              title={showConnections ? "Hide the connection wires" : "Show the connection wires between the values we read and the fields of the file"}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 6, height: 32, fontSize: 11.5, fontWeight: 600,
                 color: showConnections ? "#0F4FA8" : "#5E6779",
@@ -890,7 +890,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           )}
           {summary.requiredUnmapped > 0 && (
             <span
-              title="A required output field still has no source — map one or set a fixed value"
+              title="A required field of the file still has no source — map one or set a fixed value"
               // Same near-miss as ValidationBadge: #9A6B00 on #FFF7E6 is 4.3999:1, #8A5310 is 5.9237:1.
               style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700, color: "#8A5310", background: "#FFF7E6", border: "1px solid #F1E2BE", borderRadius: 5, padding: "2px 8px" }}
             >
@@ -904,7 +904,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
               why, because a Send with no explanation is its own defect. */}
           {summary.requiredUnknown > 0 && (
             <span
-              title="This order's values aren't loaded, so we can't tell whether the required fields have a source. Sending is paused until they are."
+              title="This document's values aren't loaded, so we can't tell whether the required fields have a source. Sending is paused until they are."
               // Tokens, not the neighbouring chips' raw hex: --ink-muted on --surface-2 is
               // 5.13:1, comfortably AA for this 10.5px bold.
               style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700, color: "var(--ink-muted)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 5, padding: "2px 8px" }}
@@ -914,7 +914,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           )}
           {model.validationUnavailable && (
             <span
-              title="We couldn't run the field checks for this order, so we can't confirm it's ready. Sending is paused until they load — reload to try again."
+              title="We couldn't run the field checks for this document, so we can't confirm it's ready. Sending is paused until they load — reload to try again."
               // Tokens, not the neighbouring chips' raw hex: --ink-muted on --surface-2 is
               // 5.13:1, comfortably AA for this 10.5px bold.
               style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700, color: "var(--ink-muted)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 5, padding: "2px 8px" }}
@@ -932,7 +932,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           {onSaveMappings && (
             <ToolbarButton
               label={savingMappings ? "Saving…" : (saveMappingsLabel ?? "Save mappings")}
-              title="Save these field mappings for this supplier — applies to their next order automatically"
+              title="Save these field mappings for this receiver — they apply to its next document automatically"
               onClick={onSaveMappings}
               disabled={savingMappings || readOnly}
               variant="violet"
@@ -940,7 +940,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           )}
           {onDeliver && (
             <Button variant="send" size="sm" disabled={!canDeliver} onClick={onDeliver}>
-              {deliverLabel ?? "Send to supplier"}
+              {deliverLabel ?? "Send the file"}
             </Button>
           )}
         </div>
@@ -1001,9 +1001,9 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
         >
           <span aria-hidden style={{ fontSize: 12, lineHeight: 1.3, color: "#8A93A5" }}>ⓘ</span>
           <span style={{ flex: 1, minWidth: 0 }}>
-            <strong style={{ fontWeight: 700, color: "#3C4658" }}>Left</strong> = the fields in this {orientationSupplier}&rsquo;s order.{" "}
-            <strong style={{ fontWeight: 700, color: "#3C4658" }}>Middle</strong> = where each one goes in the output — drag a left field onto a middle field to connect it.{" "}
-            <strong style={{ fontWeight: 700, color: "#3C4658" }}>Right</strong> = a live preview of what the {orientationSupplier} receives. Use the ⌃ chevrons to collapse a column.
+            <strong style={{ fontWeight: 700, color: "#3C4658" }}>Left</strong> = the values we read from this document.{" "}
+            <strong style={{ fontWeight: 700, color: "#3C4658" }}>Middle</strong> = where each one goes in the file — drag a left field onto a middle field to connect it.{" "}
+            <strong style={{ fontWeight: 700, color: "#3C4658" }}>Right</strong> = a live preview of {orientationFile}. Use the ⌃ chevrons to collapse a column.
           </span>
           <button
             type="button"
@@ -1028,9 +1028,8 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
         >
           <span aria-hidden style={{ fontSize: 13, lineHeight: 1.2 }}>⚠</span>
           <span>
-            We couldn&rsquo;t auto-extract this document, so it fell back to the deterministic parser.
-            The parsed values still flow through — map any output fields manually below; wiring,
-            transforms, preview and delivery all still work.
+            We couldn&rsquo;t read this document on our own. What we did read still goes into the file.
+            Map any field by hand below; the preview and sending still work.
           </span>
         </div>
       )}
@@ -1204,11 +1203,11 @@ function PreviewColumnSplit({
               : verdict === "clear"
                 ? "Nothing to fix"
                 : verdict === "problem"
-                  ? "Something else stopped this order"
+                  ? "Something else stopped this document"
                   // Not "something stopped this order" — nothing observed one. We were
                   // handed a state this build cannot read, so the only true sentence is
                   // that the all-clear is unverified.
-                  : "We can't confirm this order is clear"}
+                  : "We can't confirm this document is clear"}
           </span>
         </span>
         <span style={{ marginLeft: "auto", flexShrink: 0 }}>
@@ -1369,7 +1368,7 @@ function MappedSummaryChip({ mapped, total }: { mapped: number; total: number })
       // value, or the 1:1 default), which is a weaker claim and the one the number supports.
       // Whether the emitted value is empty is a separate question, and the amber
       // "N fields need a source" chip beside this one is what answers it.
-      title="Output fields with a source — a mapping, a fixed value, or the 1:1 default"
+      title="Fields of the file with a source — a mapping, a fixed value, or the 1:1 default"
       style={{
         display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700,
         borderRadius: 999, padding: "2px 9px",

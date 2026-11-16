@@ -64,6 +64,20 @@ describe("AdvancedView", () => {
     expect(bench.queryByRole("button", { name: /has ai suggestion/i })).toBeNull();
   });
 
+  it.each([
+    ["a CSV file", output, detail],
+    ["a structured file", { ...output, format: "cxml", template: { ...output.template, format: "cxml" } }, detail],
+    ["a document we read nothing from", output, { ...detail, read: { ...detail.read, fields: [] } }],
+  ])("the Advanced view in a flow uses no order words: %s", async (_, o, d) => {
+    api.listOutputs.mockResolvedValue([o]);
+    api.getDocument.mockResolvedValue(d);
+    renderView();
+    const root = await screen.findByTestId("advanced-workbench");
+    await within(root).findAllByText("Invoice number");
+    const attrs = [...root.querySelectorAll("[title],[aria-label]")].flatMap((e) => [e.getAttribute("title"), e.getAttribute("aria-label")]);
+    expect([root.textContent, ...attrs].join(" ")).not.toMatch(/\b(orders?|suppliers?|canonical|deterministic|outputs?)\b/i);
+  });
+
   it("a refused save says why, in flow words", async () => {
     api.updateOutput.mockRejectedValue(new ApiHttpError("nope", 422, { error: "lookup" }));
     renderView();

@@ -82,7 +82,7 @@ export function GhostWire({ suggestion: s, hx, hy, zx, zy, onAccept, onReject }:
   // What the accept/dismiss controls call this suggestion. Only the scored path may say "AI".
   const provenance =
     scored ? `AI ${pct}% confidence`
-    : display === "saved_mapping" ? "saved supplier mapping"
+    : display === "saved_mapping" ? "saved mapping"
     : "no confidence score";
   const reasonLabel = `${s.reason} (${provenance})`;
   const kind = display === "saved_mapping" ? "saved mapping suggestion" : scored ? "AI suggestion" : "suggestion";

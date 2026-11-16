@@ -76,7 +76,7 @@ const FORMAT_MIME: Record<OutputFormatId, string> = {
  * "unavailable in {format}" stops reading as an error.
  */
 export function formatFieldUnavailableNote(format: OutputFormatId): string {
-  return `This field isn't part of ${format.toUpperCase()} output — it only applies to other formats.`;
+  return `This field isn't written in ${format.toUpperCase()} files — it only applies to other formats.`;
 }
 
 export function MapperPreviewPane({ override, lastTouched, supplierName, emptyHint, defaultFormat, hot, hotValue, onHotChange, reviewSignal, preview }: MapperPreviewPaneProps) {
@@ -218,7 +218,7 @@ export function MapperPreviewPane({ override, lastTouched, supplierName, emptyHi
             Live preview · {deliveredFormat.toUpperCase()}
           </span>
           <span style={{ fontSize: 10.5, color: "#5E6779", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {supplierName ? `exactly what ${supplierName} receives` : "exactly what the supplier receives"}
+            {supplierName ? `exactly what goes in ${supplierName}` : "exactly what goes in the file"}
           </span>
         </span>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
@@ -287,7 +287,7 @@ export function MapperPreviewPane({ override, lastTouched, supplierName, emptyHi
           the recurring defect in this repo is an absent answer rendering as the favourable one,
           and a missing badge is exactly that shape. */}
       <div style={{ flexShrink: 0, padding: "8px 16px", fontSize: 11, color: "#5E6779", background: "#FBFBFD", borderBottom: "1px solid #EEF0F4", lineHeight: 1.5 }}>
-        This is exactly what {supplierName ? supplierName : "the supplier"} receives. Producing this document is not a check — nothing here has been checked against a standard.
+        This is exactly what goes in {supplierName || "the file"}. Making it is not a check: nothing here has been checked against a standard.
       </div>
 
       {err && (
@@ -304,7 +304,7 @@ export function MapperPreviewPane({ override, lastTouched, supplierName, emptyHi
 
       {!preview ? (
         <div style={{ padding: "16px 12px", fontSize: 11, color: "var(--ink-faint)", lineHeight: 1.5 }}>
-          {emptyHint ?? "No sample order to preview yet — upload or pick a sample to see the delivered output."}
+          {emptyHint ?? "No sample document to preview yet. Upload or pick a sample to see the file."}
         </div>
       ) : (
         <pre
@@ -319,7 +319,7 @@ export function MapperPreviewPane({ override, lastTouched, supplierName, emptyHi
           // SupplierDockProfile.tsx's tab body.
           tabIndex={0}
           role="region"
-          aria-label="Supplier-ready output preview"
+          aria-label="Preview of the file"
           className={flash ? "mapper-preview-flash" : undefined}
           style={{
             // The docked live preview is the document operators read most, but the T7 sizing
@@ -343,7 +343,7 @@ export function MapperPreviewPane({ override, lastTouched, supplierName, emptyHi
                 : reviewBlocked
                   ? (
                     <span style={{ color: "#8FA0B8", fontStyle: "normal" }}>
-                      {`Preview available once all lines are resolved.\nResolve the remaining issues in the Issues panel above to\nsee exactly what ${supplierName ?? "the supplier"} receives.`}
+                      {`Preview available once all lines are resolved.\nResolve what is left in the Issues panel above to\nsee exactly what goes in ${supplierName ?? "the file"}.`}
                     </span>
                   )
                   : "(no preview)")

@@ -307,7 +307,7 @@ export function useMapperWireLayer({
   const targetSentence = useCallback((index: number): string | null => {
     const target = targetIds[index];
     if (!target) return null;
-    return `${target}, output ${index + 1} of ${targetIds.length}. Enter connects to this field.`;
+    return `${target}, field ${index + 1} of ${targetIds.length}. Enter connects to this field.`;
   }, [targetIds]);
 
   // ── Keyboard connect ─────────────────────────────────────────────────────────
@@ -325,7 +325,7 @@ export function useMapperWireLayer({
         // Entering connect mode already selects index 0; naming it is part of the same beat.
         const first = targetSentence(0);
         announce(
-          "Connect mode. Arrow keys choose the output field, Enter confirms, Escape cancels."
+          "Connect mode. Arrow keys choose the field of the file, Enter confirms, Escape cancels."
           + (first ? ` ${first}` : ""),
         );
       }
@@ -371,7 +371,7 @@ export function useMapperWireLayer({
       onKeyDown: (e) => onHandleKey(e, sourceId),
       tabIndex: 0,
       role: "button",
-      "aria-label": `Map this field. Drag onto an output field to map it${wiredCount ? `; currently feeding ${wiredCount} output${wiredCount === 1 ? "" : "s"}` : ""}${connecting ? " — connect mode active, use arrow keys then Enter" : ""}`,
+      "aria-label": `Map this field. Drag onto a field of the file to map it${wiredCount ? `; currently feeding ${wiredCount} field${wiredCount === 1 ? "" : "s"}` : ""}${connecting ? " — connect mode active, use arrow keys then Enter" : ""}`,
       "data-wired": wiredCount > 0,
       "data-connecting": connecting,
     };
