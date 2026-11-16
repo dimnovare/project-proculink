@@ -54,7 +54,7 @@ function setup(extra: Partial<OutgoingPaneProps> = {}) {
 
 /** The child control that owns selection — a real button, so the browser gives it the keyboard. */
 function selectControl(row: HTMLElement): HTMLElement {
-  return within(row).getByRole("button", { name: /Select output field/i });
+  return within(row).getByRole("button", { name: /Select the field/i });
 }
 
 describe("OutgoingPane — an output row can be selected without a mouse", () => {
@@ -184,6 +184,6 @@ describe("OutgoingPane — anti-vacuity", () => {
     );
     const inert = within(container).getByText("Quantity").closest("[data-mapper-row]") as HTMLElement;
     expect(inert.getAttribute("role")).toBeNull();
-    expect(within(inert).queryByRole("button", { name: /Select output field/i })).toBeNull();
+    expect(within(inert).queryByRole("button", { name: /Select the field/i })).toBeNull();
   });
 });

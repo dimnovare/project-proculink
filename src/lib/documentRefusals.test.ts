@@ -7,14 +7,14 @@ const refusal = (body: unknown) => new ApiHttpError("x", 422, body);
 describe("documentRefusalMessage", () => {
   it("names the output and the reason", () => {
     expect(documentRefusalMessage(refusal({ error: "output_invalid", output: "Accounting CSV", detail: "x" })))
-      .toBe('The output "Accounting CSV" couldn\'t be made: x');
+      .toBe('The file "Accounting CSV" couldn\'t be made: x');
   });
   it("words an output_invalid machine token", () => {
     expect(documentRefusalMessage(refusal({ error: "output_invalid", detail: "send_when" }))).toBe(COPY.send_when);
   });
   it("words an empty output step", () => {
     expect(documentRefusalMessage(refusal({ error: "output_invalid", detail: "template" })))
-      .toBe("This output has an empty step. Remove it or finish setting it up.");
+      .toBe("This file has an empty step. Remove it or finish setting it up.");
   });
   it("words the flow cap and keeps the paused copy as its own control", () => {
     expect(documentRefusalMessage(refusal({ error: "flow_limit_reached", limit: 2 })))

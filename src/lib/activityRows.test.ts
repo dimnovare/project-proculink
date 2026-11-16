@@ -61,6 +61,9 @@ describe("activityRows", () => {
     expect(full.facts).toContainEqual({ term: "Attempts", value: "3, the last at 09:12. We stopped there." });
     expect(full.facts).toContainEqual({ term: "Destination", value: "Accounting inbox, Email" });
     expect(full.facts).toContainEqual({ term: "Where it stopped", value: "At Send, stage 5 of 5", stopped: 4 });
+    expect(full.facts).toContainEqual({ term: "File", value: "invoice-1003.csv (Invoice CSV, flow version 2)" });
+    expect(old.facts).toContainEqual({ term: "File", value: "Invoice CSV" });
+    for (const row of [old, repair, full]) expect(new Set(row.facts.map((f) => f.term)).size).toBe(row.facts.length); // one fact per term
     expect(full.tag).toEqual({ label: "Couldn't send", tone: "danger" });
     expect(full.why).toBe("The mailbox refused the message. Fix the destination, then send it again.");
     expect(full.canFix).toBe(true);

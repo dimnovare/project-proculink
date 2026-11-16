@@ -144,6 +144,15 @@ describe("DestinationForm", () => {
     expect(kinds(ui)).not.toContain("Google Sheets");
   });
 
+  it("Send by lists the same kinds, email first and the server kinds in one group", async () => {
+    const ui = newForm();
+    await waitFor(() => expect(linked.listLinkedAccounts).toHaveBeenCalled());
+    const select = ui.getByLabelText("Send by") as HTMLSelectElement;
+    expect(select).toHaveValue("email");
+    expect(kinds(ui)).toEqual(["Email", "SFTP", "FTPS", "S3 bucket", "Web address (API)"]);
+    expect(select.querySelector('optgroup[label="A server or another system"]')!.children).toHaveLength(4);
+  });
+
   it("sends to a picked Google Drive folder with no login fields", async () => {
     linked.listLinkedAccounts.mockResolvedValue({ available: true, accounts: [account] });
     linked.getGooglePicker.mockResolvedValue({ accessToken: "at", apiKey: "k", appId: "1" });

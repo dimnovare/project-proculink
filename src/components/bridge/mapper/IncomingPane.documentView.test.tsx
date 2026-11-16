@@ -127,7 +127,7 @@ describe("with no document the column is the pane that already existed, plus a r
     // `hasIncomingSource` replaced `sourceFileKey`, which was set to the ORDER ID and used
     // purely for truthiness. Both branches must still be reachable.
     setup({ fields: [], hasIncomingSource: false, documentAvailable: false, documentSlot: null });
-    expect(screen.getByText(/arrived already-structured/)).toBeInTheDocument();
+    expect(screen.getByText(/arrived already structured/)).toBeInTheDocument();
   });
 });
 

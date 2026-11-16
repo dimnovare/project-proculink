@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Flow, FlowFieldList } from "@/lib/api/documents";
 import { FlowDraftProvider } from "./flowDraft";
@@ -8,6 +8,8 @@ import { FlowValues } from "./FlowValues";
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 const api = vi.hoisted(() => ({ listDocuments: vi.fn(), getDocument: vi.fn(), saveFlowFields: vi.fn() }));
 vi.mock("@/lib/api/documents", () => api);
+const queue = vi.hoisted(() => ({ add: vi.fn() }));
+vi.mock("./UploadQueue", () => ({ useUploadQueue: () => queue }));
 
 const field = (key: string, label: string) => ({ key, label, type: "text", meaning: null, required: false });
 const fields: FlowFieldList = {
@@ -48,7 +50,7 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.clearAllMocks(); });
 
 describe("FlowValues", () => {
-  it("a confirmed flow saves a change on its own; never published, it says Saved, not Draft saved", async () => {
+  it("a confirmed flow saves a change on its own, and says nothing once it is saved", async () => {
     mount({ ...flow, publishedVersion: null });
     fireEvent.click(screen.getByRole("checkbox", { name: "Read VAT" }));
     await act(async () => { await vi.advanceTimersByTimeAsync(800); });
@@ -56,7 +58,8 @@ describe("FlowValues", () => {
     const [id, list] = api.saveFlowFields.mock.calls[0] as [string, FlowFieldList];
     expect(id).toBe("flow-1");
     expect(list.fields.map((f) => f.key)).toEqual(["invoice_number", "due_date"]);
-    expect(await screen.findByText("Saved")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText("Saving…")).toBeNull());
+    expect(screen.queryByText("Saved")).toBeNull();
   });
 
   it("an unconfirmed flow does not save until kept", async () => {
@@ -76,5 +79,55 @@ describe("FlowValues", () => {
     expect(row("Due date").textContent).toContain("Not found on this document");
     expect(row("Invoice number").textContent).toContain("1001");
     expect(row("Invoice number").textContent).not.toContain("Not found on this document");
+  });
+
+  it("a value row shows tick, name, example and More; Required sits inside More", async () => {
+    mount(flow);
+    await screen.findByRole("columnheader", { name: "Example from invoice-1001.csv" });
+    const row = screen.getByRole("textbox", { name: "Name for Invoice number" }).closest("tr")!;
+    expect(within(row).queryByRole("checkbox", { name: "Invoice number is required" })).toBeNull();
+    fireEvent.click(within(row).getByRole("button", { name: "More for Invoice number" }));
+    expect(document.activeElement).toBe(screen.getByRole("checkbox", { name: "Invoice number is required" }));
+    expect(screen.getByText("We mark the value when it is missing from a document.")).toBeTruthy();
+    expect(screen.queryByText(/Required means we mark|save as a draft/)).toBeNull();
+    // With its name emptied, the row's More still has a name a person can hear.
+    fireEvent.change(screen.getByRole("textbox", { name: "Name for Invoice number" }), { target: { value: "" } });
+    expect(within(row).getByRole("button", { name: "More for this value" })).toBeInTheDocument();
+  });
+
+  it("a More opened by a problem stays open while the person fixes it, with focus in the control", async () => {
+    mount({ ...flow, fields: { ...fields, fields: [{ ...field("invoice_number", "Invoice number"), type: "barcode" }] } });
+    const type = (await screen.findAllByRole("combobox", { name: "Type" }))[0];
+    expect(screen.queryByRole("button", { name: "More for Invoice number" })).toBeNull(); // held open: no More to press
+    type.focus();
+    fireEvent.change(type, { target: { value: "text" } });
+    expect(type).toBeInTheDocument();
+    expect(document.activeElement).toBe(type);
+    expect(screen.getByRole("button", { name: "More for Invoice number" })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("before the first document, a drop zone adds one to this flow", async () => {
+    api.listDocuments.mockResolvedValue([]);
+    const first = { ...flow, fieldsConfirmed: false, fields: { fields: [], tables: [] } };
+    mount(first);
+    expect(await screen.findByText("Drop one document like the ones this flow will get.")).toBeTruthy();
+    const file = new File(["x"], "invoice-2292.pdf", { type: "application/pdf" });
+    fireEvent.change(screen.getByLabelText("Choose a file"), { target: { files: [file] } });
+    expect(queue.add).toHaveBeenCalledWith([file], first);
+  });
+
+  it("a first document being read says so in place of the drop zone; a failed read links to it and offers the drop zone", async () => {
+    const first = { ...flow, fieldsConfirmed: false, fields: { fields: [], tables: [] } };
+    const pending = { ...detail.summary, id: "doc-2", fileName: "invoice-2292.pdf", status: "reading" };
+    api.listDocuments.mockResolvedValue([pending]);
+    const { unmount } = mount(first);
+    expect(await screen.findByText("We are reading invoice-2292.pdf. Its values appear here in a moment.")).toBeTruthy();
+    expect(screen.queryByText("Drop one document like the ones this flow will get.")).toBeNull();
+    unmount();
+    api.listDocuments.mockResolvedValue([{ ...pending, status: "read_failed" }]);
+    mount(first);
+    expect(await screen.findByText("We couldn't read invoice-2292.pdf.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open it" })).toHaveAttribute("href", "/flows/flow-1/documents/doc-2");
+    expect(screen.getByText("Drop one document like the ones this flow will get.")).toBeTruthy();
   });
 });

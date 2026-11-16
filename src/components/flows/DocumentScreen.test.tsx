@@ -195,8 +195,8 @@ describe("DocumentScreen", () => {
     renderScreen();
     const header = within(await screen.findByTestId("review-header-actions"));
     fireEvent.click(header.getByRole("button", { name: "Send and open next" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Add an output to this flow before sending.");
-    expect(within(screen.getByTestId("review-refusal")).getByRole("link", { name: "Open the flow's outputs" })).toHaveAttribute("href", "/flows/f?tab=outputs");
+    expect(await screen.findByRole("alert")).toHaveTextContent(COPY.no_outputs);
+    expect(within(screen.getByTestId("review-refusal")).getByRole("link", { name: "Open the flow's files" })).toHaveAttribute("href", "/flows/f?tab=outputs");
     expect(replace).not.toHaveBeenCalled();
     expect(header.getByRole("button", { name: "Send and open next" })).toBeEnabled();
     api.listDocumentPage.mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 50 });   // after this send, nothing needs you

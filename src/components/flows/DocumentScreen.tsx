@@ -269,7 +269,7 @@ function sendRefusal(e: unknown, flowId: string): { text: string; wayOn: ReactNo
   if (t === "processing_paused" || (t && (LIMIT_CODES.has(t) || isPlanGateError(t))))
     return { text: documentRefusalMessage(e), wayOn: <Link href="/settings?tab=billing" className={WAY_ON}>Open Plan &amp; billing</Link> };
   if (t === "no_outputs" || t === "no_output_matches")
-    return { text: documentRefusalMessage(e), wayOn: <Link href={`/flows/${flowId}?tab=outputs`} className={WAY_ON}>Open the flow&apos;s outputs</Link> };
+    return { text: documentRefusalMessage(e), wayOn: <Link href={`/flows/${flowId}?tab=outputs`} className={WAY_ON}>Open the flow&apos;s files</Link> };
   if (rateLimited(e)) return { text: "Couldn't send just now. Try again in a moment.", wayOn: null };
   return { text: documentRefusalMessage(e), wayOn: null };
 }

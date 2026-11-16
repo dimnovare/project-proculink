@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { preparePage, settle } from "./a11yHarness";
+import { COPY } from "../../src/lib/documentRefusals";
 
 /** What a person sees go wrong on a narrow screen, measured on the document screen as it stands. */
 async function measure(page: Page) {
@@ -76,9 +77,9 @@ test.describe("Review", () => {
     await expect(page).toHaveURL(/\/flows\/flow-3\/documents\/doc-5$/);
     const header = page.getByTestId("review-header-actions");
     await expect(header).toContainText("1 of 3 that need you");
-    await header.getByRole("button", { name: "Send and open next" }).click();             // flow-3 has no output
-    await expect(page.getByTestId("review-refusal").getByRole("alert")).toContainText("Add an output to this flow before sending.");
-    await expect(page.getByTestId("review-refusal").getByRole("link", { name: "Open the flow's outputs" }))
+    await header.getByRole("button", { name: "Send and open next" }).click();             // flow-3 has no file
+    await expect(page.getByTestId("review-refusal").getByRole("alert")).toContainText(COPY.no_outputs);
+    await expect(page.getByTestId("review-refusal").getByRole("link", { name: "Open the flow's files" }))
       .toHaveAttribute("href", "/flows/flow-3?tab=outputs");
     await expect(page).toHaveURL(/doc-5$/);
     await header.getByRole("button", { name: "Skip" }).click();

@@ -10,9 +10,9 @@ export const metadata = helpArticleMetadata({
 
 How a lookup list turns one value into another, such as your item code into a supplier's.
 
-A lookup is a table with two columns: **From** and **To**. When an output uses a lookup for a value, the value on the document is looked up in the **From** column, and the matching **To** is written instead. Use it for item codes, unit names, country names or anything else your receiving system spells differently.
+A lookup is a table with two columns: **From** and **To**. When a file uses a lookup for a value, the value on the document is looked up in the **From** column, and the matching **To** is written instead. Use it for item codes, unit names, country names or anything else your receiving system spells differently.
 
-Lookups are shared across your workspace. Find them from **Flows**: the link **Lookups** is under the list of flows. Any output in any flow can use any lookup.
+Lookups are shared across your workspace. Find them from **Flows**: the link **Lookups** is under the list of flows. Any file in any flow can use any lookup. A lookup that no file uses yet says how to use it, with a link to each of your flows: open a flow, go to **We send**, open a file, choose **More options: file type, when to send, separator, lookups** and pick the lookup for a column.
 
 ## How a match works
 
@@ -25,10 +25,10 @@ Lookups are shared across your workspace. Find them from **Flows**: the link **L
 
 Each swap says what to do with a value it cannot find:
 
-- **Keep the value.** The original value goes into the output.
+- **Keep the value.** The original value goes into the file.
 - **Leave it blank.**
 
-Either way the output is still made. When you preview an output, the values that were not found are listed under it, so you can add them.
+Either way the file is still made. When you preview a file, the values that were not found are listed under it, so you can add them.
 
 ## Fill a lookup
 
@@ -41,7 +41,7 @@ A lookup holds up to 20,000 rows. A value can be up to 200 characters.
 
 ## Let AI suggest matches
 
-When you preview an output and a value was not found, a **Suggest matches** button can appear. It does when your lookup also has a list of values to choose from, for example your supplier's product list.
+When you preview a file and a value was not found, a **Suggest matches** button can appear. It does when your lookup also has a list of values to choose from, for example your supplier's product list.
 
 For each value that was missed, the suggestion shows what we propose, how sure we are when we can say, and the note from your list. You then choose:
 

@@ -10,7 +10,7 @@ import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 
 <Prereqs>
 - A CSV or Excel (.xlsx) file with headings in the first row and two columns. Column 1 holds the value as it appears on your documents (**From**). Column 2 holds the value your receiving system wants (**To**). Other columns are ignored.
-- A flow with an output, to use the lookup in. See [Build an output](/help/guides/build-an-output).
+- A flow with a file, to use the lookup in. See [Make a file](/help/guides/build-an-output).
 </Prereqs>
 
 <Step n={1} title="Import the table">
@@ -41,12 +41,12 @@ Beside the name it says "Saved, edits save as you type".
 
 </Step>
 
-<Step n={3} title="Use it in an output">
+<Step n={3} title="Use it in a file">
 
-Open the output on the flow's **We send** step. Under **More options: when to send, separator, lookups**, choose the lookup beside the column you want to swap. Then choose what to do with a value that is not in it: **Keep the value** or **Leave it blank**. The change saves as a draft.
+Open the file on the flow's **We send** step (until a file uses it, the lookup's page links to each of your flows). Under **More options: file type, when to send, separator, lookups**, choose the lookup beside the column you want to swap. Then choose what to do with a value that is not in it: **Keep the value** or **Leave it blank**. The change saves. Once the setup is saved, it waits until you use your changes.
 
 <Outcome>
-The output swaps the value. **What the file looks like** shows the result. Values the lookup did not find are listed under the preview.
+The file gets the swapped value. **What the file looks like** shows the result. Values the lookup did not find are listed under the preview.
 </Outcome>
 
 </Step>
@@ -55,7 +55,7 @@ The output swaps the value. **What the file looks like** shows the result. Value
 
 If **Set up suggestions** appears on the lookup's page, select it and choose a CSV file, with headings in the first row, under **Import list (CSV)**. It saves by itself. Column 1 is the value, and the other columns become a note that helps pick it.
 
-Then, when you preview an output and a value was not found, select **Suggest matches**. Nothing is added until you press **Accept**. See [Lookups](/help/lookups) for what is sent and how to accept, edit or reject.
+Then, when you preview a file and a value was not found, select **Suggest matches**. Nothing is added until you press **Accept**. See [Lookups](/help/lookups) for what is sent and how to accept, edit or reject.
 
 <Outcome>
 Accepted pairs join the lookup, and the preview updates.

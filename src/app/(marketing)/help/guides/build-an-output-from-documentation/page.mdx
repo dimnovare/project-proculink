@@ -2,8 +2,8 @@ import { guideMetadata } from "@/lib/seo";
 
 export const metadata = guideMetadata({
   slug: "build-an-output-from-documentation",
-  title: "Build an output from documentation — ProcuLink guide",
-  description: "Upload your receiving system's documentation and we propose the output for you to check.",
+  title: "Make a file from documentation — ProcuLink guide",
+  description: "Upload your receiving system's documentation and we propose the file for you to check.",
 });
 
 import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
@@ -11,20 +11,20 @@ import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 <Prereqs>
 - A flow whose fields are saved. See [Set up your first flow](/help/guides/set-up-your-first-flow).
 - A workspace admin account.
-- The import or API documentation of the system that will receive the output. It can be a PDF with text in it, a saved web page, an OpenAPI or JSON Schema file, an XSD file, or an example file (XML, JSON, YAML, text or CSV). It can be up to 10 MB.
+- The import or API documentation of the system that will receive the file. It can be a PDF with text in it, a saved web page, an OpenAPI or JSON Schema file, an XSD file, or an example file (XML, JSON, YAML, text or CSV). It can be up to 10 MB.
 - Optional, to test a destination: a document already in the flow.
 </Prereqs>
 
 <Step n={1} title="Upload the documentation">
 
-Open the flow, go to the **We send** step, and select **Add an output**. Choose the **From documentation** tab. Drop the documentation on the upload area, or choose it.
+Open the flow, go to the **We send** step, and select **Make another file**. Under **Need a set layout?**, select **From documentation**. Drop the documentation on the upload area, or choose it.
 
 <Outcome>
 We read the documentation, which can take a moment, and open a **Check the values** form. Nothing is saved yet.
 </Outcome>
 
 <IfThisFails>
-The screen says why. For example "We couldn't read the documentation. Try again.", or that this workspace has used its monthly AI allowance, or keeps documents on our own servers so nothing can be sent to AI. If you do not see the **From documentation** tab, this is not switched on for your workspace.
+The screen says why. For example "We couldn't read the documentation. Try again.", or that this workspace has used its monthly AI allowance, or keeps documents on our own servers so nothing can be sent to AI. If you do not see **From documentation**, this is not switched on for your workspace.
 </IfThisFails>
 
 </Step>
@@ -41,7 +41,7 @@ You know which file type is proposed, and you can see why.
 
 <Step n={3} title="Check every value">
 
-Each row of the proposed output shows the field of your flow that we chose for it, with the place in the documentation it came from. A row marked **Required** is one the documentation says must be present.
+Each row of the proposed file shows the field of your flow that we chose for it, with the place in the documentation it came from. A row marked **Required** is one the documentation says must be present.
 
 Change any row with its **Value** list. For fixed-width text, check the width of each row too.
 
@@ -60,21 +60,21 @@ If the documentation says where to send the file, the form says "The documentati
 Or choose **Download only**, or a destination you already have, in **Send to**.
 
 <Outcome>
-The output knows where it goes.
+The file knows where it goes.
 </Outcome>
 
 </Step>
 
 <Step n={5} title="Send a test, then create">
 
-When the output goes to a destination, **Send a test** must pass before **Create** works. The test sends a real file made from a document in this flow, with `TEST_` at the start of its name. That file holds that document's values, so use a destination you trust. If the flow has no document yet, upload one first.
+When the file goes to a destination, **Send a test** must pass before **Create** works. The test sends a real file made from a document in this flow, with `TEST_` at the start of its name. That file holds that document's values, so use a destination you trust. If the flow has no document yet, upload one first.
 
 Change anything in the form and the test must be sent again, because it only counts for exactly what you are about to create. A test that fails shows the destination's message.
 
 Select **Create**. Nothing is created until you do. To start again with other documentation, select **Choose a different file**.
 
 <Outcome>
-The output is saved, and its editor opens, where you can add lookups and send-when rules. See [Build an output](/help/guides/build-an-output).
+The file is saved, and its editor opens, where you can add lookups and send-when rules. See [Make a file](/help/guides/build-an-output).
 </Outcome>
 
 </Step>

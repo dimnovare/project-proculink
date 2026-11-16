@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-// The "Send to supplier" gate had two terms and neither could be non-zero.
+// The "Send the file" gate had two terms and neither could be non-zero.
 //
 //   canDeliver = !readOnly && blockingCount === 0 && summary.requiredUnmapped === 0 && !deliverDisabled
 //
@@ -106,12 +106,12 @@ function renderWorkbench() {
 }
 
 /**
- * Every rendered "Send to supplier". jsdom has no Tailwind, so the `lg:hidden` mobile block
+ * Every rendered "Send the file". jsdom has no Tailwind, so the `lg:hidden` mobile block
  * and the desktop toolbar BOTH mount — asserting on all of them is stronger than picking one,
  * and it means a fix applied to a single breakpoint cannot pass.
  */
 function sendButtons(): HTMLElement[] {
-  return screen.getAllByRole("button", { name: "Send to supplier" });
+  return screen.getAllByRole("button", { name: "Send the file" });
 }
 
 beforeEach(() => {

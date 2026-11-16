@@ -895,7 +895,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
   {
     action: "flow.published",
     kind: "edited",
-    label: "Version published",
+    label: "Version put in use",
     reachable: true,
     backendSite: "ProcuLink.Api/Services/Documents/FlowVersions.cs:49",
     reasonKeys: [],

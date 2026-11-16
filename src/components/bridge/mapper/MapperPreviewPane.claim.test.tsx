@@ -161,7 +161,7 @@ describe("the live preview chip claims production, not validity (P0-5)", () => {
       pane.getByText(/nothing here has been checked against a standard/i),
     ).toBeInTheDocument();
     expect(
-      pane.getByText(/Producing this document is not a check/i),
+      pane.getByText(/Making it is not a check/i),
     ).toBeInTheDocument();
   });
 

@@ -150,7 +150,7 @@ export function GoogleTargetFields({ protocol, config, onChange }: {
               onChange={(e) => onChange({ sheetName: e.target.value })} />
           </Field>
           <span id="dest-sheet-help" className="text-[13px] text-ink-muted">
-            Leave empty to add rows to the first tab. Use a CSV output with a header row — each send adds its rows to the end.
+            Leave empty to add rows to the first tab. Use a CSV file with a header row — each send adds its rows to the end.
           </span>
         </div>
       )}

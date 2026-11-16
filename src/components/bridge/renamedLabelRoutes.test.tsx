@@ -63,7 +63,6 @@ describe("renamed settings tabs keep their ?tab= ids", () => {
     ["org", "Workspace"],
     ["destinations", "Destinations"],
     ["billing", "Plan & billing"],
-    ["api", "API keys"],
   ];
   for (const [id, label] of rows) {
     it(`?tab=${id} → "${label}"`, () => {
@@ -73,5 +72,6 @@ describe("renamed settings tabs keep their ?tab= ids", () => {
   }
   it("an old ?tab=connectors link (the retired Notifications tab) still lands, on Workspace where its settings live", () => {
     expect(readSettingsTab(new URLSearchParams("tab=connectors"))).toBe("org");
+    expect(readSettingsTab(new URLSearchParams("tab=api"))).toBe("org"); // API keys sit under Workspace, For developers
   });
 });

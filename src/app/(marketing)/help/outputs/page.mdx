@@ -2,15 +2,15 @@ import { helpArticleMetadata } from "@/lib/seo";
 
 export const metadata = helpArticleMetadata({
   slug: "outputs",
-  title: "Output formats — ProcuLink Help",
+  title: "Files we make — ProcuLink Help",
   description: "The formats a flow can produce, and how each field gets its value.",
 });
 
-# Output formats
+# Files we make
 
 The formats a flow can produce, and how each field gets its value.
 
-An output is the file your receiving system gets. A flow can have several outputs. Each one has a format, a list of values, and a place it goes: a destination, or **Download only**. Every plan has every format. Only a workspace admin can add or change outputs.
+A file we make is what your receiving system gets. A flow can make several files. Each one has a format, a list of values, and a place it goes: a destination, or **Download only**. Every plan has every format. Only a workspace admin can add or change files.
 
 ## The formats
 
@@ -23,7 +23,7 @@ An output is the file your receiving system gets. A flow can have several output
 
 ## Where each value comes from
 
-Each row of an output has a name in the file and a source. The source is one of three things:
+Each row of a file has a column name and a source. The source is one of three things:
 
 - **A field of the document.** For example, the document number or a date.
 - **A fixed value.** One that you type, the same on every document.
@@ -33,20 +33,21 @@ If the flow has a table, you can pick it, and its columns become the columns or 
 
 ## Send only some documents
 
-An output can be set to **Always** send, or **Only when** a field matches a condition. Use this to send one output per recipient. If a document matches no output, nothing is sent and the document waits for you.
+A file can be set to **Always** send, or **Only when** a field matches a condition. Use this to send one file per recipient. If a document matches no file, nothing is sent and the document waits for you.
 
 ## Preview before you rely on it
 
-On the flow's **We send** step, **What the file looks like** shows the file made from the latest document, with your draft changes.
+On the flow's **We send** step, **What the file looks like** shows the file made from the latest document, with your changes.
 
 ## When changes take effect
 
-Before the first publish, changes to outputs apply straight away. After that, a document is sent with the published version of the flow, so a change to an output applies to new sends once you publish. See [Publish and restore flow versions](/help/guides/publish-a-flow-version).
+Before the first save of the setup, changes to files are in use straight away. After that, a document is sent with the setup in use, so a change to a file reaches new sends once you use your changes. See [Use changes and restore earlier versions](/help/guides/publish-a-flow-version).
 
-## Ways to make an output
+## Ways to make a file
 
-- [Build one yourself](/help/guides/build-an-output), row by row.
-- [Start from a sample file](/help/guides/build-an-output-from-a-sample) of what your system expects.
-- [Start from your system's documentation](/help/guides/build-an-output-from-documentation), and we propose the output for you to check.
+- [Make a CSV of every value we read](/help/guides/build-an-output), then untick what you don't need. This is how **Make another file** opens.
+- [Match a sample file](/help/guides/build-an-output-from-a-sample) of what your system expects.
+- [Start from your system's documentation](/help/guides/build-an-output-from-documentation), and we propose the file for you to check.
+- Choose **A standard format** when your receiver asked for one. The ones that fit your documents come first; the rest are one press further down, where they apply.
 
 Then choose where it goes. See [Destinations](/help/destinations).

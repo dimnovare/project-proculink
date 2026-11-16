@@ -26,3 +26,37 @@ export const WRITTEN_VERSION: Partial<Record<string, string>> = { "x12-850": "00
 
 /** A standard's name from the catalog, else its id. */
 export const standardName = (id: string) => STANDARDS.find((s) => s.id === id)?.name ?? id;
+
+/** One line per invoice family, as the standards panel shows it. A family without one shows none. */
+const DESCRIPTIONS: Partial<Record<string, string>> = {
+  "peppol-bis-billing-3": "The e-invoice format of the Peppol network.",
+  "en16931-cii": "The European e-invoice standard, as CII XML.",
+  "xrechnung-ubl": "E-invoices for German public bodies, as UBL XML.",
+  "xrechnung-cii": "E-invoices for German public bodies, as CII XML.",
+};
+
+export type Family = { id: string; name: string; description: string | null; creditNote: string | null; version: string | null };
+
+/** R10: every standard a flow may offer, as families, in catalog order: the invoice families (each with its credit-note
+ *  twin, when that twin is offered) only when `peppolOn`, and the order standards. Everything offered is listed once:
+ *  a standard that fits no family and is nobody's twin is listed with the order standards. */
+export function standardFamilies(peppolOn: boolean | undefined): { invoices: Family[]; orders: Family[] } {
+  const offered = STANDARDS.filter((s) => (STANDARD_OUTPUTS as readonly string[]).includes(s.id) && (peppolOn || !FLAGGED.has(s.id)));
+  const has = (id: string) => offered.some((o) => o.id === id);
+  const twin = (id: string) => id.endsWith("-credit-note") && has(id.replace(/-credit-note$/, ""));
+  const family = (id: string, name: string, version: string, creditNote: string | null): Family =>
+    ({ id, name, description: DESCRIPTIONS[id] ?? null, creditNote, version: WRITTEN_VERSION[id] ?? version });
+  const invoices = offered.filter((s) => FLAGGED.has(s.id) && !s.id.endsWith("-credit-note"));
+  return {
+    invoices: invoices.map((s) => family(s.id, s.name.replace(" (invoice)", ""), s.version, has(`${s.id}-credit-note`) ? `${s.id}-credit-note` : null)),
+    orders: offered.filter((s) => !invoices.includes(s) && !twin(s.id)).map((s) => family(s.id, s.name, s.version, null)),
+  };
+}
+
+/** R9: which group of standards fits a flow's documents, from the kind we read; null when not known. Whole words only,
+ *  and an answer to an order (a confirmation, an acknowledgement, a response) is not an order. */
+export const kindGroup = (kindLabel: string | null): "invoices" | "orders" | null =>
+  // An answer to a document (a confirmation, an acknowledgement, a response) is not the document itself.
+  !kindLabel || /confirm|acknowledg|response/i.test(kindLabel) ? null
+  : /\b(invoices?|credit[- ]notes?)\b/i.test(kindLabel) ? "invoices"
+  : /\borders?\b/i.test(kindLabel) ? "orders" : null;

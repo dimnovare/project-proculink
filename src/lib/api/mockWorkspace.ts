@@ -6,7 +6,7 @@
  * fixtures. Each route answers as its controller does; a route or parameter it does not implement
  * throws. Only reachable in mock mode (never in production). Holds invented data only.
  */
-import { DOCUMENT_STATUSES, documentStatus } from "../documentStatusManifest";
+import { STATUS, documentStatus } from "../documentStatusManifest";
 import { acceptFor, fileRefusal } from "../fileKinds";
 import { PLANS } from "../plans";
 import { ApiHttpError } from "./core";
@@ -25,7 +25,9 @@ const MODE = "proculink.mock.workspace";
 export const MOCK_STATE_KEY = "proculink.mock.state";
 const REFUSE = "proculink.mock.refuse";
 const GOOGLE = "proculink.mock.google";
-const STATUS = Object.fromEntries(Object.keys(DOCUMENT_STATUSES).map((k) => [k, k])) as Record<keyof typeof DOCUMENT_STATUSES, string>;
+/** Browser specs only: "on" makes every delivery fail, with the reason the server would give. */
+const DELIVERY_FAILS = "proculink.mock.deliveryFails";
+export const MOCK_DELIVERY_ERROR = "We couldn't make this file. Try again, or check the flow's files.";
 const TRIAL = PLANS.find((p) => p.id === "pilot")!;
 
 const session = (key: string): string | null => {
@@ -185,17 +187,20 @@ function send(s: State, d: WDoc): DocumentDelivery[] {
   if (!documentStatus(d.status, d.statusReason).editable) refuse(409, { error: "not_ready" });
   const flow = find(s.flows, d.flowId, "flow");
   if (!flow.live.length) refuse(409, { error: "no_outputs" });
+  const fails = session(DELIVERY_FAILS) === "on";
   const deliveries = flow.live.map((o): DocumentDelivery => {
     const dest = s.destinations.find((x) => x.id === o.destinationId);
     return {
-      id: `dlv-w${++s.n}`, outputName: o.name, protocol: dest?.protocol ?? "", status: dest ? "queued" : "stored", attempts: 0, lastError: null,
-      fileName: `${stem(d.fileName)}.${o.format}`, deliveredAt: dest ? null : new Date().toISOString(),
+      id: `dlv-w${++s.n}`, outputName: o.name, protocol: dest?.protocol ?? "",
+      status: fails ? "dead_letter" : dest ? "queued" : "stored", attempts: fails ? 1 : 0, lastError: fails ? MOCK_DELIVERY_ERROR : null,
+      fileName: `${stem(d.fileName)}.${o.format}`, deliveredAt: dest || fails ? null : new Date().toISOString(),
     };
   });
   s.deliveries[d.id] = deliveries;
-  // As FlowDeliveryStatus.DocumentStatusFor: all stored is sent; one still queued is sending.
+  // As FlowDeliveryStatus.DocumentStatusFor: all stored is sent; one given up on is send_failed; else sending.
   const sent = deliveries.every((x) => x.status === "stored");
-  Object.assign(d, { status: sent ? STATUS.sent : STATUS.sending, sentAt: sent ? new Date().toISOString() : null });
+  const status = sent ? STATUS.sent : fails ? STATUS.send_failed : STATUS.sending;
+  Object.assign(d, { status, sentAt: sent ? new Date().toISOString() : null });
   return deliveries;
 }
 

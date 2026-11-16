@@ -56,7 +56,7 @@ export function buildMapperCommands(dispatch: (e: MapperCommandEvent) => void): 
 
   return [
     cmd("a13", "Jump to field",            "Search and focus a field in the mapper",   "⌖", "jump-to-field"),
-    cmd("a14", "Jump to a field's transform", "Scroll to the focused output field",    "ƒ", "add-transform"),
+    cmd("a14", "Jump to a field's transform", "Scroll to the focused field of the file",    "ƒ", "add-transform"),
     // a15 "Switch output format" went 2026-11-14: the flow preview ignores the format, so
     // cycling it changed nothing.
     // a16 "Edit output as a template" went 2026-11-13 with the order review's template

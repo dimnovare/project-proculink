@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -10,7 +10,7 @@ import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { capture } from "@/lib/analytics";
 import {
-  downloadDeliveryFile, getDocument, listDestinations, listOutputs, previewOutput, publishFlow, sendDocument, updateFlow, updateOutput,
+  getDocument, listDestinations, listOutputs, previewOutput, publishFlow, sendDocument, updateFlow, updateOutput,
   type Destination, type Flow,
 } from "@/lib/api/documents";
 import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
@@ -31,17 +31,19 @@ export type SendChoice =
   | { kind: "existing"; destinationId: string | null }
   | { kind: "new"; tile: NewTile };
 
-/** R16: exactly the kinds FlowDestinationService allows, in order; Google only when the server says it is available. */
-const TILES: readonly { tile: NewTile; title: string; sub: string; protocols: readonly string[]; google?: true }[] = [
+/** R16: exactly the kinds FlowDestinationService allows, in order; Google only when the server says it is available.
+ *  The server kinds sit behind "A server or another system" (plan 16a R16): one press away, never gone. */
+const TILES: readonly { tile: NewTile; title: string; sub: string; protocols: readonly string[]; google?: true; server?: true }[] = [
   { tile: "email", title: "Email", sub: "To one or more addresses", protocols: ["email"] },
   { tile: "google_drive", title: "Google Drive", sub: "A folder you choose", protocols: ["google_drive"], google: true },
   { tile: "google_sheets", title: "Google Sheets", sub: "New rows in a sheet", protocols: ["google_sheets"], google: true },
-  { tile: "server", title: "SFTP or FTPS", sub: "A folder on a server", protocols: ["sftp", "ftps"] },
-  { tile: "s3", title: "S3 bucket", sub: "Amazon S3 or compatible", protocols: ["s3"] },
-  { tile: "http", title: "Web address", sub: "Posted to another system", protocols: ["http"] },
+  { tile: "server", title: "SFTP or FTPS", sub: "A folder on a server", protocols: ["sftp", "ftps"], server: true },
+  { tile: "s3", title: "S3 bucket", sub: "Amazon S3 or compatible", protocols: ["s3"], server: true },
+  { tile: "http", title: "Web address", sub: "Posted to another system", protocols: ["http"], server: true },
 ];
 const WAY_ON = "inline-flex min-h-[44px] items-center text-[14px] font-semibold text-brand-blue sm:min-h-0";
 const LINK_BUTTON = `${WAY_ON} underline disabled:opacity-50`;
+const FOLD = "grid min-h-[44px] content-start gap-0.5 justify-self-start rounded-card border border-dashed border-borderStrong bg-bg px-3 py-2.5 text-left";
 
 type Tested = { destinationId: string; ok: boolean };
 /** R20. `tested` is the last `onTested` outcome for the destination the new form saved. Our sample is never sent, and a
@@ -54,12 +56,15 @@ export function readiness(choice: SendChoice, tested: Tested | null, isSample: b
 }
 
 /** A refusal in the server's words, under the control that was pressed; the plan's codes with their way on. */
+/** A send that answered without a stored file (Download): it says why in the delivery's own words. */
+class FileNotMade extends Error {}
+
 function Refusal({ error }: { error: unknown }) {
   const code = refusalToken(error) ?? "";
   const billing = code === "processing_paused" || LIMIT_CODES.has(code);
   return (
     <StatusNotice tone="error" action={billing && <Link href="/settings?tab=billing" className="inline-flex items-center text-[12.5px] font-semibold text-brand-blue">Open Plan &amp; billing</Link>}>
-      {documentRefusalMessage(error)}
+      {error instanceof FileNotMade ? error.message : documentRefusalMessage(error)}
     </StatusNotice>
   );
 }
@@ -106,6 +111,8 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
     setPicked(c); setSaved(null); setTested(null);
   };
   const tile = choice.kind === "new" ? TILES.find((t) => t.tile === choice.tile)! : null;
+  const [serverOpen, setServerOpen] = useState(false);
+  const servers = serverOpen || !!tile?.server; // open while one of its kinds is the choice
 
   // A document we could not read answers an empty read: it found nothing, so the finished steps claim no values.
   const read = doc.data?.read && doc.data.read.fields.length + doc.data.read.tables.length > 0 ? doc.data.read : undefined;
@@ -150,12 +157,14 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
       // Only a document known not to be our sample is ever sent (R19).
       if (run.isSample !== false || (state !== "ready" && state !== "download")) throw new Error("Not ready to send.");
       await prepare();
+      // Download (R15): the file is made and waits in Documents; nothing is saved by the browser here.
       const deliveries = await sendDocument(id);
-      const stored = choice.kind === "download" ? deliveries.find((d) => d.status === "stored") : undefined;
-      if (stored) saveBlob(await downloadDeliveryFile(id, stored.id), stored.fileName ?? "document.csv");
+      // Only a stored file moves on; anything else stays on this step and says why.
+      if (state === "download" && !deliveries.some((d) => d.status === "stored"))
+        throw new FileNotMade(deliveries.find((d) => d.lastError)?.lastError ?? documentRefusalMessage(null));
     },
     onSuccess: done, onError: settle,
-    // A send that went out but whose file then failed to download still changed the document.
+    // A refused send may still have changed the document.
     onSettled: () => qc.invalidateQueries({ queryKey: ["documents"] }),
   });
   const finish = useMutation({ mutationFn: prepare, onSuccess: done, onError: settle });
@@ -178,14 +187,33 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
   const unused = choice.kind === "new" && saved && !passed
     ? `${saved.name} did not pass its test, so it is saved but not used yet. You can fix it on the flow page.` : null;
   const group = useRef<HTMLDivElement>(null);
+  const newTiles = (list: typeof TILES) =>
+    list.map((t) => ({ id: t.tile, title: t.title, sub: t.sub, checked: tile?.tile === t.tile, pick: () => pick({ kind: "new", tile: t.tile }) }));
   const options = [
     { id: "download", title: "Download", sub: "No setup needed", checked: choice.kind === "download", pick: () => pick({ kind: "download" }) },
-    ...TILES.filter((t) => google || !t.google).map((t) => ({ id: t.tile, title: t.title, sub: t.sub, checked: tile?.tile === t.tile, pick: () => pick({ kind: "new", tile: t.tile }) })),
+    ...newTiles(TILES.filter((t) => !t.server && (google || !t.google))),
     ...(destinations.data?.length ? [{
-      id: "existing", title: "Already set up", sub: "A destination you saved before", checked: choice.kind === "existing",
+      id: "existing", title: "Already set up", sub: "A place you saved before", checked: choice.kind === "existing",
       pick: () => pick({ kind: "existing", destinationId: choice.kind === "existing" ? choice.destinationId : destinations.data[0].id }),
     }] : []),
+    ...(servers ? newTiles(TILES.filter((t) => t.server)) : []),
   ];
+  // The fold stays open while one of its kinds is the choice: closing it would drop a destination just saved and tested.
+  const toggleServers = () => { moved.current = true; setServerOpen(!servers); };
+  const foldWords = (
+    <>
+      <span className="text-[14px] font-semibold text-ink">A server or another system</span>
+      <span className="text-[12.5px] text-ink-muted">SFTP, S3 or a web address</span>
+    </>
+  );
+  // Opening moves focus to the first server tile; closing returns it to the fold's button.
+  const fold = useRef<HTMLButtonElement>(null);
+  const moved = useRef(false);
+  useEffect(() => {
+    if (!moved.current) return;
+    moved.current = false;
+    (servers ? group.current?.querySelector<HTMLButtonElement>("[data-testid=send-tile-server]") : fold.current)?.focus();
+  }, [servers]);
   if (notFound(doc.error)) return <Gone text={COPY.document_not_found} />;
   const refused = send.error ?? finish.error ?? sample.error;
   const sendLabel = `Send ${fileName} now`;
@@ -220,6 +248,13 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
             }} />
           ))}
         </div>
+        {/* While one of its kinds is the choice the fold cannot close, so it is a label, not a button. */}
+        {tile?.server ? (
+          <div className={FOLD}>{foldWords}</div>
+        ) : (
+          <button ref={fold} type="button" aria-expanded={servers} onClick={toggleServers} className={FOLD}>{foldWords}</button>
+        )}
+        {choice.kind === "download" && <p className="m-0 text-[14px] text-ink-muted">Nothing to set up. Each file waits in Documents, ready to download.</p>}
         {/* Rows stay through a failed refresh: only a list that never answered is replaced. */}
         {destinations.isError && !destinations.data && <Failed error={destinations.error} retry={() => destinations.refetch()} />}
         {choice.kind === "existing" && !!destinations.data?.length && (
@@ -261,7 +296,7 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
           {state === "sample" ? "This is our sample invoice, so we never send it. Download its CSV file to see what your documents will become, then add one of your own."
             : state === "unknown" ? "Finish now and send your document later from Documents."
             : state === "closed" ? `${fileName}: ${status!.label}.`
-            : state === "download" ? "Your document is ready. You download it as a CSV file."
+            : state === "download" ? "Press Finish and we make your first file. You will find it in Documents, ready to download."
             : state === "ready" ? `Your document is ready. It goes to ${going!.name} as a CSV file.`
             : "Send a test first to check the settings. Or finish now and send your document later from Documents."}
         </p>
@@ -269,16 +304,16 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
         <div className="flex flex-wrap items-center gap-4">
           {state === "sample" || state === "unknown" || state === "closed" ? (
             <Button variant="primary" disabled={busy} loading={finish.isPending} onClick={() => press(finish)}>Finish</Button>
+          ) : state === "download" ? (
+            <Button variant="primary" disabled={busy} loading={send.isPending} onClick={() => press(send)}>Finish</Button>
           ) : (
             <Button variant={state === "not-ready" ? "secondary" : "send"} disabled={busy || state === "not-ready"} loading={send.isPending} onClick={() => press(send)}>
-              {state === "download" ? "Make the file and download it" : sendLabel}
+              {sendLabel}
             </Button>
           )}
           {state === "sample" && <button type="button" className={LINK_BUTTON} disabled={busy} onClick={() => press(sample)}>Download the sample&apos;s CSV file</button>}
-          {state !== "sample" && state !== "unknown" && state !== "closed" && (
-            <button type="button" className={LINK_BUTTON} disabled={busy} onClick={() => press(finish)}>
-              {state === "download" ? "Finish without downloading" : "Finish without sending"}
-            </button>
+          {(state === "ready" || state === "not-ready") && (
+            <button type="button" className={LINK_BUTTON} disabled={busy} onClick={() => press(finish)}>Finish without sending</button>
           )}
         </div>
         {!!refused && <Refusal error={refused} />}

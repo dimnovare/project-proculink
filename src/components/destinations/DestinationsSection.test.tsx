@@ -66,7 +66,7 @@ describe("DestinationsSection", () => {
     expect(document.body).not.toHaveTextContent(/Never sent|Not used|No destinations yet/);
     act(() => answer([inbox, server]));
     const rows = within(await screen.findByRole("list", { name: "Destinations" })).getAllByRole("listitem");
-    expect(rows[0]).toHaveTextContent(/Accounting inbox.*Email to accounting@example\.test.*1 output.*Couldn't send on 24 May/);
+    expect(rows[0]).toHaveTextContent(/Accounting inbox.*Email to accounting@example\.test.*1 file.*Couldn't send on 24 May/);
     expect(rows[1]).toHaveTextContent(/Accounting server.*SFTP, sftp\.example\.test, folder \/in\/invoices.*Not used.*Never sent/);
     api.testDestination.mockResolvedValue({ success: false, message: "The server refused the login.", responseCode: null });
     const test = within(rows[1]).getByRole("button", { name: "Test Accounting server" });
@@ -91,7 +91,7 @@ describe("DestinationsSection", () => {
     rerender(section());
     expect([scroll.mock.contexts, within(panel).getByLabelText("Name") === document.activeElement]).toEqual([[panel], true]);
     scroll.mockRestore();
-    expect(panel).toHaveTextContent("One output uses this destination, so it can't be deleted.");
+    expect(panel).toHaveTextContent("One file uses this destination, so it can't be deleted.");
     expect(within(panel).getByRole("link", { name: "Invoice CSV in Supplier invoices" })).toHaveAttribute("href", "/flows/flow-1?tab=outputs");
     expect(within(panel).queryByRole("button", { name: "Delete destination" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Edit Accounting server" }));
@@ -104,7 +104,7 @@ describe("DestinationsSection", () => {
     api.deleteDestination.mockRejectedValueOnce(new ApiHttpError("in use", 409, { error: "destination_in_use" }));
     fireEvent.click(within(second).getByRole("button", { name: "Delete destination" }));
     fireEvent.click(await screen.findByRole("button", { name: "Delete" }));
-    expect(await within(second).findByRole("alert")).toHaveTextContent("An output still sends here. Change that output first.");
+    expect(await within(second).findByRole("alert")).toHaveTextContent("A file still sends here. Change that file first.");
     await waitFor(() => expect(api.listDestinations).toHaveBeenCalledTimes(2));
     api.deleteDestination.mockResolvedValueOnce(undefined);
     fireEvent.click(within(second).getByRole("button", { name: "Delete destination" }));
@@ -122,7 +122,7 @@ describe("DestinationsSection", () => {
     renderSection();
     const panel = await screen.findByRole("region", { name: "Edit Old server" });
     const rows = within(screen.getByRole("list", { name: "Destinations" })).getAllByRole("listitem");
-    expect(rows[0]).not.toHaveTextContent(/Not used|output|Never sent|Last used/);
+    expect(rows[0]).not.toHaveTextContent(/Not used|\d files?\b|Never sent|Last used/);
     expect(rows[1]).toHaveTextContent(/Not used.*Never sent/);
     expect(within(panel).queryByRole("button", { name: "Delete destination" })).toBeNull();
   });

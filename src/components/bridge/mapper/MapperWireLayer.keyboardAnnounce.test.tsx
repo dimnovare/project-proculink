@@ -75,7 +75,7 @@ describe("MapperWireLayer — arrow-key target cycling is spoken", () => {
     // Index 1 of 3 — the announcement the operator had no way to get before.
     await waitFor(() => expect(region.textContent).toContain("Currency"));
     expect(region.textContent).toContain("Enter connects to this field.");
-    expect(region.textContent).toContain("output 2 of 3");
+    expect(region.textContent).toContain("field 2 of 3");
   });
 
   it("names it again on every subsequent move, not only the first", async () => {
@@ -89,7 +89,7 @@ describe("MapperWireLayer — arrow-key target cycling is spoken", () => {
 
     fireEvent.keyDown(handle, { key: "ArrowDown" });
     await waitFor(() => expect(region.textContent).toContain("Quantity"));
-    expect(region.textContent).toContain("output 3 of 3");
+    expect(region.textContent).toContain("field 3 of 3");
   });
 
   it("wraps backwards and says where it landed", async () => {
@@ -101,7 +101,7 @@ describe("MapperWireLayer — arrow-key target cycling is spoken", () => {
     fireEvent.keyDown(handle, { key: "ArrowUp" });
 
     await waitFor(() => expect(region.textContent).toContain("Quantity"));
-    expect(region.textContent).toContain("output 3 of 3");
+    expect(region.textContent).toContain("field 3 of 3");
   });
 
   it("names the first target on entering connect mode, in ONE announcement", async () => {
@@ -114,7 +114,7 @@ describe("MapperWireLayer — arrow-key target cycling is spoken", () => {
 
     await waitFor(() => expect(region.textContent).toContain("PoNumber"));
     expect(region.textContent).toContain("Connect mode");
-    expect(region.textContent).toContain("output 1 of 3");
+    expect(region.textContent).toContain("field 1 of 3");
   });
 });
 

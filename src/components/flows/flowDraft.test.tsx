@@ -15,7 +15,7 @@ let draft: ReturnType<typeof useFlowDraft>;
 function Editor({ name, step, save }: { name: string; step: FlowStep; save: (v: string) => Promise<unknown> }) {
   const part = useDraftPart(name, step, save);
   parts[name] = part;
-  return <div data-testid={`part-${name}`}><DraftState part={part} flow={{ publishedVersion: 1 }} /></div>;
+  return <div data-testid={`part-${name}`}><DraftState part={part} /></div>;
 }
 function Grab() { draft = useFlowDraft(); return null; }
 const page = (editors: React.ReactNode) => (
@@ -45,7 +45,7 @@ describe("flowDraft", () => {
     expect(outcome).toBe("pending");
     await act(async () => calls[1].d.resolve());
     expect(outcome).toBe("ok");
-    expect(within(screen.getByTestId("part-values")).getByText("Draft saved")).toBeTruthy();
+    expect(within(screen.getByTestId("part-values")).queryByText(/^(Draft saved|Saved)$/)).toBeNull();
   });
 
   it("a refused part stops flushAll, says why at the part, and Undo drops the value so it is never sent again", async () => {

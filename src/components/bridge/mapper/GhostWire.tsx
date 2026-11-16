@@ -81,11 +81,13 @@ export function GhostWire({ suggestion: s, hx, hy, zx, zy, onAccept, onReject }:
   const my = (hy + zy) / 2;
   // What the accept/dismiss controls call this suggestion. Only the scored path may say "AI".
   const provenance =
-    scored ? `AI ${pct}% confidence`
-    : display === "saved_mapping" ? "saved supplier mapping"
-    : "no confidence score";
+    scored ? `AI ${pct}% confidence` : "no confidence score";
   const reasonLabel = `${s.reason} (${provenance})`;
-  const kind = display === "saved_mapping" ? "saved mapping suggestion" : scored ? "AI suggestion" : "suggestion";
+  const kind = scored ? "AI suggestion" : "suggestion";
+  // A saved mapping is said once; a reason from the server is added only when it says something more.
+  const said = display === "saved_mapping"
+    ? `suggestion: A saved mapping suggests this.${!s.reason || /saved mapping/i.test(s.reason) ? "" : ` ${s.reason}`}`
+    : `${kind}: ${reasonLabel}`;
 
   return (
     <g style={{ opacity: 0.95 }} data-ghost-wire={`${s.targetKey}<-${s.sourceId}`}>
@@ -131,7 +133,7 @@ export function GhostWire({ suggestion: s, hx, hy, zx, zy, onAccept, onReject }:
       <g
         role="button"
         tabIndex={0}
-        aria-label={`Accept ${kind}: ${reasonLabel}`}
+        aria-label={`Accept ${said}`}
         style={{ pointerEvents: "auto", cursor: "pointer" }}
         onClick={() => onAccept(s)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAccept(s); } }}
@@ -145,7 +147,7 @@ export function GhostWire({ suggestion: s, hx, hy, zx, zy, onAccept, onReject }:
       <g
         role="button"
         tabIndex={0}
-        aria-label={`Dismiss ${kind}: ${reasonLabel}`}
+        aria-label={`Dismiss ${said}`}
         style={{ pointerEvents: "auto", cursor: "pointer" }}
         onClick={() => onReject(s)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onReject(s); } }}

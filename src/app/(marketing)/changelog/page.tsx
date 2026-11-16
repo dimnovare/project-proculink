@@ -24,12 +24,25 @@ export const metadata = pageMetadata({
 // those entries byte for byte.
 const ENTRIES = [
   {
-    version: "v2.2",
+    version: "v2.3",
     date: "16 November 2026",
     items: [
       "Add documents without choosing a flow: drop in anything, or forward it to your workspace's email address, and we work out what it is.",
       "The first time a new kind of document arrives, one screen asks what to do with documents like it.",
       "The top bar has three places: Documents, Flows and Settings. Lookups is on Flows, and History on Documents.",
+    ],
+  },
+  {
+    version: "v2.2",
+    date: "16 November 2026",
+    items: [
+      "On a flow's We send step, each file leads with where it goes and Send a test.",
+      "Make another file: one press of Create makes a CSV with every value we read.",
+      "Standard formats are listed by family, the ones that fit your documents first.",
+      "We read shows one More for each value, holding its type, its meaning and whether it is required.",
+      "Your first flow offers the common places to send a file first, and a server is one press away.",
+      "Changes inside a flow say whether they are in use, with Use these changes and Undo my changes.",
+      "Settings has three tabs: Workspace, Destinations, and Plan & billing. API keys are under Workspace, in For developers.",
     ],
   },
   {

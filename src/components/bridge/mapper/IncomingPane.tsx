@@ -89,9 +89,8 @@ export interface IncomingPaneProps {
    */
   sourceType?: string;
   /**
-   * The supplier/connection display name — drives the B2 plain-language sub-header
-   * ("These are the fields in the {supplier}'s order…"). Falls back to "supplier"
-   * when absent, so the copy always reads sensibly.
+   * The file's display name. Not read: the sub-header speaks of the document since plan 16a
+   * ("These are the values we read from this document."). Kept so callers compile.
    */
   supplierName?: string;
 
@@ -144,7 +143,6 @@ export function IncomingPane({
   dragging,
   readOnly,
   sourceType,
-  supplierName,
   view,
   onView,
   documentAvailable,
@@ -164,7 +162,6 @@ export function IncomingPane({
     />
   ) : null;
   // B2 sub-header: plain-language framing that incoming fields are read-only source data.
-  const supplierLabel = supplierName?.trim() || "supplier";
   // 150ms debounce so the controlled query upstream doesn't thrash on every keystroke.
   const [local, setLocal] = useState(query);
   useEffect(() => setLocal(query), [query]);
@@ -214,10 +211,10 @@ export function IncomingPane({
 
   if (!hasIncomingData(fields)) {
     const message = extractionFailed
-      ? "We couldn't auto-extract fields from this document, so it fell back to the deterministic parser. The parsed values still flow through to the output — map any output fields manually."
+      ? "We couldn't read every value from this document. What we did read still goes into the file. Fill in the rest by hand below."
       : !hasIncomingSource
-      ? "This order arrived already-structured — there are no extra raw fields to remap. The canonical values flow straight to the output."
-      : "No extra incoming fields for this document type — the parsed values are the source of truth.";
+      ? "This document arrived already structured, so there are no extra fields to map. What we read goes straight into the file."
+      : "This document has no other values to map.";
     return (
       <PaneFrame title="What we received" sourceType={sourceType} tabs={tabs} notice={documentNotice}>
         <div style={{ padding: "12px", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>{message}</div>
@@ -236,7 +233,7 @@ export function IncomingPane({
       {/* B2 sub-header — clarifies that these incoming fields are read-only source data
           you map FROM (you don't edit them here). Plain-language, calm, muted. */}
       {!flow && <div style={{ flexShrink: 0, padding: "10px 18px 0", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
-        These are the fields in the {supplierLabel}&rsquo;s order. You don&rsquo;t edit them here — you map them to the output on the right.
+        These are the values we read from this document. You don&rsquo;t edit them here — you map them to the file on the right.
       </div>}
       {/* Search — finds any field/value across groups (collapsed groups auto-reveal). */}
       <div style={{ flexShrink: 0, padding: "12px 18px 10px" }}>
@@ -417,7 +414,7 @@ function ViewTabs({
         aria-pressed={value === "document"}
         title={
           documentAvailable
-            ? (flow ? undefined : "Show the file this order arrived as")
+            ? (flow ? undefined : "Show the file this document arrived as")
             : unavailableReason?.trim() || "The original document isn't available to show right now."
         }
         data-testid="incoming-view-document"
@@ -435,7 +432,7 @@ function ViewTabs({
         type="button"
         onClick={() => onChange("fields")}
         aria-pressed={value === "fields"}
-        title={flow ? undefined : "Show the values we captured, which you map to the output"}
+        title={flow ? undefined : "Show the values we read, which you map to the file"}
         data-testid="incoming-view-fields"
         style={{ ...base, ...(value === "fields" ? on : null), borderRadius: "0 5px 5px 0", borderLeftWidth: 0 }}
       >
@@ -617,7 +614,7 @@ function IncomingRow({
       {!readOnly ? (
         <span
           {...portHandlers}
-          title={flow ? undefined : `Drag onto an output field to map ${field.label}${suggested ? ` (AI suggests → ${field.suggestedFor})` : ""}`}
+          title={flow ? undefined : `Drag onto a field of the file to map ${field.label}${suggested ? ` (AI suggests → ${field.suggestedFor})` : ""}`}
           style={{
             display: "inline-flex", alignItems: "center", gap: 7, flexShrink: 0,
             cursor: connecting ? "grabbing" : "grab", touchAction: "none",

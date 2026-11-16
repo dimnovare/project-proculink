@@ -8,7 +8,7 @@
  * path or method throws, so a screen calling an endpoint with no fixture shows its error state
  * instead of an empty success. Only reachable when `isApiMockMode` (never true in production).
  */
-import { DOCUMENT_STATUSES, documentStatus } from "../documentStatusManifest";
+import { STATUS, documentStatus } from "../documentStatusManifest";
 import { acceptFor, fileRefusal } from "../fileKinds";
 import { LOOKUP_LIMITS } from "../lookupLimits";
 import { ApiHttpError } from "./core";
@@ -26,7 +26,6 @@ export const MOCK_ENGINE_IDS = { flow: "flow-1", setupFlow: "flow-2", document: 
 /** The document number every fixture read carries — specs assert against this, never a literal. */
 export const MOCK_DOCUMENT_NUMBER = "INV-1001";
 
-const STATUS = Object.fromEntries(Object.keys(DOCUMENT_STATUSES).map((k) => [k, k])) as Record<keyof typeof DOCUMENT_STATUSES, string>;
 const T = "2026-05-20T09:00:00Z";
 
 const CSV = [
@@ -244,7 +243,8 @@ function editValues(id: string, body: Body): DocumentDetail {
   return detail(id);
 }
 
-/** Like DocumentSender.SendAsync, except that it lands straight on sent with one delivered delivery (R23). */
+/** Like DocumentSender.SendAsync, except that it lands straight on sent: each file delivered, or stored when it has no
+ *  destination (R23). */
 function send(id: string): DocumentDelivery[] {
   const row = pick(ROWS, id, "document");
   const was = now(id);
@@ -257,7 +257,12 @@ function send(id: string): DocumentDelivery[] {
     remember(row);
   }
   const sentAt = new Date().toISOString();
-  const deliveries = [delivery("delivered", 1, null, sentAt)];
+  // One row per file, as the server answers: a file with no destination is stored (it waits to be downloaded).
+  const own = outputs.filter((o) => o.flowId === row.flowId);
+  const deliveries = own.length ? own.map((o): DocumentDelivery => {
+    const dest = destinations.find((d) => d.id === o.destinationId);
+    return { ...delivery(dest ? "delivered" : "stored", dest ? 1 : 0, null, sentAt), outputName: o.name, protocol: dest?.protocol ?? "" };
+  }) : [delivery("delivered", 1, null, sentAt)];
   remembered.set(id, { ...was, status: STATUS.sent, sentAt, deliveries });
   resent.add(id);
   return deliveries;
@@ -306,6 +311,9 @@ if (INBOX_ON) outputs.push({ ...outputs[1], id: "out-3", flowId: flow2.id, name:
 // The inbox has no flow routes on the server: they answer 404 flow_not_found. Other unknown ids keep these answers.
 const intakesOf = (flowId: string) => (flowId === INBOX.id ? missing("flow", flowId) : flowId === flow1.id ? intakes : []);
 const outputsOf = (flowId: string) => (flowId === INBOX.id ? missing("flow", flowId) : outputs.filter((o) => o.flowId === flowId));
+/** The live setup's copy: out-1 has one column fewer and another title, so We send counts "2 changes not in use yet". */
+const liveCopy = (o: FlowOutput): FlowOutput => o.id !== MOCK_ENGINE_IDS.output ? o
+  : { ...o, layout: { title: "Invoices" }, template: { ...o.template, root: { ...o.template.root, children: o.template.root.children!.slice(0, -1) } } };
 /** What the list carries per flow, derived from the fixtures above, never typed. */
 const flowSummaryOf = (f: Flow): FlowSummary => {
   const rows = ROWS.filter((d) => d.flowId === f.id);
@@ -714,7 +722,7 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["DELETE", re`/flows/${S}/intakes/${S}`, () => undefined],
   ["POST", re`/flows/${S}/intakes/${S}/new-address`, () => intakes[0]],
   ["POST", re`/flows/${S}/intakes/${S}/test`, () => TEST_OK],
-  ["GET", re`/flows/${S}/outputs`, (m) => outputsOf(m[1])],
+  ["GET", re`/flows/${S}/outputs`, (m, q) => (q.get("published") === "true" ? outputsOf(m[1]).map(liveCopy) : outputsOf(m[1]))],
   // A set-up flow keeps what is saved to it, so its first run can finish; other flows get the echo.
   ["POST", re`/flows/${S}/outputs`, (m, _q, b) => {
     if (!m[1].startsWith("flow-set-up-")) return echo(outputs[0], b);

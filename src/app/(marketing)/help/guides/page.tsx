@@ -8,9 +8,9 @@ export const metadata = pageMetadata({
   path: "/help/guides",
   title: "Step-by-step setup guides — ProcuLink",
   description:
-    "Numbered walkthroughs for setting ProcuLink up: your first flow, sending documents in, building an output, sending it to a destination, and importing a lookup.",
+    "Numbered walkthroughs for setting ProcuLink up: your first flow, sending documents in, making a file, sending it to a destination, and importing a lookup.",
   ogDescription:
-    "Numbered walkthroughs for setting up flows, intake, outputs, destinations and lookups in ProcuLink.",
+    "Numbered walkthroughs for setting up flows, intake, files, destinations and lookups in ProcuLink.",
 });
 
 export default function GuidesIndexPage() {

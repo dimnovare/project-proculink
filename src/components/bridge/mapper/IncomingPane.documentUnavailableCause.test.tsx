@@ -2,7 +2,7 @@
  *
  * THE DEFECT, VERBATIM (IncomingPane.tsx):
  *
- *     title={documentAvailable ? "Show the file this order arrived as"
+ *     title={documentAvailable ? "Show the file this document arrived as"
  *                              : "No document is stored for this order"}
  *
  * `documentAvailable` is `useSourceDocument`'s `hasDocument`, and that is false for FOUR
@@ -150,6 +150,6 @@ describe("the disabled Document tab says what the pane says", () => {
 
     const tab = screen.getByTestId("incoming-view-document");
     expect(tab).not.toBeDisabled();
-    expect(tab.getAttribute("title")).toBe("Show the file this order arrived as");
+    expect(tab.getAttribute("title")).toBe("Show the file this document arrived as");
   });
 });
