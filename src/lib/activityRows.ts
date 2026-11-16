@@ -11,11 +11,9 @@ import { csvCell } from "@/lib/csvCell";
 import { CHANNELS } from "@/lib/channels";
 import { destinationsAddress } from "@/lib/destinations";
 
-export type ActivityTabKey = "all" | "sent" | "failed" | "changes";
+export type ActivityTabKey = "all" | "changes";
 export const ACTIVITY_TABS: readonly { key: ActivityTabKey; label: string; actions: readonly string[] | undefined; emptyTitle: string; emptySub: string }[] = [
   { key: "all", label: "All", actions: undefined, emptyTitle: "Nothing has happened yet.", emptySub: "Everything that happens to your documents shows here, newest first." },
-  { key: "sent", label: "Sent", actions: ["document.delivered"], emptyTitle: "Nothing has been sent yet.", emptySub: "Documents show here once they have been sent." },
-  { key: "failed", label: "Couldn't send", actions: ["document.delivery_failed"], emptyTitle: "Nothing has failed to send.", emptySub: "Documents we couldn't send show here, with the reason." },
   {
     key: "changes", label: "Changes",
     // A destination test and the platform's own admin rows are not changes a person made here; they stay under All.

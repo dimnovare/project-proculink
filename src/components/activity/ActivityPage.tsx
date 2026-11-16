@@ -227,7 +227,7 @@ export function ActivityPage() {
 
 const Frame = ({ children, actions }: { children: React.ReactNode; actions?: React.ReactNode }) => (
   <PageShell variant="wide">
-    <PageHeader title="History" sub="Everything that happened to your documents." actions={actions} />
+    <PageHeader title="History" sub="Everything that happened to your documents." back={{ href: "/documents", label: "Documents" }} actions={actions} />
     {children}
   </PageShell>
 );

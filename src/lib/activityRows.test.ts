@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import type { ActivityEvent } from "@/lib/api/documents";
 import { auditActionFact, auditActionLabel } from "@/lib/auditActionManifest";
 import { serverReasonOrNull } from "@/lib/serverText";
-import { activityAddress, activityView, activityWho, memberNames, plainSentence, readActivityAddress } from "./activityRows";
+import { ACTIVITY_TABS, activityAddress, activityView, activityWho, memberNames, plainSentence, readActivityAddress } from "./activityRows";
 
 const ev = (over: Partial<ActivityEvent>): ActivityEvent => ({
   id: "evt-1", ts: "2026-06-01T08:00:00Z", action: "document.received", documentId: "doc-1", flowId: "flow-1",
@@ -32,12 +32,14 @@ describe("activityRows", () => {
     expect(activityWho(ev({ action: "inbound_email.rejected_orders_retired", documentId: null, source: null }), members)).not.toBe("Extraction engine");
 
     const read = (x: string) => readActivityAddress(new URLSearchParams(x));
-    expect(read("show=failed&page=2")).toEqual({ tab: "failed", page: 2 });
-    for (const x of ["show=nope", "show=sent&show=failed"]) expect(read(x).tab, x).toBe("all");
+    expect(read("show=failed&page=2")).toEqual({ tab: "all", page: 2 }); // the old tabs' addresses read as All (R14)
+    expect(read("show=changes")).toEqual({ tab: "changes", page: 1 });
+    for (const x of ["show=nope", "show=sent", "show=changes&show=all"]) expect(read(x).tab, x).toBe("all");
     for (const x of ["page=0", "page=1.5", "page=1000000000", "page=2&page=3"]) expect(read(x).page, x).toBe(1);
     expect(activityAddress("all")).toBe("/operations/log");
-    expect(activityAddress("sent", 1)).toBe("/operations/log?show=sent");
-    expect(activityAddress("failed", 2)).toBe("/operations/log?show=failed&page=2");
+    expect(activityAddress("changes", 1)).toBe("/operations/log?show=changes");
+    expect(activityAddress("changes", 2)).toBe("/operations/log?show=changes&page=2");
+    expect(ACTIVITY_TABS.map((t) => t.label)).toEqual(["All", "Changes"]);
   });
 
   test("old and repaired deliveries leave unknown facts out", () => {
