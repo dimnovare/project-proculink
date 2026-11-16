@@ -67,7 +67,9 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
       <Card flush>
         <div className="grid gap-0.5 px-4 pt-3">
           <h2 className="m-0 text-[16px] font-semibold text-ink">Files we make</h2>
-          <p className="m-0 text-[13px] text-ink-muted">For each document, we make this file.</p>
+          {outputs.data.length > 0 && (
+            <p className="m-0 text-[13px] text-ink-muted">{outputs.data.length === 1 ? "For each document, we make this file." : "For each document, we make these files."}</p>
+          )}
         </div>
         {outputs.data.length === 0 ? (
           <div className="px-4 pt-3"><Quiet>No file yet.</Quiet></div>
@@ -91,7 +93,7 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
             variant="secondary" className="w-full border-dashed border-brand-blue text-brand-blue" aria-expanded={adding}
             onClick={() => leave(() => setAdding(true))}
           >
-            Make another file
+            {outputs.data.length === 0 ? "Make a file" : "Make another file"}
           </Button>
         </div>
       </Card>
