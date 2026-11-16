@@ -63,7 +63,8 @@ export function DocumentsHome() {
   const beingRead = useQuery({
     ...documentCountQuery(BEING_READ_STATUSES),
     enabled: engine === "on",
-    refetchInterval: (q) => ((pageTotal(q.state.data) ?? 0) > 0 ? 5_000 : 60_000),
+    // A failed count keeps its old data: ask again once a minute, not every five seconds.
+    refetchInterval: (q) => (q.state.status === "error" ? 60_000 : (pageTotal(q.state.data) ?? 0) > 0 ? 5_000 : 60_000),
     refetchOnWindowFocus: true,
   });
   const stopped = useQuery({
