@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Flow } from "@/lib/api/documents";
 import { FlowIntakePanel } from "./FlowIntakePanel";
@@ -23,12 +23,17 @@ beforeEach(() => {
   vi.stubGlobal("confirm", () => true);
 });
 
-const mount = () =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <FlowIntakePanel flow={{ id: "f1" } as Flow} />
-    </QueryClientProvider>,
-  );
+const mount = () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return {
+    client,
+    ...render(
+      <QueryClientProvider client={client}>
+        <FlowIntakePanel flow={{ id: "f1" } as Flow} />
+      </QueryClientProvider>,
+    ),
+  };
+};
 
 describe("FlowIntakePanel", () => {
   it("shows the address with a copy button and the flow's API address", async () => {
@@ -42,14 +47,18 @@ describe("FlowIntakePanel", () => {
 
   it("asks before replacing the address, then replaces it once", async () => {
     mount();
+    vi.stubGlobal("confirm", () => false);
     fireEvent.click(await screen.findByRole("button", { name: "Get a new address" }));
+    expect(api.newIntakeAddress).not.toHaveBeenCalled();
+    vi.stubGlobal("confirm", () => true);
+    fireEvent.click(screen.getByRole("button", { name: "Get a new address" }));
     await waitFor(() => expect(api.newIntakeAddress).toHaveBeenCalledTimes(1));
     expect(api.newIntakeAddress).toHaveBeenCalledWith("f1", "e1");
   });
 
   it("leads with the workspace address and folds this flow's own", async () => {
     api.getInbox.mockResolvedValue({ ...inbox, address: "documents@in.example.test" });
-    mount();
+    const { client } = mount();
     const lead = await screen.findByText((_, el) => el?.tagName === "P" && el.textContent === "Send any document to documents@in.example.test");
     expect(within(lead.parentElement!).getByRole("button", { name: "Copy address" })).toBeTruthy();
     const fold = (await screen.findByText("tok123@in.example.test")).closest("details")!;
@@ -57,13 +66,18 @@ describe("FlowIntakePanel", () => {
     expect(fold.querySelector(":scope > summary")!.textContent).toMatch(/^This flow's own address/);
     expect(within(fold).getByRole("button", { name: "Get a new address" })).toBeTruthy();
     expect(screen.getByText("Collect from a mailbox or a server")).toBeTruthy();
+
+    api.getInbox.mockRejectedValue(new Error("down"));
+    await act(() => client.refetchQueries({ queryKey: ["inbox"] }));
+    await waitFor(() => expect(screen.queryByText(/Send any document to/)).toBeNull());
+    expect(screen.getByText("tok123@in.example.test").closest("details")).toBeNull();
   });
 
   it("with no workspace address the flow's own address leads, open; with none of its own it offers one without a warning", async () => {
     api.getInbox.mockRejectedValue(new Error("down"));
     const first = mount();
     const own = await screen.findByText("tok123@in.example.test");
-    await waitFor(() => expect(api.getInbox).toHaveBeenCalled());
+    await waitFor(() => expect(first.client.getQueryState(["inbox"])?.status).toBe("error"));
     expect(own.closest("details")).toBeNull();
     expect(screen.getByRole("button", { name: "Copy email address" }).closest("details")).toBeNull();
     expect(screen.queryByText(/Send any document to/)).toBeNull();
