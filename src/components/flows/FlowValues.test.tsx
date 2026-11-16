@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Flow, FlowFieldList } from "@/lib/api/documents";
 import { FlowDraftProvider } from "./flowDraft";
@@ -8,6 +8,8 @@ import { FlowValues } from "./FlowValues";
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 const api = vi.hoisted(() => ({ listDocuments: vi.fn(), getDocument: vi.fn(), saveFlowFields: vi.fn() }));
 vi.mock("@/lib/api/documents", () => api);
+const queue = vi.hoisted(() => ({ add: vi.fn() }));
+vi.mock("./UploadQueue", () => ({ useUploadQueue: () => queue }));
 
 const field = (key: string, label: string) => ({ key, label, type: "text", meaning: null, required: false });
 const fields: FlowFieldList = {
@@ -77,5 +79,26 @@ describe("FlowValues", () => {
     expect(row("Due date").textContent).toContain("Not found on this document");
     expect(row("Invoice number").textContent).toContain("1001");
     expect(row("Invoice number").textContent).not.toContain("Not found on this document");
+  });
+
+  it("a value row shows tick, name, example and More; Required sits inside More", async () => {
+    mount(flow);
+    await screen.findByRole("columnheader", { name: "Example from invoice-1001.csv" });
+    const row = screen.getByRole("textbox", { name: "Name for Invoice number" }).closest("tr")!;
+    expect(within(row).queryByRole("checkbox", { name: "Invoice number is required" })).toBeNull();
+    fireEvent.click(within(row).getByRole("button", { name: "More" }));
+    expect(document.activeElement).toBe(screen.getByRole("checkbox", { name: "Invoice number is required" }));
+    expect(screen.getByText("We mark the value when it is missing from a document.")).toBeTruthy();
+    expect(screen.queryByText(/Required means we mark|save as a draft/)).toBeNull();
+  });
+
+  it("before the first document, a drop zone adds one to this flow", async () => {
+    api.listDocuments.mockResolvedValue([]);
+    const first = { ...flow, fieldsConfirmed: false, fields: { fields: [], tables: [] } };
+    mount(first);
+    expect(await screen.findByText("Drop one document like the ones this flow will get.")).toBeTruthy();
+    const file = new File(["x"], "invoice-2292.pdf", { type: "application/pdf" });
+    fireEvent.change(screen.getByLabelText("Choose a file"), { target: { files: [file] } });
+    expect(queue.add).toHaveBeenCalledWith([file], first);
   });
 });

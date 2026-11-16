@@ -11,7 +11,7 @@ import type { FlowStep } from "@/lib/flowSteps";
 /** Why flushAll() stopped: the first part, in the order the parts mounted, whose save was refused or failed. */
 export class DraftPartFailed extends Error {
   constructor(readonly part: string, readonly step: FlowStep, readonly error: unknown) {
-    super(`The draft part "${part}" couldn't be saved.`);
+    super(`DraftPartFailed: part "${part}" couldn't be saved.`);
   }
 }
 
@@ -102,7 +102,7 @@ export function FlowDraftProvider({ flowId, children }: { flowId: string; childr
 
 function useDraft() {
   const d = useContext(DraftContext);
-  if (!d) throw new Error("Flow draft parts need a FlowDraftProvider.");
+  if (!d) throw new Error("useDraftPart needs a FlowDraftProvider.");
   return d;
 }
 

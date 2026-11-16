@@ -100,8 +100,9 @@ const RETIRED: { word: RegExp; files: string[] }[] = [
   { word: /\boutputs?\b/i, files: CORPUS },
   // The manifest's labels are read for the release words only: its "output" label belongs to the archived order
   // pipeline's status vocabulary (problemCopy.ts, statusVocabulary.test.ts), outside this piece.
-  // "publish" with no leading boundary, so "Republish" and "unpublished" are caught too.
-  { word: /publish|\bdiscard|\bdraft saved\b|\blive, version\b|\bis live\b/i, files: [...ALL, MANIFEST] },
+  // "publish" with no leading boundary, so "Republish" and "unpublished" are caught too. "draft" since Task 6: the
+  // screens say "changes" and "not in use yet"; code names such as useDraftPart and FlowDraftProvider are not words.
+  { word: /publish|\bdiscard|\bdrafts?\b|\blive, version\b|\bis live\b/i, files: [...ALL, MANIFEST] },
 ];
 
 const textOf = (f: string) => (f.endsWith(".mdx") ? mdxText : f === MANIFEST ? labels : personText)(read(f));
@@ -123,6 +124,7 @@ describe("retired words stay retired in what a person reads", () => {
     expect(mdxText(`export const metadata = m({\n  slug: "outputs",\n  title: "Output formats",\n});\n\n# Output formats`)).toEqual(["# Output formats", "Output formats"]);
     expect(personText("<Button>Publish changes</Button>").filter((t) => RETIRED[1].word.test(t))).toEqual(["Publish changes"]);
     expect(["Republish", "3 unpublished changes", "This flow is live.", "In use"].filter((t) => RETIRED[1].word.test(t))).toEqual(["Republish", "3 unpublished changes", "This flow is live."]);
+    expect(["Changes save as a draft.", "Drafts", "useDraftPart needs a FlowDraftProvider."].filter((t) => RETIRED[1].word.test(t))).toEqual(["Changes save as a draft.", "Drafts"]);
     expect(labels(`{ action: "flow.published", label: "Version published", note: "was published" }`)).toEqual(["Version published"]);
     expect(personText("const s = `${n} outputs`;")).toEqual(["outputs"]);
     expect(personText('const s = `${n} output${n === 1 ? "" : "s"}`;').filter((t) => RETIRED[0].word.test(t))).toEqual(["output"]);
@@ -131,8 +133,8 @@ describe("retired words stay retired in what a person reads", () => {
     expect(personText("const s = `Output: ${name}`; const r = `/flows/${id}/outputs/${o}`;")).toEqual(["Output:"]);
     // Anti-vacuity: every folder yields a file, and the corpus yields person-read text to check.
     for (const dir of [...APP_DIRS, HELP]) expect(CORPUS.some((f) => f.startsWith(dir.replace(/\\/g, "/") + "/")), dir).toBe(true);
-    // Measured 2026-11-16: 4,355 person-read strings (OutputBuilder.tsx read since Task 4) and 31 help pages. Raise these floors when the corpus grows; never lower them.
-    expect(CORPUS.flatMap(textOf).length).toBeGreaterThanOrEqual(3920);
+    // Measured 2026-11-16: 4,401 person-read strings (FlowValues.tsx's drop zone since Task 6) and 31 help pages. Raise these floors when the corpus grows; never lower them.
+    expect(CORPUS.flatMap(textOf).length).toBeGreaterThanOrEqual(3960);
     expect(HELP_PAGES.filter((f) => f.endsWith(".mdx")).length).toBeGreaterThanOrEqual(30);
   });
 });
