@@ -42,7 +42,7 @@ export const PHONE_TAB_HREFS: readonly string[] = ["/documents", "/flows", "/ope
 /** The pages the desktop top bar carries (R19). The rest of NAV_MAIN is reached from these and from Ctrl K. */
 export const TOP_BAR_HREFS: readonly string[] = ["/documents", "/flows", "/settings"];
 /** A page not in the top bar lights the place it is reached from. */
-export const TOP_BAR_PARENT: Readonly<Record<string, string>> = { "/lookups": "/flows", "/operations/log": "/documents" };
+export const TOP_BAR_PARENT: Readonly<Record<string, string>> = { "/lookups": "/flows", "/operations/log": "/documents", "/archive": "/documents" };
 
 const NAV_MAIN: SidebarNavSection[] = [
   {
@@ -98,10 +98,17 @@ export function isItemActive(pathname: string, item: SidebarNavItem): boolean {
   return pathname === path || pathname.startsWith(path + "/");
 }
 
+/** The one top-bar place an address lights, or null for none (Upload and Admin have their own controls).
+ *  A document's review lights Documents first: its address also starts with /flows/. */
+export function currentPlace(pathname: string): string | null {
+  if (/^\/flows\/[^/]+\/documents\/[^/]+/.test(pathname)) return "/documents";
+  const lit = (href: string) => isItemActive(pathname, { label: "", href, icon: FileText });
+  return TOP_BAR_HREFS.find(lit) ?? Object.entries(TOP_BAR_PARENT).find(([child]) => lit(child))?.[1] ?? null;
+}
+
 /** The top bar's lit place: its own page, or a page it does not carry that is reached from it. */
 export function isTopBarActive(pathname: string, item: SidebarNavItem): boolean {
-  return isItemActive(pathname, item)
-    || Object.entries(TOP_BAR_PARENT).some(([child, parent]) => parent === item.href && isItemActive(pathname, { ...item, href: child }));
+  return currentPlace(pathname) === item.href;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
