@@ -209,7 +209,7 @@ const ANCHORS: { file: string; copy: string; edge: string; why: string }[] = [
   },
   {
     file: "src/components/flows/FlowIntakePanel.tsx",
-    copy: "Pick up from a mailbox or server",
+    copy: "Collect from a mailbox or a server",
     edge: "blue",
     why: "the card is about where documents are fetched IN from",
   },
