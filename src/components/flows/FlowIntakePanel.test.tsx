@@ -49,6 +49,8 @@ describe("FlowIntakePanel", () => {
     mount();
     vi.stubGlobal("confirm", () => false);
     fireEvent.click(await screen.findByRole("button", { name: "Get a new address" }));
+    // The answer is awaited inside the handler: let it finish, so "no" is what is checked.
+    await act(async () => {});
     expect(api.newIntakeAddress).not.toHaveBeenCalled();
     vi.stubGlobal("confirm", () => true);
     fireEvent.click(screen.getByRole("button", { name: "Get a new address" }));
