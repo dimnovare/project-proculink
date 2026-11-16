@@ -177,6 +177,10 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
   const [columnsOpen, setColumnsOpen] = useState(() => { try { return localStorage.getItem(COLUMNS_KEY) === "1"; } catch { return false; } });
   const renameShown = renaming || !name.trim();
   const reasonId = useId();
+  const uid = useId();
+  /** The element (by id) a fold hands focus to after this render, so a press that unmounts its button keeps the place. */
+  const focusNext = useRef<string | null>(null);
+  const selectHadFocus = useRef(false);
 
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled });
   const lookups = useQuery({ queryKey: ["lookups"], queryFn: listLookups, enabled });
@@ -265,6 +269,24 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
   const table = flow.fields.tables.find((t) => t.key === rows?.table?.key);
   const fieldOptions = flow.fields.fields.map((f) => ({ key: f.key, label: f.label }));
   const columnOptions = (table?.columns ?? []).map((f) => ({ key: f.key, label: f.label }));
+  const gone = (opts: { key: string }[]) => (r: SimpleRow) => "field" in r.source && !opts.some((o) => o.key === (r.source as { field: string }).field);
+  // A column that takes its value from something we no longer read.
+  const stale = !!rows && (rows.fields.some(gone(fieldOptions)) || !!rows.table?.columns.some(gone(columnOptions)));
+  const columnProblem = unnamed || stale;
+  // Latched open by a problem, without writing what the person chose: only their own "Done" closes it again.
+  if (draft && columnProblem && !columnsOpen) setColumnsOpen(true);
+  const destination = destinations.data?.find((d) => d.id === destinationId);
+  // A destination the list does not name (loading, failed, deleted) is never drawn as chosen: the select stays open.
+  const sendForced = newDestination || (!!destinationId && !destination);
+  const sendShown = sendOpen || sendForced;
+  useEffect(() => {
+    // The select closed by itself (its destination loaded) while focus was in it: focus goes to the button that reopens it.
+    if (!sendShown && selectHadFocus.current) { selectHadFocus.current = false; focusNext.current ??= `${uid}-change`; }
+    const id = focusNext.current;
+    focusNext.current = null;
+    const el = id ? document.getElementById(id) : null;
+    (el?.querySelector("input") ?? el)?.focus();
+  });
 
   function changeTable(key: string | null) {
     setTableKey(key);
@@ -338,13 +360,17 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
   );
   const sendToField = (
     <Field label="Send to">
-      <select className={INPUT} value={newDestination ? NEW_DESTINATION : (destinationId ?? "")}
+      <select id={`${uid}-send`} className={INPUT} value={newDestination ? NEW_DESTINATION : (destinationId ?? "")}
+        onFocus={() => { selectHadFocus.current = true; }} onBlur={() => { selectHadFocus.current = false; }}
         onChange={(e) => {
           setSendOpen(true); // a choice made here stays open until Done, so a keyboard walk through the list is not cut short
           setNewDestination(e.target.value === NEW_DESTINATION);
           if (e.target.value !== NEW_DESTINATION) setDestinationId(e.target.value || null);
         }}>
         <option value="">Download only</option>
+        {destinationId && !destination && (
+          <option value={destinationId}>{destinations.data ? "A destination that no longer exists" : destinations.isError ? "Couldn't load destinations" : "Loading destinations…"}</option>
+        )}
         {destinations.data?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         <option value={NEW_DESTINATION}>New destination…</option>
       </select>
@@ -355,7 +381,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
     <DestinationForm
       inline={!!draft} testAfterSave={!!draft}
       onCancel={() => setNewDestination(false)}
-      onSaved={(d) => { setDestinationId(d.id); setNewDestination(false); setSendOpen(false); qc.invalidateQueries({ queryKey: ["destinations"] }); }}
+      onSaved={(d) => { setDestinationId(d.id); setNewDestination(false); setSendOpen(false); focusNext.current = `${uid}-change`; qc.invalidateQueries({ queryKey: ["destinations"] }); }}
     />
   );
   const sendWhenFields = (
@@ -428,22 +454,19 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
   );
 
   if (draft && current) {
-    const destination = destinations.data?.find((d) => d.id === destinationId);
     const tested = destinations.data?.find((d) => d.id === test.variables?.destinationId);
-    const reason = !destinationId ? "Choose where to send it first." : test.isPending ? "Sending a test…" : problemNow;
+    const reason = !destination ? "Choose where to send it first." : test.isPending ? "Sending a test…" : problemNow;
     // "Send it now" resends with the live version, not this draft: it is not offered while the two differ.
     const unpublished = flow.publishedVersion != null && !!flow.hasChanges;
     const sectionTitle = "m-0 text-[14px] font-semibold text-ink";
-    // A destination the list does not name (loading, failed, deleted) is never drawn as chosen: the select stays open.
-    const sendForced = newDestination || (!!destinationId && !destination);
-    const sendShown = sendOpen || sendForced;
     const columnCount = rows ? rows.fields.length + (rows.table?.columns.length ?? 0) : 0;
-    // A column with a problem is never folded away, whatever was remembered.
-    const columnsShown = columnsOpen || unnamed;
+    // A press by the person is the only thing that writes the remembered state; a problem only latches it open.
     const toggleColumns = () => {
-      setColumnsOpen(!columnsShown);
-      try { localStorage.setItem(COLUMNS_KEY, columnsShown ? "0" : "1"); } catch { /* open for this visit only */ }
+      setColumnsOpen(!columnsOpen);
+      focusNext.current = columnsOpen ? `${uid}-columns-toggle` : `${uid}-columns`;
+      try { localStorage.setItem(COLUMNS_KEY, columnsOpen ? "0" : "1"); } catch { /* open for this visit only */ }
     };
+    const closeSend = () => { setSendOpen(false); focusNext.current = `${uid}-change`; };
     return (
       <div className="grid gap-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -473,7 +496,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
               )}
               {newDestinationForm}
               {!sendForced && (
-                <div><Button type="button" variant="secondary" size="sm" aria-expanded onClick={() => setSendOpen(false)}>Done</Button></div>
+                <div><Button type="button" variant="secondary" size="sm" aria-expanded={sendShown} onClick={closeSend}>Done</Button></div>
               )}
             </>
           ) : (
@@ -484,7 +507,12 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
                   <span className="break-words text-[14px] font-semibold text-ink">{destination ? destination.name : "Download only"}</span>
                   <span className="break-words text-[13px] text-ink-muted">{destination ? destinationWhere(destination) : "Each file waits in Documents, ready to download."}</span>
                 </div>
-                <Button type="button" variant="secondary" size="sm" aria-expanded={false} onClick={() => setSendOpen(true)}>Change</Button>
+                <Button
+                  type="button" variant="secondary" size="sm" id={`${uid}-change`} aria-label="Change where it goes" aria-expanded={sendShown}
+                  onClick={() => { setSendOpen(true); focusNext.current = `${uid}-send`; }}
+                >
+                  Change
+                </Button>
               </div>
             </>
           )}
@@ -524,17 +552,21 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
           ) : <AddDocument flow={flow} />}
         </section>
         {problemNotice}
+        {stale && <StatusNotice tone="warning">A column takes its value from something we no longer read. Choose another value for it.</StatusNotice>}
         {rows && (
           <section className="grid gap-2">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <h3 className={sectionTitle}>Columns ({columnCount})</h3>
               <p className="m-0 min-w-0 flex-1 text-[13px] text-ink-muted">Each column takes its value from one thing we read.</p>
-              <Button type="button" variant="secondary" size="sm" aria-expanded={columnsShown} onClick={toggleColumns}>
-                {columnsShown ? "Done" : "Change the columns"}
-              </Button>
+              {/* While a column has a problem the editor stays open, so there is no Done to press. */}
+              {!(columnsOpen && columnProblem) && (
+                <Button type="button" variant="secondary" size="sm" id={`${uid}-columns-toggle`} aria-expanded={columnsOpen} onClick={toggleColumns}>
+                  {columnsOpen ? "Done" : "Change the columns"}
+                </Button>
+              )}
             </div>
-            {columnsShown && (
-              <>
+            {columnsOpen && (
+              <div id={`${uid}-columns`} className="grid gap-2">
                 {tableField}
                 <RowList columns fixed={format === "fixed"} rows={rows.fields} options={fieldOptions} lookups={lookupList} onChange={(fields) => setRows({ ...rows, fields })} />
                 {rows.table && (
@@ -544,7 +576,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
                       onChange={(columns) => setRows({ ...rows, table: { key: rows.table!.key, columns } })} />
                   </>
                 )}
-              </>
+              </div>
             )}
           </section>
         )}

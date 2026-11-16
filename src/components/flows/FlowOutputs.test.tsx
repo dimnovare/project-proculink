@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Flow } from "@/lib/api/documents";
 import { FlowDraftProvider } from "./flowDraft";
-import { changesNotInUse, FlowOutputs } from "./FlowOutputs";
+import { changesLine, changesNotInUse, FlowOutputs } from "./FlowOutputs";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn() }) }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
@@ -94,5 +94,30 @@ describe("FlowOutputs", () => {
     expect(within(list).queryByText(/not in use yet/i)).toBeNull();
     await act(async () => { resolveLive([live]); });
     expect(await within(list).findByText("2 changes not in use yet")).toBeInTheDocument();
+  });
+
+  it("an untouched file counts nothing, and no count is drawn while the live list is fetched again", async () => {
+    expect(changesLine(0)).toBeNull();
+    // What a save adds by itself: an empty layout, a column's default width, an empty list of steps.
+    const resaved = { ...invoiceCsv, layout: {}, template: { ...invoiceCsv.template, root: { ...invoiceCsv.template.root,
+      children: invoiceCsv.template.root.children.map((c) => ({ ...c, rule: { outputPath: c.rule.outputPath, canonicalField: c.rule.canonicalField, width: 40 } })) } } };
+    expect(changesNotInUse(resaved as never, [{ ...invoiceCsv, layout: null } as never])).toBe(0);
+    const live = { ...invoiceCsv, name: "Invoices" };
+    let again!: (l: unknown[]) => void;
+    let calls = 0;
+    api.listOutputs.mockImplementation((_id: string, opts?: { published?: boolean }) =>
+      !opts?.published ? Promise.resolve([invoiceCsv]) : calls++ === 0 ? Promise.resolve([live]) : new Promise((r) => { again = r; }));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <FlowDraftProvider flowId="flow-1"><FlowOutputs flow={{ ...flow, publishedVersion: 2, hasChanges: true }} outputId="out-1" previewDocumentId="doc-1" /></FlowDraftProvider>
+      </QueryClientProvider>,
+    );
+    const list = await screen.findByRole("list");
+    expect(await within(list).findByText("1 change not in use yet")).toBeInTheDocument();
+    act(() => { void client.invalidateQueries({ queryKey: ["outputs", "flow-1", "published"] }); });
+    await waitFor(() => expect(within(list).queryByText(/not in use yet/i)).toBeNull());
+    await act(async () => { again([invoiceCsv]); });
+    expect(within(list).queryByText(/not in use yet/i)).toBeNull();
   });
 });

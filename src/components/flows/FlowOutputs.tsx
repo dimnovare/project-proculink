@@ -10,6 +10,7 @@ import { useConfirm } from "@/components/ui/confirm";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { deleteOutput, getDocument, listDestinations, listOutputs } from "@/lib/api/documents";
 import type { Flow, FlowOutput } from "@/lib/api/documents";
+import { defaultWidth } from "@/lib/flowOutputModel";
 import { flowAddress } from "@/lib/flowSteps";
 import { draftReason, FlowLink, GoContext, useFlowDraft } from "./flowDraft";
 import { OutputBuilder } from "./OutputBuilder";
@@ -31,9 +32,21 @@ export function changesNotInUse(draft: FlowOutput, live: readonly FlowOutput[] |
   if (!live) return null;
   const was = live.find((o) => o.id === draft.id);
   if (!was) return "new";
-  return COMPARED.filter((k) => JSON.stringify(draft[k] ?? null) !== JSON.stringify(was[k] ?? null)).length;
+  return COMPARED.filter((k) => settingOf(k, draft[k]) !== settingOf(k, was[k])).length;
 }
-const changesLine = (n: number | "new" | null) =>
+/** What a save adds by itself is not a change: an empty layout, a column's default width, an empty list of steps. */
+const plain = (_: string, v: unknown) => {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return v;
+  const { width, fieldManipulators, ...rest } = v as Record<string, unknown>;
+  return {
+    ...rest,
+    ...(width !== undefined && width !== defaultWidth(String(rest.outputPath ?? "")) ? { width } : {}),
+    ...(Array.isArray(fieldManipulators) && fieldManipulators.length ? { fieldManipulators } : {}),
+  };
+};
+const settingOf = (k: string, v: unknown) =>
+  JSON.stringify(k === "layout" && !Object.values(v ?? {}).some(Boolean) ? null : v ?? null, plain);
+export const changesLine = (n: number | "new" | null) =>
   n === "new" ? "Not in use yet" : !n ? null : n === 1 ? "1 change not in use yet" : `${n} changes not in use yet`;
 
 /** The We send step: the flow's outputs, and the chosen one edited in place as part of the draft. */
@@ -64,6 +77,9 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
   if (outputs.isError && !outputs.data) return <Failed error={outputs.error} retry={() => outputs.refetch()} />;
   if (!outputs.data) return <Quiet>Loading files…</Quiet>;
   const chosen = outputs.data.find((o) => o.id === outputId) ?? outputs.data[0];
+  // Both lists answered and neither is being fetched again: a count from an older answer is never drawn.
+  const counting = typeof flow.publishedVersion === "number" && !!flow.hasChanges
+    && outputs.isSuccess && !outputs.isFetching && live.isSuccess && !live.isFetching;
   const preview = previewDocumentId ?? undefined;
 
   const ask = async (o: FlowOutput) => {
@@ -93,7 +109,7 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
         ) : (
           <ul className="m-0 mt-2 list-none p-0">
             {outputs.data.map((o) => {
-              const changes = typeof flow.publishedVersion === "number" && flow.hasChanges ? changesLine(changesNotInUse(o, live.isError ? undefined : live.data)) : null;
+              const changes = counting ? changesLine(changesNotInUse(o, live.data)) : null;
               return (
               <li key={o.id} className="border-t border-border-faint">
                 <FlowLink
