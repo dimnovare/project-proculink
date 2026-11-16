@@ -35,11 +35,10 @@ import { DocumentOutputsPanel } from "./DocumentOutputsPanel";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { INPUT } from "./DestinationForm";
 import { ADDED_TO_CHANGES, ReadValuesPanel, SAVE_WORDS, type Teach } from "./ReadValuesPanel";
-import { Checks, Failed, Quiet, ReadProblem } from "./states";
+import { Checks, Failed, Gone, Quiet, ReadProblem } from "./states";
 import { rowNeed } from "./DocumentList";
 import { WaitingList } from "./WaitingList";
 import { Changed, InboxAnswers, SortNotice, saveFirst, UNSAVED, UNSAVED_TEXT, useAnswers } from "./InboxAnswers";
-import { Gone } from "./CheckStep";
 
 // The file's own extension decides the viewer. The server's content type is not trusted for this.
 const TYPES: Record<string, string> = {
@@ -488,7 +487,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
               We couldn&apos;t check where this document is.
             </StatusNotice>
           )}
-          {gone && <Gone text={COPY.flow_not_found} />}
+          {gone && <Gone text={COPY.flow_not_found} back="documents" />}
           {flowFailed && here === false && <Failed error={flow.error} retry={() => flow.refetch()} lead="We couldn't load this document's flow." />}
           <Changed a={a} />
           {sends && summary.statusReason === "check_sort" && <SortNotice detail={doc.data} a={a} />}

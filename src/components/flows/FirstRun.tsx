@@ -10,9 +10,9 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { getFlow, listFlows } from "@/lib/api/documents";
 import { COPY } from "@/lib/documentRefusals";
 import { isFirstFlow, readFirstRunAddress } from "@/lib/firstRun";
-import { CheckStep, Gone, notFound, useRunDocument } from "./CheckStep";
+import { CheckStep, notFound, useRunDocument } from "./CheckStep";
 import { SendStep } from "./SendStep";
-import { Failed, Quiet } from "./states";
+import { Failed, Gone, Quiet } from "./states";
 import { Welcome } from "./Welcome";
 
 const BACK = { href: "/flows", label: "Flows" };

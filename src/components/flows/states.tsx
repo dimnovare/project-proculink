@@ -12,11 +12,22 @@ import { classifyApiFailure } from "@/lib/apiFailure";
 import { canRetryRead, COPY, documentRefusalMessage, readFailureMessage, refusalToken } from "@/lib/documentRefusals";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
 import { documentsAddress, type DocumentTab } from "@/lib/documentTabs";
+import { firstRunAddress } from "@/lib/firstRun";
 
 /** Reasons the engine parks a document for review on its own, each worded in COPY. */
 const AUTOMATIC_HOLDS = new Set(["no_output_matches", "output_invalid"]);
 
-export const Quiet = ({ children }: { children: string }) => (
+/** Gone: the server's words and the way on: back to the start of a first run, or back to Documents from the review screen. */
+export const Gone = ({ text, back = "start" }: { text: string; back?: "start" | "documents" }) => (
+  <StatusNotice
+    tone="error"
+    action={back === "documents"
+      ? <Link href="/documents" className={buttonClass("secondary", "sm")}>Back to Documents</Link>
+      : <Link href={firstRunAddress({})} className={buttonClass("secondary", "sm")}>Start again</Link>}
+  >{text}</StatusNotice>
+);
+
+export const Quiet =({ children }: { children: string }) => (
   <p role="status" className="m-0 text-[13px] text-ink-muted">{children}</p>
 );
 

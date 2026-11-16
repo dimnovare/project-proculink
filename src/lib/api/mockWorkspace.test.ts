@@ -21,7 +21,8 @@ describe("empty-workspace mock", () => {
     expect(read.summary.status).toBe("needs_review");
     expect(read.read?.fields).toHaveLength(9);
     const page = await mockEngineFetch<DocumentPage>(`/documents?flowId=${flow.id}&page=1&pageSize=20`);
-    expect(page.items.map((r) => [r.id, r.isSample])).toEqual([[first.id, true]]);
+    // A row says where it is, as the server's always does: without it a ready row shows no Send.
+    expect(page.items.map((r) => [r.id, r.isSample, r.inInbox])).toEqual([[first.id, true, false]]);
     await expect(mockEngineFetch(`/documents?flowId=${flow.id}&bogus=1`)).rejects.toThrow(/does not implement "bogus"/);
     // A reload is a new module state: what was saved is read back from sessionStorage.
     vi.resetModules();

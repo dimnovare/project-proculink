@@ -20,13 +20,9 @@ import { editKey, reviewMarks } from "@/lib/reviewMarks";
 import { Field, INPUT } from "./DestinationForm";
 import { Original, Pane, PaneTabs } from "./DocumentScreen";
 import { needsWords, SAVE_WORDS, ValueInput } from "./ReadValuesPanel";
-import { Failed, Quiet, ReadProblem } from "./states";
+import { Failed, Gone, Quiet, ReadProblem } from "./states";
 
 export const notFound = (e: unknown) => e instanceof ApiHttpError && e.status === 404;
-/** Gone: the server's words and the way back to the start. */
-export const Gone = ({ text }: { text: string }) => (
-  <StatusNotice tone="error" action={<Link href={firstRunAddress({})} className={buttonClass("secondary", "sm")}>Start again</Link>}>{text}</StatusNotice>
-);
 
 /** Where the document of this run is: its row on the flow's first page (for `isSample`), else unknown. */
 export function useRunDocument(flowId: string, docId: string | null) {

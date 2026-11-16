@@ -78,7 +78,11 @@ describe("DocumentScreen, a document in the inbox", () => {
 
     spy().answer = { "GET /flows/flow-inbox": { refuse: [404, "flow_not_found"] }, "GET /inbox": { flowId: "flow-other", address: null, intakeId: null } };
     mount("doc-in-1");
-    expect(await screen.findByText(COPY.flow_not_found)).toBeVisible();
+    const notice = (await screen.findByText(COPY.flow_not_found)).closest<HTMLElement>("[data-notice-tone]")!;
+    expect(notice).toBeVisible();
+    // The way on from the review screen is Documents, not the first run's "Start again".
+    expect(within(notice).getByRole("link", { name: "Back to Documents" })).toHaveAttribute("href", "/documents");
+    expect(screen.queryByRole("link", { name: "Start again" })).toBeNull();
     expect(document.getElementById("review-send")).toBeNull();
     expect(screen.queryByRole("heading", { name: "What we'll send" })).toBeNull();
     expect(screen.queryByRole("region", { name: "What to do with it" })).toBeNull();
@@ -130,7 +134,7 @@ describe("DocumentScreen, a document in the inbox", () => {
     mount("doc-in-2");
     const panel = await answers();
     expect(within(panel).getByRole("heading", { name: "Which flow does this invoice belong with?" })).toBeVisible();
-    expect(within(panel).queryByText(/the first/i)).toBeNull(); // "Choose a flow first." is the move list's hint, not "new"
+    expect(within(panel).queryByText(/the first/i)).toBeNull(); // no "The first of its kind here.": flows already hold this kind
     expect(within(panel).getAllByRole("button").map((b) => b.textContent)).toEqual(["Move it", "Set it up", "Excel", "CSV"]);
     const list = within(panel).getByRole("combobox", { name: "Flow it belongs with" });
     // The flows that fit first, then the others; none chosen.
