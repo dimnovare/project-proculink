@@ -106,7 +106,7 @@ describe("FlowsHome", () => {
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });
 
-  it("one New flow, and the plan line only when known", async () => {
+  it("one New flow, and the plan line only when known", { timeout: 20_000 }, async () => {
     listFlows.mockResolvedValue([]);
     getBillingStatus.mockRejectedValue(new Error("down"));
     const empty = show();

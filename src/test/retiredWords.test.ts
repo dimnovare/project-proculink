@@ -116,7 +116,9 @@ const CORPUS = [...APP_DIRS.flatMap(inDir).filter((f) => !f.startsWith("src/app/
 
 /** The shell files that draw the page's name, read only for this rule. */
 const SHELL = ["src/components/bridge/BridgeSidebar.tsx", "src/components/bridge/CommandPalette.tsx",
-  "src/components/bridge/BottomTabBar.tsx", "src/components/bridge/BridgeTopbar.tsx", "src/lib/pageTitles.ts"];
+  "src/components/bridge/BottomTabBar.tsx", "src/components/bridge/BridgeTopbar.tsx", "src/lib/pageTitles.ts",
+  "src/components/bridge/HelpPanel.tsx", "src/components/bridge/ShortcutsSheet.tsx", "src/components/bridge/UserChipMenu.tsx",
+  "src/components/bridge/OrgSwitcher.tsx", "src/lib/shortcuts.ts", ...inDir("src/components/settings"), ...inDir("src/components/pwa"), MANIFEST];
 
 const RETIRED: { word: RegExp; files: string[] }[] = [
   { word: /\boutputs?\b/i, files: CORPUS },
