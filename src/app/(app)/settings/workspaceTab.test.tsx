@@ -100,6 +100,8 @@ describe("Settings › Workspace", () => {
     const admin = await screen.findByRole("link", { name: "Admin" });
     expect(admin).toHaveAttribute("href", "/admin");
     expect(admin.parentElement).toContainElement(screen.getByTitle("Clerk is not configured"));
+    // A light header: the chip's initials are at the house minimum (a class: jsdom has no Tailwind).
+    expect(within(screen.getByTitle("Clerk is not configured")).getByText("MK")).toHaveClass("text-[12.5px]");
     expect(admin.parentElement).toHaveClass("md:hidden");
     cleanup();
     staff.on = false;

@@ -64,7 +64,7 @@ function SettingsScreen() {
         sub={organization && (billing ? `${orgName}, on the ${planLabel}` : orgName)}
         actions={<div className="flex items-center gap-2 md:hidden">
           {staff && <Link href="/admin" className={buttonClass("secondary", "sm")}>Admin</Link>}
-          <UserChipMenu collapsed placement="down" />
+          <UserChipMenu collapsed placement="down" onLight />
         </div>}
       />
       <nav aria-label="Settings sections" className="mb-5 flex gap-1 overflow-x-auto shadow-[inset_0_-1px_0_var(--border)]">
