@@ -89,7 +89,7 @@ function ValueRow({ field, scope, on, example, columns, indent, failed, onInclud
     moved.current = false;
     (open ? body.current?.querySelector("input") : more.current)?.focus();
   }, [open]);
-  const toggle = () => { if (forced) return; moved.current = true; setOpen(!open); }; // a problem keeps it open
+  const toggle = () => { moved.current = true; setOpen(!open); };
   return (
     <>
       <tr className="border-t border-border-faint">
@@ -104,12 +104,15 @@ function ValueRow({ field, scope, on, example, columns, indent, failed, onInclud
           <td className={`${CELL} text-[13px] ${example ? "font-mono text-ink" : "text-ink-muted"}`}>{example ?? NOT_FOUND}</td>
         )}
         <td className={CELL}>
-          <button
-            ref={more} type="button" className={buttonClass("ghost", "sm")} aria-label={`More for ${field.label}`} aria-expanded={shown} aria-controls={id}
-            disabled={!on} onClick={toggle}
-          >
-            More
-          </button>
+          {/* A problem holds the panel open, so More could not close it: it is not drawn until the problem is gone. */}
+          {!forced && (
+            <button
+              ref={more} type="button" className={buttonClass("ghost", "sm")} aria-label={`More for ${field.label}`} aria-expanded={shown} aria-controls={id}
+              disabled={!on} onClick={toggle}
+            >
+              More
+            </button>
+          )}
         </td>
       </tr>
       {shown && (

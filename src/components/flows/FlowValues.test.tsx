@@ -95,6 +95,7 @@ describe("FlowValues", () => {
   it("a More opened by a problem stays open while the person fixes it, with focus in the control", async () => {
     mount({ ...flow, fields: { ...fields, fields: [{ ...field("invoice_number", "Invoice number"), type: "barcode" }] } });
     const type = (await screen.findAllByRole("combobox", { name: "Type" }))[0];
+    expect(screen.queryByRole("button", { name: "More for Invoice number" })).toBeNull(); // held open: no More to press
     type.focus();
     fireEvent.change(type, { target: { value: "text" } });
     expect(type).toBeInTheDocument();

@@ -43,6 +43,7 @@ const TILES: readonly { tile: NewTile; title: string; sub: string; protocols: re
 ];
 const WAY_ON = "inline-flex min-h-[44px] items-center text-[14px] font-semibold text-brand-blue sm:min-h-0";
 const LINK_BUTTON = `${WAY_ON} underline disabled:opacity-50`;
+const FOLD = "grid min-h-[44px] content-start gap-0.5 justify-self-start rounded-card border border-dashed border-borderStrong bg-bg px-3 py-2.5 text-left";
 
 type Tested = { destinationId: string; ok: boolean };
 /** R20. `tested` is the last `onTested` outcome for the destination the new form saved. Our sample is never sent, and a
@@ -198,7 +199,13 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
     ...(servers ? newTiles(TILES.filter((t) => t.server)) : []),
   ];
   // The fold stays open while one of its kinds is the choice: closing it would drop a destination just saved and tested.
-  const toggleServers = () => { if (tile?.server) return; moved.current = true; setServerOpen(!servers); };
+  const toggleServers = () => { moved.current = true; setServerOpen(!servers); };
+  const foldWords = (
+    <>
+      <span className="text-[14px] font-semibold text-ink">A server or another system</span>
+      <span className="text-[12.5px] text-ink-muted">SFTP, S3 or a web address</span>
+    </>
+  );
   // Opening moves focus to the first server tile; closing returns it to the fold's button.
   const fold = useRef<HTMLButtonElement>(null);
   const moved = useRef(false);
@@ -241,13 +248,12 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
             }} />
           ))}
         </div>
-        <button
-          ref={fold} type="button" aria-expanded={servers} onClick={toggleServers}
-          className="grid min-h-[44px] content-start gap-0.5 justify-self-start rounded-card border border-dashed border-borderStrong bg-bg px-3 py-2.5 text-left"
-        >
-          <span className="text-[14px] font-semibold text-ink">A server or another system</span>
-          <span className="text-[12.5px] text-ink-muted">SFTP, S3 or a web address</span>
-        </button>
+        {/* While one of its kinds is the choice the fold cannot close, so it is a label, not a button. */}
+        {tile?.server ? (
+          <div className={FOLD}>{foldWords}</div>
+        ) : (
+          <button ref={fold} type="button" aria-expanded={servers} onClick={toggleServers} className={FOLD}>{foldWords}</button>
+        )}
         {choice.kind === "download" && <p className="m-0 text-[14px] text-ink-muted">Nothing to set up. Each file waits in Documents, ready to download.</p>}
         {/* Rows stay through a failed refresh: only a list that never answered is replaced. */}
         {destinations.isError && !destinations.data && <Failed error={destinations.error} retry={() => destinations.refetch()} />}

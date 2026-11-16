@@ -72,6 +72,12 @@ describe("SendStep", () => {
     expect(document.activeElement).toBe(within(group).getByTestId("send-tile-server"));
     fireEvent.click(more);
     expect(document.activeElement).toBe(more);
+    // While a server kind is the choice the fold cannot close: it is drawn as a label, and a button again after.
+    fireEvent.click(more);
+    fireEvent.click(within(group).getByTestId("send-tile-server"));
+    expect(screen.queryByRole("button", { name: /^A server or another system/ })).toBeNull();
+    fireEvent.click(within(group).getByTestId("send-tile-download"));
+    expect(screen.getByRole("button", { name: /^A server or another system/ })).toHaveAttribute("aria-expanded", "true");
     unmount();
     linked.mockReturnValue({ data: { available: true, accounts: [] } });
     api.listDestinations.mockResolvedValue([savedSftp]);
