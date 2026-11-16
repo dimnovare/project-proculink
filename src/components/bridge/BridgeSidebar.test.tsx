@@ -80,6 +80,15 @@ describe("BridgeSidebar — the document tool's nav", () => {
     expect(screen.getByRole("link", { name: /Upload document/i })).toHaveAttribute("href", PINNED_ACTION_HREF);
     expect(screen.getByRole("link", { name: /^Flows/i })).toHaveAttribute("aria-current", "page");
     expect(isItemActive("/flowsx", buildVisibleNav(false).main[0].items[1])).toBe(false);
+    // The panel has its own History and Lookups; only a document's review borrows Documents.
+    const LIT = { "/flows/f1/documents/d1": "Documents", "/flows/f1": "Flows", "/operations/log": "History", "/lookups": "Lookups" };
+    for (const [path, label] of Object.entries(LIT)) {
+      cleanup();
+      mockPath = path;
+      const { container } = render(<BridgeSidebar />);
+      const lit = container.querySelectorAll('[aria-current="page"]');
+      expect([path, lit.length, lit[0]?.textContent?.trim()]).toEqual([path, 1, label]);
+    }
   });
 
   it("every app address lights exactly the place it belongs to", () => {

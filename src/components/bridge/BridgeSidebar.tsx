@@ -100,8 +100,9 @@ export function isItemActive(pathname: string, item: SidebarNavItem): boolean {
 
 /** The one top-bar place an address lights, or null for none (Upload and Admin have their own controls).
  *  A document's review lights Documents first: its address also starts with /flows/. */
+export const isReviewAddress = (pathname: string) => /^\/flows\/[^/]+\/documents\/[^/]+/.test(pathname);
 export function currentPlace(pathname: string): string | null {
-  if (/^\/flows\/[^/]+\/documents\/[^/]+/.test(pathname)) return "/documents";
+  if (isReviewAddress(pathname)) return "/documents";
   const lit = (href: string) => isItemActive(pathname, { label: "", href, icon: FileText });
   return TOP_BAR_HREFS.find(lit) ?? Object.entries(TOP_BAR_PARENT).find(([child]) => lit(child))?.[1] ?? null;
 }
@@ -214,7 +215,8 @@ export function BridgeSidebar({
   const isCollapsed = (collapseBelowLg && belowLg) || (collapsible && autoCollapsed) || (collapsible && collapsed);
 
   const renderItem = (item: SidebarNavItem) => {
-    const active = isItemActive(pathname, item);
+    // A document's review lights Documents (as the top bar and the phone bar do); every other address its own item.
+    const active = isReviewAddress(pathname) ? item.href === "/documents" : isItemActive(pathname, item);
     const Ico = item.icon;
     // Collapsed rail → the label (icons only); expanded items show their label.
     const title = isCollapsed ? item.label : undefined;
