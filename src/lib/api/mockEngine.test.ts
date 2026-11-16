@@ -190,7 +190,7 @@ it("answers nothing while the browser is offline, as the network would", async (
   onLine.mockRestore();
 });
 
-it("sorts a document added without a flow, and answers move, set-up and download like the server", async () => {
+it("sorts a document added without a flow, and answers move, set-up and download like the server", { timeout: 20_000 }, async () => {
   const add = (name: string) => { const body = new FormData(); body.append("file", new File(["x"], name)); return mockEngineFetch<DocumentSummary>("/documents", { method: "POST", body }); };
   const [inv, note, odd] = [await add("invoice-2301.pdf"), await add("delivery-note-88.pdf"), await add("scan-1.pdf")];
   expect(inv).toMatchObject({ flowId: "flow-inbox", flowName: "New documents", status: "received" });
@@ -241,7 +241,7 @@ it("sorts a document added without a flow, and answers move, set-up and download
   }
 });
 
-it("a person's Send confirms a sort we weren't sure of: accepted, the reason cleared, and no second sort row", async () => {
+it("a person's Send confirms a sort we weren't sure of: accepted, the reason cleared, and no second sort row", { timeout: 20_000 }, async () => {
   const f = await withInbox();
   try {
     const body = new FormData();

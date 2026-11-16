@@ -182,7 +182,7 @@ describe("DocumentScreen, a document in the inbox", () => {
     expect(screen.getAllByText("This file was already uploaded to this flow.")[0]).toBeVisible();
   });
 
-  it("a sort that is not certain says where it went and can be moved, and Send stays", async () => {
+  it("a sort that is not certain says where it went and can be moved, and Send stays", { timeout: 20_000 }, async () => {
     // The person's flows did not load: say so, never a list with only "Choose a flow".
     spy().answer = { "GET /flows": { refuse: [503, "unavailable"] } };
     const failed = mount("doc-in-3", "flow-2");

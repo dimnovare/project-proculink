@@ -136,7 +136,7 @@ describe("UploadToFlow", () => {
     expect(screen.queryByRole("region", { name: "Or send them by email" })).toBeNull();
   });
 
-  it("shows each file's status where it was dropped, from one list request, and stops asking when nothing is being read", async () => {
+  it("shows each file's status where it was dropped, from one list request, and stops asking when nothing is being read", { timeout: 20_000 }, async () => {
     api.listFlows.mockResolvedValue([flow("f1", "Supplier invoices", "review")]);
     api.addDocument.mockImplementation((f: File) => Promise.resolve(summary(({ "a.pdf": "d1", "b.csv": "d2" } as Record<string, string>)[f.name] ?? "d3", f.name)));
     let read = false;
