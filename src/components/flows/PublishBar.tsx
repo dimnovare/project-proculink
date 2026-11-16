@@ -57,7 +57,7 @@ export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(o
       setNote({ text: await work(), done: true });
     } catch (e) {
       if (e instanceof DraftPartFailed) {
-        setNote({ text: `A change on ${stepTitle(e.step)} couldn't be saved, so nothing was put in use.`, done: false, step: e.step, reason: draftReason(e) });
+        setNote({ text: `A change on ${stepTitle(e.step)} couldn't be saved, so ${live === null ? "the setup wasn't saved" : "nothing was put in use"}.`, done: false, step: e.step, reason: draftReason(e) });
       } else {
         setNote({ text: documentRefusalMessage(e), done: false });
         qc.invalidateQueries({ queryKey: flowKey });   // e.g. nothing to publish, or someone else published first
@@ -99,7 +99,8 @@ export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(o
     // Card draws position: relative inline, so the sticky wrapper is its own element. On a phone it stops 24px up,
     // clear of the tab bar's round Add button (it rises 20px, its ring 4px more); the same margin under it keeps the
     // end of the step from sliding under it.
-    <section role="region" aria-label="Changes not in use yet" className="sticky bottom-0 z-sticky max-md:bottom-6 max-md:mb-6">
+    // Named for what it says: a setup never saved, changes waiting, or (after a press) its result.
+    <section role="region" aria-label={live === null ? "Save this setup" : pending ? "Changes not in use yet" : "Your changes"} className="sticky bottom-0 z-sticky max-md:bottom-6 max-md:mb-6">
       <Card dense className="flex flex-wrap items-center gap-3">
         <div aria-live="polite" className="grid min-w-0 flex-1 gap-1 text-[13px]">
           {pending && (

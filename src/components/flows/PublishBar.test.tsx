@@ -3,6 +3,7 @@ import { useState } from "react";
 import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
+import { documentRefusalMessage } from "@/lib/documentRefusals";
 import type { Flow } from "@/lib/api/documents";
 import { FlowDraftProvider, useDraftPart, useFlowDraft } from "./flowDraft";
 import { FlowVersionsPanel } from "./FlowVersionsPanel";
@@ -137,19 +138,30 @@ describe("PublishBar", () => {
 
   it("before the first save, one button saves the setup; unconfirmed, there is no bar", async () => {
     const { unmount } = renderBar({ fieldsConfirmed: false });
-    expect(screen.queryByRole("region", { name: "Changes not in use yet" })).toBeNull();
+    expect(screen.queryByRole("region")).toBeNull();
     unmount();
     api.publishFlow.mockResolvedValue({ ...flow, publishedVersion: 1, hasChanges: false });
     renderBar({ fieldsConfirmed: true, publishedVersion: null, hasChanges: false });
     expect(screen.getByText("Changes to this flow are in use straight away until you save this setup.")).toBeInTheDocument();
-    expect(bar().getAllByRole("button").map((b) => b.textContent)).toEqual(["Save this setup"]);
+    expect(screen.queryByRole("region", { name: "Changes not in use yet" })).toBeNull();   // nothing waits before the first save
+    const unsaved = within(screen.getByRole("region", { name: "Save this setup" }));
+    expect(unsaved.getAllByRole("button").map((b) => b.textContent)).toEqual(["Save this setup"]);
     expect(barPending({ fieldsConfirmed: true, publishedVersion: undefined } as Flow)).toBe(false);
-    fireEvent.click(bar().getByRole("button", { name: "Save this setup" }));
+    fireEvent.click(unsaved.getByRole("button", { name: "Save this setup" }));
     expect(await screen.findByText("Setup saved. Later changes wait until you use them.")).toBeInTheDocument();
   });
 
   it("an older backend with no version info gets no bar", () => {
     render(page({ ...flow, publishedVersion: undefined }));
-    expect(screen.queryByRole("region", { name: "Changes not in use yet" })).toBeNull();
+    expect(screen.queryByRole("region")).toBeNull();
+  });
+
+  it("a refused use of the changes says why, never that they are in use", async () => {
+    const refusal = new ApiHttpError("conflict", 409, { error: "nothing_to_publish" });
+    api.publishFlow.mockRejectedValue(refusal);
+    render(page(flow));
+    fireEvent.click(bar().getByRole("button", { name: "Use these changes" }));
+    expect(await bar().findByText(documentRefusalMessage(refusal))).toBeInTheDocument();
+    expect(screen.queryByText("Your changes are in use.")).toBeNull();
   });
 });

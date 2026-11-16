@@ -71,7 +71,8 @@ const inDir = (dir: string) => (readdirSync(join(ROOT, dir), { recursive: true }
   .map((f) => `${dir}/${f.replace(/\\/g, "/")}`)
   .filter((f) => /\.tsx?$/.test(f) && !/\.test\./.test(f));
 
-/** Files whose old words a LATER task of plan 16a removes. Nothing else may be listed here. */
+/** Files whose old "output" words a LATER task of plan 16a removes; the release words are read in them too.
+ *  Nothing else may be listed here. */
 const LATER = (f: string) =>
   f === "src/components/flows/OutputBuilder.tsx" ||        // Task 4: "Make another file"
   f === "src/components/lookups/LookupPage.tsx" ||         // Task 8: the unused-lookup sentence
@@ -92,13 +93,16 @@ const OTHER_FILES = [
 const MANIFEST = "src/lib/auditActionManifest.ts";
 const labels = (source: string) => [...source.matchAll(/\blabel: "([^"]*)"/g)].map((m) => m[1]);
 
-const CORPUS = [...APP_DIRS.flatMap(inDir).filter((f) => !LATER(f)), ...OTHER_FILES, ...HELP_PAGES];
+/** Every file read, LATER ones included: the release words were all renamed by Task 2, so only "output" waits. */
+const ALL = [...APP_DIRS.flatMap(inDir), ...OTHER_FILES, ...HELP_PAGES];
+const CORPUS = ALL.filter((f) => !LATER(f));
 
 const RETIRED: { word: RegExp; files: string[] }[] = [
   { word: /\boutputs?\b/i, files: CORPUS },
   // The manifest's labels are read for the release words only: its "output" label belongs to the archived order
   // pipeline's status vocabulary (problemCopy.ts, statusVocabulary.test.ts), outside this piece.
-  { word: /\bpublish(ed|es|ing)?\b|\bdiscard|\bdraft saved\b|\blive, version\b|\bunpublished\b/i, files: [...CORPUS, MANIFEST] },
+  // "publish" with no leading boundary, so "Republish" and "unpublished" are caught too.
+  { word: /publish|\bdiscard|\bdraft saved\b|\blive, version\b|\bis live\b/i, files: [...ALL, MANIFEST] },
 ];
 
 const textOf = (f: string) => (f.endsWith(".mdx") ? mdxText : f === MANIFEST ? labels : personText)(read(f));
@@ -119,6 +123,7 @@ describe("retired words stay retired in what a person reads", () => {
     expect(mdxText("Press **Add an output**. See [the guide](/help/guides/build-an-output).")).toEqual(["Press **Add an output**. See the guide."]);
     expect(mdxText(`export const metadata = m({\n  slug: "outputs",\n  title: "Output formats",\n});\n\n# Output formats`)).toEqual(["# Output formats", "Output formats"]);
     expect(personText("<Button>Publish changes</Button>").filter((t) => RETIRED[1].word.test(t))).toEqual(["Publish changes"]);
+    expect(["Republish", "3 unpublished changes", "This flow is live.", "In use"].filter((t) => RETIRED[1].word.test(t))).toEqual(["Republish", "3 unpublished changes", "This flow is live."]);
     expect(labels(`{ action: "flow.published", label: "Version published", note: "was published" }`)).toEqual(["Version published"]);
     expect(personText("const s = `${n} outputs`;")).toEqual(["outputs"]);
     expect(personText('const s = `${n} output${n === 1 ? "" : "s"}`;').filter((t) => RETIRED[0].word.test(t))).toEqual(["output"]);
@@ -127,6 +132,8 @@ describe("retired words stay retired in what a person reads", () => {
     expect(personText("const s = `Output: ${name}`; const r = `/flows/${id}/outputs/${o}`;")).toEqual(["Output:"]);
     // Anti-vacuity: every folder yields a file, and the corpus yields person-read text to check.
     for (const dir of [...APP_DIRS, HELP]) expect(CORPUS.some((f) => f.startsWith(dir.replace(/\\/g, "/") + "/")), dir).toBe(true);
-    expect(CORPUS.flatMap(textOf).length).toBeGreaterThan(0);
+    // Measured 2026-11-16: 4,281 person-read strings and 31 help pages. Raise these floors when the corpus grows; never lower them.
+    expect(CORPUS.flatMap(textOf).length).toBeGreaterThanOrEqual(3850);
+    expect(HELP_PAGES.filter((f) => f.endsWith(".mdx")).length).toBeGreaterThanOrEqual(30);
   });
 });

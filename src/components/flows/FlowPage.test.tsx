@@ -72,6 +72,16 @@ describe("FlowPage", () => {
     expect(within(down.container).queryByText("We can't find that page")).toBeNull();
   });
 
+  it("the header says In use only for a flow with a saved setup", async () => {
+    for (const publishedVersion of [1, null, undefined]) {
+      api.getFlow.mockResolvedValue({ ...flow, publishedVersion });
+      const { unmount } = renderPage();
+      await screen.findByRole("heading", { level: 1, name: "Supplier invoices" });
+      expect(screen.queryAllByText("In use").length, `publishedVersion ${publishedVersion}`).toBe(publishedVersion === 1 ? 1 : 0);
+      unmount();
+    }
+  });
+
   it("the strip marks the chosen step and an old tab name still works", async () => {
     search.q = "tab=fields";
     renderPage();

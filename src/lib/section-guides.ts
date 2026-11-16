@@ -92,7 +92,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       BUILD_AN_OUTPUT,
       { title: "Send files to a destination", line: "Choose where each file goes, and send a test.", href: "/help/guides/send-to-a-destination" },
     ],
-    startHere: "Changes you make here wait until you use them.",
+    startHere: "Once the setup is saved, changes to what we read and the files we make wait until you use them.",
   },
   {
     route: "/lookups",
