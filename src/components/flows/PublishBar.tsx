@@ -129,7 +129,8 @@ export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(o
           )}
         </div>
         {pending && (
-          <div className="flex w-full gap-2 min-[720px]:w-auto">
+          // The two buttons share the row while both fit; on a narrow phone Use these changes wraps under Undo.
+          <div className="flex w-full flex-wrap gap-2 min-[720px]:w-auto">
             {live !== null && (
               <Button variant="secondary" className="flex-1 min-[720px]:flex-none" loading={running === "discard"} disabled={running !== null} onClick={() => discard(live)}>
                 Undo my changes

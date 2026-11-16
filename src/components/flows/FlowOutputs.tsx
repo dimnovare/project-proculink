@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
@@ -12,7 +12,7 @@ import { deleteOutput, getDocument, listDestinations, listOutputs } from "@/lib/
 import type { Flow, FlowOutput } from "@/lib/api/documents";
 import { defaultWidth } from "@/lib/flowOutputModel";
 import { flowAddress } from "@/lib/flowSteps";
-import { draftReason, FlowLink, GoContext, useFlowDraft } from "./flowDraft";
+import { draftReason, FlowLink, useFlowDraft } from "./flowDraft";
 import { OutputBuilder } from "./OutputBuilder";
 import { OutputEditor, outputTypeLabel } from "./OutputEditor";
 import { Failed, Quiet } from "./states";
@@ -58,13 +58,12 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
   const confirm = useConfirm();
   const enabled = useTenantQueriesEnabled();
   const router = useRouter();
-  const go = useContext(GoContext);
   const { flushAll, leave } = useFlowDraft();
   const [adding, setAdding] = useState(false);
   // The file just made is shown at once, while the address still says what it said when it was made.
   const [made, setMade] = useState<{ id: string; from: string | null } | null>(null);
-  const editor = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (made) editor.current?.querySelector("h2")?.focus(); }, [made]);
+  // Its heading takes focus once, when that heading is drawn, however late the list answers.
+  const [focusFor, setFocusFor] = useState<string | null>(null);
   const deleting = useRef(false);
   const outputs = useQuery({ queryKey: ["outputs", flow.id], queryFn: () => listOutputs(flow.id), enabled });
   // The live setup's files, only while there is one with changes: the count is drawn from both lists in hand, never guessed.
@@ -83,6 +82,7 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
 
   // Only until the address moves: once it names the new file, or the person goes anywhere else, the address decides.
   if (made && outputId !== made.from) setMade(null);
+  if (focusFor && !made && outputId !== focusFor) setFocusFor(null);
   if (outputs.isError && !outputs.data) return <Failed error={outputs.error} retry={() => outputs.refetch()} />;
   if (!outputs.data) return <Quiet>Loading files…</Quiet>;
   const wanted = made && made.from === outputId ? made.id : outputId;
@@ -100,9 +100,8 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
   };
   const open = (o: FlowOutput) => {
     setAdding(false);
-    const href = flowAddress(flow.id, "send", { output: o.id });
-    if (go) go(href);
-    else router.replace(href);
+    // No scroll: a navigation that scrolls also moves focus to the page, off the new file's heading.
+    leave(() => router.replace(flowAddress(flow.id, "send", { output: o.id }), { scroll: false }));
   };
 
   return (
@@ -155,13 +154,14 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
         <OutputBuilder
           flow={flow} previewDocumentId={preview} kind={source.data?.read?.kindLabel ?? null} first={outputs.data.length === 0}
           names={outputs.data.map((o) => o.name)} onDone={() => setAdding(false)}
-          onCreated={(o) => { setMade({ id: o.id, from: outputId }); open(o); }}
+          onCreated={(o) => { setMade({ id: o.id, from: outputId }); setFocusFor(o.id); open(o); }}
         />
       ) : chosen ? (
         <Card as="section" aria-label={`Edit the file ${chosen.name}`}>
-          <div ref={editor} className="grid gap-4">
+          <div className="grid gap-4">
             <OutputEditor
               key={chosen.id} mode="draft" flow={flow} output={chosen} previewDocumentId={preview} previewFile={source.data?.summary.fileName}
+              headingRef={chosen.id === focusFor ? (h: HTMLHeadingElement | null) => { if (h) { h.focus(); setFocusFor(null); } } : undefined}
               onSaved={() => {}} onCancel={() => {}}
             />
             {remove.isError && <StatusNotice tone="error">{draftReason(remove.error)}</StatusNotice>}
