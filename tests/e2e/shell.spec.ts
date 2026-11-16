@@ -79,6 +79,26 @@ test.describe("app shell", () => {
     }
   });
 
+  test("the top bar has three places, lit from the pages under them, and the phone keeps its five", async ({ page }) => {
+    await preparePage(page, { dismissCookieBanner: true });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const nav = page.getByTestId("topbar-nav");
+    for (const [path, lit] of [["/documents", "Documents"], ["/lookups", "Flows"], ["/operations/log", "Documents"], ["/settings", "Settings"]] as const) {
+      await page.goto(path);
+      await settle(page);
+      await expect(nav.getByRole("link"), `the places on ${path}`).toHaveText(["Documents", "Flows", "Settings"]);
+      await expect(nav.locator('[aria-current="page"]'), `one place lit on ${path}`).toHaveCount(1);
+      await expect(nav.getByRole("link", { name: lit, exact: true }), `${lit} lit on ${path}`).toHaveAttribute("aria-current", "page");
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/documents");
+    await settle(page);
+    const bar = page.getByTestId("tab-bar");
+    await expect(bar.locator(":scope > a, :scope > button")).toHaveCount(5);
+    for (const name of [/^Documents/, /^Flows$/, /^Add a document$/, /^Activity$/, /^More$/])
+      await expect(bar.getByRole("link", { name }).or(bar.getByRole("button", { name })), `${name.source} on the tab bar`).toBeVisible();
+  });
+
   test("each width offers exactly one way to move between pages", async ({ page }) => {
     await preparePage(page, { dismissCookieBanner: true });
     const MODES = [[390, "tabs"], [767, "tabs"], [768, "menu"], [1023, "menu"], [1024, "links"], [1440, "links"]] as const;

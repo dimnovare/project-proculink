@@ -37,8 +37,8 @@ const openUpload = async (page: Page) => {
   await page.goto("/upload");
   await expect(page.getByRole("button", { name: "Choose files" })).toBeVisible();
 };
-const justUploaded = (page: Page, name: string) =>
-  page.getByRole("region", { name: "Just uploaded" }).getByRole("listitem").filter({ hasText: name });
+const justAdded = (page: Page, name: string) =>
+  page.getByRole("region", { name: "Just added" }).getByRole("listitem").filter({ hasText: name });
 
 test.describe("offline", () => {
   test.describe.configure({ timeout: 120_000 });
@@ -81,7 +81,7 @@ test.describe("offline", () => {
     await openUpload(page);
     await context.setOffline(true);
     await page.getByTestId("upload-files-input").setInputFiles(JPG);
-    const row = justUploaded(page, JPG.name);
+    const row = justAdded(page, JPG.name);
     await expect(row).toContainText("Waiting for connection");
     await expect(row).toContainText("It uploads when you're back online.");
     await expect.poll(() => heldRecords(page)).toBe(1);
@@ -104,7 +104,7 @@ test.describe("offline", () => {
     await openUpload(a);
     await context.setOffline(true);
     await a.getByTestId("upload-files-input").setInputFiles(JPG);
-    await expect(justUploaded(a, JPG.name)).toContainText("Waiting for connection");
+    await expect(justAdded(a, JPG.name)).toContainText("Waiting for connection");
     await expect.poll(() => heldRecords(a)).toBe(1);
     await a.close();
     // The closed tab's lock is released a moment after it closes. The two tabs look only once,
@@ -127,7 +127,7 @@ test.describe("offline", () => {
     await openUpload(page);
     await context.setOffline(true);
     await page.getByTestId("upload-files-input").setInputFiles(EMPTY);
-    const row = justUploaded(page, EMPTY.name);
+    const row = justAdded(page, EMPTY.name);
     await expect(row).toContainText("Waiting for connection");
     await expect.poll(() => heldRecords(page)).toBe(1);
 

@@ -106,11 +106,11 @@ export const CORE_SCREENS: readonly CoreScreen[] = [
   },
   {
     id: "upload",
-    label: "Upload to a flow",
+    label: "Add documents",
     pattern: "/upload",
     path: "/upload",
     auth: "app",
-    why: "Journey step: first document in. Pick a flow, drop a file.",
+    why: "Journey step: first document in. Drop any file; it is sorted.",
   },
   {
     id: "lookups",
