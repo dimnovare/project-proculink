@@ -41,7 +41,7 @@ const mount = () =>
     </QueryClientProvider>,
   );
 
-afterEach(() => { cleanup(); clerk.org = undefined; vi.clearAllMocks(); });
+afterEach(() => { cleanup(); clerk.org = undefined; staff.on = true; vi.clearAllMocks(); });
 
 describe("Settings › Workspace", () => {
   it("the name saves once when the box is left with a new name, and a refusal keeps what was typed", async () => {
@@ -96,9 +96,11 @@ describe("Settings › Workspace", () => {
   it("on a phone Settings holds the account menu, and Admin for staff", async () => {
     staff.answered = 0;
     mount();
+    expect(screen.queryByRole("link", { name: "Admin" })).toBeNull();
     const admin = await screen.findByRole("link", { name: "Admin" });
     expect(admin).toHaveAttribute("href", "/admin");
     expect(admin.parentElement).toContainElement(screen.getByTitle("Clerk is not configured"));
+    expect(admin.parentElement).toHaveClass("md:hidden");
     cleanup();
     staff.on = false;
     mount();
@@ -106,6 +108,5 @@ describe("Settings › Workspace", () => {
     await act(async () => {}); // the "no" answer is applied before the check
     expect(screen.queryByRole("link", { name: "Admin" })).toBeNull();
     expect(screen.getByTitle("Clerk is not configured")).toBeTruthy();
-    staff.on = true;
   });
 });

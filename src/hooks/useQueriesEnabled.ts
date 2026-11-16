@@ -91,6 +91,7 @@ export function useQueriesEnabled(): boolean {
 //     order review, admin, operations). They mount long after activation
 //     resolved, so there is nothing for this gate to prevent there; converting
 //     them would be churn against a window that has already closed.
+//     Except the Settings header's staff check: it uses useTenantQueriesEnabled and shares the top bar's ["admin-access"] request.
 //
 // A note on shared query keys, because it decides correctness rather than taste:
 // TanStack Query enables a query if ANY mounted observer enables it. ["orders"],
