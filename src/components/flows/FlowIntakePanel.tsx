@@ -207,12 +207,13 @@ function PickupsCard({ flowId, pickups }: { flowId: string; pickups: FlowIntake[
 }
 
 /** How to add a file by hand, in both layouts: under 768 there is no Upload in the top bar, only the round + at the bottom. */
-const AddFileLine = ({ flowId }: { flowId: string }) => (
+/** `or={false}` where nothing before it in the card is an alternative (the Upload card). */
+const AddFileLine = ({ flowId, or = true }: { flowId: string; or?: boolean }) => (
   <p className="m-0 text-[13px] text-ink-muted">
     <span className="hidden md:inline">
-      Or drop a file on this flow&apos;s <Link href={flowAddress(flowId, "documents")} className="text-brand-blue underline">Documents</Link> page, or press Upload in the top bar.
+      {or ? "Or drop" : "Drop"} a file on this flow&apos;s <Link href={flowAddress(flowId, "documents")} className="text-brand-blue underline">Documents</Link> page, or press Upload in the top bar.
     </span>
-    <span className="md:hidden">Or add a file with the + button at the bottom of the screen.</span>
+    <span className="md:hidden">{or ? "Or add" : "Add"} a file with the + button at the bottom of the screen.</span>
   </p>
 );
 
@@ -273,7 +274,7 @@ export function FlowIntakePanel({ flow }: { flow: Flow }) {
         <>
           {email && <EmailCard flowId={flow.id} intake={email} />}
           <Card title="Upload" sub="Always on. Nothing to set up.">
-            <AddFileLine flowId={flow.id} />
+            <AddFileLine flowId={flow.id} or={false} />
             <p className="m-0 mt-1 text-[13px] text-ink-muted">{kindsLine(flow)}</p>
           </Card>
         </>

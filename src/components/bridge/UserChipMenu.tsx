@@ -176,11 +176,11 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up", onLight 
         aria-label={`Account: ${name}. Open account menu`}
         title={collapsed ? name : undefined}
         className={`flex w-full items-center flex-shrink-0 ${collapsed ? "justify-center" : "gap-2.5"}${onLight
-          ? " rounded-card-sm hover:bg-surface-2 aria-expanded:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" : ""}`}
+          ? " rounded-card-sm p-1 hover:bg-surface-2 aria-expanded:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" : ""}`}
         style={{
           border: "none",
           borderTop: placement === "down" ? undefined : "1px solid #1F3252",
-          padding: placement === "down" ? 0 : collapsed ? "10px 0" : "10px 14px",
+          padding: onLight ? undefined : placement === "down" ? 0 : collapsed ? "10px 0" : "10px 14px",
           background: onLight ? undefined : open ? "rgba(255,255,255,0.05)" : "transparent",
           borderRadius: onLight ? undefined : 0,
           cursor: "pointer",

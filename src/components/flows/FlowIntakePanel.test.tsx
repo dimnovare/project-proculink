@@ -105,6 +105,10 @@ describe("FlowIntakePanel", () => {
     expect(own.closest("details")).toBeNull();
     expect(screen.getByRole("button", { name: "Copy email address" }).closest("details")).toBeNull();
     expect(screen.queryByText(/Send any document to/)).toBeNull();
+    // The Upload card's own line is not an alternative to anything in it: no "Or".
+    const upload = within(screen.getByText("Always on. Nothing to set up.").parentElement!.parentElement!);
+    expect(upload.getByText((_, el) => el?.tagName === "SPAN" && el.textContent === "Drop a file on this flow's Documents page, or press Upload in the top bar.")).toBeTruthy();
+    expect(upload.getByText("Add a file with the + button at the bottom of the screen.")).toBeTruthy();
     first.unmount();
 
     api.getInbox.mockResolvedValue(inbox);
