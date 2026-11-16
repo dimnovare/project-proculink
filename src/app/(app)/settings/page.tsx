@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { Card } from "@/components/bridge/layout/Card";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Copy, Plus } from "lucide-react";
+import { AlertTriangle, ChevronRight, Copy, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { BillingSection } from "@/components/bridge/BillingSection";
 import { SavedMark, SettingsPanel } from "@/components/settings/SettingsPrimitives";
@@ -214,9 +214,12 @@ function OrgSection({ developersOpen }: { developersOpen: boolean }) {
         )}
         <NotificationEmailSection />
         <details open={developers} onToggle={(e) => setDevelopers(e.currentTarget.open)} className="grid gap-4">
-          <summary className="grid min-h-11 cursor-pointer content-center gap-0.5 rounded-card border border-border bg-surface px-6 py-3 max-[560px]:px-4">
-            <span className="text-[14px] font-semibold text-ink">For developers</span>
-            <span className="text-[13px] text-ink-muted">API keys, for connecting another system to this workspace.</span>
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-card border border-border bg-surface px-6 py-3 max-[560px]:px-4 [&::-webkit-details-marker]:hidden">
+            <ChevronRight size={16} aria-hidden data-disclosure-chevron />
+            <span className="grid gap-0.5">
+              <span className="text-[14px] font-semibold text-ink">For developers</span>
+              <span className="text-[13px] text-ink-muted">API keys, for connecting another system to this workspace.</span>
+            </span>
           </summary>
           {developers && <div className="mt-4"><ApiKeysSection /></div>}
         </details>

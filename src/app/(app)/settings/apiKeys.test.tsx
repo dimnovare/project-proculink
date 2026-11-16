@@ -49,6 +49,8 @@ describe("Settings › API keys", () => {
     mount();
     const developers = screen.getByText("For developers").closest("details")!;
     expect(developers).not.toHaveAttribute("open");
+    expect(developers.querySelector(":scope > summary [data-disclosure-chevron]")).not.toBeNull();
+    expect(developers.querySelector(":scope > summary")!.textContent).toMatch(/^For developers/);
     await new Promise((r) => setTimeout(r, 50));
     expect(api.getApiKeys).not.toHaveBeenCalled();
     developers.open = true;

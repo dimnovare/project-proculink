@@ -24,6 +24,16 @@ export const metadata = pageMetadata({
 // those entries byte for byte.
 const ENTRIES = [
   {
+    version: "v2.4",
+    date: "17 November 2026",
+    items: [
+      "The phone has four places: Documents, Flows, the round add button and Settings. Your account and Sign out are at the top of Settings.",
+      "Activity is now called History, with two tabs, All and Changes, and a way back to Documents.",
+      "Documents says how many are being read, and points once to everything older.",
+      "A flow's Arrives step starts with your workspace's address. Each flow's own address is one press away.",
+    ],
+  },
+  {
     version: "v2.3",
     date: "16 November 2026",
     items: [
