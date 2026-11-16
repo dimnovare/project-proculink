@@ -3,11 +3,10 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
-import { uploadDocument } from "@/lib/api/documents";
+import { addDocument, uploadDocument } from "@/lib/api/documents";
 import type { DocumentSummary, Flow } from "@/lib/api/documents";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { acceptFor, fileRefusal } from "@/lib/fileKinds";
-import { rememberFlow } from "@/lib/lastFlow";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
 import { canHoldMore, HeldRefusal, heldStore, type HeldStore } from "@/lib/pwa/heldUploads";
 import { isOnline } from "@/lib/pwa/online";
@@ -22,6 +21,8 @@ export interface UploadItem {
   /** Was kept on this device while offline: listed on every screen until it has gone up or is removed. */ wasHeld?: boolean;
 }
 export type UploadFlow = Pick<Flow, "id" | "name" | "scansOn" | "formatsOn">;
+/** The target for "no flow": the workspace inbox. `id: ""` is sent with addDocument (R5). */
+export const INBOX_TARGET = (s: { scansOn?: boolean; formatsOn?: boolean }): UploadFlow => ({ id: "", name: "", scansOn: s.scansOn, formatsOn: s.formatsOn });
 
 /** Refusals every later file would get too: the queue stops sending after one. */
 export const STOP_CODES: ReadonlySet<string> = new Set([...LIMIT_CODES, "processing_paused"]);
@@ -61,7 +62,7 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
   const ownerNow = useRef(owner);
   ownerNow.current = owner;
   const qc = useQueryClient();
-  const upload = useMutation({ mutationFn: ({ flowId, file }: { flowId: string; file: File }) => uploadDocument(flowId, file) });
+  const upload = useMutation({ mutationFn: ({ flowId, file }: { flowId: string; file: File }) => (flowId ? uploadDocument(flowId, file) : addDocument(file)) });
   const [items, setItems] = useState<readonly UploadItem[]>([]);
   // The ref is the truth the chain reads; the state only renders it. Nothing here starts by itself.
   const live = useRef<readonly UploadItem[]>([]);
@@ -200,7 +201,6 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
   };
 
   const add = (files: readonly File[], flow: UploadFlow) => {
-    rememberFlow(flow.id);
     const accept = acceptFor(flow);
     const stop = stopError();
     const added = files.map((file): UploadItem => {

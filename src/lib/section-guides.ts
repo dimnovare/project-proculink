@@ -62,7 +62,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       FILES_WE_READ,
       { title: "Set up your first flow", line: "Tell us what to read and where to send it.", href: SET_UP_FIRST_FLOW },
     ],
-    startHere: "Choose the flow the document is for, then drop the file.",
+    startHere: "Drop in any document. We work out what it is.",
   },
   {
     route: "/flows",

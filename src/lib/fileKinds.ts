@@ -28,6 +28,12 @@ export function kindsLine(flow: { scansOn?: boolean; formatsOn?: boolean }): str
   return `${words.slice(0, -1).join(", ")} or ${words.at(-1)}, up to ${MAX_UPLOAD_BYTES / 1024 / 1024} MB.`;
 }
 
+/** "PDF, Word, Excel, CSV or a photo of paper, up to 10 MB each.": what the workspace reads, by the same switches as `acceptFor`. */
+export function anyDocumentLine(s: { scansOn?: boolean; formatsOn?: boolean }): string {
+  const words = ["PDF", ...(s.formatsOn ? ["Word"] : []), "Excel", "CSV", ...(s.scansOn ? ["a photo of paper"] : [])];
+  return `${words.slice(0, -1).join(", ")} or ${words.at(-1)}, up to ${MAX_UPLOAD_BYTES / 1024 / 1024} MB each.`;
+}
+
 /** An input's accept list: ".pdf,.csv,.xlsx", plus photos when scans are on and the more-formats set when formats are on. */
 export function acceptFor(flow: { scansOn?: boolean; formatsOn?: boolean } | undefined): string {
   return [FILE_KINDS.base, flow?.scansOn ? FILE_KINDS.photos : [], flow?.formatsOn ? FILE_KINDS.more : []].flatMap(dotted).join(",");

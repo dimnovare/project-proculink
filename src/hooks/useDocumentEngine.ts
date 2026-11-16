@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { listDocumentPage, listFlows } from "@/lib/api/documents";
+import { getInbox, listDocumentPage, listFlows } from "@/lib/api/documents";
 import { DOCUMENT_TABS, DOCUMENTS_PAGE_SIZE, NEEDS_YOU_STATUSES, type DocumentTab } from "@/lib/documentTabs";
 import { refusalToken } from "@/lib/documentRefusals";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
@@ -32,6 +32,8 @@ export const documentsPageQuery = (tab: DocumentTab, page: number) => ({
 });
 /** The documents a person reviews in turn: Needs you, first page, newest first (R1). */
 export const reviewQueueQuery = documentsPageQuery("needs-you", 1);
+/** The workspace inbox: its flow, its email address and what the workspace reads. */
+export const inboxQuery = { queryKey: ["inbox"], queryFn: () => getInbox(), staleTime: Infinity } as const;
 
 /** "off" only on the server's explicit refusal; data in hand is "on" even if a later refetch fails;
  *  loading or any other failure with no data is "unknown". */

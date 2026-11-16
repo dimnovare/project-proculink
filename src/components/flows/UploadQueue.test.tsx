@@ -5,12 +5,13 @@ import type { ReactNode } from "react";
 import { ApiHttpError } from "@/lib/api/core";
 import type { DocumentSummary } from "@/lib/api/documents";
 import { refusalToken } from "@/lib/documentRefusals";
-import { readLastFlow } from "@/lib/lastFlow";
 import type { HeldRecord, HeldStore } from "@/lib/pwa/heldUploads";
-import { canRetryUpload, uploadRefusalMessage, UploadQueueProvider, useUploadQueue } from "./UploadQueue";
+import { canRetryUpload, INBOX_TARGET, uploadRefusalMessage, UploadQueueProvider, useUploadQueue } from "./UploadQueue";
 
-const { uploadDocument } = vi.hoisted(() => ({ uploadDocument: vi.fn<(flowId: string, file: File) => Promise<DocumentSummary>>() }));
-vi.mock("@/lib/api/documents", () => ({ uploadDocument }));
+const { uploadDocument, addDocument } = vi.hoisted(() => ({
+  uploadDocument: vi.fn<(flowId: string, file: File) => Promise<DocumentSummary>>(), addDocument: vi.fn<(file: File) => Promise<DocumentSummary>>(),
+}));
+vi.mock("@/lib/api/documents", () => ({ uploadDocument, addDocument }));
 const who = { owner: null as { userId: string; orgId: string } | null };
 
 const FLOW = { id: "f1", name: "Supplier invoices", scansOn: true, formatsOn: false };
@@ -56,6 +57,7 @@ const record = (key: string, f: { userId: string; orgId: string; name?: string }
 let onLine: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   uploadDocument.mockReset();
+  addDocument.mockReset();
   localStorage.clear();
   who.owner = { userId: "u-alex", orgId: "o-1" };
   onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
@@ -82,7 +84,17 @@ describe("upload queue", () => {
     expect(item("a.pdf")).toMatchObject({ state: "done", document: { id: "d-a" } });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["documents"] });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["flows"] });
-    expect(readLastFlow()).toBe("f1");
+  });
+
+  it("a file with no flow goes to the workspace, and a file for a flow still goes to that flow", async () => {
+    addDocument.mockResolvedValue(summary("d-in", "statement-0412.pdf"));
+    uploadDocument.mockResolvedValue(summary("d-f", "invoice-2292.pdf"));
+    const { result } = mount();
+    act(() => { result.current.add([file("statement-0412.pdf")], INBOX_TARGET({})); result.current.add([file("invoice-2292.pdf")], FLOW); });
+    await waitFor(() => expect(result.current.items.every((i) => i.state === "done")).toBe(true));
+    expect(addDocument.mock.calls.map(([f]) => f.name)).toEqual(["statement-0412.pdf"]);
+    expect(uploadDocument.mock.calls.map(([flowId, f]) => [flowId, f.name])).toEqual([["f1", "invoice-2292.pdf"]]);
+    expect(addDocument.mock.invocationCallOrder[0]).toBeLessThan(uploadDocument.mock.invocationCallOrder[0]);
   });
 
   it("after a plan refusal the files still waiting are not sent; a passing problem can be tried again, once", async () => {
