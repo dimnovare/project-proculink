@@ -19,10 +19,12 @@ const looksLikeCode = (t: string) => {
   return /^[\w./\-[\]:?=&#]+$/.test(t) && !/^[A-Z][a-z]+$/.test(t);
 };
 
-/** A module path (`import … from "x"`, `export … from "x"`, `import("x")`, `require("x")`), decided by its parent node. */
+/** A module path (`import … from "x"`, `export … from "x"`, `import("x")`, `require("x")`, the type `import("x").T`),
+ *  decided by its parent node. */
 const isModulePath = (n: ts.Node) => {
   const p = n.parent;
   return ((ts.isImportDeclaration(p) || ts.isExportDeclaration(p)) && p.moduleSpecifier === n)
+    || (ts.isLiteralTypeNode(p) && ts.isImportTypeNode(p.parent))
     || (ts.isCallExpression(p) && p.arguments[0] === n
       && (p.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(p.expression) && p.expression.text === "require")));
 };
@@ -170,13 +172,15 @@ describe("retired words stay retired in what a person reads", () => {
       .filter((t) => RETIRED[3].word.test(t))).toEqual(["Activity", "Activity"]);
     expect(["Open Activity", "Activity records such as delivery attempts are removed", "History"].filter((t) => RETIRED[3].word.test(t))).toEqual(["Open Activity"]);
     for (const f of SHELL) expect(textOf(f).length, `${f} yields person-read text`).toBeGreaterThan(0);
-    expect(personText('import A from "@/components/activity/ActivityPage"; export { b } from "@/lib/activityRows"; const C = dynamic(() => import("@/components/activity/ActivityPage")); const d = require("@/components/activity/x");')).toEqual([]);
+    expect(personText('import A from "@/components/activity/ActivityPage"; export { b } from "@/lib/activityRows"; const C = dynamic(() => import("@/components/activity/ActivityPage")); const d = require("@/components/activity/x"); type T = import("@/components/activity/x").Y;')).toEqual([]);
+    expect(mdxText("Activity is open to everyone.").filter((t) => RETIRED[3].word.test(t))).toEqual(["Activity is open to everyone."]);
     // Anti-vacuity: every folder yields a file, and the corpus yields person-read text to check.
     for (const dir of [...APP_DIRS, HELP]) expect(CORPUS.some((f) => f.startsWith(dir.replace(/\\/g, "/") + "/")), dir).toBe(true);
-    // Measured 2026-11-16: 5,079 person-read strings (the Advanced view read since Task 9; the signed-in pages and the help components since the final review), 759 for the mapper rule (its folder and the files that feed it), and 31 help pages. Raise these floors when the corpus grows; never lower them.
+    // Measured 2026-11-16: 5,079 person-read strings (the Advanced view read since Task 9; the signed-in pages and the help components since the final review), 759 for the mapper rule (its folder and the files that feed it), and 31 help pages. Raise these floors when the corpus grows; never lower them (corrected once on 2026-11-16 when module paths stopped counting: see below).
     // Re-measured 2026-11-16 (plan 16b S11): the old floors counted module paths as read text (664 of 5,161; 34 of 759 for
     // the mapper). Without them: 4,497, and 808 for the mapper with documentRefusals.ts in place of the adapter (S12), so
-    // the floors are 4,300 and 700 (the measure minus 3%, rounded down to a hundred).
+    // the floors are 4,300 and 700 (the measure minus 3%, rounded down to a hundred). Re-measured 2026-11-17 with type-level
+    // `import("x")` paths skipped too: 4,491 (the History tabs went) and 807; the floors stand.
     expect(CORPUS.flatMap(textOf).length).toBeGreaterThanOrEqual(4300);
     expect(MAPPER).toContain("src/components/bridge/mapper/MapperWorkbench.tsx");
     expect([...MAPPER, ...MAPPER_FED].flatMap(textOf).length).toBeGreaterThanOrEqual(700);
