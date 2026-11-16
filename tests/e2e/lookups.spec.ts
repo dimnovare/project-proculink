@@ -1,5 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
-import { MOCK_ENGINE_IDS } from "../../src/lib/api/mockEngine";
+import { MOCK_ENGINE_IDS, mockEngineFetch } from "../../src/lib/api/mockEngine";
+import type { Flow } from "../../src/lib/api/documents";
+import { COPY } from "../../src/lib/documentRefusals";
+import { flowAddress } from "../../src/lib/flowSteps";
 import { preparePage, settle } from "./a11yHarness";
 
 /**
@@ -66,7 +69,9 @@ test.describe("lookups", () => {
     await page.goto("/lookups");
     await expect(page.getByText("Choose a lookup to see its rows.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Import a table" })).toBeVisible();         // the header waits for the engine switch
-    expect((await audit(page)).filled, "one filled button on the list").toEqual(['button "Import a table"']);
+    // Import a table is outlined: the one filled button is the top bar's Upload, outside the content.
+    expect((await audit(page)).filled, "no filled button in the content of the list").toEqual([]);
+    await expect(page.getByRole("link", { name: "Upload a document" })).toBeVisible();
     await page.getByTestId("import-table-input").setInputFiles({
       name: "supplier-codes.csv", mimeType: "text/csv", buffer: Buffer.from("Code,Ours\nKS-100,NT-GASKET-10\nKS-214,NT-VALVE-B\n"),
     });
@@ -88,7 +93,8 @@ test.describe("lookups", () => {
     await expect(page.getByText("Used by Supplier invoices.", { exact: true })).toBeVisible();   // the list's line says it too
     await expect(page.getByText("Rows 1 to 50 of 120")).toBeVisible();
     await expect(page.getByRole("button", { name: "Import a table" })).toBeVisible();
-    expect((await audit(page)).filled, "one filled button on a lookup").toEqual(['button "Import a table"']);
+    expect((await audit(page)).filled, "no filled button in the content of a lookup").toEqual([]);
+    await expect(page.getByRole("link", { name: "Upload a document" })).toBeVisible();
     await page.getByRole("button", { name: "Next" }).click();
     await expect(page.getByText("Rows 51 to 100 of 120")).toBeVisible();
     await page.getByLabel("Search rows").fill("SKU-77");
@@ -105,8 +111,21 @@ test.describe("lookups", () => {
     await expect(page.getByLabel("To value for ITEM-1077")).toHaveValue("SKU-77-NEW");
     await page.getByRole("button", { name: "Delete lookup" }).click();
     await page.getByRole("button", { name: "Delete lookup" }).click();
-    await expect(page.getByText("An output uses this lookup. Remove it from the output first.")).toBeVisible();
+    await expect(page.getByText(COPY.lookup_in_use)).toBeVisible();
     await expect(page).toHaveURL(new RegExp(`/lookups/${MOCK_ENGINE_IDS.lookup}$`));
+  });
+
+  test("a lookup no file uses says how to use it, with a link to each flow's We send step", async ({ page }) => {
+    await preparePage(page, { dismissCookieBanner: true });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/lookups/lookup-4");
+    await expect(page.getByText(
+      "Not used yet. To use it, open a flow, go to We send, open a file, choose More options and pick this lookup for a column.", { exact: true },
+    )).toBeVisible();
+    const flows = await mockEngineFetch<Flow[]>("/flows");
+    const links = page.getByRole("list", { name: "Your flows" }).getByRole("link");
+    await expect(links).toHaveCount(flows.length);
+    for (const f of flows) await expect(links.and(page.getByRole("link", { name: f.name, exact: true }))).toHaveAttribute("href", flowAddress(f.id, "send"));
   });
 
   test("on a phone the list and a lookup are separate screens, Import sits above the tab bar, nothing runs off the side", async ({ page }) => {
@@ -155,7 +174,7 @@ test.describe("lookups", () => {
         expect(seen.overflow, `nothing past the screen or its card on ${path} at ${width}`).toEqual([]);
         expect(seen.short, `stand-alone controls 44px tall on ${path} at ${width}`).toEqual([]);
         expect(seen.small, `no text under 12.5px on ${path} at ${width}`).toEqual([]);
-        expect(seen.filled, `one filled button on ${path} at ${width}`).toEqual(['button "Import a table"']);
+        expect(seen.filled, `Import a table is outlined on ${path} at ${width}`).toEqual([]);
       }
     }
   });
