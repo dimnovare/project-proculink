@@ -268,6 +268,9 @@ outputs.push({
 });
 const intakesOf = (flowId: string) => (flowId === flow1.id ? intakes : []);
 const outputsOf = (flowId: string) => outputs.filter((o) => o.flowId === flowId);
+/** The live setup's copy: out-1 has one column fewer and another title, so We send counts "2 changes not in use yet". */
+const liveCopy = (o: FlowOutput): FlowOutput => o.id !== MOCK_ENGINE_IDS.output ? o
+  : { ...o, layout: { title: "Invoices" }, template: { ...o.template, root: { ...o.template.root, children: o.template.root.children!.slice(0, -1) } } };
 /** What the list carries per flow, derived from the fixtures above, never typed. */
 const flowSummaryOf = (f: Flow): FlowSummary => {
   const rows = ROWS.filter((d) => d.flowId === f.id);
@@ -553,7 +556,7 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   ["DELETE", re`/flows/${S}/intakes/${S}`, () => undefined],
   ["POST", re`/flows/${S}/intakes/${S}/new-address`, () => intakes[0]],
   ["POST", re`/flows/${S}/intakes/${S}/test`, () => TEST_OK],
-  ["GET", re`/flows/${S}/outputs`, (m) => outputsOf(m[1])],
+  ["GET", re`/flows/${S}/outputs`, (m, q) => (q.get("published") === "true" ? outputsOf(m[1]).map(liveCopy) : outputsOf(m[1]))],
   ["POST", re`/flows/${S}/outputs`, (_m, _q, b) => echo(outputs[0], b)],
   ["PUT", re`/flows/${S}/outputs/${S}`, (m, _q, b) => echo(pick(outputs, m[2], "output"), b)],
   ["DELETE", re`/flows/${S}/outputs/${S}`, () => undefined],

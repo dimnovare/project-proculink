@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { FlowDraftProvider } from "./flowDraft";
 import { OutputEditor } from "./OutputEditor";
 
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn() }) }));
 
 const api = vi.hoisted(() => ({
   listDestinations: vi.fn(), listLookups: vi.fn(), updateOutput: vi.fn(), createOutput: vi.fn(), previewOutput: vi.fn(), saveFlowFields: vi.fn(), checkOutput: vi.fn(),
@@ -212,5 +214,45 @@ describe("OutputEditor", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Send a test" })).toBeNull();
+  });
+});
+
+describe("OutputEditor on the flow page (draft)", () => {
+  const renderDraft = (o: unknown) => render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <FlowDraftProvider flowId="f">
+        <OutputEditor mode="draft" flow={flow as never} output={o as never} previewDocumentId="d" onSaved={() => {}} onCancel={() => {}} />
+      </FlowDraftProvider>
+    </QueryClientProvider>,
+  );
+  const withColumnNamed = (name: string) => ({ root: { name: "document", nodeType: "object", children: [
+    { name, nodeType: "field", children: [], rule: { outputPath: name, canonicalField: "supplier", fieldManipulators: [] } },
+  ] } });
+  beforeEach(() => {
+    localStorage.clear();
+    api.previewOutput.mockResolvedValue({ contentType: "text/csv", fileName: "a.csv", content: "Supplier", lookupMisses: [] });
+  });
+
+  it("a column problem opens the columns and is said outside them", async () => {
+    localStorage.setItem("plk:columns-open", "0");
+    renderDraft({ ...output, template: withColumnNamed("") });
+    expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+    expect(await screen.findByText("Give every column a name.")).toBeInTheDocument();
+    expect(screen.getAllByRole("textbox", { name: /^Column name,/ }).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));     // still a problem: stays open
+    expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+  });
+
+  it("a clean file leads with where it goes, the columns closed, even when storage throws", async () => {
+    api.listDestinations.mockResolvedValue([{ id: "D1", name: "Accounting server", protocol: "sftp", config: { host: "sftp.example.test", remotePath: "/in" }, hasCredentials: true }]);
+    const get = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("blocked"); });
+    renderDraft({ ...output, destinationId: "D1" });
+    expect(await screen.findByText("Accounting server")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Change" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("combobox", { name: "Send to" })).toBeNull();
+    const columns = screen.getByRole("button", { name: "Change the columns" });
+    expect(columns).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("textbox", { name: /^Column name,/ })).toBeNull();
+    get.mockRestore();
   });
 });

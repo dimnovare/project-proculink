@@ -24,6 +24,18 @@ function outputLine(o: FlowOutput, destinations: { id: string; name: string }[] 
   return d ? `${type} to ${d.name}` : type;
 }
 
+const COMPARED = ["name", "format", "tableKey", "destinationId", "sendWhen", "layout", "template"] as const;
+/** R3: settings of `draft` that differ from the live file of the same id; "new" when the live setup has no such file;
+ *  null when the live list is not in hand. */
+export function changesNotInUse(draft: FlowOutput, live: readonly FlowOutput[] | undefined): number | "new" | null {
+  if (!live) return null;
+  const was = live.find((o) => o.id === draft.id);
+  if (!was) return "new";
+  return COMPARED.filter((k) => JSON.stringify(draft[k] ?? null) !== JSON.stringify(was[k] ?? null)).length;
+}
+const changesLine = (n: number | "new" | null) =>
+  n === "new" ? "Not in use yet" : !n ? null : n === 1 ? "1 change not in use yet" : `${n} changes not in use yet`;
+
 /** The We send step: the flow's outputs, and the chosen one edited in place as part of the draft. */
 export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow; outputId: string | null; previewDocumentId: string | null }) {
   const qc = useQueryClient();
@@ -35,6 +47,11 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
   const [adding, setAdding] = useState(false);
   const deleting = useRef(false);
   const outputs = useQuery({ queryKey: ["outputs", flow.id], queryFn: () => listOutputs(flow.id), enabled });
+  // The live setup's files, only while there is one with changes: the count is drawn from both lists in hand, never guessed.
+  const live = useQuery({
+    queryKey: ["outputs", flow.id, "published"], queryFn: () => listOutputs(flow.id, { published: true }),
+    enabled: enabled && typeof flow.publishedVersion === "number" && !!flow.hasChanges,
+  });
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled });
   // The same entry the step's latest-read query fills: no second request.
   const source = useQuery({ queryKey: ["document", previewDocumentId], queryFn: () => getDocument(previewDocumentId!), enabled: enabled && !!previewDocumentId });
@@ -75,7 +92,9 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
           <div className="px-4 pt-3"><Quiet>No file yet.</Quiet></div>
         ) : (
           <ul className="m-0 mt-2 list-none p-0">
-            {outputs.data.map((o) => (
+            {outputs.data.map((o) => {
+              const changes = typeof flow.publishedVersion === "number" && flow.hasChanges ? changesLine(changesNotInUse(o, live.isError ? undefined : live.data)) : null;
+              return (
               <li key={o.id} className="border-t border-border-faint">
                 <FlowLink
                   href={flowAddress(flow.id, "send", { output: o.id })} current={!adding && o.id === chosen?.id}
@@ -83,9 +102,11 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
                 >
                   <span className="text-[14px] font-semibold">{o.name}</span>
                   <span className="text-[13px] text-ink-muted">{outputLine(o, destinations.data)}</span>
+                  {changes && <span className="text-[13px] font-semibold text-ink">{changes}</span>}
                 </FlowLink>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
         <div className="p-3">

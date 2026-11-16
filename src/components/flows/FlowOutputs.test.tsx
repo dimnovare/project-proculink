@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Flow } from "@/lib/api/documents";
 import { FlowDraftProvider } from "./flowDraft";
-import { FlowOutputs } from "./FlowOutputs";
+import { changesNotInUse, FlowOutputs } from "./FlowOutputs";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn() }) }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
@@ -33,6 +33,7 @@ const mount = (f: Flow = flow) =>
 const waitingOne = { items: [{ id: "doc-9", fileName: "invoice-0999.pdf", failedAt: null }], totalCount: 1, page: 1, pageSize: 50, sampleCount: 0 };
 
 beforeEach(() => {
+  localStorage.clear();
   vi.useFakeTimers({ shouldAdvanceTime: true });
   api.listOutputs.mockResolvedValue([invoiceCsv]);
   api.listDestinations.mockResolvedValue([{ id: "dest-1", name: "Accounting server", protocol: "sftp", config: { host: "sftp.example.test", directory: "/in" }, hasCredentials: true }]);
@@ -48,6 +49,7 @@ describe("FlowOutputs", () => {
   it("editing an output saves a draft, no Save button", async () => {
     mount();
     const editor = within(await screen.findByRole("region", { name: "Edit the file Invoice CSV" }));
+    fireEvent.click(editor.getByRole("button", { name: "Change the columns" }));
     fireEvent.change(editor.getByRole("textbox", { name: "Column name, Item" }), { target: { value: "Code" } });
     await act(async () => { await vi.advanceTimersByTimeAsync(800); });
     await waitFor(() => expect(api.updateOutput).toHaveBeenCalledTimes(1));
@@ -75,5 +77,22 @@ describe("FlowOutputs", () => {
     expect(await within(region).findByText(/Test file arrived/)).toBeTruthy();
     expect(within(region).queryByRole("button", { name: "Send it now" })).toBeNull();
     expect(api.listDocumentPage).not.toHaveBeenCalled();
+  });
+
+  it("a file that differs from the live one counts its changes, and nothing is counted until both lists are in hand", async () => {
+    const live = { ...invoiceCsv, name: "Invoices", layout: { title: "Old" } };
+    expect(changesNotInUse(invoiceCsv as never, [live as never])).toBe(2);
+    expect(changesNotInUse(invoiceCsv as never, [invoiceCsv as never])).toBe(0);
+    expect(changesNotInUse(invoiceCsv as never, [])).toBe("new");
+    expect(changesNotInUse(invoiceCsv as never, undefined)).toBeNull();
+    // rendered: live list pending → no count line; answered → "2 changes not in use yet" in the row's link
+    let resolveLive!: (l: unknown[]) => void;
+    api.listOutputs.mockImplementation((_id: string, opts?: { published?: boolean }) =>
+      opts?.published ? new Promise((r) => { resolveLive = r; }) : Promise.resolve([invoiceCsv]));
+    mount({ ...flow, publishedVersion: 2, hasChanges: true });
+    const list = await screen.findByRole("list");
+    expect(within(list).queryByText(/not in use yet/i)).toBeNull();
+    await act(async () => { resolveLive([live]); });
+    expect(await within(list).findByText("2 changes not in use yet")).toBeInTheDocument();
   });
 });

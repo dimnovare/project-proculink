@@ -20,6 +20,10 @@ import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { FLAGGED, RULE_SETS, standardName } from "@/lib/standardOutputs";
 import { StandardQuestions } from "@/components/flows/StandardQuestions";
+import { acceptFor, MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
+import { Pencil } from "lucide-react";
+import { FileDrop } from "./FileDrop";
+import { useUploadQueue } from "./UploadQueue";
 
 export const FORMATS = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML", pdf: "PDF", txt: "Text", fixed: "Fixed-width text" };
 /** What an output makes: its standard's name, else its file type. Never decided from `template.format`. */
@@ -31,6 +35,17 @@ const FIXED = "\u0000fixed";
 const NEW_DESTINATION = "\u0000new";
 
 type Lookups = LookupSummary[] | "loading" | "failed";
+/** Whether the column editor was left open, one key for the person, not one per file. */
+const COLUMNS_KEY = "plk:columns-open";
+
+/** No document yet: one is added to this flow right here, through the app's upload queue. */
+function AddDocument({ flow }: { flow: Flow }) {
+  const queue = useUploadQueue();
+  return (
+    <FileDrop accept={acceptFor(flow)} maxBytes={MAX_UPLOAD_BYTES} prompt="Add a document to this flow to see the file and send a test."
+      onFile={(f) => queue.add([f], flow)} />
+  );
+}
 
 /** A row's lookup swap. `of` names the row in the labels, for a list of them away from the row itself. */
 function LookupControls({ row, lookups, of, onChange }: { row: SimpleRow; lookups: Lookups; of?: string; onChange(row: SimpleRow): void }) {
@@ -156,6 +171,11 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
   const [layout, setLayout] = useState<OutputLayout>(output?.layout ?? {});
   const [problem, setProblem] = useState<string | null>(null);
   const [testAt, setTestAt] = useState(0);
+  // Draft only: the rename box, the "Send to" select and the column editor, each folded behind one press.
+  const [renaming, setRenaming] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
+  const [columnsOpen, setColumnsOpen] = useState(() => { try { return localStorage.getItem(COLUMNS_KEY) === "1"; } catch { return false; } });
+  const renameShown = renaming || !name.trim();
   const reasonId = useId();
 
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled });
@@ -205,9 +225,10 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
       : rows;
     return { ...body, template: sent ? fromSimple(sent, format) : current.template };
   };
+  const unnamed = [...(rows?.fields ?? []), ...(rows?.table?.columns ?? [])].some((r) => !r.name.trim());
   const problemNow = !name.trim() ? "Give this file a name."
     : sendWhen && !sendWhen.value.trim() ? COPY.send_when
-    : [...(rows?.fields ?? []), ...(rows?.table?.columns ?? [])].some((r) => !r.name.trim()) ? (draft ? "Give every column a name." : "Give every row a name.")
+    : unnamed ? (draft ? "Give every column a name." : "Give every row a name.")
     : null;
 
   const save = useMutation({
@@ -259,7 +280,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
 
   const nameField = (
     <Field label="Name">
-      <input className={INPUT} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
+      <input className={INPUT} maxLength={120} value={name} onChange={(e) => { setName(e.target.value); setRenaming(true); }} />
     </Field>
   );
   const typeField = standard ? (
@@ -319,6 +340,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
     <Field label="Send to">
       <select className={INPUT} value={newDestination ? NEW_DESTINATION : (destinationId ?? "")}
         onChange={(e) => {
+          setSendOpen(true); // a choice made here stays open until Done, so a keyboard walk through the list is not cut short
           setNewDestination(e.target.value === NEW_DESTINATION);
           if (e.target.value !== NEW_DESTINATION) setDestinationId(e.target.value || null);
         }}>
@@ -333,7 +355,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
     <DestinationForm
       inline={!!draft} testAfterSave={!!draft}
       onCancel={() => setNewDestination(false)}
-      onSaved={(d) => { setDestinationId(d.id); setNewDestination(false); qc.invalidateQueries({ queryKey: ["destinations"] }); }}
+      onSaved={(d) => { setDestinationId(d.id); setNewDestination(false); setSendOpen(false); qc.invalidateQueries({ queryKey: ["destinations"] }); }}
     />
   );
   const sendWhenFields = (
@@ -412,57 +434,60 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
     // "Send it now" resends with the live version, not this draft: it is not offered while the two differ.
     const unpublished = flow.publishedVersion != null && !!flow.hasChanges;
     const sectionTitle = "m-0 text-[14px] font-semibold text-ink";
+    // A destination the list does not name (loading, failed, deleted) is never drawn as chosen: the select stays open.
+    const sendForced = newDestination || (!!destinationId && !destination);
+    const sendShown = sendOpen || sendForced;
+    const columnCount = rows ? rows.fields.length + (rows.table?.columns.length ?? 0) : 0;
+    // A column with a problem is never folded away, whatever was remembered.
+    const columnsShown = columnsOpen || unnamed;
+    const toggleColumns = () => {
+      setColumnsOpen(!columnsShown);
+      try { localStorage.setItem(COLUMNS_KEY, columnsShown ? "0" : "1"); } catch { /* open for this visit only */ }
+    };
     return (
       <div className="grid gap-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="m-0 text-[16px] font-semibold text-ink">{name.trim() || current.name}</h2>
+          <div className="flex min-w-0 items-center gap-1">
+            <h2 className="m-0 min-w-0 break-words text-[16px] font-semibold text-ink">{name.trim() || current.name}</h2>
+            <button
+              type="button" aria-label="Rename this file" aria-expanded={renameShown} onClick={() => setRenaming(!renameShown)}
+              className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-md text-ink-muted hover:bg-surface-2 hover:text-ink"
+            >
+              <Pencil size={18} aria-hidden />
+            </button>
+          </div>
           <DraftState part={draft.part} flow={flow} />
         </div>
-        {nameField}
-        {typeField}
-        {tableField}
+        {renameShown && nameField}
         {externalNote}
-        {rows && (
-          <section className="grid gap-2">
-            <h3 className={sectionTitle}>Columns, in order</h3>
-            <p className="m-0 text-[13px] text-ink-muted">Each column takes its value from one thing we read.</p>
-            <RowList columns fixed={format === "fixed"} rows={rows.fields} options={fieldOptions} lookups={lookupList} onChange={(fields) => setRows({ ...rows, fields })} />
-            {rows.table && (
-              <>
-                <p className="m-0 text-[12.5px] font-medium text-ink-muted">{table?.label ?? "Table"} columns</p>
-                <RowList columns fixed={format === "fixed"} rows={rows.table.columns} options={columnOptions} lookups={lookupList}
-                  onChange={(columns) => setRows({ ...rows, table: { key: rows.table!.key, columns } })} />
-              </>
-            )}
-          </section>
-        )}
-        {problemNotice}
         <section className="grid gap-2">
-          <h3 className={sectionTitle}>What the file looks like</h3>
-          {previewDocumentId ? (
+          {sendShown ? (
             <>
-              <p className="m-0 text-[13px] text-ink-muted">
-                {previewFile ? `Made from ${previewFile}, with your draft changes.` : "Made from the latest document, with your draft changes."}
-              </p>
-              {draftPreview.isError && !draftPreview.data && <StatusNotice tone="error">{documentRefusalMessage(draftPreview.error)}</StatusNotice>}
-              {previewBody}
-              {checkButton && <div>{checkButton}</div>}
-              {checkResult}
+              {sendToField}
+              {destinationsFailed}
+              {destination && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-[13px] text-ink">
+                  <span className="min-w-0 break-words">{destinationWhere(destination)}</span>
+                  <FlowLink href={destinationsAddress(destination.id)} push className="inline-flex items-center font-semibold text-brand-blue">Edit</FlowLink>
+                </div>
+              )}
+              {newDestinationForm}
+              {!sendForced && (
+                <div><Button type="button" variant="secondary" size="sm" aria-expanded onClick={() => setSendOpen(false)}>Done</Button></div>
+              )}
             </>
           ) : (
-            <p className="m-0 text-[13px] text-ink-muted">Add a document to this flow to see the file and send a test.</p>
+            <>
+              <h3 className={sectionTitle}>Send to</h3>
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2">
+                <div className="grid min-w-0 gap-0.5">
+                  <span className="break-words text-[14px] font-semibold text-ink">{destination ? destination.name : "Download only"}</span>
+                  <span className="break-words text-[13px] text-ink-muted">{destination ? destinationWhere(destination) : "Each file waits in Documents, ready to download."}</span>
+                </div>
+                <Button type="button" variant="secondary" size="sm" aria-expanded={false} onClick={() => setSendOpen(true)}>Change</Button>
+              </div>
+            </>
           )}
-        </section>
-        <section className="grid gap-2">
-          {sendToField}
-          {destinationsFailed}
-          {destination && (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-[13px] text-ink">
-              <span className="min-w-0 break-words">{destinationWhere(destination)}</span>
-              <FlowLink href={destinationsAddress(destination.id)} push className="inline-flex items-center font-semibold text-brand-blue">Edit</FlowLink>
-            </div>
-          )}
-          {newDestinationForm}
           {previewDocumentId && (
             <div className="grid gap-2">
               <div className="flex flex-wrap items-center gap-3">
@@ -484,9 +509,50 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
             </div>
           )}
         </section>
+        <section className="grid gap-2">
+          <h3 className={sectionTitle}>What the file looks like</h3>
+          {previewDocumentId ? (
+            <>
+              <p className="m-0 text-[13px] text-ink-muted">
+                {previewFile ? `Made from ${previewFile}, with your changes.` : "Made from the latest document, with your changes."}
+              </p>
+              {draftPreview.isError && !draftPreview.data && <StatusNotice tone="error">{documentRefusalMessage(draftPreview.error)}</StatusNotice>}
+              {previewBody}
+              {checkButton && <div>{checkButton}</div>}
+              {checkResult}
+            </>
+          ) : <AddDocument flow={flow} />}
+        </section>
+        {problemNotice}
+        {rows && (
+          <section className="grid gap-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h3 className={sectionTitle}>Columns ({columnCount})</h3>
+              <p className="m-0 min-w-0 flex-1 text-[13px] text-ink-muted">Each column takes its value from one thing we read.</p>
+              <Button type="button" variant="secondary" size="sm" aria-expanded={columnsShown} onClick={toggleColumns}>
+                {columnsShown ? "Done" : "Change the columns"}
+              </Button>
+            </div>
+            {columnsShown && (
+              <>
+                {tableField}
+                <RowList columns fixed={format === "fixed"} rows={rows.fields} options={fieldOptions} lookups={lookupList} onChange={(fields) => setRows({ ...rows, fields })} />
+                {rows.table && (
+                  <>
+                    <p className="m-0 text-[12.5px] font-medium text-ink-muted">{table?.label ?? "Table"} columns</p>
+                    <RowList columns fixed={format === "fixed"} rows={rows.table.columns} options={columnOptions} lookups={lookupList}
+                      onChange={(columns) => setRows({ ...rows, table: { key: rows.table!.key, columns } })} />
+                  </>
+                )}
+              </>
+            )}
+          </section>
+        )}
         <details className="rounded-md border border-border px-3 py-2">
-          <summary className="flex min-h-11 cursor-pointer items-center text-[14px] font-semibold text-ink">More options: when to send, separator, lookups</summary>
+          <summary className="flex min-h-11 cursor-pointer items-center text-[14px] font-semibold text-ink">More options: file type, when to send, separator, lookups</summary>
           <div className="grid gap-3 pb-2 pt-2">
+            {typeField}
+            {!rows && tableField}
             {sendWhenFields}
             {separatorField}
             {layoutFields}
