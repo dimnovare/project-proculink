@@ -206,6 +206,16 @@ function PickupsCard({ flowId, pickups }: { flowId: string; pickups: FlowIntake[
   );
 }
 
+/** How to add a file by hand, in both layouts: under 768 there is no Upload in the top bar, only the round + at the bottom. */
+const AddFileLine = ({ flowId }: { flowId: string }) => (
+  <p className="m-0 text-[13px] text-ink-muted">
+    <span className="hidden md:inline">
+      Or drop a file on this flow&apos;s <Link href={flowAddress(flowId, "documents")} className="text-brand-blue underline">Documents</Link> page, or press Upload in the top bar.
+    </span>
+    <span className="md:hidden">Or add a file with the + button at the bottom of the screen.</span>
+  </p>
+);
+
 /** The Arrives step: the workspace address when known (this flow's own folded under it), else this flow's email and upload; pickups; the API folded away for developers. Every button here is outlined:
  *  the publish bar under the step holds the one filled button. */
 export function FlowIntakePanel({ flow }: { flow: Flow }) {
@@ -255,9 +265,7 @@ export function FlowIntakePanel({ flow }: { flow: Flow }) {
               <CopyButton text={workspace} label="Copy address" />
             </div>
             <p className="m-0 text-[13px] text-ink-muted">We work out which flow each document belongs to.</p>
-            <p className="m-0 text-[13px] text-ink-muted">
-              Or drop a file on this flow&apos;s <Link href={flowAddress(flow.id, "documents")} className="text-brand-blue underline">Documents</Link> page, or press Upload in the top bar.
-            </p>
+            <AddFileLine flowId={flow.id} />
             <p className="m-0 text-[13px] text-ink-muted">{kindsLine(flow)}</p>
           </div>
         </Card>
@@ -265,7 +273,7 @@ export function FlowIntakePanel({ flow }: { flow: Flow }) {
         <>
           {email && <EmailCard flowId={flow.id} intake={email} />}
           <Card title="Upload" sub="Always on. Nothing to set up.">
-            <p className="m-0 text-[13px] text-ink-muted">Drop a file on this flow&apos;s Documents page, or press Upload in the top bar.</p>
+            <AddFileLine flowId={flow.id} />
             <p className="m-0 mt-1 text-[13px] text-ink-muted">{kindsLine(flow)}</p>
           </Card>
         </>

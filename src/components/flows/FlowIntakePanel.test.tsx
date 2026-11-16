@@ -63,6 +63,10 @@ describe("FlowIntakePanel", () => {
     const { client } = mount();
     const lead = await screen.findByText((_, el) => el?.tagName === "P" && el.textContent === "Send any document to documents@in.example.test");
     expect(within(lead.parentElement!).getByRole("button", { name: "Copy address" })).toBeTruthy();
+    // One line, two widths: jsdom mounts both, Playwright asserts which one shows.
+    const card = within(lead.parentElement!.parentElement!);
+    expect(card.getByText((_, el) => el?.tagName === "SPAN" && el.textContent === "Or drop a file on this flow's Documents page, or press Upload in the top bar.")).toBeTruthy();
+    expect(card.getByText("Or add a file with the + button at the bottom of the screen.")).toBeTruthy();
     const fold = (await screen.findByText("tok123@in.example.test")).closest("details")!;
     expect(fold.hasAttribute("open")).toBe(false);
     expect(fold.querySelector(":scope > summary")!.textContent).toMatch(/^This flow's own address/);
