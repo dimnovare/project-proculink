@@ -4,6 +4,9 @@ import { preparePage, settle } from "./a11yHarness";
 
 const DOCUMENT_URL = `/flows/${MOCK_ENGINE_IDS.flow}/documents/${MOCK_ENGINE_IDS.document}`;
 
+/** The account chip: the menu button with a Clerk session, the static chip without one (the mock shell). */
+const ACCOUNT_CHIP = ':is(button[aria-label^="Account: "], [title="Clerk is not configured"])';
+
 /** The bar itself: one line high, and no item ending past the screen edge. Measures the bar, not the page under it. */
 const barFits = (page: Page) =>
   page.getByTestId("topbar-row").evaluate((row) => ({
@@ -46,7 +49,7 @@ test.describe("app shell", () => {
         const [b, i] = [(await badge.boundingBox())!, (await docsTab.locator("svg").boundingBox())!];
         expect(b.x - i.x, "badge left edge against icon left edge").toBeGreaterThanOrEqual(11);
       }
-      const targets = [...["Documents", "Flows", "Activity"].map((n) => bar.getByRole("link", { name: new RegExp(`^${n}`) })), bar.getByRole("button", { name: "More" })];
+      const targets = [...["Documents", "Flows", "Settings"].map((n) => bar.getByRole("link", { name: new RegExp(`^${n}`) })), bar.getByRole("button", { name: "Add a document" })];
       for (const target of targets) expect((await target.boundingBox())!.height, `tab target height at ${width}`).toBeGreaterThanOrEqual(50);
     }
     await page.goto(DOCUMENT_URL);
@@ -79,24 +82,70 @@ test.describe("app shell", () => {
     }
   });
 
-  test("the top bar has three places, lit from the pages under them, and the phone keeps its five", async ({ page }) => {
+  test("the top bar has three places, lit from the pages under them; Settings' own header has no account chip or Admin", async ({ page }) => {
     await preparePage(page, { dismissCookieBanner: true });
     await page.setViewportSize({ width: 1440, height: 900 });
     const nav = page.getByTestId("topbar-nav");
-    for (const [path, lit] of [["/documents", "Documents"], ["/lookups", "Flows"], ["/operations/log", "Documents"], ["/settings", "Settings"]] as const) {
+    const LIT = [["/documents", "Documents"], ["/lookups", "Flows"], ["/operations/log", "Documents"], ["/settings", "Settings"],
+      [DOCUMENT_URL, "Documents"], ["/archive", "Documents"]] as const;
+    for (const [path, lit] of LIT) {
       await page.goto(path);
       await settle(page);
       await expect(nav.getByRole("link"), `the places on ${path}`).toHaveText(["Documents", "Flows", "Settings"]);
       await expect(nav.locator('[aria-current="page"]'), `one place lit on ${path}`).toHaveCount(1);
       await expect(nav.getByRole("link", { name: lit, exact: true }), `${lit} lit on ${path}`).toHaveAttribute("aria-current", "page");
+      if (path === "/settings") {
+        // The top bar holds the account chip and Admin from 768 up; the page header's own copies are for phones.
+        await expect(page.locator(ACCOUNT_CHIP).locator("visible=true"), "one account chip on the page").toHaveCount(1);
+        await expect(page.locator(`#main-content ${ACCOUNT_CHIP}`)).toBeHidden();
+        await expect(page.getByRole("link", { name: "Admin" }).locator("visible=true"), "one Admin control on the page").toHaveCount(1);
+        await expect(page.locator("#main-content").getByRole("link", { name: "Admin" })).toBeHidden();
+      }
     }
+  });
+
+  test("the phone keeps its four, and reaches every place the old More held", async ({ page }) => {
+    await preparePage(page, { dismissCookieBanner: true });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/documents");
     await settle(page);
     const bar = page.getByTestId("tab-bar");
-    await expect(bar.locator(":scope > a, :scope > button")).toHaveCount(5);
-    for (const name of [/^Documents/, /^Flows$/, /^Add a document$/, /^Activity$/, /^More$/])
+    await expect(bar.locator(":scope > a, :scope > button")).toHaveCount(4);
+    for (const name of [/^Documents/, /^Flows$/, /^Add a document$/, /^Settings$/])
       await expect(bar.getByRole("link", { name }).or(bar.getByRole("button", { name })), `${name.source} on the tab bar`).toBeVisible();
+    await expect(bar.getByRole("button", { name: "More" }).or(bar.getByRole("link", { name: "More" }))).toHaveCount(0);
+    // Workspace switcher: the top bar's workspace name.
+    await expect(page.getByTestId("topbar-row").getByTestId("workspace-name")).toBeVisible();
+    // History: the Documents footer link.
+    await page.locator("#main-content").getByRole("link", { name: "History", exact: true }).click();
+    await expect(page).toHaveURL(/\/operations\/log$/);
+    // Lookups and History: Search.
+    for (const [action, url] of [["Open Lookups", /\/lookups$/], ["Open History", /\/operations\/log$/]] as const) {
+      await page.goto("/documents");
+      await settle(page);
+      await page.getByRole("button", { name: "Search", exact: true }).click();
+      // An empty search lists the first three actions; typing the place's name finds its action.
+      const dialog = page.getByRole("dialog", { name: "Search documents, flows, lookups and actions" });
+      await dialog.getByRole("combobox", { name: "Search" }).fill(action.slice(5));
+      await dialog.getByRole("option", { name: action, exact: true }).click();
+      await expect(page, action).toHaveURL(url);
+    }
+    // Help: the top bar's Help button opens the help panel.
+    await page.getByRole("button", { name: "Help", exact: true }).click();
+    await expect(page.locator("#help-panel")).toBeVisible();
+    await page.getByRole("button", { name: "Close help" }).click();
+    // Account menu and Admin (the mock user is staff): the Settings page header.
+    await page.goto("/settings");
+    await settle(page);
+    await expect(page.locator(`#main-content ${ACCOUNT_CHIP}`)).toBeVisible();
+    await expect(page.locator("#main-content").getByRole("link", { name: "Admin" })).toHaveAttribute("href", "/admin");
+    // The tab bar lights the place each page belongs to.
+    for (const [path, lit] of [["/lookups", "Flows"], ["/operations/log", "Documents"], ["/archive", "Documents"], ["/settings", "Settings"]] as const) {
+      await page.goto(path);
+      await settle(page);
+      await expect(bar.locator('[aria-current="page"]'), `one place lit on ${path}`).toHaveCount(1);
+      await expect(bar.getByRole("link", { name: new RegExp(`^${lit}`) }), `${lit} lit on ${path}`).toHaveAttribute("aria-current", "page");
+    }
   });
 
   test("each width offers exactly one way to move between pages", async ({ page }) => {

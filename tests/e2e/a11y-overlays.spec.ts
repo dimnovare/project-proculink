@@ -166,10 +166,9 @@ test.describe("axe-core — overlays in their open state", { tag: "@a11y" }, () 
   /**
    * The app-shell navigation panel (`src/app/(app)/layout.tsx`, rendering
    * `BridgeSidebar` full-width). It is `lg:hidden`, so it needs a narrow viewport;
-   * on a phone the tab bar's "More" button opens it, on a tablet the top bar's menu button.
+   * the top bar's menu button opens it on a tablet. A phone has no opener: its tab bar holds the four places.
    */
   const OPENERS = [
-    { name: "phone", viewport: { width: 390, height: 844 }, opener: "More" },
     { name: "tablet", viewport: { width: 820, height: 1180 }, opener: "Open navigation" },
   ] as const;
   for (const o of OPENERS) {
@@ -185,7 +184,6 @@ test.describe("axe-core — overlays in their open state", { tag: "@a11y" }, () 
         await page.waitForTimeout(400);
         await scanOpenOverlay(page, panel, '[role="dialog"][aria-label="Navigation"]', `navigation-panel-${o.name}`, testInfo);
         await expect(panel.getByRole("link", { name: "Lookups" })).toBeVisible();
-        if (o.name === "phone") await expect(panel.getByRole("link", { name: /^Documents/ })).toBeHidden();
         if (o.name === "tablet") await expect(panel.getByRole("link", { name: /^Documents/ })).toBeVisible();
         await page.keyboard.press("Escape");
         await expect(panel).toHaveCount(0);

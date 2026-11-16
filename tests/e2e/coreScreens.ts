@@ -78,7 +78,7 @@ export const CORE_SCREENS: readonly CoreScreen[] = [
     pattern: "/documents",
     path: "/documents",
     auth: "app",
-    why: "Journey step: what needs you. The operator's home, with Needs you / In progress / Sent / Failed tabs.",
+    why: "Journey step: what needs you. The operator's home, with Needs you / Sent / Couldn't send or read / All tabs.",
   },
   {
     id: "document",
@@ -122,7 +122,7 @@ export const CORE_SCREENS: readonly CoreScreen[] = [
   },
   {
     id: "delivery-log",
-    label: "Activity",
+    label: "History",
     pattern: "/operations/log",
     path: "/operations/log",
     auth: "app",

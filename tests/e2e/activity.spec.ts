@@ -9,7 +9,7 @@ const box = async (l: Locator) => (await l.boundingBox())!;
 const rows = (page: Page) => page.getByTestId("activity-row");
 const tab = (page: Page, name: string) => page.getByRole("tab", { name, exact: true });
 const failedRow = (page: Page) => rows(page).filter({ hasText: "invoice-1004.csv couldn't be sent to Accounting inbox" });
-const pager = (page: Page) => page.getByRole("navigation", { name: "Activity pages" });
+const pager = (page: Page) => page.getByRole("navigation", { name: "History pages" });
 
 /** Records, on every DOM change, how many rows are on screen while the named tab is selected. */
 const watchRows = (page: Page, tabName: string) => page.evaluate((name) => {
@@ -22,31 +22,37 @@ const watchRows = (page: Page, tabName: string) => page.evaluate((name) => {
 }, tabName);
 const rowsSeen = (page: Page) => page.evaluate(() => (window as unknown as { __rowsSeen: number[] }).__rowsSeen);
 
-test.describe("activity", () => {
+test.describe("history", () => {
   test.describe.configure({ timeout: 180_000 });
 
   test("desktop: tabs, the open failed row, Send again, paging", async ({ page }) => {
     await preparePage(page, { dismissCookieBanner: true, freezeClock: true });
     await page.setViewportSize({ width: 1440, height: 1100 });
     await page.goto("/operations/log");
-    await expect(page.getByRole("heading", { level: 1, name: "Activity" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "History" })).toBeVisible();
+    await expect(page).toHaveTitle("History — ProcuLink");
     await expect(page.getByRole("heading", { name: "Today, 1 June" })).toBeVisible();
+    await expect(page.getByRole("tablist", { name: "Show" }).getByRole("tab")).toHaveText(["All", "Changes"]);
     await expect(tab(page, "All")).toHaveAttribute("aria-selected", "true");
     await expect(pager(page)).toContainText("Showing the newest 50 of 61.");
     await expect(pager(page).getByRole("link", { name: "Newer" })).toHaveCount(0);
 
     // A new tab never shows the rows of the one before, even for a moment.
-    await watchRows(page, "Couldn't send");
-    await tab(page, "Couldn't send").click();
-    await expect(page).toHaveURL(/\/operations\/log\?show=failed$/);
-    await expect(rows(page)).toHaveCount(1);
+    await watchRows(page, "Changes");
+    await tab(page, "Changes").click();
+    await expect(page).toHaveURL(/\/operations\/log\?show=changes$/);
+    await expect(pager(page)).toContainText(/Showing all \d+\./);
+    const changes = await rows(page).count();
+    expect(changes, "rows under Changes").toBeLessThan(50);
     const seen = await rowsSeen(page);
-    expect(seen.length, "DOM changes watched under Couldn't send").toBeGreaterThan(0);
-    expect(Math.max(...seen), "rows seen under Couldn't send").toBeLessThanOrEqual(1);
+    expect(seen.length, "DOM changes watched under Changes").toBeGreaterThan(0);
+    expect(Math.max(...seen), "rows seen under Changes").toBeLessThanOrEqual(changes);
+
+    // The old Couldn't send address reads as All, and the failed row is there.
+    await page.goto("/operations/log?show=failed");
+    await expect(tab(page, "All")).toHaveAttribute("aria-selected", "true");
     const row = failedRow(page);
     await expect(row).toHaveCount(1);
-    await expect(pager(page)).toContainText("Showing all 1.");
-    await expect(pager(page).getByRole("link")).toHaveCount(0);
 
     // The open failed row says in words where the send stopped, and offers one filled way on.
     await row.getByRole("button", { name: "Show details" }).click();
@@ -70,19 +76,25 @@ test.describe("activity", () => {
     await expect(page.getByText(/could not be found|404/i)).toHaveCount(0);
     await page.goBack();
     await expect(page).toHaveURL(/\/operations\/log\?show=failed$/);
-    await expect(tab(page, "Couldn't send")).toHaveAttribute("aria-selected", "true");
+    await expect(tab(page, "All")).toHaveAttribute("aria-selected", "true");
     await failedRow(page).getByRole("button", { name: "Show details" }).click();
     await failedRow(page).getByRole("link", { name: "Open document" }).click();
     await expect(page).toHaveURL(new RegExp(`/flows/${MOCK_ENGINE_IDS.setupFlow}/documents/doc-4$`));
     await expect(page.getByText("invoice-1004.csv").first()).toBeVisible();
     await expect(page.getByText(/could not be found|404/i)).toHaveCount(0);
     await page.goBack();
-    await expect(tab(page, "Couldn't send")).toHaveAttribute("aria-selected", "true");
+    await expect(tab(page, "All")).toHaveAttribute("aria-selected", "true");
 
     // The filter survives a reload.
+    await page.goto("/operations/log?show=changes");
     await page.reload();
-    await expect(tab(page, "Couldn't send")).toHaveAttribute("aria-selected", "true");
-    await expect(rows(page)).toHaveCount(1);
+    await expect(tab(page, "Changes")).toHaveAttribute("aria-selected", "true");
+    await expect(rows(page)).toHaveCount(changes);
+
+    // The way back: Documents, at the top of the page.
+    await page.getByRole("link", { name: "Back to Documents" }).click();
+    await expect(page).toHaveURL(/\/documents$/);
+    await page.goBack();
 
     // Paging: Older and Newer are links in the address, absent at either end.
     await tab(page, "All").click();
@@ -111,20 +123,20 @@ test.describe("activity", () => {
 
     // A search looks at documents only: the flow version put in use is not among its rows.
     await expect(rows(page).filter({ hasText: "was put in use" }).first(), "the row the search must leave out is there before it").toBeVisible();
-    await page.getByRole("searchbox", { name: "Search activity" }).fill("invoice-1003");
+    await page.getByRole("searchbox", { name: "Search history" }).fill("invoice-1003");
     await expect(rows(page).first()).toContainText("invoice-1003");
     await expect(pager(page)).toContainText(/Showing all \d+\./);
     await expect(rows(page).filter({ hasText: "was put in use" })).toHaveCount(0);
 
     // Export hands over a CSV of the tab, and a second press while it runs does nothing.
-    await page.getByRole("searchbox", { name: "Search activity" }).fill("");
+    await page.getByRole("searchbox", { name: "Search history" }).fill("");
     await expect(pager(page)).toContainText("Showing the newest 50 of 61.");
     const downloads: import("@playwright/test").Download[] = [];
     page.on("download", (d) => downloads.push(d));
     const first = page.waitForEvent("download");
     await page.getByRole("button", { name: "Export" }).dblclick();
     const file = await first;
-    expect(file.suggestedFilename()).toBe("activity-2026-06-01.csv");
+    expect(file.suggestedFilename()).toBe("history-2026-06-01.csv");
     const text = await (await file.createReadStream()).toArray().then((c) => Buffer.concat(c).toString("utf8"));
     expect(text.split(/\r?\n/)[0]).toBe('"Date","Time","What happened","Flow","Who","Result","Details"');
     expect(text.split(/\r?\n/).filter(Boolean)).toHaveLength(62);
@@ -186,8 +198,8 @@ test.describe("activity", () => {
       const detail = row.getByTestId("activity-detail");
       const controls = [
         row.getByRole("button", { name: "Hide details" }),
-        ...["All", "Sent", "Couldn't send", "Changes"].map((n) => tab(page, n)),
-        page.getByRole("searchbox", { name: "Search activity" }),
+        ...["All", "Changes"].map((n) => tab(page, n)),
+        page.getByRole("searchbox", { name: "Search history" }),
         page.getByRole("button", { name: "Export" }),
         detail.getByRole("link", { name: "Fix the destination" }),
         detail.getByRole("button", { name: "Send again" }),
@@ -196,7 +208,7 @@ test.describe("activity", () => {
       ];
       for (const c of controls) expect((await box(c)).height, `${c} at ${width}`).toBeGreaterThanOrEqual(44);
       // 16px, so a phone does not zoom the page when the field takes focus.
-      expect(await page.getByRole("searchbox", { name: "Search activity" }).evaluate((el) => getComputedStyle(el).fontSize)).toBe("16px");
+      expect(await page.getByRole("searchbox", { name: "Search history" }).evaluate((el) => getComputedStyle(el).fontSize)).toBe("16px");
 
       // No visible text under 12.5px.
       const small = await page.evaluate(() => [...document.querySelectorAll("main *")]
@@ -219,14 +231,13 @@ test.describe("activity", () => {
       expect(last.y + last.height, `the last row's bottom at ${width}`).toBeLessThanOrEqual(Math.min(tabBar.y, add.y));
     }
 
-    // Opened on the last filter, the selected tab is inside its strip. The four tabs fit at 360, so 320 is
-    // measured too: there the strip scrolls, and only intoStrip brings "Changes" in.
+    // Opened on the last filter, the selected tab is inside its strip. The two tabs fit even at 320: the strip does not scroll.
     for (const width of [360, 320]) {
       await page.setViewportSize({ width, height: 844 });
       await page.goto("/operations/log?show=changes");
       await settle(page);
       const strip = page.getByRole("tablist", { name: "Show" });
-      if (width === 320) expect(await strip.evaluate((el) => el.scrollWidth - el.clientWidth), "the strip scrolls at 320").toBeGreaterThan(0);
+      expect(await strip.evaluate((el) => el.scrollWidth - el.clientWidth), `the strip fits at ${width}`).toBeLessThanOrEqual(0);
       await expect.poll(async () => {
         const [t, s] = [await box(page.getByRole("tab", { selected: true })), await box(strip)];
         return Math.max(s.x - t.x, t.x + t.width - (s.x + s.width));
