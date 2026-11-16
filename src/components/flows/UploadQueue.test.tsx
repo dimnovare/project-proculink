@@ -71,7 +71,7 @@ describe("upload queue", () => {
     act(() => result.current.add([file("a.pdf"), file("notes.zip"), file("big.pdf", 10 * 1024 * 1024 + 1), file("b.csv")], FLOW));
     const item = (name: string) => result.current.items.find((i) => i.file.name === name)!;
     expect(result.current.items.map((i) => i.file.name)).toEqual(["b.csv", "big.pdf", "notes.zip", "a.pdf"]);
-    expect(uploadRefusalMessage(item("notes.zip").error)).toBe("This file type can't be read in this flow.");
+    expect(uploadRefusalMessage(item("notes.zip").error)).toBe("This file type can't be read.");
     expect(uploadRefusalMessage(item("big.pdf").error)).toBe("This file is too large.");
     await waitFor(() => expect(item("a.pdf").state).toBe("uploading"));
     expect(item("b.csv").state).toBe("waiting");

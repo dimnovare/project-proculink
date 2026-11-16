@@ -6,7 +6,7 @@ const GENERIC = "Something went wrong. Try again.";
 
 export const COPY: Record<string, string> = {
   document_engine_not_enabled: "Flows aren't switched on for this workspace yet.",
-  unsupported_format: "This file type can't be read in this flow.",
+  unsupported_format: "This file type can't be read.",
   file_too_large: "This file is too large.",
   unreadable_file: "This file couldn't be opened. It may be password-protected or damaged.",
   fields_unconfirmed: "Confirm this flow's fields first.",
@@ -74,6 +74,12 @@ export const COPY: Record<string, string> = {
   account_not_found: "That Google account is no longer connected.",
   invalid_origin: "Connect from the ProcuLink app address.",
   google_unavailable: "Google didn't answer. Try again in a minute.",
+  not_movable: "This document can't be moved right now. Reload to see its latest state.",
+  not_in_inbox: "This document has already been put with a flow. Reload to see where.",
+  not_read: "We haven't finished reading this document yet.",
+  invalid_format: "Choose Excel or CSV.",
+  not_in_flow: "Put this document with a flow first, then teach it.",
+  invalid_fields: "We couldn't set up a flow from what we read. Move it to a flow you have, or download it.",
 };
 
 /** Reasons a read can never succeed on a retry (`ReadDocumentJob`). A scan that failed before scans were switched on can be read now. */

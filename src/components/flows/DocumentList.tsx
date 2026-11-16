@@ -6,7 +6,7 @@ import { useIsMutating, useMutation, useQueryClient, type UseMutationResult } fr
 import { StatusJourney } from "@/components/bridge/StatusJourney";
 import { Button, Pill, buttonClass } from "@/components/bridge/DSPrimitives";
 import { relativeTime } from "@/lib/relativeTime";
-import { documentStatus, WHOLE_DOCUMENT_CHECKS, type DocumentStatusRow } from "@/lib/documentStatusManifest";
+import { DOCUMENT_STATUSES, documentStatus, WHOLE_DOCUMENT_CHECKS, type DocumentStatusRow } from "@/lib/documentStatusManifest";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { sendDocument, type DocumentRow, type DocumentSummary } from "@/lib/api/documents";
 import { BULK_SEND_KEY } from "./SelectionBar";
@@ -29,13 +29,14 @@ const WHOLE: readonly string[] = WHOLE_DOCUMENT_CHECKS;
 /** What a row asks of a person, in a few words, and its colour. */
 export function rowNeed(d: ListedDocument): { text: string; tone: Tone } {
   if (d.statusReason === "duplicate_file") return { text: "Already uploaded to this flow", tone: "amber" };
+  const s = documentStatus(d.status, d.statusReason);
+  if (s.label !== DOCUMENT_STATUSES[d.status]?.label) return { text: s.label, tone: STATUS_TONE[s.tone] };
   if (d.status === "ready") return { text: "Ready to send", tone: "green" };
   if (d.status === "needs_review" && d.checks) {
     if (d.checks.includes("duplicate")) return { text: "Same number as an earlier document", tone: "amber" };
     const values = d.failedChecks - d.checks.filter((c) => WHOLE.includes(c)).length;
     if (values >= 1) return { text: values === 1 ? "1 value to check" : `${values} values to check`, tone: "amber" };
   }
-  const s = documentStatus(d.status, d.statusReason);
   return { text: s.label, tone: STATUS_TONE[s.tone] };
 }
 
