@@ -229,11 +229,15 @@ test.describe("settings", () => {
     expect(await kept(second.raw)).toBe(false);
     await tabs(page).getByRole("button", { name: "Destinations" }).click();
     await tabs(page).getByRole("button", { name: "Workspace" }).click();
-    await page.getByText("For developers", { exact: true }).click();
+    await expect(page).toHaveURL(/\/settings\?tab=org$/);
+    // For developers stays as it was left (open), and the list is asked for again.
+    await expect(page.locator("details").filter({ has: page.locator("summary", { hasText: "For developers" }) })).toHaveAttribute("open", "");
     await expect(page.getByTestId("api-keys-table")).toContainText("Warehouse system");
     expect(await kept(first.raw) || await kept(second.raw)).toBe(false);
 
     await page.reload();
+    // Reloaded on tab=org, For developers opens closed: opened, the keys list again, without the raw key.
+    await page.locator("summary", { hasText: "For developers" }).click();
     await expect(page.getByRole("button", { name: "Create key" })).toBeVisible();
     expect(await kept(first.raw) || await kept(second.raw)).toBe(false);
   });
