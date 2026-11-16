@@ -204,7 +204,7 @@ export const GUIDES: Guide[] = [
     slug: "send-to-a-destination",
     href: "/help/guides/send-to-a-destination",
     title: "Send outputs to a destination",
-    blurb: "Send a flow's output by email, to a web address, to an SFTP or FTPS server, or as a download.",
+    blurb: "Send a flow's output by email, to a web address, to an SFTP or FTPS server, to an S3 bucket, to Google Drive or Google Sheets, or as a download.",
     section: "Outputs and destinations",
     audience: "client",
     status: "live",
@@ -285,6 +285,19 @@ export function guidesInSection(section: GuideSection): Guide[] {
 /** Public guides only — what the marketing help center and the sitemap may list. */
 export function publicGuides(): Guide[] {
   return GUIDES.filter((g) => g.audience === "client");
+}
+
+/** The help home's "Start here": one document from upload to a sent file, in order. */
+export const START_HERE: readonly string[] = ["set-up-your-first-flow", "check-and-send-a-document", "send-to-a-destination"];
+
+/** Live public guides, in registry order: what the help home lists and searches. */
+export function liveClientGuides(): Guide[] {
+  return publicGuides().filter((g) => g.status === "live");
+}
+
+/** The live guides that name this article as their reference. */
+export function guidesForArticle(slug: string): Guide[] {
+  return liveClientGuides().filter((g) => g.related?.includes(slug));
 }
 
 /**

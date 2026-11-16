@@ -5,7 +5,6 @@ import { RETIRED_ROUTES } from "@/lib/retired-routes";
 import { publicGuides } from "@/lib/guides";
 import { extractLinks, syntaxFor } from "@/test/linkExtract";
 import {
-  CATEGORY_META,
   CATEGORY_ORDER,
   HELP_ARTICLES,
   POPULAR_ARTICLE_SLUGS,
@@ -24,10 +23,12 @@ describe("HELP_ARTICLES registry shape", () => {
     expect(getArticleBySlug("delivery-config")).toBeUndefined();
   });
 
-  it("every article has a category with meta, a positive readMin, and keywords", () => {
+  it("every article has a category, a positive readMin, and keywords", () => {
     for (const a of HELP_ARTICLES) {
       expect(CATEGORY_ORDER, `category of ${a.slug}`).toContain(a.category);
-      expect(CATEGORY_META[a.category], `meta for ${a.category}`).toBeDefined();
+      // The article page prints this title and hides the body's own `# Title`; the in-app panel shows the body's.
+      const mdx = readFileSync(join(process.cwd(), "src", "app", "(marketing)", "help", a.slug, "page.mdx"), "utf8");
+      expect(mdx, `h1 of ${a.slug}`).toMatch(new RegExp(`^# ${a.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\r?$`, "m"));
       expect(a.readMin, `readMin of ${a.slug}`).toBeGreaterThan(0);
       expect(a.keywords.length, `keywords of ${a.slug}`).toBeGreaterThan(0);
       for (const k of a.keywords) {
@@ -46,10 +47,6 @@ describe("HELP_ARTICLES registry shape", () => {
         `${HELP_ARTICLES[i].slug} is out of learning-path order`,
       ).toBeGreaterThanOrEqual(indices[i - 1]);
     }
-  });
-
-  it("Account soft tint does not duplicate Getting started", () => {
-    expect(CATEGORY_META.Account.soft).not.toBe(CATEGORY_META["Getting started"].soft);
   });
 });
 

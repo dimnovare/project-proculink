@@ -1,5 +1,6 @@
 import Fuse from "fuse.js";
 import { HELP_ARTICLES, type HelpArticle } from "./help-articles";
+import { liveClientGuides } from "./guides";
 
 /**
  * Shared help-article search index — used by BOTH the /help center page and
@@ -23,12 +24,37 @@ export function buildHelpFuse(
   });
 }
 
-/** Search the shared index, capped (slideover shows at most 6 results). */
-export function searchHelpArticles(
-  fuse: Fuse<HelpArticle>,
-  query: string,
-  max = 6,
-): HelpArticle[] {
+/** One row of the help home's search: an article or a live public guide. */
+export interface HelpHit {
+  kind: "article" | "guide";
+  title: string;
+  blurb: string;
+  href: string;
+  minutes?: number;
+  keywords: string[];
+}
+
+/** An article as a row of the help home. */
+export const articleHit = (a: HelpArticle): HelpHit => ({ kind: "article", title: a.title, blurb: a.blurb, href: `/help/${a.slug}`, minutes: a.readMin, keywords: a.keywords });
+
+/** The help home's index: articles and live public guides together. The panel keeps its article index. */
+export function buildSiteHelpFuse(): Fuse<HelpHit> {
+  const hits: HelpHit[] = [
+    ...HELP_ARTICLES.map(articleHit),
+    ...liveClientGuides().map((g): HelpHit => ({ kind: "guide", title: g.title, blurb: g.blurb, href: g.href, minutes: g.minutes, keywords: [] })),
+  ];
+  return new Fuse(hits, {
+    keys: [
+      { name: "title", weight: 0.5 },
+      { name: "blurb", weight: 0.35 },
+      { name: "keywords", weight: 0.15 },
+    ],
+    threshold: 0.4,
+  });
+}
+
+/** Search a shared index, capped (slideover shows at most 6 results). */
+export function searchHelpArticles<T>(fuse: Fuse<T>, query: string, max = 6): T[] {
   const q = query.trim();
   if (!q) return [];
   return fuse

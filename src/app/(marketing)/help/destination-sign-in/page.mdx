@@ -30,13 +30,13 @@ Do not put a login in the web address itself, and do not add it as an extra head
 
 ## SFTP
 
-Sign in with a **username** and a **password**, or with a **private key** instead. Paste the whole key into the **Private key** box, including the `BEGIN` and `END` lines. Add the **Key passphrase** if the key has one. When you give a key, the password is not used.
+Sign in with a **username** and a **password**, or with a private key instead. Under **More options**, paste the whole key into the **Private key (instead of password)** box, including the `BEGIN` and `END` lines. Add the **Key passphrase (optional)** if the key has one. When you give a key, the password is not used.
 
 The first time we connect, we learn the server's host key and save it. From then on we only connect to a server that shows the same key. If the key changes, we refuse to connect and say so, because that can mean you are talking to a different server. If the change is expected, ask your server's owner to confirm it, then contact us: the saved key cannot be cleared from the screen.
 
 ## FTPS
 
-Sign in with a **username** and **password**. The connection uses explicit TLS, and we check the server's certificate. If the server uses a self-signed or expired certificate, you can tick **Accept an untrusted certificate**. Use that only for a server you trust, because it lets us talk to a server we cannot verify.
+Sign in with a **username** and **password**. The connection uses explicit TLS, and we check the server's certificate. If the server uses a self-signed or expired certificate, you can tick **Accept an untrusted certificate** under **More options**. Use that only for a server you trust, because it lets us talk to a server we cannot verify.
 
 ## Email
 

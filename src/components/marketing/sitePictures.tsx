@@ -65,8 +65,8 @@ export function Ticks({ items, label, className = "" }: { items: readonly string
   );
 }
 
-export function Tag({ tone, children, className = "" }: { tone: "need" | "ok" | "in"; children: React.ReactNode; className?: string }) {
-  const colour = { need: "bg-amber-soft text-amber-text", ok: "bg-brand-green-soft text-brand-green-deep", in: "bg-brand-blue-soft text-brand-blue-deep" }[tone];
+export function Tag({ tone, children, className = "" }: { tone: "need" | "ok" | "in" | "bad"; children: React.ReactNode; className?: string }) {
+  const colour = { need: "bg-amber-soft text-amber-text", ok: "bg-brand-green-soft text-brand-green-deep", in: "bg-brand-blue-soft text-brand-blue-deep", bad: "bg-danger-soft text-danger" }[tone];
   return (
     <span className={`inline-flex h-[26px] items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-[13px] font-semibold ${colour} ${className}`}>
       {children}

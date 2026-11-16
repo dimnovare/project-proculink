@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { pageMetadata } from "@/lib/seo";
 import { GuideIndex } from "@/components/help/guide/GuideIndex";
+import { SITE } from "@/components/marketing/sitePictures";
+import { SITE_PAGE } from "@/components/marketing/LegalPage";
 
 export const metadata = pageMetadata({
   path: "/help/guides",
@@ -13,71 +15,43 @@ export const metadata = pageMetadata({
 
 export default function GuidesIndexPage() {
   return (
-    <div className="mx-auto px-5 pb-24 pt-10 sm:px-6 sm:pt-14" style={{ maxWidth: 860 }}>
-      <Link
-        href="/help"
-        className="mb-6 inline-flex h-9 items-center gap-2 rounded-[7px] px-3 text-[13px] font-semibold"
-        style={{
-          border: "1px solid var(--border)",
-          background: "var(--surface)",
-          color: "var(--ink)",
-          textDecoration: "none",
-          boxShadow: "var(--shadow-card)",
-        }}
-      >
-        <span aria-hidden>←</span>
-        Help center
-      </Link>
+    <div className={SITE_PAGE}>
+      <div className={`${SITE.wrap} pb-24 pt-10 sm:pt-14`}>
+        <div className="max-w-[920px]">
+          <nav aria-label="Breadcrumb" className="text-[15px] text-ink-muted">
+            <ol className="m-0 flex list-none flex-wrap items-center gap-x-2 p-0">
+              <li>
+                <Link href="/help" className="inline-flex min-h-[44px] items-center text-brand-blue-deep underline underline-offset-4">
+                  Help centre
+                </Link>
+              </li>
+              <li aria-hidden="true">/</li>
+              <li aria-current="page" className="text-ink">
+                Step-by-step guides
+              </li>
+            </ol>
+          </nav>
 
-      <header>
-        <span
-          className="inline-flex items-center rounded-full px-3 py-1 text-[11.5px] font-semibold uppercase"
-          style={{
-            color: "var(--brand-blue-deep)",
-            background: "var(--brand-blue-soft)",
-            letterSpacing: "0.05em",
-          }}
-        >
-          Guides
-        </span>
-        <h1
-          className="mt-3.5"
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "clamp(28px, 4.5vw, 36px)",
-            fontWeight: 700,
-            letterSpacing: "-0.025em",
-            lineHeight: 1.15,
-            color: "var(--ink)",
-            margin: "14px 0 0",
-          }}
-        >
-          Set-up guides
-        </h1>
-        <p className="mt-2.5 text-[15px]" style={{ color: "var(--ink-muted)", lineHeight: 1.65 }}>
-          One task per guide, in numbered steps, with what to do when a step does not work. The
-          help articles stay the reference — a guide is the procedure. Each section shows how many
-          of its guides are written; anything still to come says so rather than linking nowhere.
-        </p>
-        <div
-          aria-hidden="true"
-          className="mt-5 h-0.5 w-full"
-          style={{ background: "var(--gradient-link-spine)", opacity: 0.5, borderRadius: 2 }}
-        />
-      </header>
+          <header className="mt-4 flex flex-col gap-3">
+            <h1 className="m-0 font-display text-[clamp(34px,4vw,48px)] font-semibold leading-[1.06] tracking-[-0.02em]">
+              Step-by-step guides
+            </h1>
+            <p className={`${SITE.soft} m-0 max-w-[72ch] text-[19px]`}>
+              One task per guide, in numbered steps, with what to do when a step does not work. The help articles stay
+              the reference; a guide is the procedure.
+            </p>
+          </header>
 
-      <GuideIndex audience="client" />
+          <GuideIndex audience="client" />
 
-      <p className="mt-10 text-center text-[13.5px]" style={{ color: "var(--ink-muted)" }}>
-        Need a guide that is not here yet?{" "}
-        <Link
-          href="/support"
-          className="font-semibold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-blue)] focus-visible:ring-offset-2"
-          style={{ color: "var(--brand-blue-deep)" }}
-        >
-          Ask support →
-        </Link>
-      </p>
+          <p className="mt-12">
+            Need a guide that is not here yet?{" "}
+            <Link href="/support" className={SITE.more}>
+              Ask support
+            </Link>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,13 +1,14 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Card } from "@/components/bridge/layout/Card";
 
 /**
  * One numbered step in a guide.
  *
  * Renders a semantic <section> tagged with `data-guide-step` / `data-step-n` /
  * `data-step-title`. `GuideLayout` scans for those attributes after mount to
- * build the step-list sidebar and the mobile progress summary — so a guide
+ * build the "Steps" list beside the guide — so a guide
  * author adds a step by writing one `<Step>` and nothing else. No registry
  * entry, no duplicated titles.
  *
@@ -49,15 +50,7 @@ export function Step({
       />
 
       <h2
-        className="m-0 flex items-start gap-3 sm:block"
-        style={{
-          fontFamily: "var(--font-display)",
-          fontSize: 19,
-          fontWeight: 600,
-          letterSpacing: "-0.015em",
-          lineHeight: 1.3,
-          color: "var(--ink)",
-        }}
+        className="m-0 flex items-start gap-3 font-display text-[22px] font-semibold leading-[1.3] tracking-[-0.015em] text-ink sm:block"
       >
         <span
           aria-hidden="true"
@@ -85,6 +78,8 @@ export function Step({
   );
 }
 
+const LABEL = "m-0 text-[15px] font-semibold";
+
 /**
  * The failure branch of a step. Every step that can plausibly fail should carry
  * one — a guide that documents only the happy path sends the reader to support.
@@ -97,30 +92,14 @@ export function IfThisFails({
   children: ReactNode;
 }) {
   return (
-    <div
-      className="mt-4"
-      style={{
-        background: "var(--amber-soft)",
-        borderLeft: "3px solid var(--amber)",
-        borderRadius: "0 var(--radius-md) var(--radius-md) 0",
-        padding: "12px 16px",
-      }}
-    >
-      <p
-        className="m-0 text-[12px] font-semibold uppercase"
-        style={{ color: "var(--amber-text)", letterSpacing: "0.05em" }}
-      >
-        {title}
-      </p>
+    <Card edge="none" className="mt-4">
+      <p className={`${LABEL} text-amber-text`}>{title}</p>
       <div className="guide-callout-body">{children}</div>
-    </div>
+    </Card>
   );
 }
 
-/**
- * "You'll need" — the prerequisite box that opens a guide. Carries the
- * cross-section edge (buyer blue) used by primary cards elsewhere in the app.
- */
+/** "You'll need" — the prerequisite box that opens a guide. */
 export function Prereqs({
   title = "You'll need",
   children,
@@ -129,26 +108,10 @@ export function Prereqs({
   children: ReactNode;
 }) {
   return (
-    <aside
-      aria-label={title}
-      className="mt-6 overflow-hidden"
-      style={{
-        background: "var(--surface)",
-        border: "1px solid var(--border)",
-        borderLeft: "3px solid var(--brand-blue)",
-        borderRadius: "0 var(--radius-md) var(--radius-md) 0",
-        boxShadow: "var(--shadow-card)",
-        padding: "14px 18px 16px",
-      }}
-    >
-      <p
-        className="m-0 text-[12px] font-semibold uppercase"
-        style={{ color: "var(--brand-blue-deep)", letterSpacing: "0.05em" }}
-      >
-        {title}
-      </p>
+    <Card edge="none" as="aside" aria-label={title} className="mt-6">
+      <p className={LABEL}>{title}</p>
       <div className="guide-callout-body">{children}</div>
-    </aside>
+    </Card>
   );
 }
 
@@ -158,23 +121,13 @@ export function Prereqs({
  */
 export function Outcome({ children }: { children: ReactNode }) {
   return (
-    <div
-      className="mt-4 flex gap-2.5"
-      style={{
-        background: "var(--brand-green-soft)",
-        borderLeft: "3px solid var(--brand-green)",
-        borderRadius: "0 var(--radius-md) var(--radius-md) 0",
-        padding: "11px 16px",
-      }}
-    >
-      <span
-        aria-hidden="true"
-        className="shrink-0 pt-px text-[13px] font-semibold"
-        style={{ color: "var(--brand-green-deep)" }}
-      >
-        ✓
-      </span>
-      <div className="guide-callout-body">{children}</div>
-    </div>
+    <Card edge="none" className="mt-4">
+      <div className="flex gap-2.5">
+        <span aria-hidden="true" className="shrink-0 font-semibold text-brand-green-deep">
+          ✓
+        </span>
+        <div className="guide-callout-body">{children}</div>
+      </div>
+    </Card>
   );
 }

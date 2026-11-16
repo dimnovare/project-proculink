@@ -2,159 +2,160 @@
 
 // Article chrome for every /help/* MDX page. Wired in as the MDX `wrapper`
 // (see src/mdx-components.tsx) so it wraps each article automatically — no
-// per-file boilerplate. Provides: breadcrumb, category eyebrow, the ~720px
-// prose column, a "Was this helpful?" prompt, a contact-support card, and a
-// previous/next pager derived from the article order.
-//
-// FOCUS RINGS: `ring-brand-green-deep` (#1E6D29), which is 6.4128:1 on white
-// and 5.9863:1 on --bg, against WCAG 1.4.11's 3:1 non-text floor. This shell
-// used to ring in the RETIRED emerald (2.2731:1 on white, 2.1219:1 on --bg) —
-// a colour the design system explicitly bans — on all 46 help articles. The
-// hex gate never saw it: that gate is scoped to src/app/**, and this file is
-// not. `src/test/token-contrast.test.ts` now bans the value repo-wide.
+// per-file boilerplate. Provides: breadcrumb, the title and its reading time,
+// the prose column, an aside with the article's own headings and the guides
+// that use it, a "Was this article helpful?" prompt, the previous/next
+// articles, and where to ask a person.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  CATEGORY_META,
-  getAdjacentArticles,
-  getArticleBySlug,
-  type HelpArticle,
-} from "@/lib/help-articles";
-import { getGuideByPath } from "@/lib/guides";
+import { getAdjacentArticles, getArticleBySlug } from "@/lib/help-articles";
+import { getGuideByPath, guidesForArticle } from "@/lib/guides";
 import GuideLayout from "./guide/GuideLayout";
-import { HelpIcon } from "./HelpIcon";
 import { capture } from "@/lib/analytics";
+import { Card } from "@/components/bridge/layout/Card";
+import { SITE } from "@/components/marketing/sitePictures";
+import { SITE_PAGE } from "@/components/marketing/LegalPage";
 
-export default function HelpArticleShell({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+const ASIDE_LINK = "flex min-h-[40px] items-center py-1.5 text-[15px] leading-[1.35] text-ink-muted no-underline hover:text-ink";
+const BUTTON = "inline-flex min-h-[44px] items-center rounded-[10px] border border-border-strong px-5 font-semibold text-ink hover:border-ink";
+
+export default function HelpArticleShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const slug = pathname?.split("/").filter(Boolean).pop() ?? "";
+  const articleRef = useRef<HTMLElement>(null);
+  const [toc, setToc] = useState<{ id: string; text: string }[]>([]);
+
+  // "In this article" is the body's own h2s, read once they are rendered (the MDX wrapper gets the body as one element).
+  useEffect(() => {
+    const found = articleRef.current?.querySelectorAll<HTMLHeadingElement>("h2[id]") ?? [];
+    setToc([...found].map((h) => ({ id: h.id, text: h.textContent ?? "" })));
+  }, [slug]);
 
   // This component is the MDX `wrapper` for every .mdx page in the app, so it
   // is also where a route decides which chrome it gets. A registered guide
   // route (client under /help/guides, admin under /admin/guides) renders the
-  // step-by-step layout instead of article chrome — that is what keeps guides
-  // authorable as plain .mdx with no per-file layout boilerplate.
+  // step-by-step layout instead of article chrome.
   const guide = getGuideByPath(pathname);
   if (guide) return <GuideLayout guide={guide}>{children}</GuideLayout>;
 
-  // Any other MDX outside /help/ is not a help article; give it no chrome
-  // rather than a breadcrumb into a help center it does not belong to.
+  // Any other MDX outside /help/ is not a help article; give it no chrome.
   if (pathname && !pathname.startsWith("/help/")) return <>{children}</>;
 
-  const slug = pathname?.split("/").filter(Boolean).pop() ?? "";
   const article = getArticleBySlug(slug);
   const { prev, next } = getAdjacentArticles(slug);
-  const meta = article ? CATEGORY_META[article.category] : null;
+  const guides = guidesForArticle(slug);
 
   return (
-    <div
-      className="mx-auto px-5 pb-24 pt-9 sm:px-6 sm:pt-14"
-      style={{ maxWidth: 760 }}
-    >
-      {/* Breadcrumb */}
-      <nav
-        aria-label="Breadcrumb"
-        className="flex items-center gap-1.5 text-[12.5px]"
-        style={{ color: "var(--ink-faint)" }}
-      >
-        <Link
-          href="/help"
-          className="rounded-[4px] font-medium transition-colors hover:text-[#0F4FA8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green-deep focus-visible:ring-offset-2"
-          style={{ color: "#56627A" }}
-        >
-          Help center
-        </Link>
+    <div className={SITE_PAGE}>
+      <div className={`${SITE.wrap} pb-24 pt-10 sm:pt-14`}>
+        <nav aria-label="Breadcrumb" className="text-[15px] text-ink-muted">
+          <ol className="m-0 flex list-none flex-wrap items-center gap-x-2 p-0">
+            <li>
+              <Link href="/help" className="inline-flex min-h-[44px] items-center text-brand-blue-deep underline underline-offset-4">
+                Help centre
+              </Link>
+            </li>
+            {article && (
+              <>
+                <li aria-hidden="true">/</li>
+                <li>{article.category}</li>
+                <li aria-hidden="true">/</li>
+                <li aria-current="page" className="text-ink">
+                  {article.title}
+                </li>
+              </>
+            )}
+          </ol>
+        </nav>
+
         {article && (
-          <>
-            <span aria-hidden="true" style={{ color: "#C6CDDA" }}>
-              /
-            </span>
-            <span style={{ color: "var(--ink-faint)" }}>{article.category}</span>
-          </>
+          <header className="mt-4 flex flex-col gap-2">
+            <h1 className="m-0 font-display text-[clamp(34px,4vw,48px)] font-semibold leading-[1.06] tracking-[-0.02em] [text-wrap:balance]">
+              {article.title}
+            </h1>
+            <p className={`${SITE.soft} m-0 text-[15px]`}>{article.readMin} minute read</p>
+          </header>
         )}
-      </nav>
 
-      {/* Category eyebrow — sits directly above the MDX <h1> */}
-      {article && meta && (
-        <div
-          className="mt-5 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-semibold uppercase"
-          style={{
-            color: meta.color,
-            background: meta.soft,
-            letterSpacing: "0.04em",
-          }}
-        >
-          <HelpIcon name={meta.icon} size={14} />
-          {article.category}
+        <div className="mt-8 flex items-start gap-x-16">
+          <div className="min-w-0 max-w-[72ch] flex-1">
+            {/* Per-tool walkthrough video — only when the registry entry carries a hosted, verified videoUrl. No autoplay. */}
+            {article?.videoUrl && (
+              <video controls preload="metadata" poster={article.videoPosterUrl} src={article.videoUrl} className="mb-6 w-full rounded-[10px] border border-border bg-navy" />
+            )}
+
+            {/* The body's own h1 is the registry title, printed above; typography from src/mdx-components.tsx. */}
+            <article ref={articleRef} className={article ? "[&>h1:first-child]:hidden" : undefined}>
+              {children}
+            </article>
+
+            <footer className="mt-12 flex flex-col gap-8">
+              <FeedbackPrompt slug={slug} title={article?.title} />
+
+              {(prev || next) && (
+                <nav aria-label="Keep reading" className="flex flex-col gap-3">
+                  <h2 className="m-0 font-display text-[22px] font-semibold">Keep reading</h2>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {prev ? <Pager label="Previous" slug={prev.slug} title={prev.title} /> : <span />}
+                    {next ? <Pager label="Next" slug={next.slug} title={next.title} /> : <span />}
+                  </div>
+                </nav>
+              )}
+
+              <Card edge="none">
+                <p className="m-0 font-semibold">Didn&apos;t find it?</p>
+                <p className="m-0 mt-1">
+                  Email{" "}
+                  <a href="mailto:support@proculink.eu" className="text-brand-blue-deep underline underline-offset-4">
+                    support@proculink.eu
+                  </a>{" "}
+                  and tell us what you were trying to do.
+                </p>
+                <Link href="/support" className={SITE.more}>
+                  Contact support
+                </Link>
+              </Card>
+            </footer>
+          </div>
+
+          <aside className="sticky top-6 hidden w-[260px] shrink-0 flex-col gap-8 min-[960px]:flex">
+            {toc.length >= 2 && (
+              <nav aria-label="In this article">
+                <p className="m-0 text-[15px] font-semibold">In this article</p>
+                <ol className="m-0 mt-2 list-none p-0">
+                  {toc.map((t) => (
+                    <li key={t.id}>
+                      <a href={`#${t.id}`} className={ASIDE_LINK}>
+                        {t.text}
+                      </a>
+                    </li>
+                  ))}
+                </ol>
+              </nav>
+            )}
+            {guides.length > 0 && (
+              <section aria-labelledby="article-guides">
+                <h2 id="article-guides" className="m-0 text-[15px] font-semibold">
+                  Step-by-step guides
+                </h2>
+                <ul className="m-0 mt-2 flex list-none flex-col gap-3 p-0">
+                  {guides.map((g) => (
+                    <li key={g.slug} className="flex flex-col">
+                      <Link href={g.href} className="text-[15px] font-semibold text-brand-blue-deep underline underline-offset-4">
+                        {g.title}
+                      </Link>
+                      {g.minutes != null && <span className={`${SITE.soft} text-[14px]`}>About {g.minutes} minutes</span>}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </aside>
         </div>
-      )}
-
-      {/* Per-tool walkthrough video — renders only when the registry entry
-          carries a hosted, verified videoUrl (offer⇔works). No autoplay. */}
-      {article?.videoUrl && (
-        <video
-          controls
-          preload="metadata"
-          poster={article.videoPosterUrl}
-          src={article.videoUrl}
-          className="mt-5 w-full rounded-[10px] border"
-          style={{ borderColor: "#E2E6EE", background: "#0B1A2F", maxWidth: 720 }}
-        />
-      )}
-
-      {/* Prose column — typography supplied by src/mdx-components.tsx */}
-      <article className="mt-3" style={{ maxWidth: 720 }}>
-        {children}
-      </article>
-
-      {/* Footer chrome */}
-      <footer className="mt-12" style={{ maxWidth: 720 }}>
-        <FeedbackPrompt slug={slug} title={article?.title} />
-
-        <ContactCard />
-
-        {(prev || next) && (
-          <nav
-            aria-label="More articles"
-            className="mt-6 grid gap-3 sm:grid-cols-2"
-          >
-            {prev ? <Pager dir="prev" article={prev} /> : <span />}
-            {next ? <Pager dir="next" article={next} /> : <span />}
-          </nav>
-        )}
-      </footer>
+      </div>
     </div>
-  );
-}
-
-/**
- * Thumb up / down, drawn in the same 16-viewBox, 1.4px-stroke construction the
- * rest of the system's glyphs use. `direction="down"` is the same path flipped,
- * so the two read as one pair rather than two drawings.
- */
-function ThumbGlyph({ direction }: { direction: "up" | "down" }) {
-  return (
-    <svg
-      width="13"
-      height="13"
-      viewBox="0 0 16 16"
-      fill="none"
-      aria-hidden
-      style={{ display: "inline-block", verticalAlign: "-2px", marginRight: 6, transform: direction === "down" ? "rotate(180deg)" : undefined }}
-    >
-      <path
-        d="M5 14V7.2l3-5.2c.9 0 1.5.7 1.4 1.6L9.1 6h3.3c.8 0 1.4.8 1.2 1.6l-1 4.9c-.1.9-.9 1.5-1.7 1.5H5Z"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-      <path d="M5 7.4H3.2c-.4 0-.7.3-.7.7v5.2c0 .4.3.7.7.7H5" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-    </svg>
   );
 }
 
@@ -167,100 +168,34 @@ function FeedbackPrompt({ slug, title }: { slug: string; title?: string }) {
   }
 
   return (
-    <div
-      className="flex flex-col items-start gap-3 rounded-[10px] px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
-      style={{ border: "1px solid #E2E6EE", background: "#FFFFFF" }}
-    >
-      <span className="text-[14px] font-medium" style={{ color: "#0B1A2F" }}>
-        Was this article helpful?
-      </span>
-
+    <div className="flex flex-col items-start gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
+      <span className="font-semibold">Was this article helpful?</span>
       {answer === null ? (
         <div className="flex items-center gap-2" role="group" aria-label="Was this article helpful?">
-          <button
-            type="button"
-            onClick={() => vote("yes")}
-            className="rounded-[7px] px-3.5 py-1.5 text-[13px] font-medium transition-colors hover:bg-[#F6F7FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green-deep focus-visible:ring-offset-2"
-            style={{ border: "1px solid #E2E6EE", color: "#0B1A2F", background: "#FFFFFF" }}
-          >
-            {/* SVG thumbs, not emoji: an emoji renders in the platform's font
-                and skin-tone default, at a size the button cannot control, and
-                CLAUDE.md §12 bans emoji as icons (WP-28). */}
-            <ThumbGlyph direction="up" />
+          <button type="button" onClick={() => vote("yes")} className={BUTTON}>
             Yes
           </button>
-          <button
-            type="button"
-            onClick={() => vote("no")}
-            className="rounded-[7px] px-3.5 py-1.5 text-[13px] font-medium transition-colors hover:bg-[#F6F7FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green-deep focus-visible:ring-offset-2"
-            style={{ border: "1px solid #E2E6EE", color: "#0B1A2F", background: "#FFFFFF" }}
-          >
-            <ThumbGlyph direction="down" />
+          <button type="button" onClick={() => vote("no")} className={BUTTON}>
             No
           </button>
         </div>
       ) : (
-        <span className="text-[13px]" style={{ color: "#1E6D29" }} role="status">
-          {answer === "yes"
-            ? "Thanks for the feedback."
-            : "Thanks — we'll work on making this clearer."}
+        <span className="text-brand-green-deep" role="status">
+          {answer === "yes" ? "Thanks for the feedback." : "Thanks — we'll work on making this clearer."}
         </span>
       )}
     </div>
   );
 }
 
-function ContactCard() {
-  return (
-    <div
-      className="mt-4 flex flex-col items-start gap-3 overflow-hidden rounded-[10px] px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
-      style={{ border: "1px solid #E2E6EE", background: "#F6F7FA" }}
-    >
-      <div>
-        <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>
-          Still need help?
-        </p>
-        <p className="mt-0.5 text-[13px]" style={{ color: "#56627A" }}>
-          Our team replies to every message — usually within a business day.
-        </p>
-      </div>
-      <Link
-        href="/support"
-        className="inline-flex shrink-0 items-center rounded-[7px] px-4 py-2 text-[13px] font-semibold text-white transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green-deep focus-visible:ring-offset-2"
-        style={{ background: "#0B1A2F" }}
-      >
-        Contact support →
-      </Link>
-    </div>
-  );
-}
-
-function Pager({ dir, article }: { dir: "prev" | "next"; article: HelpArticle }) {
-  const meta = CATEGORY_META[article.category];
-  const isNext = dir === "next";
+function Pager({ label, slug, title }: { label: "Previous" | "Next"; slug: string; title: string }) {
   return (
     <Link
-      href={`/help/${article.slug}`}
-      className="group flex flex-col gap-1 rounded-[10px] px-4 py-3 transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green-deep focus-visible:ring-offset-2 motion-reduce:transform-none"
-      style={{ border: "1px solid #E2E6EE", background: "#FFFFFF" }}
+      href={`/help/${slug}`}
+      className={`flex flex-col gap-1 rounded-[10px] border border-border bg-surface px-4 py-3 no-underline hover:border-border-strong ${label === "Next" ? "sm:items-end sm:text-right" : ""}`}
     >
-      <span
-        className="flex items-center gap-1 text-[11.5px] font-semibold uppercase"
-        style={{ color: "var(--ink-faint)", letterSpacing: "0.04em", justifyContent: isNext ? "flex-end" : "flex-start" }}
-      >
-        {!isNext && <span aria-hidden="true">←</span>}
-        {isNext ? "Next" : "Previous"}
-        {isNext && <span aria-hidden="true">→</span>}
-      </span>
-      <span
-        className="flex items-center gap-2 text-[14px] font-semibold transition-colors group-hover:text-[#0F4FA8]"
-        style={{ color: "#0B1A2F", justifyContent: isNext ? "flex-end" : "flex-start", textAlign: isNext ? "right" : "left" }}
-      >
-        <span style={{ color: meta.color, display: "inline-flex" }}>
-          <HelpIcon name={meta.icon} size={15} />
-        </span>
-        {article.title}
-      </span>
+      <span className={`${SITE.soft} text-[14px]`}>{label}</span>
+      <span className="font-semibold text-brand-blue-deep underline underline-offset-4">{title}</span>
     </Link>
   );
 }

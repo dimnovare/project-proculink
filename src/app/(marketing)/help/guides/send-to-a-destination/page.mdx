@@ -3,7 +3,7 @@ import { guideMetadata } from "@/lib/seo";
 export const metadata = guideMetadata({
   slug: "send-to-a-destination",
   title: "Send outputs to a destination — ProcuLink guide",
-  description: "Send a flow's output by email, to a web address, to an SFTP or FTPS server, or as a download.",
+  description: "Send a flow's output by email, to a web address, to an SFTP or FTPS server, to an S3 bucket, to Google Drive or Google Sheets, or as a download.",
 });
 
 import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
@@ -28,9 +28,11 @@ The **New destination** form opens under the list.
 
 Type a **Name** that tells you where the file goes. Choose **Send by**:
 
-- **Web address (API).** Fill in the **Web address** (it must start with `https://`) and the **Request method**, POST or PUT.
-- **SFTP** or **FTPS.** Fill in the **Server**, the **Port** (22 for SFTP, 21 for FTPS) and the **Folder on the server**. SFTP can sign in with a password or a private key.
-- **Email.** Fill in **Send to** with one or more addresses, separated by commas. Add a **Reply-to address** if you want one. Add a **Subject** and a **Message** if you want your own. Left blank, ProcuLink uses a default subject (the flow name and the file name). A test send puts `[TEST]` in front of the subject. The attachment is always named after the document, and there is no box for its name.
+- **Web address (API).** Fill in the **Web address** (it must start with `https://`). The **Request method**, POST or PUT, is under **More options**.
+- **SFTP** or **FTPS**. Fill in the **Server** and the **Folder on the server**. The **Port** is under **More options**, already set to 22 for SFTP and 21 for FTPS. SFTP can sign in with a password or a private key.
+- **S3 bucket.** Fill in the **Bucket** and the **Folder**. It signs in with an **Access key ID** and a **Secret access key**. The **Region**, and for a service other than Amazon S3 the **Endpoint URL**, are under **More options**.
+- **Google Drive** or **Google Sheets**. If no Google account is connected yet, press **Connect a Google account**. Then press **Choose folder** or **Choose spreadsheet**. For Google Sheets use a CSV output with a header row: each send adds its rows to the end of the sheet, on the first tab unless you fill in **Tab (optional)**.
+- **Email.** Fill in **Send to (separate addresses with commas)** with one or more addresses. Under **More options** you can add a **Reply-to address**, and a **Subject** and a **Message** of your own. Left blank, ProcuLink uses a default subject (the flow name and the file name). A test send puts `[TEST]` in front of the subject. The attachment is always named after the document, and there is no box for its name.
 
 <Outcome>
 The form shows the boxes for the way you chose.
@@ -56,7 +58,7 @@ The message says why. A web address must start with `https://` and must not have
 
 Back in the output form, the new destination is already chosen in **Send to**. Select **Create**. On an existing output the change saves as a draft. Once the flow is published, publish again so new sends use the change. See [Publish and restore flow versions](/help/guides/publish-a-flow-version).
 
-You can test a destination at any time under **Settings**, then **Destinations**. A test is also offered in the new-flow guide (right after you save a destination) and when you build an output from documentation. The new-flow test sends a small file marked `TEST_` that holds no document data. The documentation test sends the output made from a real document in the flow, so it holds that document's values. See [Destinations](/help/destinations).
+You can test a destination at any time under **Settings**, then **Destinations**. A test is also sent when you press **Save and send a test** while you set up a new flow, and offered when you build an output from documentation. The new-flow test sends a small file marked `TEST_` that holds no document data. A Google Sheets test adds no rows: it checks that we can open the spreadsheet and the tab you chose. The documentation test sends the output made from a real document in the flow, so it holds that document's values. See [Destinations](/help/destinations).
 
 <Outcome>
 The output is tied to the destination.
