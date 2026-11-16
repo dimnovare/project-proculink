@@ -38,7 +38,7 @@ export type SidebarNavSection = { group?: string; items: SidebarNavItem[] };
 export const PINNED_ACTION_HREF = "/upload";
 
 /** The pages the phone tab bar carries. The navigation panel hides them on phones. */
-export const PHONE_TAB_HREFS: readonly string[] = ["/documents", "/flows", "/operations/log"];
+export const PHONE_TAB_HREFS: readonly string[] = ["/documents", "/flows", "/settings"];
 /** The pages the desktop top bar carries (R19). The rest of NAV_MAIN is reached from these and from Ctrl K. */
 export const TOP_BAR_HREFS: readonly string[] = ["/documents", "/flows", "/settings"];
 /** A page not in the top bar lights the place it is reached from. */

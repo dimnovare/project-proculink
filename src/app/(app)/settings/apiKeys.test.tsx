@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/settings",
 }));
 vi.mock("@clerk/nextjs", () => ({ useOrganization: () => ({ organization: undefined }), useUser: () => ({ user: undefined }), useClerk: () => ({}) }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => false })); // the header's staff check stays idle
 vi.mock("@/components/flows/NotificationEmailSection", () => ({ NotificationEmailSection: () => null }));
 vi.mock("@/components/pwa/InstallPanel", () => ({ InstallPanel: () => null }));
 const api = vi.hoisted(() => ({ getApiKeys: vi.fn(), createApiKey: vi.fn() }));

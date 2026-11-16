@@ -12,11 +12,13 @@ import { AlertTriangle, Copy, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { BillingSection } from "@/components/bridge/BillingSection";
 import { SavedMark, SettingsPanel } from "@/components/settings/SettingsPrimitives";
-import { Button, Pill } from "@/components/bridge/DSPrimitives";
-import { membershipRoleLabel, nameInitials } from "@/components/bridge/UserChipMenu";
+import { Button, buttonClass, Pill } from "@/components/bridge/DSPrimitives";
+import { membershipRoleLabel, nameInitials, UserChipMenu } from "@/components/bridge/UserChipMenu";
+import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { Failed, Quiet } from "@/components/flows/states";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import {
+  checkAdminAccess,
   getBillingStatus,
   getApiKeys,
   createApiKey,
@@ -51,10 +53,20 @@ function SettingsScreen() {
   const orgName   = organization?.name ?? "…";
   // Until billing has loaded (or when it fails) the header names only the workspace.
   const planLabel = billing && planDisplayName(billing.plan);
+  // The top bar's own staff check (same key and options), so the two share one request.
+  const staff = useQuery({ queryKey: ["admin-access"], queryFn: checkAdminAccess, enabled: useTenantQueriesEnabled(), staleTime: 300_000, retry: false }).data === true;
 
   return (
     <PageShell variant="wide">
-      <PageHeader title="Settings" sub={organization && (billing ? `${orgName}, on the ${planLabel}` : orgName)} />
+      {/* Phones have no account chip in the top bar: the account menu, and Admin for staff, sit here. */}
+      <PageHeader
+        title="Settings"
+        sub={organization && (billing ? `${orgName}, on the ${planLabel}` : orgName)}
+        actions={<div className="flex items-center gap-2 md:hidden">
+          {staff && <Link href="/admin" className={buttonClass("secondary", "sm")}>Admin</Link>}
+          <UserChipMenu collapsed placement="down" />
+        </div>}
+      />
       <nav aria-label="Settings sections" className="mb-5 flex gap-1 overflow-x-auto shadow-[inset_0_-1px_0_var(--border)]">
         {SETTINGS_TABS.map((t) => {
           const on = tab === t.id;

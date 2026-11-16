@@ -21,31 +21,30 @@ const renderBar = (ui: ReactElement) =>
   render(<QueryClientProvider client={new QueryClient()}><UploadQueueProvider>{ui}</UploadQueueProvider></QueryClientProvider>);
 
 describe("BottomTabBar", () => {
-  it("offers Documents, Flows, Add a document, Activity and More, and marks where you are", () => {
-    mockPath = "/flows/f-1";
-    const onMore = vi.fn();
-    renderBar(<BottomTabBar onMore={onMore} moreOpen={false} />);
-    const bar = screen.getByRole("navigation", { name: "Main" });
-    expect(within(bar).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/documents", "/flows", "/upload", "/operations/log"]);
+  it("offers Documents, Flows, Add a document and Settings, and no More", () => {
+    mockPath = "/lookups/l-1";
+    const r = renderBar(<BottomTabBar />);
+    const bar = within(r.container).getByRole("navigation", { name: "Main" });
+    expect(within(bar).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/documents", "/flows", "/upload", "/settings"]);
     expect(within(bar).getByRole("link", { name: "Flows" })).toHaveAttribute("aria-current", "page");
     expect(within(bar).getByRole("link", { name: "Add a document" })).toBeInTheDocument();
-    const more = within(bar).getByRole("button", { name: "More" });
-    expect(more).toHaveAttribute("aria-haspopup", "dialog");
-    expect(more).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(more);
-    expect(onMore).toHaveBeenCalledTimes(1);
+    expect(within(bar).queryByRole("button", { name: "More" })).toBeNull();
+    r.unmount();
+    mockPath = "/operations/log";
+    const again = renderBar(<BottomTabBar />);
+    expect(within(again.container).getByRole("link", { name: "Documents" })).toHaveAttribute("aria-current", "page");
   });
 
   it("shows the needs-you count only when it is known", async () => {
     expect([needsYouBadge(undefined), needsYouBadge(0), needsYouBadge(1), needsYouBadge(99), needsYouBadge(120)]).toEqual([null, null, "1", "99", "99+"]);
     mockPath = "/flows";
-    renderBar(<BottomTabBar onMore={() => {}} moreOpen={false} />);
+    renderBar(<BottomTabBar />);
     const bar = within(screen.getByRole("navigation", { name: "Main" }));
     expect(await bar.findByRole("link", { name: "Documents, 3 need you" })).toHaveAttribute("href", "/documents");
     expect(bar.getByRole("link", { name: "Flows" })).toBeInTheDocument(); // the count is on Documents only
     for (const [n, name, shown] of [[1, "Documents, 1 needs you", "1"], [120, "Documents, 120 need you", "99+"]] as const) {
       needsTotal.n = n;
-      const r = renderBar(<BottomTabBar onMore={() => {}} moreOpen={false} />);
+      const r = renderBar(<BottomTabBar />);
       const link = await within(r.container).findByRole("link", { name });
       expect(link).toHaveTextContent(new RegExp(`^${shown.replace("+", "\\+")}Documents$`));
       r.unmount();
@@ -57,13 +56,13 @@ describe("BottomTabBar", () => {
     mockPath = "/documents";
     flowList.items = [];
     listFlowsCalls.n = 0;
-    const r = renderBar(<BottomTabBar onMore={() => {}} moreOpen={false} />);
+    const r = renderBar(<BottomTabBar />);
     await waitFor(() => expect(listFlowsCalls.n).toBe(1));
     await act(async () => {});                                             // the empty answer is applied before the check
     expect(within(r.container).getByRole("link", { name: "Add a document" })).toHaveAttribute("href", "/upload");
     r.unmount();
     flowList.items = [{ id: "f-1", name: "Supplier invoices", automation: "review", scansOn: true }];
-    renderBar(<BottomTabBar onMore={() => {}} moreOpen={false} />);
+    renderBar(<BottomTabBar />);
     const add = await within(screen.getByRole("navigation", { name: "Main" })).findByRole("button", { name: "Add a document" });
     expect(add).toHaveAttribute("aria-haspopup", "dialog");
     fireEvent.click(add);
@@ -76,7 +75,7 @@ describe("BottomTabBar", () => {
     for (const p of ["/flows/new", "/flows/f-1/documents/d-1", "/flows/f-1/outputs/o-1/advanced"]) expect(isFullScreenStep(p)).toBe(true);
     for (const p of ["/documents", "/flows", "/flows/f-1", "/lookups/l-1", "/settings", null]) expect(isFullScreenStep(p)).toBe(false);
     mockPath = "/flows/f-1/documents/d-1";
-    const { container } = renderBar(<BottomTabBar onMore={() => {}} moreOpen={false} />);
+    const { container } = renderBar(<BottomTabBar />);
     expect(container).toBeEmptyDOMElement();
   });
 });

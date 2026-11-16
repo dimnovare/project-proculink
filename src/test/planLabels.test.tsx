@@ -89,6 +89,7 @@ vi.mock("@clerk/nextjs", () => ({
   useUser: () => ({ user: undefined }),
   useClerk: () => ({}),
 }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => false })); // the header's staff check stays idle
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(""),

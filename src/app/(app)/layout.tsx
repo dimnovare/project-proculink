@@ -185,8 +185,8 @@ export default function AppShellLayout({
         <ClerkAvailabilityGate>
         {/* Bridge shell — full viewport, no scroll on the wrapper.
             Desktop nav lives in the top bar (BridgeTopbar, links from lg). The
-            navigation panel below reuses BridgeSidebar below lg: the tablet
-            menu button and the phone tab bar's More open it.
+            navigation panel below reuses BridgeSidebar below lg: only the
+            tablet menu button opens it.
             The upload queue wraps it so files keep going up across screens. */}
         <UploadQueueProvider owner={owner}>
         <div className="flex h-dvh overflow-hidden" style={{ background: "#F6F7FA" }}>
@@ -227,7 +227,7 @@ export default function AppShellLayout({
               </main>
               <HelpPanel />
             </div>
-            <BottomTabBar onMore={openSidebar} moreOpen={sidebarOpen} />
+            <BottomTabBar />
           </div>
           </HelpPanelProvider>
         </div>

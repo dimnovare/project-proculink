@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, within, cleanup } from "@testing-library/react";
+import { act, render, screen, fireEvent, within, cleanup, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 type Org = { name: string; membersCount: number; update: ReturnType<typeof vi.fn> };
 const clerk = vi.hoisted(() => ({ org: undefined as Org | undefined, open: vi.fn() }));
+const staff = vi.hoisted(() => ({ on: true, answered: 0 }));
 const MEMBERS = [
   { id: "m1", role: "org:admin", publicUserData: { userId: "user_a", firstName: "Alex", lastName: "Example", identifier: "alex@example.test" } },
   { id: "m2", role: "org:member", publicUserData: { userId: "user_s", firstName: "Sam", lastName: "Sample", identifier: "sam@example.test" } },
@@ -26,7 +27,9 @@ vi.mock("@/components/flows/NotificationEmailSection", () => ({ NotificationEmai
 vi.mock("@/lib/api-client", async (o) => ({
   ...(await o<typeof import("@/lib/api-client")>()),
   getBillingStatus: vi.fn().mockResolvedValue({ plan: "starter", accountStatus: "active" }),
+  checkAdminAccess: () => { staff.answered++; return Promise.resolve(staff.on); },
 }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 
 import SettingsPage from "./page";
 import { PLAN_BY_ID } from "@/lib/plans";
@@ -88,5 +91,21 @@ describe("Settings › Workspace", () => {
     expect(await within(about).findByText(PLAN_BY_ID.starter.name)).toBeTruthy();
     expect(within(about).getByRole("link", { name: "See plan and billing" })).toHaveAttribute("href", "/settings?tab=billing");
     expect(within(about).getByRole("link", { name: "EU-region" })).toHaveAttribute("href", "/security");
+  });
+
+  it("on a phone Settings holds the account menu, and Admin for staff", async () => {
+    staff.answered = 0;
+    mount();
+    const admin = await screen.findByRole("link", { name: "Admin" });
+    expect(admin).toHaveAttribute("href", "/admin");
+    expect(admin.parentElement).toContainElement(screen.getByTitle("Clerk is not configured"));
+    cleanup();
+    staff.on = false;
+    mount();
+    await waitFor(() => expect(staff.answered).toBe(2));
+    await act(async () => {}); // the "no" answer is applied before the check
+    expect(screen.queryByRole("link", { name: "Admin" })).toBeNull();
+    expect(screen.getByTitle("Clerk is not configured")).toBeTruthy();
+    staff.on = true;
   });
 });
