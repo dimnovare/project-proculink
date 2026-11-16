@@ -231,6 +231,7 @@ test.describe("Review", () => {
     await page.waitForTimeout(500);
     await expect(page).toHaveURL(/\/documents\/doc-1$/);                       // the key that moved the focus did not press the button
     await expect(header).toContainText("2 values to check");
+    await expect(page.getByRole("complementary", { name: "Documents that need you" })).toHaveCount(0);   // only from 1700px wide
     // Typing on after that Enter is typing, not a press of Send: a space and letters go back into the value.
     await page.keyboard.press("Space");
     await page.keyboard.type("Ltd");
@@ -270,8 +271,15 @@ test.describe("Review", () => {
       const list = page.getByRole("complementary", { name: "Documents that need you" });
       await expect(list.getByRole("link", { name: /invoice-1001\.csv/ })).toHaveAttribute("aria-current", "page");
       // A value's place on the original goes to the value.
-      await page.getByRole("button", { name: "Go to Date" }).click();
-      await expect(page.getByRole("region", { name: "What we read" }).getByLabel("Date")).toBeFocused();
+      const values = page.getByRole("region", { name: "What we read" });
+      await page.locator('[data-spot][title="Go to Date"]').click();
+      await expect(values.getByLabel("Date")).toBeFocused();
+      // While a person points at the original to teach a value, a click there means "it is here": nothing leads away.
+      await values.getByRole("button", { name: "Point to Date on the original" }).click();
+      await expect(page.getByText("Click the cell that holds Date.")).toBeVisible();
+      await expect(page.locator("[data-spot]")).toHaveCount(0);
+      await page.keyboard.press("Escape");
+      await expect(page.locator("[data-spot]").first()).toBeVisible();
     }
     // A short window, scrolled to the end: the bar with Send and the original are both still on screen.
     await page.setViewportSize({ width: 1920, height: 640 });

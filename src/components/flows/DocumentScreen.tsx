@@ -251,9 +251,9 @@ const goToValue = (key: string) => {
 function spotsOf(read: DocumentDetail["read"]): SourceSpot[] {
   const placed = (l: SourceLocation | null | undefined): l is SourceLocation => !!(l?.box || l?.address);
   return [
-    ...read.fields.flatMap((f) => (placed(f.location) ? [{ key: editKey({ field: f.key }), label: f.label, location: f.location }] : [])),
+    ...read.fields.flatMap((f) => (f.value?.trim() && placed(f.location) ? [{ key: editKey({ field: f.key }), label: f.label, location: f.location }] : [])),
     ...read.tables.flatMap((t) => t.rows.flatMap((row, r) => t.columns.flatMap((c) => {
-      const l = row.cells[c.key]?.location;
+      const l = row.cells[c.key]?.value?.trim() ? row.cells[c.key]?.location : null;
       return placed(l) ? [{ key: editKey({ table: t.key, row: r, column: c.key }), label: `${t.label} row ${r + 1} ${c.label}`, location: l }] : [];
     }))),
   ];
@@ -359,7 +359,11 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   const queue = useQuery({ ...reviewQueueQuery, enabled, staleTime: 60_000, refetchOnWindowFocus: true });
   const position = positionText(queuePosition(queue.data, documentId));
   // Listed beside the review when there is anything to choose: more than this document itself.
-  const waiting = !!queue.data && queue.data.items.some((d) => d.id !== documentId);
+  const others = !!queue.data && queue.data.items.some((d) => d.id !== documentId);
+  // Once shown it keeps its column for this visit: the page must not jump sideways when the queue changes.
+  const [listed, setListed] = useState(false);
+  if (others && !listed) setListed(true);
+  const waiting = others || listed;
   const nextNow = pickNext(queue.data?.items, undefined, documentId);
   const saved = () => edits.flush().catch((e: unknown) => { throw refusalToken(e) === null ? UNSAVED : e; });
   const send = useMutation({
@@ -465,19 +469,19 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
           {doc.isError && <Failed error={doc.error} retry={() => doc.refetch()} />}
           <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} scansOn={flow.data?.scansOn} uploadHref={`/flows/${summary.flowId}?tab=documents`} />
           <PaneTabs panes={PANES} active={tab} onSelect={(id) => setTab(id as PaneId)} />
-          <div className={`grid items-start gap-4 lg:gap-x-1 lg:grid-cols-[minmax(280px,var(--split))_10px_minmax(0,1fr)] ${waiting ? "min-[1700px]:grid-cols-[264px_minmax(280px,var(--split))_10px_minmax(0,1fr)]" : ""}`} style={{ "--split": `${split}%` } as CSSProperties}>
+          <div className={`grid items-start gap-4 lg:gap-x-1 lg:grid-cols-[minmax(280px,var(--split))_10px_minmax(0,1fr)] ${waiting ? "min-[1700px]:grid-cols-[264px_minmax(280px,var(--split))_10px_minmax(360px,1fr)]" : ""}`} style={{ "--split": `${split}%` } as CSSProperties}>
             {waiting && queue.data && (
               <div className={`hidden min-w-0 min-[1700px]:mr-3 min-[1700px]:block min-[1700px]:sticky ${UNDER_HEADER}`}>
                 <WaitingList queue={queue.data} currentId={documentId} />
               </div>
             )}
             <Pane id="original" title="Original" dot="blue" hidden={tab !== "original"} sticky={UNDER_HEADER}>
-              {located && <p className="m-0 hidden px-4 pb-2 text-[12.5px] text-ink-muted lg:block">Click a value on either side to find it on the other.</p>}
+              {located && <p className="m-0 hidden px-4 pb-2 text-[12.5px] text-ink-muted lg:block">{editable ? "Click a value on either side to find it on the other." : "Click a value on the right to see where it came from."}</p>}
               {teach && <TeachBanner key={teachMutation.submittedAt} label={teach.label} render={originalKind} mutation={teachMutation} onCancel={cancelTeach} onSave={(value) => teachMutation.mutate({ ...teachMutation.variables, value })} />}
               {(isLg || tab === "original") && (
                 <Original
                   documentId={documentId} fileName={summary.fileName} highlight={spot} marks={marks?.places}
-                  spots={isLg ? spots : undefined} onSpot={goToValue}
+                  spots={isLg && editable && !teach ? spots : undefined} onSpot={goToValue}
                   onPick={teach && !teachMutation.isPending ? (pick) => teachMutation.mutate({ label: teach.label, ...(teach.key ? { key: teach.key } : { newLabel: teach.newLabel }), ...pick }) : undefined}
                 />
               )}

@@ -213,7 +213,7 @@ function PdfPageCanvas({ doc, pageNumber, zoom, box, marks, onPick }: { doc: PDF
           />
           {marks?.map((m, i) => <SourceHighlight key={i} box={m} tone="look" />)}
           {box && <SourceHighlight box={box} />}
-          <SpotButtons page={pageNumber} />
+          <SpotButtons page={pageNumber} exact />
           {onPick && <RegionPicker page={pageNumber} onBox={(b) => onPick({ page: pageNumber, box: b })} />}
         </div>
       )}

@@ -31,7 +31,7 @@ import {
 import type { Box, SourceLocation } from "@/lib/api/documents";
 import { ImageDocumentView } from "./ImageDocumentView";
 import { ZoomButtons } from "./ZoomButtons";
-import { SpotsContext, useSpotAt, type SourceSpot } from "./SourceHighlight";
+import { SpotsContext, spotProps, useSpotAt, type SourceSpot } from "./SourceHighlight";
 import { parseAddress, spreadsheetColumnName } from "@/lib/sourceAddress";
 import { scrollRegionProps } from "./scrollRegion";
 import {
@@ -223,14 +223,14 @@ function SheetView({
           " focus-visible:[outline-offset:-2px]"
         }
       >
-        <SheetGrid bounded={bounded} table={table} highlight={sel === 0 ? highlight : null} marks={sel === 0 ? marks : undefined} onPick={sel === 0 ? onPick : undefined} />
+        <SheetGrid bounded={bounded} table={table} highlight={sel === 0 ? highlight : null} marks={sel === 0 ? marks : undefined} onPick={sel === 0 ? onPick : undefined} clickable={sel === 0} />
       </div>
       <TruncationNote table={table} omitted={data.omittedSheetNames} />
     </div>
   );
 }
 
-function SheetGrid({ bounded, table, highlight, marks, onPick }: { bounded: boolean; table: SheetTable; highlight?: SourceLocation | null; marks?: readonly SourceLocation[]; onPick?(p: SourcePick): void }) {
+function SheetGrid({ bounded, table, highlight, marks, onPick, clickable }: { bounded: boolean; table: SheetTable; highlight?: SourceLocation | null; marks?: readonly SourceLocation[]; onPick?(p: SourcePick): void; /** This sheet is the one the values were read from. */ clickable: boolean }) {
   const spot = parseAddress(highlight?.address);
   const cell = spot?.kind === "cell" ? spot : null;
   const marked = new Set(marks?.map((m) => m.address));
@@ -292,7 +292,7 @@ function SheetGrid({ bounded, table, highlight, marks, onPick }: { bounded: bool
               const hit = cell?.row === r + 1 && cell.col === c + 1;
               const flag = marked.has(`cell:r${r + 1}c${c + 1}`);
               const text = row[c] ?? "";
-              const go = text ? spotAt(`cell:r${r + 1}c${c + 1}`) : null;
+              const go = clickable && text ? spotAt(`cell:r${r + 1}c${c + 1}`) : null;
               return (
                 <td
                   key={label}
@@ -310,9 +310,7 @@ function SheetGrid({ bounded, table, highlight, marks, onPick }: { bounded: bool
                       {text}
                     </button>
                   ) : go ? (
-                    <button type="button" tabIndex={-1} aria-label={`Go to ${go.label}`} className="cursor-pointer whitespace-pre text-left hover:underline" onClick={go.go}>
-                      {text}
-                    </button>
+                    <span {...spotProps(go)} className="cursor-pointer hover:underline">{text}</span>
                   ) : (
                     text
                   )}
@@ -443,9 +441,7 @@ function TextView({
                 <span className="w-9 flex-shrink-0 select-none text-right text-[12.5px] text-ink-faint">
                   {i + 1}
                 </span>
-                {go ? (
-                  <button type="button" tabIndex={-1} aria-label={`Go to ${go.label}`} className="min-w-0 flex-1 cursor-pointer whitespace-pre-wrap break-words text-left text-ink hover:underline" onClick={go.go}>{line}</button>
-                ) : <span className="min-w-0 flex-1 whitespace-pre-wrap break-words text-ink">{line}</span>}
+                <span {...(go && spotProps(go))} className={`min-w-0 flex-1 whitespace-pre-wrap break-words text-ink ${go ? "cursor-pointer hover:underline" : ""}`}>{line}</span>
               </li>
             );
           })}
