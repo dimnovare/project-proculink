@@ -152,7 +152,7 @@ test.describe("flow page", () => {
     await column.fill("");
     await expect(page.getByText("Give every column a name.").first()).toBeVisible();
     // The problem holds the column editor open, so there is no Done to press.
-    await expect(page.getByRole("button", { name: "Done", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Done with the columns" })).toHaveCount(0);
     await page.getByRole("button", { name: "Make another file" }).click();
     await expect(stay(page)).toContainText("Give every column a name.");
     await expect(page).toHaveURL(/\?tab=send$/);
@@ -439,7 +439,7 @@ test.describe("flow page", () => {
     await expect(page.getByRole("textbox", { name: /^Column name, / })).toHaveCount(0);
     await editor.getByRole("button", { name: "Change the columns" }).click();
     await expect(page.getByRole("textbox", { name: "Column name, Invoice" })).toBeVisible();
-    await editor.getByRole("button", { name: "Done", exact: true }).click();
+    await editor.getByRole("button", { name: "Done with the columns" }).click();
     await expect(page.getByRole("textbox", { name: /^Column name, / })).toHaveCount(0);
     await expect(editor.getByText("More options: file type, when to send, separator, lookups")).toBeVisible();
     expect(await sends(page)).toEqual([]);

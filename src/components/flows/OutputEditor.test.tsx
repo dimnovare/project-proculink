@@ -9,9 +9,10 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: 
 
 const api = vi.hoisted(() => ({
   listDestinations: vi.fn(), listLookups: vi.fn(), updateOutput: vi.fn(), createOutput: vi.fn(), previewOutput: vi.fn(), saveFlowFields: vi.fn(), checkOutput: vi.fn(),
-  createDestination: vi.fn(),
+  createDestination: vi.fn(), listDocuments: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
+vi.mock("./UploadQueue", () => ({ useUploadQueue: () => ({ add: vi.fn() }) }));
 
 const flow = { id: "f", fields: { fields: [{ key: "supplier", label: "Supplier" }], tables: [] } };
 const output = {
@@ -238,7 +239,7 @@ describe("OutputEditor on the flow page (draft)", () => {
     renderDraft({ ...output, template: withColumnNamed("") });
     expect(await screen.findByText("Give every column a name.")).toBeInTheDocument();
     const box = screen.getByRole("textbox", { name: /^Column name,/ });
-    expect(screen.queryByRole("button", { name: "Done" })).toBeNull();     // a problem: nothing folds it away
+    expect(screen.queryByRole("button", { name: "Done with the columns" })).toBeNull();     // a problem: nothing folds it away
     // Typing the first letter ends the problem; the editor stays open under the cursor and nothing is written.
     box.focus();
     fireEvent.change(box, { target: { value: "S" } });
@@ -283,7 +284,7 @@ describe("OutputEditor on the flow page (draft)", () => {
     expect(change).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(change);
     expect(screen.getByRole("combobox", { name: "Send to" })).toBe(document.activeElement);
-    const done = screen.getByRole("button", { name: "Done" });
+    const done = screen.getByRole("button", { name: "Done choosing where it goes" });
     expect(done).toHaveAttribute("aria-expanded", "true");
     fireEvent.click(done);
     expect(screen.getByRole("button", { name: "Change where it goes" })).toBe(document.activeElement);
@@ -293,8 +294,19 @@ describe("OutputEditor on the flow page (draft)", () => {
     localStorage.setItem("plk:columns-open", "1");
     renderDraft(output);
     expect(screen.getByRole("textbox", { name: "Column name, Supplier" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Done with the columns" }));
     expect(screen.queryByRole("textbox", { name: "Column name, Supplier" })).toBeNull();
     expect(localStorage.getItem("plk:columns-open")).toBe("0");
+  });
+  it("with no document yet, an automatic flow with a destination says a dropped document is also sent", async () => {
+    api.listDocuments.mockResolvedValue([]);
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <FlowDraftProvider flowId="f">
+          <OutputEditor mode="draft" flow={{ ...flow, automation: "auto" } as never} output={{ ...output, destinationId: "D1" } as never} onSaved={() => {}} onCancel={() => {}} />
+        </FlowDraftProvider>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("This flow sends automatically, so this document is also sent.")).toBeInTheDocument();
   });
 });

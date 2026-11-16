@@ -228,10 +228,15 @@ test.describe("settings", () => {
     await expect(second.dialog).toHaveCount(0);
     expect(await kept(second.raw)).toBe(false);
     await tabs(page).getByRole("button", { name: "Destinations" }).click();
+    // Destinations is shown (Workspace and its keys are gone) before Workspace is pressed again.
+    await expect(page).toHaveURL(/\/settings\?tab=destinations$/);
+    await expect(page.getByTestId("api-keys-table")).toHaveCount(0);
     await tabs(page).getByRole("button", { name: "Workspace" }).click();
     await expect(page).toHaveURL(/\/settings\?tab=org$/);
-    // For developers stays as it was left (open), and the list is asked for again.
-    await expect(page.locator("details").filter({ has: page.locator("summary", { hasText: "For developers" }) })).toHaveAttribute("open", "");
+    // Workspace is drawn again on tab=org, so For developers is closed: opened, the list is asked for again.
+    const developers = page.locator("details").filter({ has: page.locator("summary", { hasText: "For developers" }) });
+    await expect(developers).not.toHaveAttribute("open", "");
+    await developers.locator("summary").click();
     await expect(page.getByTestId("api-keys-table")).toContainText("Warehouse system");
     expect(await kept(first.raw) || await kept(second.raw)).toBe(false);
 

@@ -20,10 +20,8 @@ import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { FLAGGED, RULE_SETS, standardName } from "@/lib/standardOutputs";
 import { StandardQuestions } from "@/components/flows/StandardQuestions";
-import { acceptFor, MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
 import { Pencil } from "lucide-react";
-import { FileDrop } from "./FileDrop";
-import { useUploadQueue } from "./UploadQueue";
+import { FirstDocumentDrop, useLatestRead } from "./FlowValues";
 
 export const FORMATS = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML", pdf: "PDF", txt: "Text", fixed: "Fixed-width text" };
 /** What an output makes: its standard's name, else its file type. Never decided from `template.format`. */
@@ -38,13 +36,10 @@ type Lookups = LookupSummary[] | "loading" | "failed";
 /** Whether the column editor was left open, one key for the person, not one per file. */
 const COLUMNS_KEY = "plk:columns-open";
 
-/** No document yet: one is added to this flow right here, through the app's upload queue. */
-function AddDocument({ flow }: { flow: Flow }) {
-  const queue = useUploadQueue();
-  return (
-    <FileDrop accept={acceptFor(flow)} maxBytes={MAX_UPLOAD_BYTES} prompt="Add a document to this flow to see the file and send a test."
-      onFile={(f) => queue.add([f], flow)} />
-  );
+/** No document read yet: one is added to this flow right here, through the app's upload queue, as on We read. */
+function AddDocument({ flow, sends }: { flow: Flow; sends: boolean }) {
+  const { newest } = useLatestRead(flow.id);
+  return <FirstDocumentDrop flow={flow} newest={newest} prompt="Add a document to this flow to see the file and send a test." reading="The file appears here in a moment." sends={sends} />;
 }
 
 /** A row's lookup swap. `of` names the row in the labels, for a list of them away from the row itself. */
@@ -457,7 +452,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
 
   if (draft && current) {
     const tested = destinations.data?.find((d) => d.id === test.variables?.destinationId);
-    const reason = !destination ? "Choose where to send it first." : test.isPending ? "Sending a test…" : problemNow;
+    const reason = !destination ? (destinationId && destinations.isPending ? "Waiting for the destination list…" : "Choose where to send it first.") : test.isPending ? "Sending a test…" : problemNow;
     // "Send it now" resends with the live version, not this draft: it is not offered while the two differ.
     const unpublished = flow.publishedVersion != null && !!flow.hasChanges;
     const sectionTitle = "m-0 text-[14px] font-semibold text-ink";
@@ -481,7 +476,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
               <Pencil size={18} aria-hidden />
             </button>
           </div>
-          <DraftState part={draft.part} flow={flow} />
+          <DraftState part={draft.part} />
         </div>
         {renameShown && nameField}
         {externalNote}
@@ -498,7 +493,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
               )}
               {newDestinationForm}
               {!sendForced && (
-                <div><Button type="button" variant="secondary" size="sm" aria-expanded={sendShown} onClick={closeSend}>Done</Button></div>
+                <div><Button type="button" variant="secondary" size="sm" aria-label="Done choosing where it goes" aria-expanded={sendShown} onClick={closeSend}>Done</Button></div>
               )}
             </>
           ) : (
@@ -551,7 +546,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
               {checkButton && <div>{checkButton}</div>}
               {checkResult}
             </>
-          ) : <AddDocument flow={flow} />}
+          ) : <AddDocument flow={flow} sends={flow.automation === "auto" && !!destinationId} />}
         </section>
         {problemNotice}
         {stale && <StatusNotice tone="warning">A column takes its value from something we no longer read. Choose another value for it.</StatusNotice>}
@@ -562,7 +557,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
               <p className="m-0 min-w-0 flex-1 text-[13px] text-ink-muted">Each column takes its value from one thing we read.</p>
               {/* While a column has a problem the editor stays open, so there is no Done to press. */}
               {!(columnsOpen && columnProblem) && (
-                <Button type="button" variant="secondary" size="sm" id={`${uid}-columns-toggle`} aria-expanded={columnsOpen} onClick={toggleColumns}>
+                <Button type="button" variant="secondary" size="sm" id={`${uid}-columns-toggle`} aria-label={columnsOpen ? "Done with the columns" : undefined} aria-expanded={columnsOpen} onClick={toggleColumns}>
                   {columnsOpen ? "Done" : "Change the columns"}
                 </Button>
               )}

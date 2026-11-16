@@ -15,7 +15,7 @@ let draft: ReturnType<typeof useFlowDraft>;
 function Editor({ name, step, save }: { name: string; step: FlowStep; save: (v: string) => Promise<unknown> }) {
   const part = useDraftPart(name, step, save);
   parts[name] = part;
-  return <div data-testid={`part-${name}`}><DraftState part={part} flow={{ publishedVersion: 1 }} /></div>;
+  return <div data-testid={`part-${name}`}><DraftState part={part} /></div>;
 }
 function Grab() { draft = useFlowDraft(); return null; }
 const page = (editors: React.ReactNode) => (

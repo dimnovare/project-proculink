@@ -15,6 +15,7 @@ import { flowAddress } from "@/lib/flowSteps";
 import { draftReason, FlowLink, useFlowDraft } from "./flowDraft";
 import { OutputBuilder } from "./OutputBuilder";
 import { OutputEditor, outputTypeLabel } from "./OutputEditor";
+import { barPending } from "./PublishBar";
 import { Failed, Quiet } from "./states";
 
 /** "{type} to {destination}" / "{type}, you download it"; just the type while the destination is not known. */
@@ -91,6 +92,7 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
   const counting = typeof flow.publishedVersion === "number" && !!flow.hasChanges
     && outputs.isSuccess && !outputs.isFetching && live.isSuccess && !live.isFetching;
   const preview = previewDocumentId ?? undefined;
+  const point = outputs.data.length === 0 && !barPending(flow);
 
   const ask = async (o: FlowOutput) => {
     if (deleting.current) return;
@@ -140,14 +142,17 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
             )}
           </ul>
         )}
-        <div className="p-3">
-          <Button
-            variant="secondary" className="w-full border-dashed border-brand-blue text-brand-blue" aria-expanded={adding}
-            onClick={() => leave(() => setAdding(true))}
-          >
-            {outputs.data.length === 0 ? "Make a file" : "Make another file"}
-          </Button>
-        </div>
+        {/* Not drawn while the panel is open: its Cancel closes it. With no file and no bar, making one is the screen's point. */}
+        {!adding && (
+          <div className="p-3">
+            <Button
+              variant={point ? "primary" : "secondary"} className={point ? "w-full" : "w-full border-dashed border-brand-blue text-brand-blue"} aria-expanded={false}
+              onClick={() => leave(() => setAdding(true))}
+            >
+              {outputs.data.length === 0 ? "Make a file" : "Make another file"}
+            </Button>
+          </div>
+        )}
       </Card>
 
       {adding ? (

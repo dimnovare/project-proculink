@@ -7,13 +7,14 @@ import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { getDocument, listDocuments, saveFlowFields } from "@/lib/api/documents";
+import { getDocument, listDocuments, listOutputs, saveFlowFields } from "@/lib/api/documents";
 import type { DocumentSummary, Flow, FlowField, FlowFieldList, ReadResult } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { STATUS, documentStatus } from "@/lib/documentStatusManifest";
+import { DOCUMENT_STATUSES, STATUS, documentStatus } from "@/lib/documentStatusManifest";
 import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
 import { addReadExtra, FIELD_TYPES, fieldListFromRead, replaceField, withReadExtras } from "@/lib/flowFieldModel";
 import { acceptFor, MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
+import { flowAddress } from "@/lib/flowSteps";
 import { Field, INPUT } from "./DestinationForm";
 import { FileDrop } from "./FileDrop";
 import { DraftState, useDraftPart } from "./flowDraft";
@@ -293,7 +294,7 @@ function DraftValues({ flow, read, fileName }: { flow: Flow; read?: ReadResult; 
     if (!p) part.change(body);
   };
   return (
-    <Frame action={<DraftState part={part} flow={flow} />}>
+    <Frame action={<DraftState part={part} />}>
       <ValueTable rows={rows} edit={edit} read={read} fileName={fileName} failed={part.state === "failed"} />
       <Problem text={problem} />
     </Frame>
@@ -327,9 +328,9 @@ function FirstValues({ flow, read, fileName }: { flow: Flow; read: ReadResult; f
 /** No document read yet: one is added to this flow right here, through the app's upload queue, as on Documents.
  *  While the newest one is still being read, that is said instead; a failed read links to it, where it is read again. */
 function FirstDocument({ flow, newest }: { flow: Flow; newest?: DocumentSummary }) {
-  const queue = useUploadQueue();
-  if (newest?.status === STATUS.received || newest?.status === STATUS.reading)
-    return <Frame><Quiet>{`We are reading ${newest.fileName}. Its values appear here in a moment.`}</Quiet></Frame>;
+  const enabled = useTenantQueriesEnabled();
+  const auto = flow.automation === "auto";
+  const files = useQuery({ queryKey: ["outputs", flow.id], queryFn: () => listOutputs(flow.id), enabled: enabled && auto });
   const prompt = (
     <>
       <span className="block text-[14px] font-semibold text-ink">Drop one document like the ones this flow will get.</span>
@@ -338,13 +339,38 @@ function FirstDocument({ flow, newest }: { flow: Flow; newest?: DocumentSummary 
   );
   return (
     <Frame>
+      <FirstDocumentDrop flow={flow} newest={newest} prompt={prompt} reading="Its values appear here in a moment." filled dropOnFail
+        sends={auto && !!files.data?.some((o) => o.destinationId)} />
+    </Frame>
+  );
+}
+
+/** Before a flow's first document is read (We read and We send): what is happening to the newest one, else a drop
+ *  zone that adds one. `sends`: the flow sends automatically to a destination, so a dropped document is sent too. */
+export function FirstDocumentDrop({ flow, newest, prompt, reading, sends, filled, dropOnFail }: {
+  flow: Flow; newest?: DocumentSummary; prompt: React.ReactNode; reading: string; sends: boolean; filled?: boolean;
+  /** We read: a failed read still offers the drop zone beside its notice. */ dropOnFail?: boolean;
+}) {
+  const queue = useUploadQueue();
+  if (newest?.status === STATUS.received || newest?.status === STATUS.reading)
+    return <Quiet>{`We are reading ${newest.fileName}. ${reading}`}</Quiet>;
+  if (newest && !Object.hasOwn(DOCUMENT_STATUSES, newest.status))
+    return (
+      <p className="m-0 text-[13px] text-ink-muted">
+        This flow&apos;s first document isn&apos;t ready yet.{" "}
+        <Link href={flowAddress(flow.id, "documents")} className="font-semibold text-brand-blue">See its documents</Link>
+      </p>
+    );
+  return (
+    <div className="grid gap-3">
       {newest?.status === STATUS.read_failed && (
         <StatusNotice tone="error" action={<Link href={`/flows/${flow.id}/documents/${newest.id}`} className={buttonClass("secondary", "sm")}>Open it</Link>}>
           {`We couldn't read ${newest.fileName}.`}
         </StatusNotice>
       )}
-      <FileDrop accept={acceptFor(flow)} maxBytes={MAX_UPLOAD_BYTES} prompt={prompt} onFile={(f) => queue.add([f], flow)} />
-    </Frame>
+      {(dropOnFail || newest?.status !== STATUS.read_failed) && <FileDrop accept={acceptFor(flow)} maxBytes={MAX_UPLOAD_BYTES} variant={filled ? "blue" : "secondary"} onFile={(f) => queue.add([f], flow)}
+        prompt={<>{prompt}{sends && <span className="block">This flow sends automatically, so this document is also sent.</span>}</>} />}
+    </div>
   );
 }
 

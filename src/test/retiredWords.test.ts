@@ -66,7 +66,7 @@ const HELP_PAGES = (readdirSync(join(ROOT, HELP), { recursive: true }) as string
   .filter((f) => !f.includes("/old-orders/") && (f.endsWith("/page.mdx") || (f.endsWith(".tsx") && !/\.test\./.test(f))));
 
 /** The signed-in flow area, read whole: every source file under these folders, test files excluded. */
-const APP_DIRS = ["src/components/flows", "src/components/destinations", "src/components/lookups", "src/components/activity"];
+const APP_DIRS = ["src/components/flows", "src/components/destinations", "src/components/lookups", "src/components/activity", "src/app/(app)", "src/components/help"];
 const inDir = (dir: string) => (readdirSync(join(ROOT, dir), { recursive: true }) as string[])
   .map((f) => `${dir}/${f.replace(/\\/g, "/")}`)
   .filter((f) => /\.tsx?$/.test(f) && !/\.test\./.test(f));
@@ -98,8 +98,9 @@ const OTHER_FILES = [
 const MANIFEST = "src/lib/auditActionManifest.ts";
 const labels = (source: string) => [...source.matchAll(/\blabel: "([^"]*)"/g)].map((m) => m[1]);
 
-/** Every file read. */
-const CORPUS = [...APP_DIRS.flatMap(inDir), ...OTHER_FILES, ...HELP_PAGES];
+/** Every file read. The operator screens under `admin/` speak to ProcuLink staff in their own terms (the retention
+ *  sweep's "generated output", a Stripe "draft" invoice), so they are not read. */
+const CORPUS = [...APP_DIRS.flatMap(inDir).filter((f) => !f.startsWith("src/app/(app)/admin/")), ...OTHER_FILES, ...HELP_PAGES];
 
 const RETIRED: { word: RegExp; files: string[] }[] = [
   { word: /\boutputs?\b/i, files: CORPUS },
@@ -147,8 +148,8 @@ describe("retired words stay retired in what a person reads", () => {
     expect(personText("const s = `Output: ${name}`; const r = `/flows/${id}/outputs/${o}`;")).toEqual(["Output:"]);
     // Anti-vacuity: every folder yields a file, and the corpus yields person-read text to check.
     for (const dir of [...APP_DIRS, HELP]) expect(CORPUS.some((f) => f.startsWith(dir.replace(/\\/g, "/") + "/")), dir).toBe(true);
-    // Measured 2026-11-16: 4,587 person-read strings (the Advanced view read since Task 9), 759 for the mapper rule (its folder and the files that feed it), and 31 help pages. Raise these floors when the corpus grows; never lower them.
-    expect(CORPUS.flatMap(textOf).length).toBeGreaterThanOrEqual(4150);
+    // Measured 2026-11-16: 5,079 person-read strings (the Advanced view read since Task 9; the signed-in pages and the help components since the final review), 759 for the mapper rule (its folder and the files that feed it), and 31 help pages. Raise these floors when the corpus grows; never lower them.
+    expect(CORPUS.flatMap(textOf).length).toBeGreaterThanOrEqual(5000);
     expect(MAPPER).toContain("src/components/bridge/mapper/MapperWorkbench.tsx");
     expect([...MAPPER, ...MAPPER_FED].flatMap(textOf).length).toBeGreaterThanOrEqual(750);
     for (const f of MAPPER_FED) expect(textOf(f).length, `${f} yields person-read text`).toBeGreaterThan(0);

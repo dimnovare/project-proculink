@@ -79,6 +79,9 @@ function QuickFile({ flow, title, onDone, made, names, pick, setPick }: Props & 
   const type = FORMATS[format as keyof typeof FORMATS] ?? format;
   const name = pick.name ?? prefilledName(flow.name, type, names);
   const [problem, setProblem] = useState<string | null>(null);
+  // Opened from Make another file, which is not drawn while this is open: the panel's heading takes the focus.
+  const top = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { top.current?.focus(); }, []);
   const table = flow.fields.tables[0];
   const values = [
     ...flow.fields.fields.map((f) => ({ id: f.key, key: f.key, label: f.label })),
@@ -122,7 +125,7 @@ function QuickFile({ flow, title, onDone, made, names, pick, setPick }: Props & 
     <Card edge="green">
       <div className="grid gap-3">
         <div className="grid gap-0.5">
-          <h2 className="m-0 text-[16px] font-semibold text-ink">{title}</h2>
+          <h2 ref={top} tabIndex={-1} className="m-0 text-[16px] font-semibold text-ink">{title}</h2>
           <p className="m-0 text-[14px] text-ink-muted">{line}</p>
         </div>
         <Field label="Name">
