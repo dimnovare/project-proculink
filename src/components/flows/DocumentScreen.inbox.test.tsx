@@ -13,6 +13,7 @@ vi.mock("@/components/bridge/document/SourceDocumentBody", () => ({ SourceDocume
 
 import { DocumentScreen } from "./DocumentScreen";
 import { getDocument } from "@/lib/api/documents";
+import { COPY } from "@/lib/documentRefusals";
 
 type Spy = { calls: string[]; answer?: Record<string, object> };
 const spy = () => (window as unknown as { __mockEngine: Spy }).__mockEngine;
@@ -64,6 +65,23 @@ describe("DocumentScreen, a document in the inbox", () => {
     await waitFor(() => expect(document.getElementById("review-send")).toBeEnabled());
     expect(screen.queryByText("We couldn't check where this document is.")).toBeNull();
     expect(calls()).not.toContain("GET /inbox");
+  });
+
+  it("any failed flow request asks the inbox: an inbox document is answered, never sent; a flow it does not hold is gone", async () => {
+    spy().answer = { "GET /flows/flow-inbox": { refuse: [500, "server_error"] } };
+    const first = mount("doc-in-1");
+    await answers();
+    expect(calls()).toContain("GET /inbox");
+    expect(document.getElementById("review-send")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Skip" })).toBeNull();
+    first.unmount();
+
+    spy().answer = { "GET /flows/flow-inbox": { refuse: [404, "flow_not_found"] }, "GET /inbox": { flowId: "flow-other", address: null, intakeId: null } };
+    mount("doc-in-1");
+    expect(await screen.findByText(COPY.flow_not_found)).toBeVisible();
+    expect(document.getElementById("review-send")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "What we'll send" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "What to do with it" })).toBeNull();
   });
 
   it("a correction is saved before a download, and the rate limiter's sentence is shown as it is", async () => {

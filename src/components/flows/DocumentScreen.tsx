@@ -26,7 +26,7 @@ import { relativeTime } from "@/lib/relativeTime";
 import { nextTabIndex } from "@/lib/tabKeys";
 import { fetchDocumentSource, getDocument, getFlow, getDocumentHistory, retryDocumentRead, sendDocument, teachDocument } from "@/lib/api/documents";
 import { formatDateTime } from "@/lib/format-date";
-import { documentRefusalMessage, rateLimited, refusalToken } from "@/lib/documentRefusals";
+import { COPY, documentRefusalMessage, rateLimited, refusalToken } from "@/lib/documentRefusals";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
 import { isPlanGateError } from "@/lib/planGate";
 import { documentStatus } from "@/lib/documentStatusManifest";
@@ -38,7 +38,8 @@ import { ADDED_TO_CHANGES, ReadValuesPanel, SAVE_WORDS, type Teach } from "./Rea
 import { Checks, Failed, Quiet, ReadProblem } from "./states";
 import { rowNeed } from "./DocumentList";
 import { WaitingList } from "./WaitingList";
-import { Changed, InboxAnswers, SortNotice, useAnswers } from "./InboxAnswers";
+import { Changed, InboxAnswers, SortNotice, saveFirst, UNSAVED, UNSAVED_TEXT, useAnswers } from "./InboxAnswers";
+import { Gone } from "./CheckStep";
 
 // The file's own extension decides the viewer. The server's content type is not trusted for this.
 const TYPES: Record<string, string> = {
@@ -260,9 +261,6 @@ function spotsOf(read: DocumentDetail["read"]): SourceSpot[] {
   ];
 }
 
-/** A change typed on this document could not be saved, so nothing was sent. */
-const UNSAVED = new Error("unsaved");
-const UNSAVED_TEXT = "Nothing was sent: your last change isn't saved yet.";
 
 const WAY_ON = "inline-flex items-center text-[12.5px] font-semibold text-brand-blue";
 
@@ -342,12 +340,15 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
 
   const summary = doc.data?.summary;
   const docFlowId = summary?.flowId ?? flowId;
-  // P15: a flow that loads means the document is with a person's flow, and the inbox is not asked. Only the flow route's
-  // 404 (the inbox has no flow routes) asks it. Unknown (loading, or the inbox failed) draws neither the answers nor Send.
+  // P15: a flow that loads means the document is with a person's flow, and the inbox is not asked. Any failed flow request
+  // asks it (the inbox has no flow routes). Unknown (loading, or the inbox pending or failed) draws neither the answers nor Send.
   const flow = useQuery({ queryKey: ["flow", docFlowId], queryFn: () => getFlow(docFlowId), enabled });
-  const askInbox = refusalToken(flow.error) === "flow_not_found";
-  const inbox = useQuery({ ...inboxQuery, enabled: enabled && askInbox });
-  const here = !summary || (!flow.data && !flow.isError) ? undefined : askInbox && !flow.data ? inInbox(summary, inbox.data) : false;
+  const flowFailed = flow.isError && !flow.data;
+  const inbox = useQuery({ ...inboxQuery, enabled: enabled && flowFailed });
+  const there = summary && flowFailed ? inInbox(summary, inbox.data) : undefined;
+  // Not in the inbox, and its flow route says there is no such flow: the flow is gone, and nothing is sent from here.
+  const gone = there === false && refusalToken(flow.error) === "flow_not_found";
+  const here = !summary || gone ? undefined : flow.data ? false : there;
   const status = summary && documentStatus(summary.status, summary.statusReason);
   // Only a document sorted into a flow can be sent or skipped; an inbox document is answered instead (Review Focus 1).
   const sends = here === false && !!status?.editable;
@@ -372,7 +373,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   if (others && !listed) setListed(true);
   const waiting = others || listed;
   const nextNow = pickNext(queue.data?.items, undefined, documentId);
-  const saved = () => edits.flush().catch((e: unknown) => { throw refusalToken(e) === null ? UNSAVED : e; });
+  const saved = () => saveFirst(edits.flush);
   const send = useMutation({
     mutationFn: async () => {
       const before = qc.getQueryData<DocumentPage>(reviewQueueQuery.queryKey)?.items;
@@ -416,7 +417,9 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   const canSkip = sends && !!nextNow;
   // Review next is the way on wherever nothing is sent from here; beside the inbox answers it is never the filled button.
   const next = here !== undefined && !sends && nextNow;
-  const nextOff = answering ? " pointer-events-none opacity-60" : "";
+  // While an answer runs it is a disabled button: a link would still go on Enter.
+  const reviewNext = (cls: string) => next && (answering ? <Button disabled className={cls}>Review next</Button>
+    : <Link replace href={documentHref(next)} className={`${buttonClass(here ? "secondary" : "send", "md")} ${cls}`}>Review next</Link>);
   const located = !!marks?.places.length || !!doc.data?.read.fields.some((f) => f.location?.box || f.location?.address)
     || !!doc.data?.read.tables.some((t) => t.rows.some((r) => Object.values(r.cells).some((c) => c.location?.box || c.location?.address)));
   const refused = send.error ?? skip.error;
@@ -461,7 +464,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
                   <kbd aria-hidden className="hidden h-[22px] items-center rounded bg-brand-green-deep px-1.5 font-sans text-[12.5px] font-semibold lg:inline-flex">{keyWord("Mod", apple)} Enter</kbd>
                 </Button>
               </>
-            ) : next && <Link replace href={documentHref(next)} aria-disabled={answering || undefined} className={`${buttonClass(here ? "secondary" : "send", "md")} hidden items-center md:inline-flex${nextOff}`}>Review next</Link>}
+            ) : reviewNext("hidden items-center md:inline-flex")}
           </div>
         )}
       />
@@ -480,11 +483,13 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
       ) : (
         <div className="grid gap-4">
           {doc.isError && <Failed error={doc.error} retry={() => doc.refetch()} />}
-          {inbox.isError && here === undefined && (
-            <StatusNotice tone="error" action={<Button size="sm" variant="secondary" loading={inbox.isFetching} onClick={() => inbox.refetch()}>Try again</Button>}>
+          {inbox.isError && there === undefined && (
+            <StatusNotice tone="error" action={<Button size="sm" variant="secondary" loading={inbox.isFetching} onClick={() => { flow.refetch(); inbox.refetch(); }}>Try again</Button>}>
               We couldn&apos;t check where this document is.
             </StatusNotice>
           )}
+          {gone && <Gone text={COPY.flow_not_found} />}
+          {flowFailed && here === false && <Failed error={flow.error} retry={() => flow.refetch()} lead="We couldn't load this document's flow." />}
           <Changed a={a} />
           {sends && summary.statusReason === "check_sort" && <SortNotice detail={doc.data} a={a} />}
           {/* Announced when it changes (after a move: reading, or the hold). Drawn once the place is known: its links assume one. */}
@@ -501,7 +506,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
             <PaneTabs panes={panes} active={tab} onSelect={(id) => setTab(id as PaneId)} />
             {waiting && queue.data && (
               <div className={`hidden min-w-0 min-[1700px]:mr-3 min-[1700px]:block min-[1700px]:sticky ${UNDER_HEADER}`}>
-                <WaitingList queue={queue.data} currentId={documentId} />
+                <WaitingList queue={queue.data} currentId={documentId} off={answering} />
               </div>
             )}
             <Pane id="original" title="Original" dot="blue" hidden={tab !== "original"} sticky={UNDER_HEADER}>
@@ -529,11 +534,11 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
                   <Quiet>
                     {summary.status === "sending" ? "Sending…" : status.tone === "working" ? "Reading the document…" : "Nothing was read from this document."}
                   </Quiet>
-                  {summary.statusReason !== "duplicate_file" && <Checks checks={doc.data.checks} inbox={here === true} />}
+                  {summary.statusReason !== "duplicate_file" && <Checks checks={doc.data.checks} inbox={here !== false} />}
                   <div className="mt-1">{history}</div>
                 </div>
               ) : (
-                <ReadValuesPanel detail={doc.data} editable={status.editable} edits={edits} marks={marks} history={history} onLocate={setSpot} flow={flow.data} inbox={here === true}
+                <ReadValuesPanel detail={doc.data} editable={status.editable} edits={edits} marks={marks} history={history} onLocate={setSpot} flow={flow.data} inbox={here !== false}
                   walk={isLg && sends} onChecked={(from) => { document.getElementById("review-send")?.focus(); walked.current = from; }}
                   onTeach={canTeach ? (t) => { setTeach(t); setTaught(null); setTab("original"); teachMutation.reset(); } : undefined}
                 />
@@ -555,7 +560,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
               {canSkip && <Button variant="secondary" className="!flex-none" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
               <Button variant="send" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}>Send and open next</Button>
             </>
-          ) : next && <Link replace href={documentHref(next)} aria-disabled={answering || undefined} className={`${buttonClass(here ? "secondary" : "send", "md")} inline-flex items-center${nextOff}`}>Review next</Link>}
+          ) : reviewNext("inline-flex items-center")}
         </ActionBar>
       )}
     </PageShell>

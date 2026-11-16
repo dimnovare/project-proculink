@@ -23,6 +23,11 @@ const byName = <T extends { name: string }>(list: readonly T[]) => [...list].sor
 /** Someone or something got there first: the screen shows the document as it is now. */
 const GONE = new Set(["not_movable", "not_in_inbox"]);
 export const CHANGED = "This document changed while you were looking at it. This is how it is now.";
+/** A change typed on this document could not be saved, so nothing was sent. */
+export const UNSAVED = new Error("unsaved");
+export const UNSAVED_TEXT = "Nothing was sent: your last change isn't saved yet.";
+/** Saves a typed correction first; a failure the server gave no word for is the unsaved change. */
+export const saveFirst = (flush: () => Promise<unknown>) => flush().catch((e: unknown) => { throw refusalToken(e) === null ? UNSAVED : e; });
 /** A stable ref callback, so focus moves once, when the element appears. */
 const focusOnMount = (el: HTMLElement | null) => el?.focus();
 
@@ -45,7 +50,7 @@ export function useAnswers(s: DocumentSummary | undefined, { enabled, flush }: {
   const act = useMutation({
     mutationFn: async (a: Act) => {
       if (!s) return;
-      await flush();
+      await saveFirst(flush);
       if (a === "set-up") return router.push(firstRunAddress({ step: "send", flow: (await setUpDocument(s.id)).flowId, doc: s.id }));
       if (typeof a === "object") return router.replace(`/flows/${(await moveDocument(s.id, a.move)).flowId}/documents/${s.id}`);
       saveBlob(await downloadDocument(s.id, a), `${s.fileName.replace(/\.[^.]*$/, "")}.${a}`);
@@ -92,7 +97,8 @@ function Refused({ a }: { a: Answers }) {
   const t = refusalToken(error) ?? "";
   const plan = t === "processing_paused" || t === "flow_limit_reached" || LIMIT_CODES.has(t);
   const download = a.act === "xlsx" || a.act === "csv";
-  const text = rateLimited(error) ? (t || (error as Error).message)
+  const text = error === UNSAVED ? UNSAVED_TEXT
+    : rateLimited(error) ? (t || (error as Error).message)
     : download && t === "output_invalid" ? "We couldn't make that file. Try the other format."
     : a.act === "set-up" && t === "invalid_name" ? COPY.invalid_fields
     : documentRefusalMessage(error);
@@ -132,7 +138,6 @@ function MoveTo({ a, label, filled }: { a: Answers; label: string; filled: boole
         </select>
         <Button variant={filled ? "primary" : "secondary"} disabled={!to || a.busy} loading={a.pending === "move"} onClick={() => a.press({ move: to })}>Move it</Button>
       </div>
-      {!to && <p className="m-0 text-[12.5px] text-ink-muted">Choose a flow first.</p>}
     </div>
   );
 }

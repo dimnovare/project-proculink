@@ -79,13 +79,13 @@ function Row({ d, showFlow, sendable, columns, onSent, selection }: {
   const ticked = !!selection?.ids.has(d.id);
   return (
     <div role="row" className={`relative grid min-h-[64px] items-center gap-3 border-t border-border px-3 py-2 ${ticked ? "bg-brand-blue-soft" : "hover:bg-surface-2"}`} style={{ gridTemplateColumns: columns }}>
-      {selection && <div role="cell"><Tick d={d} selection={selection} className="h-11 w-11" /></div>}
+      {selection && <div role="cell">{!d.inInbox && <Tick d={d} selection={selection} className="h-11 w-11" />}</div>}
       <div role="cell" className="min-w-0">
         <div className="flex min-w-0 items-center gap-2">
           <Link href={href(d)} className="min-w-0 truncate text-[14.5px] font-semibold text-ink after:absolute after:inset-0">{d.fileName}</Link>
           {d.isSample && <Pill>Sample</Pill>}
         </div>
-        {line && <div className="truncate text-[12.5px] text-ink-muted">{line}</div>}
+        {line && <div title={line} className="truncate text-[12.5px] text-ink-muted">{line}</div>}
         {d.number && <div className="truncate font-mono text-[12.5px] text-ink-muted">{d.number}</div>}
       </div>
       {showFlow && <div role="cell" className="min-w-0 truncate text-[13px] text-ink-muted">{d.flowName}</div>}
@@ -96,12 +96,12 @@ function Row({ d, showFlow, sendable, columns, onSent, selection }: {
       <div role="cell"><StatusJourney stage={documentStatus(d.status, d.statusReason).stage} compact /></div>
       <div role="cell" className="text-[13px] text-ink-muted">{received(d)}</div>
       <div role="cell" className="text-right">
-        {d.inInbox && (d.status === "needs_review" || d.status === "ready") ? (
-          // An inbox document is answered on its own screen, never sent from a row; one not known to be sorted is not sent either.
-          <span aria-hidden className={buttonClass("secondary", "sm")}>Open</span>
-        ) : d.status === "ready" && sendable && !selection && d.inInbox === false ? (
+        {d.status === "ready" && sendable && !selection && d.inInbox === false ? (
           <Button variant="secondary" size="sm" aria-label={`Send ${d.fileName}`} loading={send.isPending || bulk} onClick={() => send.mutate()}
             className="relative z-[1] !border-brand-green-deep !text-brand-green-deep">Send</Button>
+        ) : d.inInbox !== false && (d.status === "ready" || (d.inInbox && d.status === "needs_review")) ? (
+          // An inbox document is answered on its own screen, never sent from a row; one not known to be sorted is not sent either.
+          <span aria-hidden className={buttonClass("secondary", "sm")}>Open</span>
         ) : d.status === "needs_review" ? (
           <span aria-hidden className={buttonClass("secondary", "sm")}>Review</span>
         ) : null}
@@ -126,6 +126,8 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
   // the row goes (R5). The caller resets it with a `key`.
   const [sent, setSent] = useState<Record<string, ListedDocument>>({});
   const drawn = documents.map((d) => (sent[d.id] && d.status === "ready" ? sent[d.id] : d)).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
+  // An inbox document is answered on its own screen: it has no tick (its row's "Open" is the way on).
+  const tickable = drawn.filter((d) => !d.inInbox);
   const columns = `${selection ? "44px " : ""}minmax(0,2fr) ${showFlow ? "minmax(0,1fr) " : ""}minmax(0,1.4fr) 104px 96px 88px`;
 
   return (
@@ -134,11 +136,11 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
         <div role="row" className="grid gap-3 px-3 py-2 text-[12.5px] font-medium text-ink-muted" style={{ gridTemplateColumns: columns }}>
           {selection && (
             <div role="columnheader">
-              {drawn.length > 1 && (
+              {tickable.length > 1 && (
                 <label className="flex h-11 w-11 items-center justify-center">
-                  <input type="checkbox" aria-label={`Select all ${drawn.length} documents`} className="h-5 w-5"
-                    checked={drawn.every((d) => selection.ids.has(d.id))} onChange={(e) => selection.all(e.target.checked)}
-                    ref={(el) => { if (el) el.indeterminate = drawn.some((d) => selection.ids.has(d.id)) && !drawn.every((d) => selection.ids.has(d.id)); }} />
+                  <input type="checkbox" aria-label={`Select all ${tickable.length} documents`} className="h-5 w-5"
+                    checked={tickable.every((d) => selection.ids.has(d.id))} onChange={(e) => selection.all(e.target.checked)}
+                    ref={(el) => { if (el) el.indeterminate = tickable.some((d) => selection.ids.has(d.id)) && !tickable.every((d) => selection.ids.has(d.id)); }} />
                 </label>
               )}
             </div>
@@ -161,7 +163,7 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
           const line = kindSentence(d.kind, d.sender) ?? (showFlow ? d.flowName : null);
           return (
             <li key={d.id} className={`border-t border-border first:border-t-0 ${selection ? "flex items-stretch" : ""} ${selection?.ids.has(d.id) ? "bg-brand-blue-soft" : ""}`}>
-              {selection && <Tick d={d} selection={selection} className="w-11 pl-2" />}
+              {selection && (d.inInbox ? <span className="w-11 shrink-0" /> : <Tick d={d} selection={selection} className="w-11 pl-2" />)}
               {/* `!` beats the global phone rule, whose `min-height: 44px !important` would otherwise win. */}
               <Link href={href(d)} className="flex !min-h-[92px] min-w-0 flex-1 items-center gap-3 px-4 py-3 text-ink">
                 <div className="grid min-w-0 flex-1 gap-1">
@@ -169,7 +171,7 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
                     <span data-testid="document-name" className="min-w-0 truncate text-[16px] font-semibold">{d.fileName}</span>
                     <span className="shrink-0 text-[13px] text-ink-muted">{received(d)}</span>
                   </div>
-                  {line && <span className="truncate text-[14px] text-ink-muted">{line}</span>}
+                  {line && <span title={line} className="truncate text-[14px] text-ink-muted">{line}</span>}
                   <div className="flex flex-wrap gap-2">
                     <Pill tone={need.tone}>{need.text}</Pill>
                     {d.isSample && <Pill>Sample</Pill>}

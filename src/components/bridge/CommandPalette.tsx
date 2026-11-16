@@ -201,7 +201,7 @@ export function CommandPalette({ onClose, onShortcuts }: { onClose: () => void; 
                       {o.icon}
                       <span className="flex min-w-0 flex-1 flex-col">
                         <span className="truncate text-[14px]"><Marked text={o.label} term={o.found ? s.term : ""} /></span>
-                        {o.sub && <span id={`${id}-d`} className="truncate text-[12.5px] text-ink-muted">{o.sub}</span>}
+                        {o.sub && <span id={`${id}-d`} title={o.sub} className="truncate text-[12.5px] text-ink-muted">{o.sub}</span>}
                       </span>
                       {o.tag && <Pill tone={o.tag.tone}><span id={`${id}-t`}>{o.tag.text}</span></Pill>}
                       {on && <kbd aria-hidden className={`${KEY} hidden sm:inline-flex`}>Enter</kbd>}

@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import type { DocumentRow } from "@/lib/api/documents";
 import { DocumentList, rowNeed } from "./DocumentList";
+import { WaitingList } from "./WaitingList";
 
 const { sendDocument } = vi.hoisted(() => ({ sendDocument: vi.fn() }));
 vi.mock("@/lib/api/documents", () => ({ sendDocument }));
@@ -71,6 +72,7 @@ describe("DocumentList", () => {
           row({ id: "n", fileName: "statement.pdf", flowId: "inbox", flowName: "New documents", statusReason: "new_kind", kind: null, inInbox: true, createdAt: "2026-11-02T10:00:00Z" }),
           row({ id: "d", fileName: "remittance.pdf", status: "sent", statusReason: "downloaded", inInbox: true, createdAt: "2026-10-30T10:00:00Z" }),
           row({ id: "r", fileName: "price-list.xlsx", status: "ready", inInbox: true, createdAt: "2026-10-29T10:00:00Z" }),
+          row({ id: "u", fileName: "unplaced.pdf", status: "ready", inInbox: undefined, createdAt: "2026-10-28T10:00:00Z" }),
         ]} />
       </QueryClientProvider>,
     );
@@ -82,6 +84,8 @@ describe("DocumentList", () => {
     expect(inbox[2]).toHaveTextContent("New kind");
     expect(inbox[5]).toHaveTextContent(/^Open$/);
     expect(table.queryByRole("button", { name: "Send price-list.xlsx" })).toBeNull(); // a ready inbox document is never sent from a row
+    // Not known to be with a flow: not sent from the row either, and "Open" is the way on.
+    expect(within(table.getByRole("row", { name: /unplaced\.pdf/ })).getAllByRole("cell")[5]).toHaveTextContent(/^Open$/);
     const downloaded = within(table.getByRole("row", { name: /remittance\.pdf/ })).getAllByRole("cell");
     expect(downloaded[2]).toHaveTextContent("Downloaded");
     expect(downloaded.filter((c) => /\bSent\b/.test(c.textContent ?? ""))).toEqual([]);
@@ -89,6 +93,12 @@ describe("DocumentList", () => {
     const phoneInvoice = within(phone.getByRole("link", { name: /invoice-2292\.pdf/ }));
     expect(phoneInvoice.getByText("An invoice from Example Supplier Ltd")).toBeInTheDocument();
     expect(phoneInvoice.queryByText("Supplier invoices")).toBeNull();
+  });
+
+  it("the waiting list says what a document is, or who it is from, before its flow", () => {
+    const items = [row({ id: "s", fileName: "scan.pdf", sender: "Example Supplier Ltd", kind: null })];
+    render(<WaitingList queue={{ items, totalCount: 1, page: 1, pageSize: 20, sampleCount: 0 }} currentId="x" />);
+    expect(within(screen.getByRole("link", { name: /scan\.pdf/ })).getByText(/^From Example Supplier Ltd/)).toBeInTheDocument();
   });
 
   it("a refused send says why on the row and keeps Send", async () => {
