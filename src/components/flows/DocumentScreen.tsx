@@ -39,7 +39,7 @@ import { ADDED_TO_CHANGES, ReadValuesPanel, SAVE_WORDS, type Teach } from "./Rea
 import { Checks, Failed, Quiet, ReadProblem } from "./states";
 import { rowNeed } from "./DocumentList";
 import { WaitingList } from "./WaitingList";
-import { InboxAnswers } from "./InboxAnswers";
+import { InboxAnswers, SortNotice } from "./InboxAnswers";
 
 // The file's own extension decides the viewer. The server's content type is not trusted for this.
 const TYPES: Record<string, string> = {
@@ -484,6 +484,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
               We couldn&apos;t check where this document is.
             </StatusNotice>
           )}
+          {sends && summary.statusReason === "check_sort" && <SortNotice detail={doc.data} />}
           <ReadProblem
             summary={summary} nothingRead={nothingRead} retry={retry} scansOn={(here ? inbox.data : flow.data)?.scansOn}
             uploadHref={here ? "/upload" : `/flows/${summary.flowId}?tab=documents`} held={doc.data.checks.find((c) => !c.passed && c.code === "duplicate")?.message}

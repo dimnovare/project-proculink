@@ -87,4 +87,19 @@ describe("DocumentScreen, a document in the inbox", () => {
     await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/flows/flow-4/documents/doc-in-2"));
     expect(calls().filter((c) => c.startsWith("POST /documents/doc-in-2/move"))).toEqual(['POST /documents/doc-in-2/move {"flowId":"flow-4"}']);
   });
+
+  it("a sort that is not certain says where it went and can be moved, and Send stays", async () => {
+    mount("doc-in-3", "flow-2");
+    expect(await screen.findByText("We put this with Delivery notes. Check that is right.")).toBeVisible();
+    expect(screen.queryByRole("region", { name: "What to do with it" })).toBeNull();
+    const list = screen.getByRole("combobox", { name: "Another flow" });
+    await waitFor(() => expect(within(list).getByRole("option", { name: "Supplier invoices" })).toBeTruthy());
+    expect(within(list).queryByRole("option", { name: "Delivery notes" })).toBeNull();
+    expect(list).toHaveValue("");
+    expect(document.getElementById("review-send")).toBeEnabled();
+    fireEvent.change(list, { target: { value: "flow-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Move it" }));
+    await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/flows/flow-1/documents/doc-in-3"));
+    expect(calls().filter((c) => c.startsWith("POST /documents/doc-in-3/move"))).toEqual(['POST /documents/doc-in-3/move {"flowId":"flow-1"}']);
+  });
 });

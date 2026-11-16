@@ -136,3 +136,16 @@ export function InboxAnswers({ detail }: { detail: DocumentDetail }) {
     </Card>
   );
 }
+
+/** Task 7: a sort we were not sure of. Send stays the filled button, and sending confirms the sort. */
+export function SortNotice({ detail }: { detail: DocumentDetail }) {
+  const a = useAnswers(detail);
+  return (
+    <div className="grid gap-2">
+      <StatusNotice tone="warning" action={!a.none && <MoveTo a={a} label="Another flow" filled={false} />}>
+        {`We put this with ${detail.summary.flowName}. Check that is right.`}
+      </StatusNotice>
+      {a.error && <Refused error={a.error} />}
+    </div>
+  );
+}
