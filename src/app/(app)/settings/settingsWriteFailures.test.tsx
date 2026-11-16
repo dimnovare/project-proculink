@@ -27,7 +27,11 @@ vi.mock("@/components/flows/NotificationEmailSection", () => ({ NotificationEmai
 vi.mock("@/hooks/useDocumentEngine", () => ({ useDocumentEngine: () => "unknown" }));
 vi.mock("@clerk/nextjs", () => ({
   useOrganization: () => ({ organization: { name: "Test Org", membersCount: 1 } }),
+  useUser: () => ({ user: undefined }),
+  useClerk: () => ({}),
 }));
+// `tab=api` opens Workspace with For developers open; the rest of Workspace is not what these tests are about.
+vi.mock("@/components/pwa/InstallPanel", () => ({ InstallPanel: () => null }));
 
 vi.mock("@/lib/api-client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api-client")>();

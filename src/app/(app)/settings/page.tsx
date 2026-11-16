@@ -41,7 +41,10 @@ export default function SettingsPage() {
 
 function SettingsScreen() {
   // The tab is the address: one known id, else Workspace. A press replaces the address with that tab alone.
-  const tab = readSettingsTab(useSearchParams());
+  const params = useSearchParams();
+  const tab = readSettingsTab(params);
+  // `tab=api` (the old API keys tab) opens Workspace with For developers open.
+  const developers = params.get("tab") === "api";
   const router = useRouter();
   const { organization } = useOrganization();
   const { data: billing } = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000 });
@@ -70,10 +73,9 @@ function SettingsScreen() {
           );
         })}
       </nav>
-      {tab === "org"          && <OrgSection />}
+      {tab === "org"          && <OrgSection developersOpen={developers} />}
       {tab === "destinations" && <DestinationsSection />}
       {tab === "billing"      && <BillingSection />}
-      {tab === "api"          && <ApiKeysSection />}
     </PageShell>
   );
 }
@@ -134,8 +136,10 @@ function WriteFailure({ children, className }: { children: ReactNode; className?
 
 type Organization = NonNullable<ReturnType<typeof useOrganization>["organization"]>;
 
-/** Name, People and "Tell me when" on the left; the fixed facts on the right. Name and People wait for Clerk's organisation. */
-function OrgSection() {
+/** Name, People, "Tell me when" and For developers on the left; the fixed facts on the right. Name and People wait for
+ *  Clerk's organisation. The keys are fetched only while For developers is open. */
+function OrgSection({ developersOpen }: { developersOpen: boolean }) {
+  const [developers, setDevelopers] = useState(developersOpen);
   const { organization, memberships } = useOrganization({ memberships: { pageSize: 10 } });
   const { user } = useUser();
   const clerk = useClerk();
@@ -197,6 +201,13 @@ function OrgSection() {
           </SettingsPanel>
         )}
         <NotificationEmailSection />
+        <details open={developers} onToggle={(e) => setDevelopers(e.currentTarget.open)} className="grid gap-4">
+          <summary className="grid min-h-11 cursor-pointer content-center gap-0.5 rounded-card border border-border bg-surface px-6 py-3 max-[560px]:px-4">
+            <span className="text-[14px] font-semibold text-ink">For developers</span>
+            <span className="text-[13px] text-ink-muted">API keys, for connecting another system to this workspace.</span>
+          </summary>
+          {developers && <div className="mt-4"><ApiKeysSection /></div>}
+        </details>
       </div>
       <div className="flex min-w-0 max-w-[412px] flex-[1_1_280px] flex-col gap-4">
         <SettingsPanel as="aside" id="s-about" title="About this workspace">

@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Pencil, X } from "lucide-react";
@@ -11,7 +12,8 @@ import { INPUT } from "@/components/flows/DestinationForm";
 import { Quiet } from "@/components/flows/states";
 import { useAutosave } from "@/hooks/useAutosave";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { deleteLookup, getLookup, updateLookup, type Lookup, type LookupCandidate } from "@/lib/api/documents";
+import { deleteLookup, getLookup, listFlows, updateLookup, type Lookup, type LookupCandidate } from "@/lib/api/documents";
+import { flowAddress } from "@/lib/flowSteps";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { exportLookupCsv } from "@/lib/lookupCsvLeaf";
 import { LOOKUP_LIMITS } from "@/lib/lookupLimits";
@@ -185,6 +187,9 @@ function LookupEditor({ lookup, lookupId, usedBy }: { lookup: Lookup; lookupId: 
   const n = doc.rows.length;
   const full = n >= LOOKUP_LIMITS.rows;
   const used = usedByLine(usedBy);
+  const unused = used === "Not used yet.";
+  // Only for an unused lookup: one link per flow to its We send step. Loading or failed draws no list.
+  const flows = useQuery({ queryKey: ["flows"], queryFn: listFlows, enabled: useTenantQueriesEnabled() && unused });
   const failure = autosave.error && refusalToken(autosave.error) ? documentRefusalMessage(autosave.error) : "Your changes are kept on this page.";
 
   return (
@@ -238,8 +243,15 @@ function LookupEditor({ lookup, lookupId, usedBy }: { lookup: Lookup; lookupId: 
           </div>
           {used && (
             <p className="m-0 text-[13px] text-ink-muted">
-              {used === "Not used yet." ? `${used} To use it, open a flow's output and pick this lookup for a column.` : used}
+              {unused ? `${used} To use it, open a flow, go to We send, open a file, choose More options and pick this lookup for a column.` : used}
             </p>
+          )}
+          {unused && !!flows.data?.length && (
+            <ul aria-label="Your flows" className="m-0 flex list-none flex-wrap gap-x-4 p-0">
+              {flows.data.map((f) => (
+                <li key={f.id}><Link href={flowAddress(f.id, "send")} className="inline-flex min-h-[44px] items-center text-[14px] font-semibold">{f.name}</Link></li>
+              ))}
+            </ul>
           )}
         </div>
 

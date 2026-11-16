@@ -11,6 +11,8 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/settings",
 }));
 vi.mock("@clerk/nextjs", () => ({ useOrganization: () => ({ organization: undefined }), useUser: () => ({ user: undefined }), useClerk: () => ({}) }));
+vi.mock("@/components/flows/NotificationEmailSection", () => ({ NotificationEmailSection: () => null }));
+vi.mock("@/components/pwa/InstallPanel", () => ({ InstallPanel: () => null }));
 const api = vi.hoisted(() => ({ getApiKeys: vi.fn(), createApiKey: vi.fn() }));
 vi.mock("@/lib/api-client", async (o) => ({
   ...(await o<typeof import("@/lib/api-client")>()),
@@ -30,6 +32,16 @@ function mount() {
 }
 
 describe("Settings › API keys", () => {
+  it("tab=api opens Workspace with For developers open", async () => {
+    api.getApiKeys.mockResolvedValue([]);
+    mount();
+    const tabs = within(screen.getByRole("navigation", { name: "Settings sections" }));
+    expect(tabs.getByRole("button", { name: "Workspace" })).toHaveAttribute("aria-current", "page");
+    expect(tabs.queryByRole("button", { name: "API keys" })).toBeNull();
+    expect(screen.getByText("For developers").closest("details")).toHaveAttribute("open");
+    expect(await screen.findByRole("button", { name: "Create key" })).toBeInTheDocument();
+  });
+
   it("a new key is shown once: after I've saved it, it is in no element, no cache and no address", async () => {
     api.getApiKeys.mockResolvedValueOnce([]).mockResolvedValue([key]);
     api.createApiKey.mockResolvedValue({ ...key, rawKey: RAW });

@@ -74,7 +74,6 @@ const inDir = (dir: string) => (readdirSync(join(ROOT, dir), { recursive: true }
 /** Files whose old "output" words a LATER task of plan 16a removes; the release words are read in them too.
  *  Nothing else may be listed here. */
 const LATER = (f: string) =>
-  f === "src/components/lookups/LookupPage.tsx" ||         // Task 8: the unused-lookup sentence
   f.startsWith("src/components/flows/advanced/");          // Task 9: the Advanced view and its mapper words
 
 /** Person-read files outside those folders that this guard read before it was widened. */
@@ -133,8 +132,8 @@ describe("retired words stay retired in what a person reads", () => {
     expect(personText("const s = `Output: ${name}`; const r = `/flows/${id}/outputs/${o}`;")).toEqual(["Output:"]);
     // Anti-vacuity: every folder yields a file, and the corpus yields person-read text to check.
     for (const dir of [...APP_DIRS, HELP]) expect(CORPUS.some((f) => f.startsWith(dir.replace(/\\/g, "/") + "/")), dir).toBe(true);
-    // Measured 2026-11-16: 4,401 person-read strings (FlowValues.tsx's drop zone since Task 6) and 31 help pages. Raise these floors when the corpus grows; never lower them.
-    expect(CORPUS.flatMap(textOf).length).toBeGreaterThanOrEqual(3960);
+    // Measured 2026-11-16: 4,550 person-read strings (LookupPage.tsx read since Task 8) and 31 help pages. Raise these floors when the corpus grows; never lower them.
+    expect(CORPUS.flatMap(textOf).length).toBeGreaterThanOrEqual(4100);
     expect(HELP_PAGES.filter((f) => f.endsWith(".mdx")).length).toBeGreaterThanOrEqual(30);
   });
 });
