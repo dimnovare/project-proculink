@@ -26,7 +26,7 @@ export const DOCUMENT_STATUSES: Record<string, DocumentStatusRow> = {
 export const WHOLE_DOCUMENT_CHECKS = ["fields_unconfirmed", "duplicate", "text_truncated"] as const;
 
 /** A reason's own label, by `status/reason`: how the inbox sorted a document. Every other fact stays the status's. */
-const REASON_LABELS: Record<string, string> = {
+export const REASON_LABELS: Record<string, string> = {
   "needs_review/new_kind": "New kind",
   "needs_review/choose_flow": "Choose a flow",
   "needs_review/check_sort": "Check the flow",
