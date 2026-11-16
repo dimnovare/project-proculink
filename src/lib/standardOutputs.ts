@@ -26,3 +26,32 @@ export const WRITTEN_VERSION: Partial<Record<string, string>> = { "x12-850": "00
 
 /** A standard's name from the catalog, else its id. */
 export const standardName = (id: string) => STANDARDS.find((s) => s.id === id)?.name ?? id;
+
+/** One line per invoice family, as the standards panel shows it. A family without one shows none. */
+const DESCRIPTIONS: Partial<Record<string, string>> = {
+  "peppol-bis-billing-3": "The e-invoice format of the Peppol network.",
+  "en16931-cii": "The European e-invoice standard, as CII XML.",
+  "xrechnung-ubl": "E-invoices for German public bodies, as UBL XML.",
+  "xrechnung-cii": "E-invoices for German public bodies, as CII XML.",
+};
+
+export type Family = { id: string; name: string; description: string | null; creditNote: string | null; version: string | null };
+
+/** R10: every standard a flow may offer, as families, in catalog order: the invoice families (each with its credit-note
+ *  twin) only when `peppolOn`, and the order standards. Nothing in STANDARD_OUTPUTS is dropped. */
+export function standardFamilies(peppolOn: boolean | undefined): { invoices: Family[]; orders: Family[] } {
+  const offered = STANDARDS.filter((s) => (STANDARD_OUTPUTS as readonly string[]).includes(s.id));
+  const family = (id: string, name: string, version: string, creditNote: string | null): Family =>
+    ({ id, name, description: DESCRIPTIONS[id] ?? null, creditNote, version: WRITTEN_VERSION[id] ?? version });
+  return {
+    invoices: peppolOn
+      ? offered.filter((s) => FLAGGED.has(s.id) && !s.id.endsWith("-credit-note")).map((s) =>
+        family(s.id, s.name.replace(" (invoice)", ""), s.version, FLAGGED.has(`${s.id}-credit-note`) ? `${s.id}-credit-note` : null))
+      : [],
+    orders: offered.filter((s) => !FLAGGED.has(s.id)).map((s) => family(s.id, s.name, s.version, null)),
+  };
+}
+
+/** R9: which group of standards fits a flow's documents, from the kind we read; null when not known. */
+export const kindGroup = (kindLabel: string | null): "invoices" | "orders" | null =>
+  !kindLabel ? null : /credit note|invoice/i.test(kindLabel) ? "invoices" : /order/i.test(kindLabel) ? "orders" : null;

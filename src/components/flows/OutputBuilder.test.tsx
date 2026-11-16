@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { OutputNode, OutputNodeTemplate } from "@/lib/api/types";
 import { OutputBuilder } from "./OutputBuilder";
+import { STANDARD_OUTPUTS, kindGroup, standardFamilies } from "@/lib/standardOutputs";
 
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 const api = vi.hoisted(() => ({
@@ -30,12 +31,12 @@ const leafNames = (t: OutputNodeTemplate) => {
   const walk = (n: OutputNode): string[] => (n.nodeType === "field" ? [n.name] : (n.children ?? []).flatMap(walk));
   return walk(t.root);
 };
-const renderBuilder = ({ flow: f = flow, onCreated = vi.fn() }: { flow?: unknown; onCreated?: () => void } = {}) => {
+const renderBuilder = ({ flow: f = flow, onCreated = vi.fn(), kind = null }: { flow?: unknown; onCreated?: () => void; kind?: string | null } = {}) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const invalidate = vi.spyOn(client, "invalidateQueries");
   const r = render(
     <QueryClientProvider client={client}>
-      <OutputBuilder flow={f as never} kind={null} onDone={() => {}} onCreated={onCreated} />
+      <OutputBuilder flow={f as never} kind={kind} onDone={() => {}} onCreated={onCreated} />
     </QueryClientProvider>);
   return { ...r, invalidate };
 };
@@ -107,15 +108,32 @@ describe("OutputBuilder", () => {
     expect(api.createOutput).toHaveBeenCalledWith("f", expect.objectContaining({ name: "cXML", format: "", standard: "cxml-1-2" }));
   });
 
-  it("offers the Peppol standards only when the flag is on", () => {
-    const open = (f: unknown) => {
-      const r = renderBuilder({ flow: f });
-      fireEvent.click(screen.getByRole("button", { name: "A standard format" }));
-      return r;
-    };
-    open(flow).unmount();
-    expect(screen.queryByRole("button", { name: /Peppol/ })).toBeNull();
-    open({ ...flow, peppolOn: true });
-    expect(screen.getAllByRole("button", { name: /Use Peppol BIS Billing/ })).toHaveLength(2);
+  it("lists one row per family, the fitting ones first, and keeps every standard reachable", () => {
+    const r = renderBuilder({ flow: { ...invoiceFlow, peppolOn: true }, kind: "Invoice" });
+    fireEvent.click(screen.getByRole("button", { name: "A standard format" }));
+    const uses = (el: HTMLElement) => within(el).getAllByRole("button", { name: /^Use / }).map((b) => b.getAttribute("aria-label"));
+    const fit = screen.getByRole("heading", { name: "For invoices and credit notes, like the documents in this flow" }).parentElement!;
+    expect(uses(fit)).toEqual(["Use Peppol BIS Billing", "Use EN 16931 CII", "Use XRechnung UBL", "Use XRechnung CII"]);
+    expect(screen.getByText("The same four, for credit notes.")).toBeTruthy();
+    expect(screen.getByText("For orders: cXML, UBL Order, EDIFACT ORDERS and ANSI X12 850.")).toBeTruthy();
+    const credit = screen.getByRole("button", { name: "Credit note versions (4)" });
+    expect(credit.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("button", { name: /credit note\)$/ })).toBeNull();
+    fireEvent.click(credit);
+    expect(credit.getAttribute("aria-expanded")).toBe("true");
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("Use Peppol BIS Billing (credit note)");
+    fireEvent.click(screen.getByRole("button", { name: "Other standards (4)" }));
+    expect(screen.getAllByRole("button", { name: /^Use / })).toHaveLength(STANDARD_OUTPUTS.length);
+    const all = [...standardFamilies(true).invoices.flatMap((f) => [f.id, f.creditNote]), ...standardFamilies(true).orders.map((f) => f.id)];
+    expect(all.sort()).toEqual([...STANDARD_OUTPUTS].sort());
+    r.unmount();
+    // e-invoices off: the fitting group is empty, so no heading and only the order standards
+    renderBuilder({ flow: invoiceFlow, kind: "Invoice" });
+    fireEvent.click(screen.getByRole("button", { name: "A standard format" }));
+    expect(screen.queryByRole("heading", { name: /like the documents in this flow/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Peppol|Credit note|Other standards/ })).toBeNull();
+    expect(screen.getAllByRole("button", { name: /^Use / })).toHaveLength(4);
+    expect(standardFamilies(false).invoices).toEqual([]);
+    expect([kindGroup(null), kindGroup("Credit note"), kindGroup("Purchase order"), kindGroup("Receipt")]).toEqual([null, "invoices", "orders", null]);
   });
 });

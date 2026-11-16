@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
@@ -14,7 +15,8 @@ import type { Flow, FlowOutput } from "@/lib/api/documents";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { defaultWidth, fromSimple } from "@/lib/flowOutputModel";
 import { STANDARDS, type StandardSupport } from "@/lib/standards/catalog";
-import { FLAGGED, STANDARD_OUTPUTS, WRITTEN_VERSION } from "@/lib/standardOutputs";
+import { STANDARD_OUTPUTS, kindGroup, standardFamilies } from "@/lib/standardOutputs";
+import { and } from "@/lib/flowSentences";
 import { useOnFlowPage } from "./flowDraft";
 import { barPending } from "./PublishBar";
 
@@ -23,6 +25,25 @@ const OFFERED = STANDARDS.filter((s) => (STANDARD_OUTPUTS as readonly string[]).
 const SAMPLE_BYTES = 2 * 1024 * 1024;
 const DOCS_BYTES = 10 * 1024 * 1024;
 const LINK = "inline-flex min-h-11 items-center text-[14px] font-semibold text-brand-blue-deep underline";
+const WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
+
+/** A closed line that opens a list in place; opening moves focus to the list's first button. */
+function Fold({ label, line, children }: { label: string; line: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const body = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (open) body.current?.querySelector("button")?.focus(); }, [open]);
+  return (
+    <div className="grid gap-2 border-t border-border pt-1">
+      <div className="flex flex-wrap items-center gap-x-3">
+        <button type="button" className={`${LINK} gap-1`} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+          <ChevronRight size={16} aria-hidden className={open ? "rotate-90" : undefined} />{label}
+        </button>
+        <span className="text-[13px] text-ink-muted">{line}</span>
+      </div>
+      {open && <div ref={body} className="grid gap-2">{children}</div>}
+    </div>
+  );
+}
 
 type Props = {
   flow: Flow; previewDocumentId?: string; onDone(): void; onCreated(output: FlowOutput): void;
@@ -120,6 +141,28 @@ export function OutputBuilder(props: Props) {
     onSuccess: (saved) => { refresh(); onCreated(saved); },
   });
 
+  // A standard format (R9, R10): one row per family, the group that fits this flow's documents first, the rest folded.
+  const fams = standardFamilies(flow.peppolOn);
+  const group = kindGroup(props.kind);
+  const fit = group && fams[group].length ? group : null;
+  const other = fit ? fams[fit === "invoices" ? "orders" : "invoices"] : [];
+  const twins = fams.invoices.flatMap((f) => (f.creditNote ? [f.creditNote] : []));
+  const row = (id: string, line: string | null, name?: string, invoice = false) => {
+    const s = OFFERED.find((x) => x.id === id)!;
+    name ??= s.name;
+    return (
+      <div key={id} className="flex items-center justify-between gap-3">
+        <div className="grid">
+          <span className="text-[14px] font-semibold text-ink">{name}{invoice && <span className="text-[13px] font-normal text-ink-muted"> invoice</span>}</span>
+          {line && <span className="text-[13px] text-ink-muted">{line}</span>}
+        </div>
+        <Button size="sm" variant="secondary" aria-label={`Use ${name}`} disabled={standard.isPending}
+          loading={standard.isPending && standard.variables?.id === id} onClick={() => standard.mutate(s)}>Use</Button>
+      </div>
+    );
+  };
+  const famRows = (list: typeof fams.invoices) => list.map((f) => row(f.id, f.description ?? f.version, f.name, fams.invoices.includes(f)));
+
   if (way === "quick")
     return (
       <div className="grid gap-3">
@@ -138,15 +181,29 @@ export function OutputBuilder(props: Props) {
       <div><button type="button" className={LINK} onClick={() => setWay("quick")}>{title}</button></div>
       {way === "standards" ? (
         <div className="grid gap-3">
-          <p className="text-[13px] text-ink-muted">Pick a standard file. We fill it in from what each of your fields means.</p>
+          <div className="grid gap-0.5">
+            <h2 className="m-0 text-[16px] font-semibold text-ink">A standard format</h2>
+            <p className="m-0 text-[14px] text-ink-muted">We fill it in from what we read. Choose the one your receiver asked for.</p>
+          </div>
           {standard.isError && <StatusNotice tone="error">{documentRefusalMessage(standard.error)}</StatusNotice>}
-          {OFFERED.filter((s) => !FLAGGED.has(s.id) || flow.peppolOn).map((s) => (
-            <div key={s.id} className="flex items-center justify-between gap-2">
-              <span className="text-[13px] text-ink">{s.name} <span className="text-ink-muted">{WRITTEN_VERSION[s.id] ?? s.version}</span></span>
-              <Button size="sm" variant="secondary" aria-label={`Use ${s.name}`} disabled={standard.isPending}
-                loading={standard.isPending && standard.variables?.id === s.id} onClick={() => standard.mutate(s)}>Use</Button>
-            </div>
-          ))}
+          {fit ? (
+            <section className="grid gap-2">
+              <h3 className="m-0 text-[14px] font-semibold text-ink">
+                {fit === "invoices" ? "For invoices and credit notes" : "For orders"}, like the documents in this flow
+              </h3>
+              {famRows(fams[fit])}
+            </section>
+          ) : famRows([...fams.invoices, ...fams.orders])}
+          {twins.length > 0 && (
+            <Fold label={`Credit note versions (${twins.length})`} line={`The same ${WORDS[twins.length] ?? twins.length}, for credit notes.`}>
+              {OFFERED.filter((s) => twins.includes(s.id)).map((s) => row(s.id, s.version))}
+            </Fold>
+          )}
+          {other.length > 0 && (
+            <Fold label={`Other standards (${other.length})`} line={`For ${fit === "invoices" ? "orders" : "invoices"}: ${and(other.map((f) => f.name))}.`}>
+              {famRows(other)}
+            </Fold>
+          )}
         </div>
       ) : way === "docs" ? (
         docs.data ? (
