@@ -140,6 +140,24 @@ export function activityView(e: ActivityEvent, ctx: { who: string; destinationNa
       sentence = fileSentence("Started reading ", " again");
       tag = { label: "Read again", tone: "blue" };
       break;
+    case "document.sorted":
+    case "document.moved": {
+      const flow = p("flow");
+      const moved = e.action === "document.moved";
+      const newFlow = moved && p("newFlow") === "true";
+      sentence = fileSentence("", !flow ? (moved ? " was moved" : " was put with a flow") : moved && !newFlow ? ` was moved to ${flow}` : ` was put with ${newFlow ? "the new flow " : ""}${flow}`);
+      tag = moved ? { label: "Moved", tone: "neutral" } : { label: "Put with a flow", tone: "blue" };
+      why = p("duplicateFile") === "true" ? "The flow already had this file, so it waits for you."
+        : !moved && p("certain") === "false" ? "We weren't sure, so it waits for you to check." : null;
+      break;
+    }
+    case "document.downloaded": {
+      const format = p("format");
+      sentence = fileSentence("What we read from ", " was downloaded");
+      tag = { label: "Downloaded", tone: "green" };
+      fact("Format", format === "xlsx" ? "Excel" : format === "csv" ? "CSV" : format);
+      break;
+    }
     case "document.value_edited": {
       const target = p("target") ?? "";
       const line = target.startsWith("row:") ? (p("new") === "row" ? " was added" : p("old") === "row" ? " was removed" : null) : null;
