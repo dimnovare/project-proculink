@@ -10,6 +10,7 @@ import { ActionBar } from "@/components/bridge/layout/ActionBar";
 import { Card } from "@/components/bridge/layout/Card";
 import { Button, Pill, buttonClass } from "@/components/bridge/DSPrimitives";
 import { SourceDocumentBody, scrollTo, type SourcePick } from "@/components/bridge/document/SourceDocumentBody";
+import type { SourceSpot } from "@/components/bridge/document/SourceHighlight";
 import { DOCX_MEDIA_TYPE, sourceRenderFor } from "@/lib/sourceDocument";
 import { useLgViewport } from "@/components/bridge/document/useSourceDocument";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
@@ -17,7 +18,7 @@ import { useApple, useShortcut } from "@/hooks/useShortcut";
 import { ariaOf, keyWord } from "@/lib/shortcuts";
 import { useDocumentEdits } from "@/hooks/useDocumentEdits";
 import { reviewQueueQuery } from "@/hooks/useDocumentEngine";
-import { reviewMarks } from "@/lib/reviewMarks";
+import { editKey, reviewMarks } from "@/lib/reviewMarks";
 import { documentHref, pickNext, positionText, queuePosition } from "@/lib/reviewQueue";
 import { documentsAddress } from "@/lib/documentTabs";
 import { relativeTime } from "@/lib/relativeTime";
@@ -36,6 +37,7 @@ import { INPUT } from "./DestinationForm";
 import { ADDED_TO_CHANGES, ReadValuesPanel, SAVE_WORDS, type Teach } from "./ReadValuesPanel";
 import { Checks, Failed, Quiet, ReadProblem } from "./states";
 import { rowNeed } from "./DocumentList";
+import { WaitingList } from "./WaitingList";
 
 // The file's own extension decides the viewer. The server's content type is not trusted for this.
 const TYPES: Record<string, string> = {
@@ -124,7 +126,7 @@ function TeachBanner({ label, render, mutation, onSave, onCancel }: {
   );
 }
 
-export function Original({ documentId, fileName, highlight, marks, onPick }: { documentId: string; fileName: string; highlight?: SourceLocation | null; marks?: readonly SourceLocation[]; onPick?(p: SourcePick): void }) {
+export function Original({ documentId, fileName, highlight, marks, onPick, spots, onSpot }: { documentId: string; fileName: string; highlight?: SourceLocation | null; marks?: readonly SourceLocation[]; onPick?(p: SourcePick): void; spots?: readonly SourceSpot[]; onSpot?(key: string): void }) {
   const isLg = useLgViewport();
   const enabled = useTenantQueriesEnabled();
   const source = useQuery({ queryKey: ["document-source", documentId], queryFn: () => fetchDocumentSource(documentId), enabled });
@@ -132,7 +134,7 @@ export function Original({ documentId, fileName, highlight, marks, onPick }: { d
   if (source.isPending) return <p className="px-4 pb-4 text-[12.5px] text-ink-muted">Opening the document…</p>;
   if (source.isError || source.data.size === 0)
     return <p className="px-4 pb-4 text-[12.5px] text-ink-muted">The original isn&apos;t available right now.</p>;
-  return <SourceDocumentBody cacheKey={documentId} document={{ blob: source.data, contentType: type, filename: fileName }} bounded={isLg} highlight={highlight} marks={marks} onPick={onPick} />;
+  return <SourceDocumentBody cacheKey={documentId} document={{ blob: source.data, contentType: type, filename: fileName }} bounded={isLg} highlight={highlight} marks={marks} onPick={onPick} spots={spots} onSpot={onSpot} />;
 }
 
 type PaneId = "original" | "read" | "send";
@@ -213,7 +215,8 @@ function useSplit() {
 function SplitGrip({ split, onChange, className }: { split: number; onChange(n: number): void; className: string }) {
   const drag = (e: ReactPointerEvent<HTMLDivElement>) => {
     const row = e.currentTarget.parentElement!.getBoundingClientRect();
-    onChange(((e.clientX - row.left) / row.width) * 100);
+    const original = e.currentTarget.previousElementSibling!.getBoundingClientRect();
+    onChange(((e.clientX - original.left) / row.width) * 100);
   };
   return (
     <div
@@ -236,6 +239,25 @@ function SplitGrip({ split, onChange, className }: { split: number; onChange(n: 
 const UNDER_HEADER = "lg:top-[73px] lg:h-[calc(100dvh-152px)]";
 /** A key held down never presses Send again and again. */
 const noRepeat = (e: ReactKeyboardEvent) => { if (e.repeat) e.preventDefault(); };
+
+/** Clicking a value's place on the original puts the cursor in that value. */
+const goToValue = (key: string) => {
+  const box = document.querySelector<HTMLInputElement>(`#review-pane-read input[data-value="${CSS.escape(key)}"]`);
+  box?.focus();
+  box?.select();
+};
+
+/** Every read value that has a place on the original, by the key its box carries. */
+function spotsOf(read: DocumentDetail["read"]): SourceSpot[] {
+  const placed = (l: SourceLocation | null | undefined): l is SourceLocation => !!(l?.box || l?.address);
+  return [
+    ...read.fields.flatMap((f) => (placed(f.location) ? [{ key: editKey({ field: f.key }), label: f.label, location: f.location }] : [])),
+    ...read.tables.flatMap((t) => t.rows.flatMap((row, r) => t.columns.flatMap((c) => {
+      const l = row.cells[c.key]?.location;
+      return placed(l) ? [{ key: editKey({ table: t.key, row: r, column: c.key }), label: `${t.label} row ${r + 1} ${c.label}`, location: l }] : [];
+    }))),
+  ];
+}
 
 /** A change typed on this document could not be saved, so nothing was sent. */
 const UNSAVED = new Error("unsaved");
@@ -331,10 +353,13 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   const nothingRead = !doc.data || doc.data.read.fields.length + doc.data.read.tables.length === 0;
   const editable = !!status?.editable;
   const marks = useMemo(() => (doc.data ? reviewMarks(doc.data, editable) : null), [doc.data, editable]);
+  const spots = useMemo(() => (doc.data ? spotsOf(doc.data.read) : undefined), [doc.data]);
   const history = <History documentId={documentId} version={summary?.flowVersion} />;
 
   const queue = useQuery({ ...reviewQueueQuery, enabled, staleTime: 60_000, refetchOnWindowFocus: true });
   const position = positionText(queuePosition(queue.data, documentId));
+  // Listed beside the review when there is anything to choose: more than this document itself.
+  const waiting = !!queue.data && queue.data.items.some((d) => d.id !== documentId);
   const nextNow = pickNext(queue.data?.items, undefined, documentId);
   const saved = () => edits.flush().catch((e: unknown) => { throw refusalToken(e) === null ? UNSAVED : e; });
   const send = useMutation({
@@ -440,13 +465,19 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
           {doc.isError && <Failed error={doc.error} retry={() => doc.refetch()} />}
           <ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} scansOn={flow.data?.scansOn} uploadHref={`/flows/${summary.flowId}?tab=documents`} />
           <PaneTabs panes={PANES} active={tab} onSelect={(id) => setTab(id as PaneId)} />
-          <div className="grid items-start gap-4 lg:gap-x-1 lg:grid-cols-[minmax(280px,var(--split))_10px_minmax(0,1fr)]" style={{ "--split": `${split}%` } as CSSProperties}>
+          <div className={`grid items-start gap-4 lg:gap-x-1 lg:grid-cols-[minmax(280px,var(--split))_10px_minmax(0,1fr)] ${waiting ? "min-[1700px]:grid-cols-[264px_minmax(280px,var(--split))_10px_minmax(0,1fr)]" : ""}`} style={{ "--split": `${split}%` } as CSSProperties}>
+            {waiting && queue.data && (
+              <div className={`hidden min-w-0 min-[1700px]:mr-3 min-[1700px]:block min-[1700px]:sticky ${UNDER_HEADER}`}>
+                <WaitingList queue={queue.data} currentId={documentId} />
+              </div>
+            )}
             <Pane id="original" title="Original" dot="blue" hidden={tab !== "original"} sticky={UNDER_HEADER}>
-              {located && <p className="m-0 hidden px-4 pb-2 text-[12.5px] text-ink-muted lg:block">Click a value on the right to see where it came from.</p>}
+              {located && <p className="m-0 hidden px-4 pb-2 text-[12.5px] text-ink-muted lg:block">Click a value on either side to find it on the other.</p>}
               {teach && <TeachBanner key={teachMutation.submittedAt} label={teach.label} render={originalKind} mutation={teachMutation} onCancel={cancelTeach} onSave={(value) => teachMutation.mutate({ ...teachMutation.variables, value })} />}
               {(isLg || tab === "original") && (
                 <Original
                   documentId={documentId} fileName={summary.fileName} highlight={spot} marks={marks?.places}
+                  spots={isLg ? spots : undefined} onSpot={goToValue}
                   onPick={teach && !teachMutation.isPending ? (pick) => teachMutation.mutate({ label: teach.label, ...(teach.key ? { key: teach.key } : { newLabel: teach.newLabel }), ...pick }) : undefined}
                 />
               )}
