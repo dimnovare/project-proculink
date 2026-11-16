@@ -17,6 +17,9 @@ export const useFlowSaved = (flowId: string) => {
   const qc = useQueryClient();
   return (f: Flow) => {
     qc.setQueryData(["flow", flowId], f);
+    // The live list is dropped, not just marked stale: a disabled query keeps its old answer, and a count drawn from it
+    // would be from before this use. The next time it is enabled it starts empty, so no count shows until it answers.
+    qc.resetQueries({ queryKey: ["outputs", flowId, "published"] });
     for (const queryKey of [["flows"], ["outputs", flowId], ["flow-versions", flowId]]) qc.invalidateQueries({ queryKey });
   };
 };

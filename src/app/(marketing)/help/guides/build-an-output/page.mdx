@@ -17,53 +17,53 @@ import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 
 <Step n={1} title="Start a new file">
 
-Open the flow, go to the **We send** step, and select **Make another file**. Stay on the **Build your own** tab.
+Open the flow, go to the **We send** step, and select **Make another file** (or **Make a file** when the flow has none yet). It opens ready: a CSV file with every value we read.
 
 <Outcome>
-The **New file** form opens.
+The **Make another file** panel opens, with a **Name**, a **File type** and every value we read, ticked.
 </Outcome>
 
 </Step>
 
-<Step n={2} title="Name it and choose the file type">
+<Step n={2} title="Name it, choose the file type and the values">
 
-Type a **Name**, up to 120 characters. Then choose the **File type**: CSV, Excel, JSON, XML, PDF, Text or Fixed-width text. See [Files we make](/help/outputs).
+The **Name** starts as the flow's name with CSV after it; change it if you like, up to 120 characters. Then choose the **File type**: CSV, Excel, JSON, XML, PDF, Text or Fixed-width text. See [Files we make](/help/outputs).
 
-Depending on the type, more fields appear:
-
-- **CSV** has a **Separator**: comma, semicolon or tab.
-- **PDF** and **Text** have a **Title**, **Text at the top** and **Text at the bottom**. For PDF you can add a logo once the file is saved.
-- If the flow has a table, choose the **Table** to include, or **No table**.
+Untick any value you don't need. The count beside In the file says how many stay ticked. Values from the flow's first table become the file's table columns.
 
 <Outcome>
-The form shows the options for your file type.
+The panel shows what goes in the file.
 </Outcome>
 
 </Step>
 
-<Step n={3} title="Choose where it goes">
+<Step n={3} title="Create it">
 
-In **Send to**, keep **Download only** to collect the file from each document yourself. Or choose a destination you made before, or **New destination…** to make one now. See [Send files to a destination](/help/guides/send-to-a-destination).
-
-To send only some documents, set **Send when** to **Only when**, then choose a field, a condition and a value.
-
-<Outcome>
-The file knows where it goes and when.
-</Outcome>
-
-</Step>
-
-<Step n={4} title="Create it">
-
-Select **Create**. We start the file with one row for each field of the flow, and one for each column of the table, already filled in. The new file opens on **We send**. Its columns are one press away, under **Change the columns**.
+Select **Create**. The new file opens on **We send**, set to **Download only**. Its columns are one press away, under **Change the columns**.
 
 <Outcome>
 The file is saved, and you can edit its rows.
 </Outcome>
 
 <IfThisFails>
-If the form says the name is missing, give the file a name. Other messages say what the server refused, such as a send-when value that is blank.
+If the panel says "Give this file a name." or "Tick at least one value.", do that and select **Create** again. Other messages say what the server refused.
 </IfThisFails>
+
+</Step>
+
+<Step n={4} title="Choose where it goes and the other options">
+
+Under **Send to**, press **Change** to choose a destination you made before, or **New destination…** to make one now. See [Send files to a destination](/help/guides/send-to-a-destination).
+
+Under **More options: file type, when to send, separator, lookups**:
+
+- **CSV** has a **Separator**: comma, semicolon or tab.
+- **PDF** and **Text** have a **Title**, **Text at the top** and **Text at the bottom**. For PDF you can add a logo.
+- To send only some documents, set **Send when** to **Only when**, then choose a field, a condition and a value.
+
+<Outcome>
+The file knows where it goes and when.
+</Outcome>
 
 </Step>
 

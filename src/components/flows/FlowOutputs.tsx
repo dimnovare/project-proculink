@@ -88,7 +88,7 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
             <p className="m-0 text-[13px] text-ink-muted">{outputs.data.length === 1 ? "For each document, we make this file." : "For each document, we make these files."}</p>
           )}
         </div>
-        {outputs.data.length === 0 ? (
+        {outputs.data.length === 0 && !adding ? (
           <div className="px-4 pt-3"><Quiet>No file yet.</Quiet></div>
         ) : (
           <ul className="m-0 mt-2 list-none p-0">
@@ -107,6 +107,12 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
               </li>
               );
             })}
+            {adding && (
+              <li aria-current="true" className="grid min-h-11 gap-px border-t border-border-faint bg-surface-2 px-4 py-2.5">
+                <span className="text-[14px] font-semibold text-ink">A new file</span>
+                <span className="text-[13px] text-ink-muted">Not made yet</span>
+              </li>
+            )}
           </ul>
         )}
         <div className="p-3">
@@ -120,7 +126,10 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
       </Card>
 
       {adding ? (
-        <OutputBuilder flow={flow} previewDocumentId={preview} onDone={() => setAdding(false)} onCreated={open} />
+        <OutputBuilder
+          flow={flow} previewDocumentId={preview} kind={source.data?.read?.kindLabel ?? null} first={outputs.data.length === 0}
+          onDone={() => setAdding(false)} onCreated={open}
+        />
       ) : chosen ? (
         <Card as="section" aria-label={`Edit the file ${chosen.name}`}>
           <div className="grid gap-4">

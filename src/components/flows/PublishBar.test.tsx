@@ -41,8 +41,9 @@ function Editors() {
   const { revision, bump } = useFlowDraft();
   return <><NameInput key={revision} /><FlowVersionsPanel flowId="flow-1" onRestored={bump} /></>;
 }
+let client: QueryClient;
 const page = (f: Flow, save: (v: string) => Promise<unknown> = () => Promise.resolve(), editors?: boolean) => (
-  <QueryClientProvider client={new QueryClient()}>
+  <QueryClientProvider client={(client = new QueryClient())}>
     <FlowDraftProvider flowId={f.id}><Values save={save} /><Bar initial={f} />{editors && <Editors />}</FlowDraftProvider>
   </QueryClientProvider>
 );
@@ -65,11 +66,14 @@ describe("PublishBar", () => {
     const save = vi.fn(async (v: string) => { log.push(`save ${v}`); await Promise.resolve(); log.push("saved"); });
     api.publishFlow.mockImplementation(async () => { log.push("publish"); return { ...flow, publishedVersion: 2, hasChanges: false }; });
     render(page(flow, save));
+    client.setQueryData(["outputs", "flow-1", "published"], [{ id: "out-1" }]);
     act(() => change("Invoice no"));
     const publish = bar().getByRole("button", { name: "Use these changes" });
     fireEvent.click(publish);
     fireEvent.click(publish);
     expect(await bar().findByText("Your changes are in use.")).toBeTruthy();
+    // The live list from before the use is gone, so no file's count can be drawn from it.
+    expect(client.getQueryData(["outputs", "flow-1", "published"])).toBeUndefined();
     expect(log).toEqual(["save Invoice no", "saved", "publish"]);
     expect(api.publishFlow).toHaveBeenCalledTimes(1);
     expect(api.publishFlow).toHaveBeenCalledWith("flow-1");
