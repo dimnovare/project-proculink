@@ -416,7 +416,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
                   onBlur={() => { walked.current = null; }}
                 >
                   Send and open next
-                  <kbd aria-hidden className="hidden h-[22px] items-center rounded bg-white/20 px-1.5 font-sans text-[12.5px] font-semibold lg:inline-flex">{keyWord("Mod", apple)} Enter</kbd>
+                  <kbd aria-hidden className="hidden h-[22px] items-center rounded bg-brand-green-deep px-1.5 font-sans text-[12.5px] font-semibold lg:inline-flex">{keyWord("Mod", apple)} Enter</kbd>
                 </Button>
               </>
             ) : nextNow && <Link replace href={documentHref(nextNow)} className={`${buttonClass("send", "md")} hidden items-center md:inline-flex`}>Review next</Link>}
