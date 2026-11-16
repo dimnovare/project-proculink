@@ -44,9 +44,9 @@ const plain = (_: string, v: unknown) => {
     ...(Array.isArray(fieldManipulators) && fieldManipulators.length ? { fieldManipulators } : {}),
   };
 };
-/** A layout value left empty is no value: typing a letter and deleting it is not a change. */
+/** A layout value left empty (or null, or absent) is no value: typing a letter and deleting it is not a change. */
 const settingOf = (k: string, v: unknown) => {
-  const l = k === "layout" && v ? Object.fromEntries(Object.entries(v).filter(([, x]) => x !== "")) : v;
+  const l = k === "layout" && v ? Object.fromEntries(Object.entries(v).filter(([, x]) => x !== "" && x != null)) : v;
   return JSON.stringify(k === "layout" && !Object.values(l ?? {}).some(Boolean) ? null : l ?? null, plain);
 };
 export const changesLine = (n: number | "new" | null) =>
@@ -81,6 +81,8 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
     onSettled: () => { deleting.current = false; },
   });
 
+  // Only until the address moves: once it names the new file, or the person goes anywhere else, the address decides.
+  if (made && outputId !== made.from) setMade(null);
   if (outputs.isError && !outputs.data) return <Failed error={outputs.error} retry={() => outputs.refetch()} />;
   if (!outputs.data) return <Quiet>Loading files…</Quiet>;
   const wanted = made && made.from === outputId ? made.id : outputId;

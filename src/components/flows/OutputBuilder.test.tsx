@@ -3,7 +3,7 @@ import { act, render, screen, fireEvent, waitFor, within } from "@testing-librar
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { OutputNode, OutputNodeTemplate } from "@/lib/api/types";
 import { OutputBuilder } from "./OutputBuilder";
-import { STANDARD_OUTPUTS, kindGroup, standardFamilies } from "@/lib/standardOutputs";
+import { RULE_SETS, STANDARD_OUTPUTS, kindGroup, standardFamilies } from "@/lib/standardOutputs";
 
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 const api = vi.hoisted(() => ({
@@ -159,6 +159,27 @@ describe("OutputBuilder", () => {
     expect(screen.queryByRole("button", { name: /Peppol|Credit note|Other standards/ })).toBeNull();
     expect(screen.getAllByRole("button", { name: /^Use / })).toHaveLength(4);
     expect(standardFamilies(false).invoices).toEqual([]);
-    expect([kindGroup(null), kindGroup("Credit note"), kindGroup("Purchase order"), kindGroup("Receipt")]).toEqual([null, "invoices", "orders", null]);
+    // A kind is matched by whole words; an answer to an order is not an order.
+    const kinds: [string | null, ReturnType<typeof kindGroup>][] = [
+      ["Purchase order", "orders"], ["Invoice", "invoices"], ["credit note", "invoices"], ["Proforma invoice", "invoices"],
+      ["Order confirmation", null], ["Sales order acknowledgement", null], ["Reorder list", null], ["Border crossing note", null],
+      ["Delivery note", null], ["Voice memo", null], [null, null],
+    ];
+    expect(kinds.map(([k]) => [k, kindGroup(k)])).toEqual(kinds);
+  });
+
+  it("every offered standard is listed exactly once, whatever the flow's kind and e-invoice switch", () => {
+    for (const peppolOn of [true, false])
+      for (const kind of ["Invoice", "Purchase order", null]) {
+        const r = renderBuilder({ flow: { ...invoiceFlow, peppolOn }, kind });
+        fireEvent.click(screen.getByRole("button", { name: "A standard format" }));
+        let closed: HTMLElement | undefined;
+        while ((closed = screen.queryAllByRole("button", { expanded: false })[0])) fireEvent.click(closed);
+        const labels = screen.getAllByRole("button", { name: /^Use / }).map((b) => b.getAttribute("aria-label"));
+        const offered = STANDARD_OUTPUTS.filter((id) => peppolOn || !RULE_SETS[id]);
+        expect(labels.length, `${kind} ${peppolOn}`).toBe(offered.length);
+        expect(new Set(labels).size).toBe(labels.length);
+        r.unmount();
+      }
   });
 });

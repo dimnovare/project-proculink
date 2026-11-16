@@ -135,4 +135,25 @@ describe("FlowOutputs", () => {
     expect(screen.getAllByRole("link").filter((l) => l.getAttribute("aria-current") === "page").map((l) => l.textContent)).toEqual(["Supplier invoices CSVCSV, you download it"]);
     expect(screen.queryByText("No file yet.")).toBeNull();
   });
+
+  it("after a file is made, the file the person came from opens again from the list", async () => {
+    const made = { ...invoiceCsv, id: "out-2", name: "Supplier invoices CSV", destinationId: null };
+    api.createOutput.mockResolvedValue(made);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const at = (outputId: string) => (
+      <QueryClientProvider client={client}>
+        <FlowDraftProvider flowId="flow-1"><FlowOutputs flow={flow} outputId={outputId} previewDocumentId="doc-1" /></FlowDraftProvider>
+      </QueryClientProvider>
+    );
+    const { rerender } = render(at("out-1"));
+    await screen.findByRole("region", { name: "Edit the file Invoice CSV" });
+    api.listOutputs.mockResolvedValue([invoiceCsv, made]);
+    fireEvent.click(screen.getByRole("button", { name: "Make another file" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Create" }));
+    await screen.findByRole("region", { name: "Edit the file Supplier invoices CSV" });
+    rerender(at("out-2"));
+    rerender(at("out-1"));
+    expect(await screen.findByRole("region", { name: "Edit the file Invoice CSV" })).toBeTruthy();
+    expect(screen.getAllByRole("link").filter((l) => l.getAttribute("aria-current") === "page").map((l) => l.textContent?.startsWith("Invoice CSV"))).toEqual([true]);
+  });
 });

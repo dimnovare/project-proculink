@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
@@ -86,6 +86,7 @@ function QuickFile({ flow, title, onDone, made, names, pick, setPick }: Props & 
   ];
   const ticked = (id: string) => !off.has(id);
   const create = useMutation({
+    mutationKey: ["output-create", flow.id],
     mutationFn: () => {
       const row = (v: { key: string; label: string }) => ({ name: v.label, source: { field: v.key }, width: defaultWidth(v.label) });
       const fields = flow.fields.fields.filter((f) => ticked(f.key)).map(row);
@@ -113,7 +114,9 @@ function QuickFile({ flow, title, onDone, made, names, pick, setPick }: Props & 
     setPick({ ...pick, off: n });
     if (problem === TICK) setProblem(null);
   };
-  const line = `${/^[AEIOX]/.test(type) ? "An" : "A"} ${type} file with every value we read. Untick what you don't need.`;
+  // Mid-sentence an ordinary word is lower-case ("a text file"); a name or an acronym is not ("an Excel file", "a CSV file").
+  const said = format === "txt" || format === "fixed" ? type.toLowerCase() : type;
+  const line = `${/^[AEIOX]/.test(said) ? "An" : "A"} ${said} file with every value we read. Untick what you don't need.`;
 
   return (
     <Card edge="green">
@@ -179,6 +182,8 @@ export function OutputBuilder(props: Props) {
   const sample = useMutation({ mutationFn: (file: File) => outputFromSample(flow.id, file) });
   const docs = useMutation({ mutationFn: (file: File) => outputFromDocumentation(flow.id, file) });
   const qc = useQueryClient();
+  // While a Create is on its way, no other way opens: coming back and pressing Create again would make a second file.
+  const creating = useIsMutating({ mutationKey: ["output-create", flow.id] }) > 0;
   // Every way ends here: the saved file goes into the list before the list is asked for again, then it opens.
   const made = (saved: FlowOutput) => {
     qc.setQueryData<FlowOutput[]>(["outputs", flow.id], (l) => l && [...l.filter((o) => o.id !== saved.id), saved]);
@@ -206,7 +211,7 @@ export function OutputBuilder(props: Props) {
     (way === "quick" ? links.current[from.current.way] : heading.current)?.focus();
   }, [way]);
   const opener = (w: Way, label: string) => (
-    <button type="button" className={LINK} ref={(el) => { links.current[w] = el; }} onClick={() => go(w)}>{label}</button>
+    <button type="button" className={`${LINK} disabled:opacity-50`} disabled={creating} ref={(el) => { links.current[w] = el; }} onClick={() => go(w)}>{label}</button>
   );
   const panelTitle = (text: string) => <h2 ref={heading} tabIndex={-1} className="m-0 text-[16px] font-semibold text-ink">{text}</h2>;
 
@@ -232,8 +237,8 @@ export function OutputBuilder(props: Props) {
   };
   // The credit-note versions belong to the invoice families: in an orders flow they sit with them, inside "Other standards".
   const credit = twins.length > 0 && (
-    <Fold label={`Credit note versions (${twins.length})`} line={`The same ${WORDS[twins.length] ?? twins.length}, for credit notes.`}>
-      {OFFERED.filter((s) => twins.includes(s.id)).map((s) => row(s.id, s.version))}
+    <Fold label={`Credit note versions (${twins.length})`} line={twins.length === 1 ? "Its credit note version." : `The same ${WORDS[twins.length] ?? twins.length}, for credit notes.`}>
+      {twins.map((id) => row(id, OFFERED.find((s) => s.id === id)?.version ?? null))}
     </Fold>
   );
   const famRows = (list: typeof fams.invoices) => list.map((f) => row(f.id, f.description ?? f.version, f.name, fams.invoices.includes(f)));
