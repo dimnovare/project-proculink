@@ -42,16 +42,25 @@ describe("DocumentScreen, a document in the inbox", () => {
     expect(screen.queryByRole("button", { name: "Skip" })).toBeNull();
     expect(screen.queryByRole("tab", { name: /send/i })).toBeNull();
     expect(screen.queryByText(/Teach|Point to it|Something missing/)).toBeNull();
-    expect(calls().filter((c) => c.startsWith("GET /flows/flow-inbox"))).toEqual([]);
+    // P15: the flow route refuses the inbox (404 flow_not_found), and only then is the inbox asked.
+    expect(calls().filter((c) => c === "GET /flows/flow-inbox" || c === "GET /inbox")).toEqual(["GET /flows/flow-inbox", "GET /inbox"]);
     first.unmount();
 
     // Not known whether it is in the inbox: neither the answers nor Send, and a way to ask again.
     spy().answer = { "GET /inbox": { refuse: [503, "unavailable"] } };
-    mount("doc-1", "flow-1");
+    mount("doc-in-1");
     expect(await screen.findByText("We couldn't check where this document is.")).toBeVisible();
     expect(screen.getByRole("button", { name: "Try again" })).toBeEnabled();
     expect(screen.queryByRole("region", { name: "What to do with it" })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Send/ })).toBeNull();
+  });
+
+  it("a document in a flow shows Send without asking the inbox, even when the inbox route fails", async () => {
+    spy().answer = { "GET /inbox": { refuse: [503, "unavailable"] } };
+    mount("doc-1", "flow-1");
+    await waitFor(() => expect(document.getElementById("review-send")).toBeEnabled());
+    expect(screen.queryByText("We couldn't check where this document is.")).toBeNull();
+    expect(calls()).not.toContain("GET /inbox");
   });
 
   it("pressing twice sets up one flow, and nothing else can be pressed while it runs", async () => {
@@ -89,6 +98,16 @@ describe("DocumentScreen, a document in the inbox", () => {
   });
 
   it("a sort that is not certain says where it went and can be moved, and Send stays", async () => {
+    // The person's flows did not load: say so, never a list with only "Choose a flow".
+    spy().answer = { "GET /flows": { refuse: [503, "unavailable"] } };
+    const failed = mount("doc-in-3", "flow-2");
+    // flowsQuery retries twice before it reports the failure.
+    expect(await screen.findByText("We couldn't load your flows.", undefined, { timeout: 8000 })).toBeVisible();
+    expect(screen.queryByRole("combobox", { name: "Another flow" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeEnabled();
+    failed.unmount();
+    spy().answer = {};
+
     mount("doc-in-3", "flow-2");
     expect(await screen.findByText("We put this with Delivery notes. Check that is right.")).toBeVisible();
     expect(screen.queryByRole("region", { name: "What to do with it" })).toBeNull();

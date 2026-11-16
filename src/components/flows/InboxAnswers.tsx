@@ -54,7 +54,7 @@ function useAnswers({ summary: s }: DocumentDetail) {
     setRunning(typeof a === "object" ? "move" : a);
     act.mutate(a, { onSettled: (_d, e) => { if (e || (typeof a === "string" && a !== "set-up")) { pressed.current = false; setRunning(null); } } });
   };
-  return { list, none: !!flows.data && list.length === 0, press, pending: running, busy: running !== null, error: act.error };
+  return { list, none: !!flows.data && list.length === 0, flows, press, pending: running, busy: running !== null, error: act.error };
 }
 type Answers = ReturnType<typeof useAnswers>;
 
@@ -71,6 +71,13 @@ function Refused({ error }: { error: unknown }) {
 
 function MoveTo({ a, label, filled }: { a: Answers; label: string; filled: boolean }) {
   const [to, setTo] = useState("");
+  // A list with only "Choose a flow" would read as "you have no flow".
+  if (a.flows.isError && !a.flows.data) return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-[14px] text-ink">We couldn&apos;t load your flows.</span>
+      <Button size="sm" variant="secondary" loading={a.flows.isFetching} onClick={() => a.flows.refetch()}>Try again</Button>
+    </div>
+  );
   return (
     <div className="flex flex-wrap gap-2">
       <select aria-label={label} className={`${INPUT} min-h-[44px] w-auto min-w-[180px] flex-1`} value={to} onChange={(e) => setTo(e.target.value)}>

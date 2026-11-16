@@ -348,10 +348,12 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
 
   const summary = doc.data?.summary;
   const docFlowId = summary?.flowId ?? flowId;
-  // P2: is it still in the workspace's inbox? Unknown (loading or failed) draws neither the answers nor Send.
-  const inbox = useQuery({ ...inboxQuery, enabled });
-  const here = summary && inInbox(summary, inbox.data);
-  const flow = useQuery({ queryKey: ["flow", docFlowId], queryFn: () => getFlow(docFlowId), enabled: enabled && here === false });
+  // P15: a flow that loads means the document is with a person's flow, and the inbox is not asked. Only the flow route's
+  // 404 (the inbox has no flow routes) asks it. Unknown (loading, or the inbox failed) draws neither the answers nor Send.
+  const flow = useQuery({ queryKey: ["flow", docFlowId], queryFn: () => getFlow(docFlowId), enabled });
+  const askInbox = refusalToken(flow.error) === "flow_not_found";
+  const inbox = useQuery({ ...inboxQuery, enabled: enabled && askInbox });
+  const here = !summary || (!flow.data && !flow.isError) ? undefined : askInbox && !flow.data ? inInbox(summary, inbox.data) : false;
   const status = summary && documentStatus(summary.status, summary.statusReason);
   // Only a document sorted into a flow can be sent or skipped; an inbox document is answered instead (Review Focus 1).
   const sends = here === false && !!status?.editable;
