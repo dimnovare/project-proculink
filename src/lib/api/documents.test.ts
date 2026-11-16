@@ -5,7 +5,7 @@ vi.mock("./core", async (importOriginal) => {
   return { ...actual, authHeader: async () => ({}), API_BASE_URL: "http://api.test", isApiMockMode: false };
 });
 
-import { createSampleDocument, editDocumentValues, getDocument, getFlow, listActivity, listDocumentPage, sendDocument, updateLookup, uploadDocument } from "./documents";
+import { addDocument, createSampleDocument, downloadDocument, editDocumentValues, getDocument, getFlow, getInbox, getSortFlows, listActivity, listDocumentPage, moveDocument, newInboxAddress, sendDocument, setUpDocument, updateLookup, uploadDocument } from "./documents";
 import { ApiHttpError } from "./core";
 
 const fetchMock = vi.fn();
@@ -30,6 +30,25 @@ describe("documents api", () => {
     expect(init.body).toBeInstanceOf(FormData);
     expect((init.body as FormData).get("file")).toBeInstanceOf(File);
     expect(Object.keys(init.headers ?? {}).map((h) => h.toLowerCase())).not.toContain("content-type");
+  });
+
+  it("asks the inbox routes with the server's verbs and bodies", async () => {
+    fetchMock.mockImplementation(async () => json({}));
+    await getInbox();
+    await newInboxAddress();
+    await addDocument(new File(["x"], "invoice-2292.pdf"));
+    await moveDocument("doc-1", "flow-1");
+    await setUpDocument("doc-1");
+    await downloadDocument("doc-1", "csv");
+    await getSortFlows("doc-1");
+    const calls = fetchMock.mock.calls.map(([url, init]) => [
+      init?.method ?? "GET", new URL(String(url)).pathname, init?.body instanceof FormData ? "FormData" : init?.body,
+    ]);
+    expect(calls).toEqual([
+      ["GET", "/api/inbox", undefined], ["POST", "/api/inbox/new-address", undefined], ["POST", "/api/documents", "FormData"],
+      ["POST", "/api/documents/doc-1/move", '{"flowId":"flow-1"}'], ["POST", "/api/documents/doc-1/set-up", "{}"],
+      ["POST", "/api/documents/doc-1/download", '{"format":"csv"}'], ["GET", "/api/documents/doc-1/sort-flows", undefined],
+    ]);
   });
 
   it("createSampleDocument posts to the flow's sample path with no body", async () => {

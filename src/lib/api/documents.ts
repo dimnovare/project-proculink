@@ -74,7 +74,16 @@ export interface DocumentRow extends DocumentSummary {
   /** Can be null on `send_failed` too. */
   stop: DocumentStop | null;
   isSample: boolean;
+  /** The kind as read, in words ("Invoice"); null when unknown. Absent on an older backend. */
+  kind?: string | null;
+  /** Still in the workspace's inbox ("New documents"): not yet with a flow. Absent on an older backend. */
+  inInbox?: boolean;
 }
+/** The workspace's inbox: where a document added without a flow lands, and the one email address that leads there. */
+export interface Inbox { flowId: string; address: string | null; intakeId: string | null; scansOn?: boolean; formatsOn?: boolean }
+export interface SetUpResult { flowId: string; flowName: string; document: DocumentSummary }
+/** A flow that already holds documents of a document's kind. */
+export interface SortFlow { id: string; name: string }
 /** `sampleCount` is in the server's page envelope and is always 0 for documents. */
 export interface DocumentPage { items: DocumentRow[]; totalCount: number; page: number; pageSize: number; sampleCount: number }
 export interface DocumentCheck { code: string; passed: boolean; fieldKey: string | null; message: string }
@@ -205,6 +214,29 @@ export function uploadDocument(flowId: string, file: File): Promise<DocumentSumm
 /** The built-in sample invoice as a document of this flow. Read like an upload, never counted. One per flow: asking again returns the same document. */
 export const createSampleDocument = (flowId: string) =>
   apiFetch<DocumentSummary>(`/flows/${seg(flowId)}/documents/sample`, { method: "POST" }, UPLOAD_TIMEOUT_MS);
+
+export const getInbox = () => apiFetch<Inbox>(`/inbox`);
+/** Admin only: the old address stops working. */
+export const newInboxAddress = () => apiFetch<Inbox>(`/inbox/new-address`, { method: "POST" });
+
+/** A document with no flow chosen: it lands in the workspace's inbox and is sorted after it is read. */
+export async function addDocument(file: File): Promise<DocumentSummary> {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFetch<DocumentSummary>(`/documents`, { method: "POST", body: form }, UPLOAD_TIMEOUT_MS);
+}
+
+/** Put a document with a flow; moving it to the flow it is already in confirms that it belongs there. */
+export const moveDocument = (id: string, flowId: string) =>
+  apiFetch<DocumentSummary>(`/documents/${seg(id)}/move`, { method: "POST", body: json({ flowId }) });
+/** "Do the same every time": a flow made from this inbox document's read. */
+export const setUpDocument = (id: string, name?: string) =>
+  apiFetch<SetUpResult>(`/documents/${seg(id)}/set-up`, { method: "POST", body: json(name ? { name } : {}) });
+/** "Just this one": what was read from an inbox document, as a file. */
+export const downloadDocument = (id: string, format: "xlsx" | "csv") =>
+  apiFetch<Blob>(`/documents/${seg(id)}/download`, { method: "POST", body: json({ format }) }, UPLOAD_TIMEOUT_MS, "blob");
+/** The flows that hold documents of this document's kind (empty when none do). */
+export const getSortFlows = (id: string) => apiFetch<SortFlow[]>(`/documents/${seg(id)}/sort-flows`);
 
 /** An undefined parameter or an empty array is not sent; an array is sent comma-joined. */
 function toQuery(params: object): URLSearchParams {
