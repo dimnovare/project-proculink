@@ -297,7 +297,8 @@ test.describe("Review", () => {
     await page.mouse.down();
     await page.mouse.move(grip.x + 220, y, { steps: 6 });
     await page.mouse.up();
-    expect((await original.boundingBox())!.width, "the original is wider after the drag").toBeGreaterThan(stuck.width + 150);
+    // Under reduced motion the grid's columns change one frame after the pointer is released.
+    await expect.poll(async () => (await original.boundingBox())!.width, { message: "the original is wider after the drag" }).toBeGreaterThan(stuck.width + 150);
     await page.reload();
     await settle(page);
     expect((await original.boundingBox())!.width, "the width is remembered").toBeGreaterThan(stuck.width + 150);
