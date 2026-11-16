@@ -190,7 +190,11 @@ export function OutputBuilder(props: Props) {
     mutationFn: (s: StandardSupport) =>
       createOutput(flow.id, { name: s.name, format: "", standard: s.id, tableKey: flow.fields.tables[0]?.key ?? null, destinationId: null }),
     onSuccess: made,
+    onError: () => { using.current = false; },
   });
+  // One request per press, as Create: a second press can land before the button has turned busy.
+  const using = useRef(false);
+  const use = (s: StandardSupport) => { if (using.current) return; using.current = true; standard.mutate(s); };
   // Switching ways: the opened panel's heading takes focus; going back returns it to the link that opened the panel.
   const heading = useRef<HTMLHeadingElement>(null);
   const links = useRef<Partial<Record<Way, HTMLButtonElement | null>>>({});
@@ -222,10 +226,16 @@ export function OutputBuilder(props: Props) {
           {line && <span className="text-[13px] text-ink-muted">{line}</span>}
         </div>
         <Button size="sm" variant="secondary" aria-label={`Use ${name}`} disabled={standard.isPending}
-          loading={standard.isPending && standard.variables?.id === id} onClick={() => standard.mutate(s)}>Use</Button>
+          loading={standard.isPending && standard.variables?.id === id} onClick={() => use(s)}>Use</Button>
       </div>
     );
   };
+  // The credit-note versions belong to the invoice families: in an orders flow they sit with them, inside "Other standards".
+  const credit = twins.length > 0 && (
+    <Fold label={`Credit note versions (${twins.length})`} line={`The same ${WORDS[twins.length] ?? twins.length}, for credit notes.`}>
+      {OFFERED.filter((s) => twins.includes(s.id)).map((s) => row(s.id, s.version))}
+    </Fold>
+  );
   const famRows = (list: typeof fams.invoices) => list.map((f) => row(f.id, f.description ?? f.version, f.name, fams.invoices.includes(f)));
 
   if (way === "quick")
@@ -259,14 +269,11 @@ export function OutputBuilder(props: Props) {
               {famRows(fams[fit])}
             </section>
           ) : famRows([...fams.invoices, ...fams.orders])}
-          {twins.length > 0 && (
-            <Fold label={`Credit note versions (${twins.length})`} line={`The same ${WORDS[twins.length] ?? twins.length}, for credit notes.`}>
-              {OFFERED.filter((s) => twins.includes(s.id)).map((s) => row(s.id, s.version))}
-            </Fold>
-          )}
+          {fit !== "orders" && credit}
           {other.length > 0 && (
             <Fold label={`Other standards (${other.length})`} line={`For ${fit === "invoices" ? "orders" : "invoices"}: ${and(other.map((f) => f.name))}.`}>
               {famRows(other)}
+              {fit === "orders" && credit}
             </Fold>
           )}
         </div>

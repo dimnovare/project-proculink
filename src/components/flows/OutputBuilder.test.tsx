@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { OutputNode, OutputNodeTemplate } from "@/lib/api/types";
 import { OutputBuilder } from "./OutputBuilder";
@@ -114,6 +114,13 @@ describe("OutputBuilder", () => {
     fireEvent.click(screen.getByRole("button", { name: "Use cXML" }));
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith(saved));
     expect(api.createOutput).toHaveBeenCalledWith("f", expect.objectContaining({ name: "cXML", format: "", standard: "cxml-1-2" }));
+    // two presses before the button turns busy send one request
+    api.createOutput.mockClear();
+    renderBuilder();
+    fireEvent.click(screen.getAllByRole("button", { name: "A standard format" }).at(-1)!);
+    const use = screen.getAllByRole("button", { name: "Use UBL Order" }).at(-1)!;
+    act(() => { use.click(); use.click(); });
+    await waitFor(() => expect(api.createOutput).toHaveBeenCalledTimes(1));
   });
 
   it("lists one row per family, the fitting ones first, and keeps every standard reachable", () => {
@@ -135,6 +142,16 @@ describe("OutputBuilder", () => {
     const all = [...standardFamilies(true).invoices.flatMap((f) => [f.id, f.creditNote]), ...standardFamilies(true).orders.map((f) => f.id)];
     expect(all.sort()).toEqual([...STANDARD_OUTPUTS].sort());
     r.unmount();
+    // an orders flow: the credit-note versions sit inside "Other standards", after the invoice families they belong to
+    const o = renderBuilder({ flow: { ...invoiceFlow, peppolOn: true }, kind: "Purchase order" });
+    fireEvent.click(screen.getByRole("button", { name: "A standard format" }));
+    expect(screen.queryByRole("button", { name: "Credit note versions (4)" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Other standards (4)" }));
+    const others = screen.getByRole("button", { name: "Other standards (4)" }).parentElement!.parentElement!;
+    expect(uses(others)).toEqual(["Use Peppol BIS Billing", "Use EN 16931 CII", "Use XRechnung UBL", "Use XRechnung CII"]);
+    fireEvent.click(within(others).getByRole("button", { name: "Credit note versions (4)" }));
+    expect(uses(others)).toHaveLength(8);
+    o.unmount();
     // e-invoices off: the fitting group is empty, so no heading and only the order standards
     renderBuilder({ flow: invoiceFlow, kind: "Invoice" });
     fireEvent.click(screen.getByRole("button", { name: "A standard format" }));
