@@ -22,10 +22,9 @@ export default function AupPage() {
       <LegalH2>Permitted use</LegalH2>
       <p>
         ProcuLink may be used by businesses and organisations, for business purposes only, to
-        automate legitimate procurement workflows around business documents: receiving,
-        parsing, mapping, validating, transforming, and delivering purchase orders to suppliers
-        and service providers, and — while invoices are in early access — reading and
-        converting invoices.
+        automate legitimate workflows around business documents: receiving, reading, checking,
+        transforming and delivering documents such as invoices, purchase orders and delivery
+        notes to the systems, suppliers and service providers you choose.
       </p>
 
       <LegalH2>Prohibited use</LegalH2>
