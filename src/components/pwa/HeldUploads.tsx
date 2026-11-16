@@ -18,7 +18,7 @@ export function focusAfterRemove(target: HTMLElement | null) {
 
 /**
  * Files added while offline, at the top of every app screen but Upload (which lists
- * them under "Just uploaded"). A file that went up leaves; the lists refresh as usual.
+ * them under "Just added"). A file that went up leaves; the lists refresh as usual.
  */
 export function HeldUploads() {
   const path = usePathname();

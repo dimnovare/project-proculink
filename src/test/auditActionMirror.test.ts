@@ -60,6 +60,9 @@ const WRITER_FILES = [
   "ProcuLink.Api/Services/Documents/FlowDestinationService.cs",
   // 2026-11-14, plan 14.D2: the flow-version publish writer.
   "ProcuLink.Api/Services/Documents/FlowVersions.cs",
+  // 2026-11-16, plan 15: the sorter, Move it, Set it up and the one-off download.
+  "ProcuLink.Api/Services/Documents/DocumentSort.cs",
+  "ProcuLink.Api/Controllers/InboxController.cs",
 ] as const;
 
 const PROBE_REL = "ProcuLink.Api/Controllers/AuditController.cs";
@@ -196,6 +199,13 @@ export function parseAuditActions(src: string, consts: Map<string, string>): str
   for (const m of src.matchAll(/\bAddAudit\(\s*[^,()]+,\s*"([^"]+)"/g)) found.add(m[1]);
   // `Audit(account, "linked_account.connected", userId)` inside GoogleConnectService (plan 9b, 2026-11-13).
   for (const m of src.matchAll(/\bAudit\(\s*[^,()]+,\s*"([^"]+)"/g)) found.add(m[1]);
+  // `MoveToAsync(db, doc, flowId, flowName, certain, <action>, …)` in DocumentSort and InboxController: the sixth
+  // argument, a literal or a constant of the same file (`const string Sorted = "document.sorted"`) (plan 15, 2026-11-16).
+  for (const m of src.matchAll(/\bMoveToAsync\(\s*(?:[^,()]+,\s*){5}("[^"]+"|\w+)\s*,/g)) {
+    const action = m[1].startsWith('"') ? m[1].slice(1, -1) : new RegExp(`const\\s+string\\s+${m[1]}\\s*=\\s*"([^"]+)"`).exec(src)?.[1];
+    if (!action) throw new Error(`MoveToAsync: the action constant ${m[1]} is not declared in this file`);
+    found.add(action);
+  }
 
   return [...found];
 }
@@ -390,6 +400,7 @@ public static class AcceptanceGateAudit
     public const string OverriddenAction = "AcceptanceOverridden";
     public const string BlockedAction = "AcceptanceBlocked";
     public const string ExcusedKey = "excused";
+    private const string Sorted = "document.sorted";
 }
 
 public class Sample
@@ -416,6 +427,8 @@ public class Sample
             new { output = o }, null);
         AddAudit(doc, "document.read_failed", new { reason });
         Audit(account, "linked_account.connected", userId);
+        await DocumentSort.MoveToAsync(db, doc, flow.Id, flow.Name, true, "document.moved", userId, ct);
+        return await MoveToAsync(db, doc, target.FlowId, target.FlowName, target.Certain, Sorted, null, ct);
         await WriteAdminAuditAsync(org.Id, org.Id, "Organisation", "admin.org.limits_changed", data, ct);
         await WriteAuditAsync(
             org.Id,
@@ -448,8 +461,14 @@ public class Sample
         "document.delivery_failed",
         "document.read_failed", // AddAudit(doc, "…")
         "linked_account.connected", // Audit(account, "…", userId)
+        "document.moved", // MoveToAsync 6th arg, literal
+        "document.sorted", // MoveToAsync 6th arg, a const of the same file
       ]),
     );
+  });
+
+  test("a MoveToAsync constant it cannot resolve fails with its name, never skipped", () => {
+    expect(() => parseAuditActions("await MoveToAsync(db, doc, f.Id, f.Name, true, Unknown, null, ct);", new Map())).toThrow(/Unknown/);
   });
 
   test("does not invent an action from a payload literal", () => {
@@ -675,8 +694,9 @@ describe("auditActionManifest mirrors the backend's audit vocabulary", () => {
     // writers; those rows are `historical` in the manifest.
     // 30 -> 17 the same day (plan 13b task 7a): the order pipeline's ingest, resolution, transform,
     // acceptance gate, replay and delivery service were deleted, and their eighteen actions with them
-    // (17 today: 6 admin, 9 document, InvoiceDestinationChanged, inbound_email.rejected_orders_retired).
-    expect(backendActions.length).toBeGreaterThanOrEqual(17);
+    // 17 -> 20 on 2026-11-16 (plan 15): document.sorted, document.moved and document.downloaded.
+    // (20 today: 6 admin, 12 document, InvoiceDestinationChanged, inbound_email.rejected_orders_retired).
+    expect(backendActions.length).toBeGreaterThanOrEqual(20);
   });
 
   test.skipIf(!BACKEND)("NO backend audit action is unknown to the frontend", () => {

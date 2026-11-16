@@ -29,10 +29,20 @@ export const STATUS = Object.fromEntries(Object.keys(ROWS).map((k) => [k, k])) a
  *  Mirrors `ProcuLink.Core/Documents/DocumentChecks.cs` (pinned by backendMirror.test.ts). */
 export const WHOLE_DOCUMENT_CHECKS = ["fields_unconfirmed", "duplicate", "text_truncated"] as const;
 
-/** An unknown status is surfaced as needing attention, never shown as sent. */
+/** A reason's own label, by `status/reason`: how the inbox sorted a document. Every other fact stays the status's. */
+export const REASON_LABELS: Record<string, string> = {
+  "needs_review/new_kind": "New kind",
+  "needs_review/choose_flow": "Choose a flow",
+  "needs_review/check_sort": "Check the flow",
+  "sent/downloaded": "Downloaded",
+};
+
+/** An unknown status is surfaced as needing attention, never shown as sent. An unknown reason keeps the status's label. */
 export function documentStatus(status: string, statusReason?: string | null): DocumentStatusRow {
   const row: DocumentStatusRow = Object.hasOwn(DOCUMENT_STATUSES, status)
     ? DOCUMENT_STATUSES[status]
     : { label: status, tone: "warning", stage: 0, needsYou: true, editable: false };
-  return statusReason === "duplicate_file" ? { ...row, editable: false } : row;
+  if (statusReason === "duplicate_file") return { ...row, editable: false };
+  const key = `${status}/${statusReason}`;
+  return Object.hasOwn(REASON_LABELS, key) ? { ...row, label: REASON_LABELS[key] } : row;
 }

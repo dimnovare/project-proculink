@@ -24,6 +24,15 @@ export const metadata = pageMetadata({
 // those entries byte for byte.
 const ENTRIES = [
   {
+    version: "v2.3",
+    date: "16 November 2026",
+    items: [
+      "Add documents without choosing a flow: drop in anything, or forward it to your workspace's email address, and we work out what it is.",
+      "The first time a new kind of document arrives, one screen asks what to do with documents like it.",
+      "The top bar has three places: Documents, Flows and Settings. Lookups is on Flows, and History on Documents.",
+    ],
+  },
+  {
     version: "v2.2",
     date: "16 November 2026",
     items: [

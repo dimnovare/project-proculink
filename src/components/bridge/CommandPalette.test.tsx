@@ -107,6 +107,14 @@ describe("CommandPalette", () => {
     expect(dialog.queryByRole("group", { name: /^Documents/ })).toBeNull();
   });
 
+  it("a document result says what it is", async () => {
+    const { dialog, box } = open();
+    fireEvent.change(box, { target: { value: "7781" } });
+    await wait(310);
+    await answer(0, page([{ ...row(7781, "Sample Traders Ltd."), kind: "Invoice", flowId: "inbox", flowName: "New documents", inInbox: true }]));
+    expect(dialog.getByRole("option", { name: "invoice-8781.pdf" })).toHaveAccessibleDescription(/^An invoice from Sample Traders Ltd, in New documents/);
+  });
+
   it("gives focus back to what had it when it closes", async () => {
     function Harness() {
       const [on, setOn] = useState(false);

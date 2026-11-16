@@ -1,7 +1,7 @@
 import { describe, test, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "fs";
 import { join, relative } from "path";
-import { DOCUMENT_STATUSES } from "@/lib/documentStatusManifest";
+import { DOCUMENT_STATUSES, REASON_LABELS } from "@/lib/documentStatusManifest";
 import { ROOT } from "./appRoutes";
 import { stripComments, syntaxFor } from "./sourceScan";
 
@@ -163,8 +163,9 @@ describe("the statuses article teaches the labels the document screens render", 
     expect(taught.length).toBeGreaterThanOrEqual(shipped.length);
   });
 
+  // A reason's own label ("Downloaded") is rendered in place of its status's, so the article may define it too.
   test.each(taught)("%s is a status the product renders", (label) => {
-    expect(shipped, `"${label}" is not in DOCUMENT_STATUSES`).toContain(label);
+    expect([...shipped, ...Object.values(REASON_LABELS)], `"${label}" is not in DOCUMENT_STATUSES or REASON_LABELS`).toContain(label);
   });
 
   test.each(shipped)("%s is taught by the article", (label) => {

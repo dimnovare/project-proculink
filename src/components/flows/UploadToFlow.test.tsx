@@ -2,23 +2,26 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, within, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
-import type { DocumentPage, DocumentRow, DocumentSummary, Flow } from "@/lib/api/documents";
+import type { DocumentPage, DocumentRow, DocumentSummary, Flow, Inbox } from "@/lib/api/documents";
+import { resetMockEngine } from "@/lib/api/mockEngine";
 import type { BillingStatus } from "@/types/procurement";
-import { LAST_FLOW_KEY } from "@/lib/lastFlow";
 import { PLAN_BY_ID } from "@/lib/plans";
 import type { ComponentProps } from "react";
 import type { HeldRecord } from "@/lib/pwa/heldUploads";
 import { UploadQueueProvider } from "./UploadQueue";
 import { UploadToFlow } from "./UploadToFlow";
 
+// Every call answers from the mock engine unless a test says otherwise.
+vi.mock("@/lib/api/core", async (orig) => ({ ...(await orig<typeof import("@/lib/api/core")>()), isApiMockMode: true }));
 const api = vi.hoisted(() => ({
   listFlows: vi.fn<() => Promise<Flow[]>>(),
-  uploadDocument: vi.fn<(flowId: string, file: File) => Promise<DocumentSummary>>(),
+  addDocument: vi.fn<(file: File) => Promise<DocumentSummary>>(),
   listDocumentPage: vi.fn<(params: object) => Promise<DocumentPage>>(),
   sendDocument: vi.fn(),
+  getInbox: vi.fn<() => Promise<Inbox>>(),
 }));
 const billing = vi.hoisted(() => ({ getBillingStatus: vi.fn<() => Promise<BillingStatus>>() }));
-vi.mock("@/lib/api/documents", () => api);
+vi.mock("@/lib/api/documents", async (orig) => ({ ...(await orig<typeof import("@/lib/api/documents")>()), ...api }));
 vi.mock("@/lib/api-client", () => billing);
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), usePathname: () => "/upload" }));
@@ -51,34 +54,54 @@ const status = (over: Partial<BillingStatus> = {}): BillingStatus => ({
 });
 const drop = (files: File[]) => fireEvent.drop(screen.getByRole("region", { name: "Add files" }), { dataTransfer: { files } });
 
-beforeEach(() => {
-  vi.clearAllMocks();
-  localStorage.clear();
+beforeEach(async () => {
+  vi.resetAllMocks();
+  resetMockEngine();
+  const real = await vi.importActual<typeof import("@/lib/api/documents")>("@/lib/api/documents");
+  api.listFlows.mockImplementation(() => real.listFlows());
+  api.addDocument.mockImplementation(real.addDocument);
+  api.listDocumentPage.mockImplementation(real.listDocumentPage);
+  api.sendDocument.mockImplementation(real.sendDocument);
+  api.getInbox.mockImplementation(real.getInbox);
   billing.getBillingStatus.mockResolvedValue(status());
 });
 
 describe("UploadToFlow", () => {
-  it("chooses the last flow used, lists every flow with how it delivers, and says where the files go", async () => {
-    localStorage.setItem(LAST_FLOW_KEY, "f2");
-    api.listFlows.mockResolvedValue([flow("f1", "Supplier invoices", "review"), flow("f2", "Delivery notes", "auto")]);
-    const first = mount();
-    const group = within(await screen.findByRole("group", { name: "Which flow is this for?" }));
-    expect(group.getByRole("radio", { name: /^Delivery notes\s*Last used\s*Automatic delivery: each document is sent as soon as it is read\.$/ })).toBeChecked();
-    expect(group.getByRole("radio", { name: /^Supplier invoices\s*Review before delivery: you check each document before it is sent\.$/ })).not.toBeChecked();
-    const zone = screen.getByRole("region", { name: "Add files" });
-    expect(zone).toHaveTextContent("Each file becomes its own document. PDF, Excel or CSV, or photos of paper documents. Up to 10 MB each.");
-    expect(zone).toHaveTextContent("They go to Delivery notes.");
-    expect(within(zone).getByLabelText("Choose files")).toHaveAttribute("accept", ".pdf,.csv,.xlsx,.png,.jpg,.jpeg");
-    fireEvent.click(group.getByRole("radio", { name: /^Supplier invoices/ }));
-    expect(zone).toHaveTextContent("They go to Supplier invoices.");
-    expect(screen.getByRole("link", { name: "A new kind of document? Set up a new flow" })).toHaveAttribute("href", "/flows/new");
-    first.unmount();
-    localStorage.setItem(LAST_FLOW_KEY, "f-deleted");
+  it.each([
+    [{ scansOn: false, formatsOn: false }, ".pdf,.csv,.xlsx"],
+    [{ scansOn: true, formatsOn: true }, ".pdf,.csv,.xlsx,.png,.jpg,.jpeg,.docx,.txt,.xml,.cxml,.json,.edi,.x12"],
+  ])("the file picker takes what the inbox answer says the workspace reads (%o)", async (switches, accept) => {
+    const real = await vi.importActual<typeof import("@/lib/api/documents")>("@/lib/api/documents");
+    api.getInbox.mockImplementation(async () => ({ ...(await real.getInbox()), ...switches }));
     mount();
-    const again = within(await screen.findByRole("group", { name: "Which flow is this for?" }));
-    expect(again.getByRole("radio", { name: /^Supplier invoices/ })).toBeChecked();
-    expect(again.queryByText("Last used")).toBeNull();
+    await screen.findByRole("region", { name: "Add files" });
+    expect(screen.getByTestId("upload-files-input")).toHaveAttribute("accept", accept);
   });
+
+  it("adds any document with no flow question, offers the workspace address, and says what each file turned out to be", async () => {
+    const spy = { calls: [] as string[] };
+    (window as { __mockEngine?: typeof spy }).__mockEngine = spy;
+    mount();
+    const zone = await screen.findByRole("region", { name: "Add files" });
+    expect(screen.getByRole("heading", { level: 1, name: "Add documents" })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Which flow is this for?" })).toBeNull();
+    expect(zone).toHaveTextContent("Invoices, orders, delivery notes, statements: any document.");
+    expect(zone).toHaveTextContent("PDF, Word, Excel, CSV or a photo of paper, up to 10 MB each.");
+    const email = within(await screen.findByRole("region", { name: "Or send them by email" }));
+    expect(email.getByText("documents-7f3a@inbound.example.test")).toBeInTheDocument();
+    expect(email.getByRole("button", { name: "Copy address" })).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("upload-files-input"), { target: { files: [new File(["a"], "invoice-2310.pdf"), new File(["b"], "scan-7.pdf")] } });
+    const panel = within(await screen.findByRole("region", { name: "Just added" }));
+    expect(panel.getByText("2 documents")).toBeInTheDocument();
+    const row = (name: string) => within(panel.getByText(name).closest("li")!);
+    await waitFor(() => expect(row("invoice-2310.pdf").getByText("An invoice from Example Supplier Ltd")).toBeInTheDocument(), { timeout: 8000 });
+    expect(row("invoice-2310.pdf").getByRole("link", { name: "invoice-2310.pdf" }).getAttribute("href")).toMatch(/^\/flows\/flow-1\/documents\//);
+    await waitFor(() => expect(row("scan-7.pdf").getByText("A document. The first of its kind here.")).toBeInTheDocument(), { timeout: 8000 });
+    expect(row("scan-7.pdf").getByText("New kind")).toBeInTheDocument();
+    expect(row("scan-7.pdf").getByText("Open")).toBeInTheDocument();
+    expect(spy.calls.filter((c) => c === "GET /inbox")).toHaveLength(1);
+    delete (window as { __mockEngine?: unknown }).__mockEngine;
+  }, 20_000);
 
   it("with no flows, welcomes and shows no select; while the flows are unknown, never the welcome", async () => {
     const welcome = () => screen.queryByRole("heading", { level: 1, name: /Let's read your first document/ });
@@ -96,12 +119,26 @@ describe("UploadToFlow", () => {
     mount();
     expect(await screen.findByRole("heading", { level: 1, name: /Let's read your first document/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Choose a file" })).toBeTruthy();
-    expect(screen.queryByRole("group", { name: "Which flow is this for?" })).toBeNull();
+    expect(api.getInbox).not.toHaveBeenCalled();
   });
 
-  it("shows each file's status where it was dropped, from one list request, and stops asking when nothing is being read", async () => {
+  it("draws no drop zone and no address until the inbox has answered, and offers Try again when it fails", async () => {
+    api.getInbox.mockReturnValue(new Promise(() => {}));
+    const waiting = mount();
+    await waitFor(() => expect(api.getInbox).toHaveBeenCalled());
+    expect(screen.queryByRole("region", { name: "Add files" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Or send them by email" })).toBeNull();
+    waiting.unmount();
+    api.getInbox.mockRejectedValue(new ApiHttpError("down", 500, null));
+    mount();
+    expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Add files" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Or send them by email" })).toBeNull();
+  });
+
+  it("shows each file's status where it was dropped, from one list request, and stops asking when nothing is being read", { timeout: 20_000 }, async () => {
     api.listFlows.mockResolvedValue([flow("f1", "Supplier invoices", "review")]);
-    api.uploadDocument.mockImplementation((_f: string, f: File) => Promise.resolve(summary(({ "a.pdf": "d1", "b.csv": "d2" } as Record<string, string>)[f.name] ?? "d3", f.name)));
+    api.addDocument.mockImplementation((f: File) => Promise.resolve(summary(({ "a.pdf": "d1", "b.csv": "d2" } as Record<string, string>)[f.name] ?? "d3", f.name)));
     let read = false;
     api.listDocumentPage.mockImplementation(async () => ({ page: 1, pageSize: 100, totalCount: 2, sampleCount: 0, items: read
       ? [row("d2", "b.csv", { status: "ready" }), row("d1", "a.pdf", { status: "needs_review", failedChecks: 1, checks: ["low_confidence"] })]
@@ -109,8 +146,8 @@ describe("UploadToFlow", () => {
     mount();
     await screen.findByRole("region", { name: "Add files" });
     drop([new File(["x"], "a.pdf"), new File(["y"], "b.csv"), new File(["z"], "c.pdf")]);
-    const panel = within(await screen.findByRole("region", { name: "Just uploaded" }));
-    expect(panel.getByText("3 files to Supplier invoices")).toBeInTheDocument();
+    const panel = within(await screen.findByRole("region", { name: "Just added" }));
+    expect(panel.getByText("3 documents")).toBeInTheDocument();
     const item = (name: string) => within(panel.getByText(name).closest("li")!);
     await waitFor(() => expect(item("a.pdf").getByText("Reading")).toBeInTheDocument());
     await waitFor(() => expect(item("c.pdf").getByText("Sent")).toBeInTheDocument());
@@ -136,12 +173,13 @@ describe("UploadToFlow", () => {
     expect(await screen.findByText(/^20 of 20 trial documents used\./)).toBeInTheDocument();
     first.unmount();
     billing.getBillingStatus.mockResolvedValue(status({ plan: "pilot", ordersThisMonth: 5, orderLimit: 20, canProcessOrders: true }));
-    api.uploadDocument.mockRejectedValue(new ApiHttpError("ended", 429, { error: "pilot_expired", plan: "pilot", limit: 20, upgradeUrl: "/settings" }));
+    api.addDocument.mockRejectedValue(new ApiHttpError("ended", 429, { error: "pilot_expired", plan: "pilot", limit: 20, upgradeUrl: "/settings" }));
     const second = mount();
     await screen.findByText(/^5 of 20 trial documents used\./);
+    await screen.findByRole("region", { name: "Add files" });
     expect(screen.queryByRole("alert")).toBeNull();
     drop([new File(["x"], "a.pdf")]);
-    const panel = within(await screen.findByRole("region", { name: "Just uploaded" }));
+    const panel = within(await screen.findByRole("region", { name: "Just added" }));
     expect(await panel.findByText("Your trial has ended, so new documents aren't being accepted.")).toBeInTheDocument();
     expect(panel.getByText("Not uploaded")).toBeInTheDocument();
     expect(panel.queryByRole("button", { name: /again$/ })).toBeNull();
@@ -160,19 +198,20 @@ describe("UploadToFlow", () => {
       all: async () => [...kept.values()], put: async (r: HeldRecord) => void kept.set(r.key, r),
       remove: async (key: string) => void kept.delete(key), clear: async () => kept.clear(), claim: async () => () => {},
     };
+    api.getInbox.mockResolvedValue({ flowId: "flow-inbox", address: null, intakeId: null, scansOn: true });
     const onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
     mount({ owner: { userId: "u-alex", orgId: "o-1" }, store });
     await screen.findByRole("region", { name: "Add files" });
     drop([new File(["x"], "delivery-note-78.jpg")]);
-    const panel = within(await screen.findByRole("region", { name: "Just uploaded" }));
+    const panel = within(await screen.findByRole("region", { name: "Just added" }));
     expect(await panel.findByText("Waiting for connection")).toBeInTheDocument();
     expect(panel.getByText("It uploads when you're back online.")).toBeInTheDocument();
     expect(panel.queryByText("Uploaded")).toBeNull();
     expect(kept.size).toBe(1);
     fireEvent.click(panel.getByRole("button", { name: "Remove delivery-note-78.jpg" }));
-    await waitFor(() => expect(screen.queryByRole("region", { name: "Just uploaded" })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Just added" })).toBeNull());
     await waitFor(() => expect(kept.size).toBe(0));
-    expect(api.uploadDocument).not.toHaveBeenCalled();
+    expect(api.addDocument).not.toHaveBeenCalled();
     onLine.mockRestore();
   });
 });

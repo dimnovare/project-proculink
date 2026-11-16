@@ -17,6 +17,7 @@ import { isChord } from "@/lib/shortcuts";
 import { listDocumentPage, listLookups, type DocumentRow, type Flow, type LookupSummary } from "@/lib/api/documents";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { documentHref } from "@/lib/reviewQueue";
+import { kindClause } from "@/lib/documentKind";
 import { pageTotal } from "@/lib/pageTotal";
 import { rowNeed } from "@/components/flows/DocumentList";
 import { Pill } from "./DSPrimitives";
@@ -97,6 +98,7 @@ export function CommandPalette({ onClose, onShortcuts }: { onClose: () => void; 
     { id: "upload", label: "Upload a document", href: "/upload", icon: icon(Upload) },
     { id: "new-flow", label: "New flow", href: "/flows/new", icon: icon(Plus) },
     { id: "activity", label: "Open Activity", href: "/operations/log", icon: icon(Activity) },
+    { id: "lookups", label: "Open Lookups", href: "/lookups", icon: icon(Table2) },
     { id: "shortcuts", label: "Keyboard shortcuts", run: onShortcuts, icon: icon(Keyboard) },
     { id: "settings", label: "Settings", href: "/settings", icon: icon(Settings) },
     { id: "help", label: "Open help", href: "/help", icon: icon(LifeBuoy) },
@@ -112,7 +114,8 @@ export function CommandPalette({ onClose, onShortcuts }: { onClose: () => void; 
       heading: total !== undefined && total > rows.length ? `Documents, the newest ${rows.length} of ${total}` : "Documents",
       options: rows.map((d: DocumentRow) => ({
         id: `doc-${d.id}`, found: true, label: d.fileName, href: documentHref(d), icon: icon(FileText), tag: rowNeed(d),
-        sub: d.sender ? `From ${d.sender}, in ${d.flowName}` : `In ${d.flowName}`,
+        // R18: what it is, then where; "In {flow}" when neither its kind nor its sender is known.
+        sub: ((what) => (what ? `${what}, in ${d.flowName}` : `In ${d.flowName}`))(kindClause(d.kind, d.sender)),
       })),
     });
   }
@@ -198,7 +201,7 @@ export function CommandPalette({ onClose, onShortcuts }: { onClose: () => void; 
                       {o.icon}
                       <span className="flex min-w-0 flex-1 flex-col">
                         <span className="truncate text-[14px]"><Marked text={o.label} term={o.found ? s.term : ""} /></span>
-                        {o.sub && <span id={`${id}-d`} className="truncate text-[12.5px] text-ink-muted">{o.sub}</span>}
+                        {o.sub && <span id={`${id}-d`} title={o.sub} className="truncate text-[12.5px] text-ink-muted">{o.sub}</span>}
                       </span>
                       {o.tag && <Pill tone={o.tag.tone}><span id={`${id}-t`}>{o.tag.text}</span></Pill>}
                       {on && <kbd aria-hidden className={`${KEY} hidden sm:inline-flex`}>Enter</kbd>}

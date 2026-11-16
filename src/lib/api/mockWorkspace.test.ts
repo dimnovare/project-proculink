@@ -21,7 +21,8 @@ describe("empty-workspace mock", () => {
     expect(read.summary.status).toBe("needs_review");
     expect(read.read?.fields).toHaveLength(9);
     const page = await mockEngineFetch<DocumentPage>(`/documents?flowId=${flow.id}&page=1&pageSize=20`);
-    expect(page.items.map((r) => [r.id, r.isSample])).toEqual([[first.id, true]]);
+    // A row says where it is, as the server's always does: without it a ready row shows no Send.
+    expect(page.items.map((r) => [r.id, r.isSample, r.inInbox])).toEqual([[first.id, true, false]]);
     await expect(mockEngineFetch(`/documents?flowId=${flow.id}&bogus=1`)).rejects.toThrow(/does not implement "bogus"/);
     // A reload is a new module state: what was saved is read back from sessionStorage.
     vi.resetModules();
@@ -46,5 +47,13 @@ describe("empty-workspace mock", () => {
       .rejects.toMatchObject({ status: 429, body: { error: "flow_limit_reached" } });
     await mockEngineFetch(`/flows/${flow.id}/publish`, { method: "POST" });
     await expect(mockEngineFetch(`/flows/${flow.id}/publish`, { method: "POST" })).rejects.toMatchObject({ status: 409, body: { error: "nothing_to_publish" } });
+  });
+
+  it("answers an empty inbox and fails loudly on the rest", async () => {
+    expect(await mockEngineFetch("/inbox")).toMatchObject({ flowId: "ws-inbox", address: null });
+    const body = new FormData();
+    body.append("file", new File(["x"], "invoice-2292.pdf"));
+    await expect(mockEngineFetch("/documents", { method: "POST", body })).rejects.toThrow("the inbox is not implemented");
+    await expect(mockEngineFetch("/documents/doc-1/move", { method: "POST", body: "{}" })).rejects.toThrow("the inbox is not implemented");
   });
 });

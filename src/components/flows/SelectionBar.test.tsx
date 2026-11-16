@@ -18,7 +18,7 @@ vi.stubGlobal("Blob", NodeBlob);
 
 const doc = (n: number): ListedDocument => ({
   id: `doc-${n}`, flowId: "f1", flowName: "Invoices", fileName: `invoice-100${n}.pdf`, status: "ready", statusReason: null,
-  pageCount: 1, billingUnits: 1, failedChecks: 0, createdAt: "2026-11-01T00:00:00Z", source: "upload", sourceRef: null,
+  pageCount: 1, billingUnits: 1, failedChecks: 0, createdAt: "2026-11-01T00:00:00Z", source: "upload", sourceRef: null, inInbox: false,
 });
 
 /** The bar as the screen holds it: a document that went is unticked at once, and the result is kept outside the bar. */
@@ -77,6 +77,13 @@ describe("SelectionBar", () => {
     expect(m.bar.queryByRole("button", { name: /Send/ })).toBeNull();
     expect(document.activeElement).toBe(status.parentElement);
     expect(status.parentElement).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("counts and sends only the ready rows known to be with a flow", () => {
+    render(<QueryClientProvider client={new QueryClient()}>
+      <SelectionBar selected={[doc(1), { ...doc(2), inInbox: undefined }]} sent={new Set()} report={null} onReport={() => {}} onClear={() => {}} onSent={() => {}} />
+    </QueryClientProvider>);
+    expect(within(screen.getByRole("region", { name: "2 documents selected" })).getByRole("button", { name: "Send the ready one" })).toBeEnabled();
   });
 
   it("downloads the ticked originals in documents.zip", async () => {

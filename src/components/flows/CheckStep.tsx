@@ -20,13 +20,9 @@ import { editKey, reviewMarks } from "@/lib/reviewMarks";
 import { Field, INPUT } from "./DestinationForm";
 import { Original, Pane, PaneTabs } from "./DocumentScreen";
 import { needsWords, SAVE_WORDS, ValueInput } from "./ReadValuesPanel";
-import { Failed, Quiet, ReadProblem } from "./states";
+import { Failed, Gone, Quiet, ReadProblem } from "./states";
 
 export const notFound = (e: unknown) => e instanceof ApiHttpError && e.status === 404;
-/** Gone: the server's words and the way back to the start. */
-export const Gone = ({ text }: { text: string }) => (
-  <StatusNotice tone="error" action={<Link href={firstRunAddress({})} className={buttonClass("secondary", "sm")}>Start again</Link>}>{text}</StatusNotice>
-);
 
 /** Where the document of this run is: its row on the flow's first page (for `isSample`), else unknown. */
 export function useRunDocument(flowId: string, docId: string | null) {
@@ -101,7 +97,7 @@ export function CheckStep({ flow, docId, first }: { flow: Flow; docId: string | 
     return <Quiet>{`Reading ${summary.fileName}… This takes a few seconds.`}</Quiet>;
   const nothingRead = !read || read.fields.length + read.tables.length === 0;
   if (summary.status === "read_failed" || (summary.statusReason === "duplicate_file" && nothingRead))
-    return <div className="grid justify-items-start gap-3"><ReadProblem summary={summary} nothingRead={nothingRead} retry={retry} scansOn={flow.scansOn} uploadHref={firstRunAddress({ step: "add", flow: flow.id })} />{another}</div>;
+    return <div className="grid justify-items-start gap-3"><ReadProblem summary={summary} retry={retry} scansOn={flow.scansOn} uploadHref={firstRunAddress({ step: "add", flow: flow.id })} />{another}</div>;
   if (nothingRead || !marks)
     return <div className="grid justify-items-start gap-3"><p className="m-0 text-[14px] text-ink">We couldn&apos;t find any values on this document.</p>{another}</div>;
 

@@ -31,7 +31,7 @@ const COUNTED: Record<string, keyof Counts> = {
 };
 const row = (i: number) => ({
   id: `d${i}`, flowId: "f1", flowName: "Invoices", status: "sent", statusReason: null, fileName: `doc-${i}.pdf`,
-  createdAt: "2026-11-01T00:00:00Z",
+  createdAt: "2026-11-01T00:00:00Z", inInbox: false,
 });
 const page = (items: unknown[], totalCount: number, p: number, pageSize: number) => ({ items, totalCount, page: p, pageSize, sampleCount: 0 });
 

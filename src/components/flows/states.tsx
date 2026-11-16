@@ -12,11 +12,22 @@ import { classifyApiFailure } from "@/lib/apiFailure";
 import { canRetryRead, COPY, documentRefusalMessage, readFailureMessage, refusalToken } from "@/lib/documentRefusals";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
 import { documentsAddress, type DocumentTab } from "@/lib/documentTabs";
+import { firstRunAddress } from "@/lib/firstRun";
 
 /** Reasons the engine parks a document for review on its own, each worded in COPY. */
 const AUTOMATIC_HOLDS = new Set(["no_output_matches", "output_invalid"]);
 
-export const Quiet = ({ children }: { children: string }) => (
+/** Gone: the server's words and the way on: back to the start of a first run, or back to Documents from the review screen. */
+export const Gone = ({ text, back = "start" }: { text: string; back?: "start" | "documents" }) => (
+  <StatusNotice
+    tone="error"
+    action={back === "documents"
+      ? <Link href="/documents" className={buttonClass("secondary", "sm")}>Back to Documents</Link>
+      : <Link href={firstRunAddress({})} className={buttonClass("secondary", "sm")}>Start again</Link>}
+  >{text}</StatusNotice>
+);
+
+export const Quiet =({ children }: { children: string }) => (
   <p role="status" className="m-0 text-[13px] text-ink-muted">{children}</p>
 );
 
@@ -125,26 +136,30 @@ export const Failed = ({ error, retry, what, lead = "We couldn't load this." }: 
     </StatusNotice>
   );
 
-/** Failed checks are a heads-up; they never stop a send. */
-export function Checks({ checks }: { checks: DocumentCheck[] }) {
-  const failed = checks.filter((c) => !c.passed);
+/** Failed checks are a heads-up; they never stop a send. In the inbox nothing is set up (so "fields not confirmed" is no news)
+ *  and nothing is sent from the document, so neither is said. */
+export function Checks({ checks, inbox = false }: { checks: DocumentCheck[]; inbox?: boolean }) {
+  const failed = checks.filter((c) => !c.passed && !(inbox && c.code === "fields_unconfirmed"));
   if (!failed.length) return null;
   return (
     <div className="grid gap-2">
       {failed.map((c, i) => <StatusNotice key={`${c.code}-${i}`} tone="warning">{c.message}</StatusNotice>)}
-      <p className="m-0 text-[12.5px] text-ink-muted">Checks are a heads-up; they never stop you sending.</p>
+      {!inbox && <p className="m-0 text-[12.5px] text-ink-muted">Checks are a heads-up; they never stop you sending.</p>}
     </div>
   );
 }
 
 /** Why a document has nothing to edit, and the way forward: a failed read, or a file we had already. */
-export function ReadProblem({ summary, nothingRead, retry, scansOn, uploadHref }: {
-  summary: DocumentSummary; nothingRead: boolean; scansOn?: boolean; retry: UseMutationResult<unknown, unknown, void>;
+export function ReadProblem({ summary, retry, scansOn, uploadHref, held }: {
+  summary: DocumentSummary; scansOn?: boolean; retry: UseMutationResult<unknown, unknown, void>;
   /** Where "Upload a clearer copy" goes: where this screen uploads to the document's flow. */
   uploadHref: string;
+  /** The server's sentence for a held duplicate ("This file is already in your workspace." in the inbox). */
+  held?: string;
 }) {
   if (AUTOMATIC_HOLDS.has(summary.statusReason ?? "")) return <StatusNotice tone="warning">{readFailureMessage(summary.statusReason)}</StatusNotice>;
-  const duplicate = summary.statusReason === "duplicate_file" && nothingRead;
+  // A held duplicate always shows its hold and "Read it anyway", even when values were read (a moved inbox document was).
+  const duplicate = summary.statusReason === "duplicate_file";
   if (summary.status !== "read_failed" && !duplicate) return null;
   const again = duplicate ? "Read it anyway" : canRetryRead(summary.statusReason, { scansOn }) ? "Try again" : null;
   return (
@@ -153,7 +168,7 @@ export function ReadProblem({ summary, nothingRead, retry, scansOn, uploadHref }
         tone={duplicate ? "warning" : "error"}
         action={again && <Button variant="secondary" size="sm" loading={retry.isPending} onClick={() => retry.mutate()}>{again}</Button>}
       >
-        {duplicate ? "This file was already uploaded to this flow." : readFailureMessage(summary.statusReason)}
+        {duplicate ? held ?? "This file was already uploaded to this flow." :readFailureMessage(summary.statusReason)}
       </StatusNotice>
       {summary.status === "read_failed" && (
         <>

@@ -5,12 +5,13 @@ import type { ReactNode } from "react";
 import { ApiHttpError } from "@/lib/api/core";
 import type { DocumentSummary } from "@/lib/api/documents";
 import { refusalToken } from "@/lib/documentRefusals";
-import { readLastFlow } from "@/lib/lastFlow";
 import type { HeldRecord, HeldStore } from "@/lib/pwa/heldUploads";
-import { canRetryUpload, uploadRefusalMessage, UploadQueueProvider, useUploadQueue } from "./UploadQueue";
+import { canRetryUpload, INBOX_TARGET, uploadRefusalMessage, UploadQueueProvider, useUploadQueue } from "./UploadQueue";
 
-const { uploadDocument } = vi.hoisted(() => ({ uploadDocument: vi.fn<(flowId: string, file: File) => Promise<DocumentSummary>>() }));
-vi.mock("@/lib/api/documents", () => ({ uploadDocument }));
+const { uploadDocument, addDocument } = vi.hoisted(() => ({
+  uploadDocument: vi.fn<(flowId: string, file: File) => Promise<DocumentSummary>>(), addDocument: vi.fn<(file: File) => Promise<DocumentSummary>>(),
+}));
+vi.mock("@/lib/api/documents", () => ({ uploadDocument, addDocument }));
 const who = { owner: null as { userId: string; orgId: string } | null };
 
 const FLOW = { id: "f1", name: "Supplier invoices", scansOn: true, formatsOn: false };
@@ -49,13 +50,15 @@ function fakeStore(records: HeldRecord[] = []) {
     released: (key: string) => releases.get(key)!.mock.invocationCallOrder[0],
   };
 }
-const record = (key: string, f: { userId: string; orgId: string; name?: string }): HeldRecord => ({
+// A record held by an older build still carries the flow's name: it is read all the same.
+const record = (key: string, f: { userId: string; orgId: string; name?: string }): HeldRecord & { flowName: string } => ({
   key, userId: f.userId, orgId: f.orgId, flowId: FLOW.id, flowName: FLOW.name, file: file(f.name ?? `${key}.pdf`), heldAt: "2026-05-20T09:00:00Z",
 });
 
 let onLine: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   uploadDocument.mockReset();
+  addDocument.mockReset();
   localStorage.clear();
   who.owner = { userId: "u-alex", orgId: "o-1" };
   onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
@@ -71,7 +74,7 @@ describe("upload queue", () => {
     act(() => result.current.add([file("a.pdf"), file("notes.zip"), file("big.pdf", 10 * 1024 * 1024 + 1), file("b.csv")], FLOW));
     const item = (name: string) => result.current.items.find((i) => i.file.name === name)!;
     expect(result.current.items.map((i) => i.file.name)).toEqual(["b.csv", "big.pdf", "notes.zip", "a.pdf"]);
-    expect(uploadRefusalMessage(item("notes.zip").error)).toBe("This file type can't be read in this flow.");
+    expect(uploadRefusalMessage(item("notes.zip").error)).toBe("This file type can't be read.");
     expect(uploadRefusalMessage(item("big.pdf").error)).toBe("This file is too large.");
     await waitFor(() => expect(item("a.pdf").state).toBe("uploading"));
     expect(item("b.csv").state).toBe("waiting");
@@ -82,7 +85,17 @@ describe("upload queue", () => {
     expect(item("a.pdf")).toMatchObject({ state: "done", document: { id: "d-a" } });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["documents"] });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["flows"] });
-    expect(readLastFlow()).toBe("f1");
+  });
+
+  it("a file with no flow goes to the workspace, and a file for a flow still goes to that flow", async () => {
+    addDocument.mockResolvedValue(summary("d-in", "statement-0412.pdf"));
+    uploadDocument.mockResolvedValue(summary("d-f", "invoice-2292.pdf"));
+    const { result } = mount();
+    act(() => { result.current.add([file("statement-0412.pdf")], INBOX_TARGET({})); result.current.add([file("invoice-2292.pdf")], FLOW); });
+    await waitFor(() => expect(result.current.items.every((i) => i.state === "done")).toBe(true));
+    expect(addDocument.mock.calls.map(([f]) => f.name)).toEqual(["statement-0412.pdf"]);
+    expect(uploadDocument.mock.calls.map(([flowId, f]) => [flowId, f.name])).toEqual([["f1", "invoice-2292.pdf"]]);
+    expect(addDocument.mock.invocationCallOrder[0]).toBeLessThan(uploadDocument.mock.invocationCallOrder[0]);
   });
 
   it("after a plan refusal the files still waiting are not sent; a passing problem can be tried again, once", async () => {
@@ -118,16 +131,19 @@ describe("upload queue", () => {
     const store = fakeStore();
     onLine.mockReturnValue(false);
     const { result } = mount({ store });
-    act(() => { result.current.add([file("delivery-note-78.jpg")], FLOW); });
-    await waitFor(() => expect(result.current.items[0].state).toBe("held"));
+    act(() => { result.current.add([file("delivery-note-78.jpg")], FLOW); result.current.add([file("statement-0412.pdf")], INBOX_TARGET({})); });
+    await waitFor(() => expect(result.current.items.every((i) => i.state === "held")).toBe(true));
     expect(uploadDocument).not.toHaveBeenCalled();
-    expect([...store.map.values()]).toMatchObject([{ userId: "u-alex", orgId: "o-1", flowId: FLOW.id, flowName: FLOW.name }]);
+    expect([...store.map.values()]).toMatchObject([{ userId: "u-alex", orgId: "o-1", flowId: FLOW.id }, { flowId: "" }]);
     uploadDocument.mockResolvedValue(summary("d1", "delivery-note-78.jpg"));
+    addDocument.mockResolvedValue(summary("d2", "statement-0412.pdf"));
     onLine.mockReturnValue(true);
     act(() => { window.dispatchEvent(new Event("online")); window.dispatchEvent(new Event("online")); });
-    await waitFor(() => expect(result.current.items[0].state).toBe("done"));
+    await waitFor(() => expect(result.current.items.every((i) => i.state === "done")).toBe(true));
     expect(uploadDocument).toHaveBeenCalledTimes(1);
     expect(uploadDocument).toHaveBeenCalledWith(FLOW.id, expect.any(File));
+    // A file held from Add documents (no flow) goes to the workspace.
+    expect(addDocument.mock.calls.map(([f]) => f.name)).toEqual(["statement-0412.pdf"]);
     expect(store.map.size).toBe(0);
     // no store on this browser: refused in words, never held in memory
     const { result: r2 } = mount({ store: null });

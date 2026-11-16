@@ -1,12 +1,13 @@
 import { ApiHttpError } from "@/lib/api/core";
 import { errorField } from "@/lib/api/refusal";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
+import { isPlanGateError } from "@/lib/planGate";
 
 const GENERIC = "Something went wrong. Try again.";
 
 export const COPY: Record<string, string> = {
   document_engine_not_enabled: "Flows aren't switched on for this workspace yet.",
-  unsupported_format: "This file type can't be read in this flow.",
+  unsupported_format: "This file type can't be read.",
   file_too_large: "This file is too large.",
   unreadable_file: "This file couldn't be opened. It may be password-protected or damaged.",
   fields_unconfirmed: "Confirm this flow's fields first.",
@@ -74,6 +75,12 @@ export const COPY: Record<string, string> = {
   account_not_found: "That Google account is no longer connected.",
   invalid_origin: "Connect from the ProcuLink app address.",
   google_unavailable: "Google didn't answer. Try again in a minute.",
+  not_movable: "This document can't be moved right now. Reload to see its latest state.",
+  not_in_inbox: "This document has already been put with a flow. Reload to see where.",
+  not_read: "We haven't finished reading this document yet.",
+  invalid_format: "Choose Excel or CSV.",
+  not_in_flow: "Put this document with a flow first, then teach it.",
+  invalid_fields: "We couldn't set up a flow from what we read. Move it to a flow you have, or download it.",
 };
 
 /** Reasons a read can never succeed on a retry (`ReadDocumentJob`). A scan that failed before scans were switched on can be read now. */
@@ -96,6 +103,12 @@ export const ORDERS_RETIRED_MESSAGE = "This workspace now receives documents thr
 
 export const refusalToken = (error: unknown): string | null => errorField(body(error));
 
+/** The global rate limiter's 429: no code, a sentence. Every coded 429 is in `COPY` or is a plan gate. */
+export const rateLimited = (e: unknown) => {
+  const t = refusalToken(e);
+  return e instanceof ApiHttpError && e.status === 429 && !(t && (Object.hasOwn(COPY, t) || isPlanGateError(t)));
+};
+
 export function documentRefusalMessage(error: unknown): string {
   const token = refusalToken(error);
   const detail = field(error, "detail");
@@ -104,6 +117,8 @@ export function documentRefusalMessage(error: unknown): string {
     const output = field(error, "output");
     return `The file${output ? ` "${output}"` : ""} couldn't be made${detail ? `: ${detail}` : "."}`;
   }
+  // Set it up answers 422 with a machine detail; the flow's field editor answers 400 with a detail a person reads.
+  if (token === "invalid_fields" && error instanceof ApiHttpError && error.status === 422) return COPY.invalid_fields;
   if (token === "invalid_destination" || token === "url_required" || token === "url_not_absolute" || token === "url_scheme_not_allowed" || token === "credentials_in_url_not_allowed" || token === "url_requires_tls" || token === "invalid_intake" || token === "invalid_fields" || token === "lookup_invalid") return detail ?? GENERIC;
   if (token && LIMIT_CODES.has(token))
     return token === "pilot_expired" ? COPY.pilot_expired : COPY.order_limit_reached;

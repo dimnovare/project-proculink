@@ -236,8 +236,8 @@ test.describe("help panel", () => {
       { role: "button", name: /^Plan & billing$/ }, { role: "summary", name: /^For developers/ }, { role: "button", name: /^Workspace$/ },
     ],
     "/upload": [
-      { role: "radio", name: /Supplier invoices/ }, { role: "button", name: /^Choose files$/ },
-      { role: "link", name: /Set up a new flow/ },
+      // No flow to choose (plan 15b): drop in any document, or forward it to the workspace's address.
+      { role: "button", name: /^Choose files$/ }, { role: "button", name: /^Copy address$/ },
     ],
   };
 

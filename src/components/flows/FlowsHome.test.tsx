@@ -137,4 +137,13 @@ describe("FlowsHome", () => {
     await rows("Supplier invoices");
     expect(screen.queryByText(/flows on/)).toBeNull();
   });
+
+  it("reaches Lookups from the Flows page", async () => {
+    listFlows.mockResolvedValue([invoices]);
+    getBillingStatus.mockRejectedValue(new Error("down"));
+    show();
+    const link = await screen.findByRole("link", { name: "Lookups" });
+    expect(link).toHaveAttribute("href", "/lookups");
+    expect(link.parentElement).toHaveTextContent(/^The lists your flows use to change values are in Lookups\.$/);
+  });
 });

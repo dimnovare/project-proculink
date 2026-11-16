@@ -864,6 +864,35 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     note: "",
   },
   {
+    action: "document.sorted",
+    // The machine's act, like the read: not a person's change.
+    kind: "parsed",
+    label: "Put with a flow",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Services/Documents/DocumentSort.cs:21",
+    reasonKeys: [],
+    note: "Written by the sorter, with no person.",
+  },
+  {
+    action: "document.moved",
+    kind: "edited",
+    label: "Moved to another flow",
+    reachable: true,
+    // The literal is passed to DocumentSort.MoveToAsync here (Move it at 121, Set it up at 168).
+    backendSite: "ProcuLink.Api/Controllers/InboxController.cs:121",
+    reasonKeys: [],
+    note: "Move it, or Set it up (payload newFlow).",
+  },
+  {
+    action: "document.downloaded",
+    kind: "delivered",
+    label: "Downloaded",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Services/Documents/DocumentSort.cs:109",
+    reasonKeys: [],
+    note: "Just this one. Not a delivery to a destination (R26).",
+  },
+  {
     action: "flow.published",
     kind: "edited",
     label: "Version put in use",

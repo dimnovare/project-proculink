@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import type { DocumentRow } from "@/lib/api/documents";
 import { DocumentList, rowNeed } from "./DocumentList";
+import { WaitingList } from "./WaitingList";
 
 const { sendDocument } = vi.hoisted(() => ({ sendDocument: vi.fn() }));
 vi.mock("@/lib/api/documents", () => ({ sendDocument }));
@@ -11,7 +12,7 @@ vi.mock("@/lib/api/documents", () => ({ sendDocument }));
 const row = (over: Partial<DocumentRow> = {}): DocumentRow => ({
   id: "d1", flowId: "f1", flowName: "Supplier invoices", fileName: "invoice-2291.pdf", status: "needs_review", statusReason: null,
   pageCount: null, billingUnits: 1, failedChecks: 0, createdAt: "2026-11-01T10:00:00Z", source: "upload", sourceRef: null,
-  number: null, sender: null, checks: [], sentAt: null, failedAt: null, stop: null, isSample: false, ...over,
+  number: null, sender: null, checks: [], sentAt: null, failedAt: null, stop: null, isSample: false, inInbox: false, ...over,
 });
 
 const tree = (qc: QueryClient, status = "ready") => (
@@ -33,7 +34,8 @@ describe("DocumentList", () => {
     expect(rowNeed(row({ failedChecks: 2, checks: ["low_confidence", "required_missing"] }))).toEqual({ text: "2 values to check", tone: "amber" });
     expect(rowNeed(row({ failedChecks: 1, checks: ["type_invalid"] })).text).toBe("1 value to check");
     expect(rowNeed(row({ failedChecks: 3, checks: ["low_confidence", "duplicate"] })).text).toBe("Same number as an earlier document");
-    expect(rowNeed(row({ statusReason: "duplicate_file", failedChecks: 1, checks: ["duplicate"] }))).toEqual({ text: "Already uploaded to this flow", tone: "amber" });
+    expect(rowNeed(row({ statusReason: "duplicate_file", failedChecks: 1, checks: ["duplicate"], inInbox: false }))).toEqual({ text: "Already uploaded to this flow", tone: "amber" });
+    expect([true, undefined].map((inInbox) => rowNeed(row({ statusReason: "duplicate_file", inInbox })).text)).toEqual(["Already in your workspace", "Already uploaded"]);
     expect(rowNeed(row({ failedChecks: 1, checks: ["text_truncated"] })).text).toBe("Needs review");
     expect(rowNeed(row({ status: "read_failed" }))).toEqual({ text: "Couldn't read", tone: "danger" });
     expect(rowNeed(row({ status: "reading" }))).toEqual({ text: "Reading", tone: "blue" });
@@ -60,6 +62,46 @@ describe("DocumentList", () => {
     expect(sentRow).not.toHaveTextContent("Sending");
     rerender(<QueryClientProvider client={qc}><DocumentList label="Documents: Needs you" showFlow sendable documents={[row({ id: "b" })]} /></QueryClientProvider>);
     expect(table.queryByRole("row", { name: /PO-48213\.pdf/ })).toBeNull();   // the server stopped listing it: the row goes
+  });
+
+  it("says what each document is, and a downloaded one is not sent", () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DocumentList label="Documents: All" showFlow sendable documents={[
+          row({ id: "i", fileName: "invoice-2292.pdf", kind: "Invoice", sender: "Example Supplier Ltd", number: "2292", inInbox: false }),
+          row({ id: "n", fileName: "statement.pdf", flowId: "inbox", flowName: "New documents", statusReason: "new_kind", kind: null, inInbox: true, createdAt: "2026-11-02T10:00:00Z" }),
+          row({ id: "d", fileName: "remittance.pdf", status: "sent", statusReason: "downloaded", inInbox: true, createdAt: "2026-10-30T10:00:00Z" }),
+          row({ id: "r", fileName: "price-list.xlsx", status: "ready", inInbox: true, createdAt: "2026-10-29T10:00:00Z" }),
+          row({ id: "u", fileName: "unplaced.pdf", status: "ready", inInbox: undefined, createdAt: "2026-10-28T10:00:00Z" }),
+          row({ id: "c", fileName: "delivery-note-70.pdf", status: "ready", statusReason: "check_sort", inInbox: false, createdAt: "2026-10-27T10:00:00Z" }),
+        ]} />
+      </QueryClientProvider>,
+    );
+    const table = within(screen.getByRole("table", { name: "Documents: All" }));
+    const invoice = table.getByRole("row", { name: /invoice-2292\.pdf/ });
+    expect(within(invoice).getByText("An invoice from Example Supplier Ltd")).toBeInTheDocument();
+    const inbox = within(table.getByRole("row", { name: /statement\.pdf/ })).getAllByRole("cell");
+    expect(inbox[1]).toHaveTextContent(/^New documents$/);
+    expect(inbox[2]).toHaveTextContent("New kind");
+    expect(inbox[5]).toHaveTextContent(/^Open$/);
+    expect(table.queryByRole("button", { name: "Send price-list.xlsx" })).toBeNull(); // a ready inbox document is never sent from a row
+    // Not known to be with a flow: not sent from the row either, and "Open" is the way on.
+    expect(within(table.getByRole("row", { name: /unplaced\.pdf/ })).getAllByRole("cell")[5]).toHaveTextContent(/^Open$/);
+    // A sort we were not sure of is never sent from a row: its notice is on the review screen.
+    expect(within(table.getByRole("row", { name: /delivery-note-70\.pdf/ })).getAllByRole("cell")[5]).toHaveTextContent(/^Review$/);
+    const downloaded = within(table.getByRole("row", { name: /remittance\.pdf/ })).getAllByRole("cell");
+    expect(downloaded[2]).toHaveTextContent("Downloaded");
+    expect(downloaded.filter((c) => /\bSent\b/.test(c.textContent ?? ""))).toEqual([]);
+    const phone = within(screen.getByTestId("documents-phone-list"));
+    const phoneInvoice = within(phone.getByRole("link", { name: /invoice-2292\.pdf/ }));
+    expect(phoneInvoice.getByText("An invoice from Example Supplier Ltd")).toBeInTheDocument();
+    expect(phoneInvoice.queryByText("Supplier invoices")).toBeNull();
+  });
+
+  it("the waiting list says what a document is, or who it is from, before its flow", () => {
+    const items = [row({ id: "s", fileName: "scan.pdf", sender: "Example Supplier Ltd", kind: null })];
+    render(<WaitingList queue={{ items, totalCount: 1, page: 1, pageSize: 20, sampleCount: 0 }} currentId="x" />);
+    expect(within(screen.getByRole("link", { name: /scan\.pdf/ })).getByText(/^From Example Supplier Ltd/)).toBeInTheDocument();
   });
 
   it("a refused send says why on the row and keeps Send", async () => {

@@ -94,7 +94,7 @@ const flowOut = ({ dirty, live, ...f }: WFlow, s: State): Flow =>
   ({ ...f, hasChanges: dirty, documentCount: s.docs.filter((d) => d.flowId === f.id).length });
 const rowOut = ({ gets, read, ...r }: WDoc): DocumentRow => r;
 const summaryOut = (d: WDoc): DocumentSummary => {
-  const { number, sender, checks, sentAt, failedAt, stop, isSample, ...s } = rowOut(d);
+  const { number, sender, checks, sentAt, failedAt, stop, isSample, kind, inInbox, ...s } = rowOut(d);
   return s;
 };
 /** As FlowSummaries: what the list carries per flow. */
@@ -124,7 +124,7 @@ function intake(s: State, flow: WFlow, name: string, file: File | null, isSample
   const d: WDoc = {
     id: `doc-w${++s.n}`, flowId: flow.id, flowName: flow.name, fileName: name, status: STATUS.received, statusReason: null, pageCount: null,
     billingUnits: 1, failedChecks: 0, createdAt: new Date().toISOString(), source: "upload", sourceRef: null, flowVersion: flow.publishedVersion ?? null,
-    number: null, sender: null, checks: [], sentAt: null, failedAt: null, stop: null, isSample, gets: 0, read: null,
+    number: null, sender: null, checks: [], sentAt: null, failedAt: null, stop: null, isSample, inInbox: false, gets: 0, read: null,
   };
   s.docs.push(d);
   return summaryOut(d);
@@ -354,6 +354,10 @@ const ROUTES: Route[] = [
  *  ApiHttpError-shaped refusals exactly as the server does. A path or parameter under those
  *  prefixes that it does not implement throws `mock workspace: no route for ${method} ${path}`. */
 export function workspaceFetch(method: string, path: string, query: URLSearchParams, body: unknown): { answer: unknown } | undefined {
+  // An empty workspace has an empty inbox; adding to it, and its answers, are not built here.
+  if (method === "GET" && path === "/inbox") return { answer: { flowId: "ws-inbox", address: null, intakeId: null, scansOn: true, formatsOn: false } };
+  if (/^\/inbox(\/|$)/.test(path) || (method === "POST" && path === "/documents") || /^\/documents\/[^/]+\/(move|set-up|download|sort-flows)$/.test(path))
+    throw new Error(`mock workspace: the inbox is not implemented (${method} ${path})`);
   if (!/^\/(flows|documents|destinations|linked-accounts)(\/|$)/.test(path)) return undefined;
   for (const [verb, pattern, run] of ROUTES) {
     const m = verb === method ? pattern.exec(path) : null;

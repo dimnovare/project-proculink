@@ -21,9 +21,9 @@ import { saveBlob } from "@/lib/saveBlob";
 import { nextTabIndex } from "@/lib/tabKeys";
 import { destinationNameFor, firstRunAddress, foundSummary, keepsSummary } from "@/lib/firstRun";
 import { DestinationForm, Field, INPUT } from "./DestinationForm";
-import { Gone, notFound, useRunDocument } from "./CheckStep";
+import { notFound, useRunDocument } from "./CheckStep";
 import { useLinkedAccounts } from "./GoogleTargetFields";
-import { Failed } from "./states";
+import { Failed, Gone } from "./states";
 
 type NewTile = "email" | "google_drive" | "google_sheets" | "server" | "s3" | "http";
 export type SendChoice =

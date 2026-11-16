@@ -39,6 +39,10 @@ export const PINNED_ACTION_HREF = "/upload";
 
 /** The pages the phone tab bar carries. The navigation panel hides them on phones. */
 export const PHONE_TAB_HREFS: readonly string[] = ["/documents", "/flows", "/operations/log"];
+/** The pages the desktop top bar carries (R19). The rest of NAV_MAIN is reached from these and from Ctrl K. */
+export const TOP_BAR_HREFS: readonly string[] = ["/documents", "/flows", "/settings"];
+/** A page not in the top bar lights the place it is reached from. */
+export const TOP_BAR_PARENT: Readonly<Record<string, string>> = { "/lookups": "/flows", "/operations/log": "/documents" };
 
 const NAV_MAIN: SidebarNavSection[] = [
   {
@@ -92,6 +96,12 @@ export function buildVisibleNav(isAdmin: boolean): VisibleNav {
 export function isItemActive(pathname: string, item: SidebarNavItem): boolean {
   const path = item.href.split("?")[0];
   return pathname === path || pathname.startsWith(path + "/");
+}
+
+/** The top bar's lit place: its own page, or a page it does not carry that is reached from it. */
+export function isTopBarActive(pathname: string, item: SidebarNavItem): boolean {
+  return isItemActive(pathname, item)
+    || Object.entries(TOP_BAR_PARENT).some(([child, parent]) => parent === item.href && isItemActive(pathname, { ...item, href: child }));
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
