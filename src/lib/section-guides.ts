@@ -88,11 +88,11 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
     route: "/flows/[flowId]",
     screen: "A flow",
     tasks: [
-      { title: "Publish your changes", line: "Publish a new version, or go back to an earlier one.", href: "/help/guides/publish-a-flow-version" },
+      { title: "Use your changes", line: "Put your changes in use, or go back to an earlier version.", href: "/help/guides/publish-a-flow-version" },
       BUILD_AN_OUTPUT,
       { title: "Send files to a destination", line: "Choose where each file goes, and send a test.", href: "/help/guides/send-to-a-destination" },
     ],
-    startHere: "Changes you make here are a draft until you publish them.",
+    startHere: "Changes you make here wait until you use them.",
   },
   {
     route: "/lookups",

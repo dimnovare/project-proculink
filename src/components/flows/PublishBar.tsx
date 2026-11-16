@@ -24,6 +24,10 @@ export const useFlowSaved = (flowId: string) => {
 type Note = { text: string; done: boolean; step?: FlowStep; reason?: string };
 const stepTitle = (step: FlowStep) => FLOW_STEPS.find((s) => s.id === step)!.title;
 
+/** The bar is drawn: fields confirmed, a known version, and either never saved or changed since. */
+export const barPending = (flow: Flow) =>
+  flow.publishedVersion !== undefined && flow.fieldsConfirmed && (flow.publishedVersion === null || !!flow.hasChanges);
+
 /** The one bar that makes a flow's draft real: it saves every waiting change first, and a part that could not be
  *  saved stops the publish. Drawn only when the server says there is something to publish, or while it reports a result. */
 export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(on: boolean): void }) {
@@ -37,7 +41,7 @@ export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(o
   const live = flow.publishedVersion;
   // An older backend sends no version info at all: there is nothing to publish to.
   if (live === undefined) return null;
-  const pending = flow.fieldsConfirmed && (live === null || !!flow.hasChanges);
+  const pending = barPending(flow);
   const flowKey = ["flow", flow.id];
 
   // One request per press, however often it is pressed; the result is said beside the buttons.
@@ -53,7 +57,7 @@ export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(o
       setNote({ text: await work(), done: true });
     } catch (e) {
       if (e instanceof DraftPartFailed) {
-        setNote({ text: `A change on ${stepTitle(e.step)} couldn't be saved, so nothing was published.`, done: false, step: e.step, reason: draftReason(e) });
+        setNote({ text: `A change on ${stepTitle(e.step)} couldn't be saved, so nothing was put in use.`, done: false, step: e.step, reason: draftReason(e) });
       } else {
         setNote({ text: documentRefusalMessage(e), done: false });
         qc.invalidateQueries({ queryKey: flowKey });   // e.g. nothing to publish, or someone else published first
@@ -71,21 +75,22 @@ export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(o
     await qc.cancelQueries({ queryKey: flowKey });   // a refetch started by a draft save must not land after the answer
     const f = await publishFlow(flow.id);
     saved(f);   // no bump: publishing leaves the draft as it is, and what was typed meanwhile stays in the editor
-    return `Version ${f.publishedVersion} is live.`;
+    // Said from the version before the press: the first save keeps later changes waiting; after that they are in use.
+    return live === null ? "Setup saved. Later changes wait until you use them." : "Your changes are in use.";
   });
 
   const discard = (version: number) => run("discard", async () => {
     await draft.discardAll();
     await qc.cancelQueries({ queryKey: flowKey });
     saved(await restoreFlowVersion(flow.id, version));
-    const text = `Changes discarded. Version ${version} is live.`;
+    const text = "Your changes are undone.";
     // Anything typed after the press is saved on top, never dropped; a part that could not save it keeps it and says why.
     try { await draft.flushAll(); } catch { return text; }
     await Promise.all([flowKey, ["outputs", flow.id]].map((queryKey) => qc.invalidateQueries({ queryKey })));
     draft.bump();
     return text;
   }, () => confirm({
-    title: "Discard your changes?", description: `The flow goes back to version ${version}. This can't be undone.`, confirmLabel: "Discard", danger: true,
+    title: "Undo your changes?", description: "The flow goes back to the setup in use. This can't be undone.", confirmLabel: "Undo my changes", danger: true,
   }));
 
   const shown = note && !(note.done && pending) ? note : null;
@@ -94,14 +99,14 @@ export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(o
     // Card draws position: relative inline, so the sticky wrapper is its own element. On a phone it stops 24px up,
     // clear of the tab bar's round Add button (it rises 20px, its ring 4px more); the same margin under it keeps the
     // end of the step from sliding under it.
-    <section role="region" aria-label="Unpublished changes" className="sticky bottom-0 z-sticky max-md:bottom-6 max-md:mb-6">
+    <section role="region" aria-label="Changes not in use yet" className="sticky bottom-0 z-sticky max-md:bottom-6 max-md:mb-6">
       <Card dense className="flex flex-wrap items-center gap-3">
         <div aria-live="polite" className="grid min-w-0 flex-1 gap-1 text-[13px]">
           {pending && (
             <p className="m-0 text-ink">
-              {live === null
-                ? "Changes to this flow apply straight away until you publish it."
-                : `Your changes are saved as a draft. New documents use version ${live} until you publish.`}
+              {live === null ? "Changes to this flow are in use straight away until you save this setup." : (
+                <><span className="block">Your changes aren't in use yet.</span><span className="block">New documents still follow the last saved setup.</span></>
+              )}
             </p>
           )}
           {shown && (
@@ -122,12 +127,12 @@ export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(o
         {pending && (
           <div className="flex w-full gap-2 min-[720px]:w-auto">
             {live !== null && (
-              <Button variant="ghost" className="flex-1 min-[720px]:flex-none" loading={running === "discard"} disabled={running !== null} onClick={() => discard(live)}>
-                Discard
+              <Button variant="secondary" className="flex-1 min-[720px]:flex-none" loading={running === "discard"} disabled={running !== null} onClick={() => discard(live)}>
+                Undo my changes
               </Button>
             )}
             <Button variant="primary" className="flex-1 min-[720px]:flex-none" loading={running === "publish"} disabled={running !== null} onClick={publish}>
-              {live === null ? "Publish" : "Publish changes"}
+              {live === null ? "Save this setup" : "Use these changes"}
             </Button>
           </div>
         )}

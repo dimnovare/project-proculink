@@ -45,7 +45,7 @@ describe("flowDraft", () => {
     expect(outcome).toBe("pending");
     await act(async () => calls[1].d.resolve());
     expect(outcome).toBe("ok");
-    expect(within(screen.getByTestId("part-values")).getByText("Draft saved")).toBeTruthy();
+    expect(within(screen.getByTestId("part-values")).queryByText(/^(Draft saved|Saved)$/)).toBeNull();
   });
 
   it("a refused part stops flushAll, says why at the part, and Undo drops the value so it is never sent again", async () => {

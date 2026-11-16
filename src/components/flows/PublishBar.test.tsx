@@ -6,7 +6,7 @@ import { ApiHttpError } from "@/lib/api/core";
 import type { Flow } from "@/lib/api/documents";
 import { FlowDraftProvider, useDraftPart, useFlowDraft } from "./flowDraft";
 import { FlowVersionsPanel } from "./FlowVersionsPanel";
-import { PublishBar } from "./PublishBar";
+import { PublishBar, barPending } from "./PublishBar";
 
 const api = vi.hoisted(() => ({ publishFlow: vi.fn(), restoreFlowVersion: vi.fn(), listFlowVersions: vi.fn() }));
 vi.mock("@/lib/api/documents", () => api);
@@ -45,7 +45,8 @@ const page = (f: Flow, save: (v: string) => Promise<unknown> = () => Promise.res
     <FlowDraftProvider flowId={f.id}><Values save={save} /><Bar initial={f} />{editors && <Editors />}</FlowDraftProvider>
   </QueryClientProvider>
 );
-const bar = () => within(screen.getByRole("region", { name: "Unpublished changes" }));
+const bar = () => within(screen.getByRole("region", { name: "Changes not in use yet" }));
+const renderBar = (over: Partial<Flow>) => render(page({ ...flow, ...over }));
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -63,12 +64,11 @@ describe("PublishBar", () => {
     const save = vi.fn(async (v: string) => { log.push(`save ${v}`); await Promise.resolve(); log.push("saved"); });
     api.publishFlow.mockImplementation(async () => { log.push("publish"); return { ...flow, publishedVersion: 2, hasChanges: false }; });
     render(page(flow, save));
-    expect(bar().getByText("Your changes are saved as a draft. New documents use version 1 until you publish.")).toBeTruthy();
     act(() => change("Invoice no"));
-    const publish = bar().getByRole("button", { name: "Publish changes" });
+    const publish = bar().getByRole("button", { name: "Use these changes" });
     fireEvent.click(publish);
     fireEvent.click(publish);
-    expect(await bar().findByText("Version 2 is live.")).toBeTruthy();
+    expect(await bar().findByText("Your changes are in use.")).toBeTruthy();
     expect(log).toEqual(["save Invoice no", "saved", "publish"]);
     expect(api.publishFlow).toHaveBeenCalledTimes(1);
     expect(api.publishFlow).toHaveBeenCalledWith("flow-1");
@@ -78,10 +78,10 @@ describe("PublishBar", () => {
     const save = vi.fn().mockRejectedValue(new ApiHttpError("forbidden", 403, { error: "requires_org_admin" }));
     render(page(flow, save));
     act(() => change("Invoice no"));
-    fireEvent.click(bar().getByRole("button", { name: "Publish changes" }));
-    expect(await bar().findByText("A change on We read couldn't be saved, so nothing was published.")).toBeTruthy();
+    fireEvent.click(bar().getByRole("button", { name: "Use these changes" }));
+    expect(await bar().findByText("A change on We read couldn't be saved, so nothing was put in use.")).toBeTruthy();
     expect(bar().getByRole("link", { name: "Go to We read" })).toHaveAttribute("href", "/flows/flow-1?tab=read");
-    await waitFor(() => expect(bar().getByRole("button", { name: "Publish changes" })).toBeEnabled());
+    await waitFor(() => expect(bar().getByRole("button", { name: "Use these changes" })).toBeEnabled());
     expect(api.publishFlow).not.toHaveBeenCalled();
   });
 
@@ -89,26 +89,26 @@ describe("PublishBar", () => {
     api.publishFlow.mockResolvedValue({ ...flow, publishedVersion: 2, hasChanges: false });
     render(page(flow));
     act(() => block("Give every value a name."));
-    fireEvent.click(bar().getByRole("button", { name: "Publish changes" }));
-    expect(await bar().findByText("A change on We read couldn't be saved, so nothing was published.")).toBeTruthy();
+    fireEvent.click(bar().getByRole("button", { name: "Use these changes" }));
+    expect(await bar().findByText("A change on We read couldn't be saved, so nothing was put in use.")).toBeTruthy();
     expect(bar().getByText("Give every value a name.")).toBeTruthy();
     expect(bar().getByRole("link", { name: "Go to We read" })).toBeTruthy();
     expect(api.publishFlow).not.toHaveBeenCalled();
     act(() => block(null));
-    await waitFor(() => expect(bar().getByRole("button", { name: "Publish changes" })).toBeEnabled());
-    fireEvent.click(bar().getByRole("button", { name: "Publish changes" }));
-    expect(await bar().findByText("Version 2 is live.")).toBeTruthy();
+    await waitFor(() => expect(bar().getByRole("button", { name: "Use these changes" })).toBeEnabled());
+    fireEvent.click(bar().getByRole("button", { name: "Use these changes" }));
+    expect(await bar().findByText("Your changes are in use.")).toBeTruthy();
     expect(api.publishFlow).toHaveBeenCalledTimes(1);
   });
 
-  it("Discard asks, restores the published version, never sends what was typed, and the editors show the server's state", async () => {
+  it("Undo my changes asks, restores the published version, never sends what was typed, and the editors show the server's state", async () => {
     const save = vi.fn().mockResolvedValue(undefined);
     api.restoreFlowVersion.mockImplementation(async () => (server = { ...flow, hasChanges: false }));
     render(page(flow, save, true));
     fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Supplier bills" } });
-    fireEvent.click(bar().getByRole("button", { name: "Discard" }));
-    expect(await screen.findByText("Changes discarded. Version 1 is live.")).toBeTruthy();
-    expect(vi.mocked(window.confirm).mock.calls[0][0]).toContain("The flow goes back to version 1. This can't be undone.");
+    fireEvent.click(bar().getByRole("button", { name: "Undo my changes" }));
+    expect(await screen.findByText("Your changes are undone.")).toBeTruthy();
+    expect(vi.mocked(window.confirm).mock.calls[0][0]).toContain("The flow goes back to the setup in use. This can't be undone.");
     expect(api.restoreFlowVersion).toHaveBeenCalledWith("flow-1", 1);
     expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Supplier invoices");
     expect(save).not.toHaveBeenCalled();
@@ -124,18 +124,32 @@ describe("PublishBar", () => {
     expect(api.restoreFlowVersion).toHaveBeenCalledWith("flow-1", 0);
   });
 
-  it("the bar is not drawn while the flow is unconfirmed, and on an unpublished flow it offers Publish", () => {
-    const { unmount } = render(page({ ...flow, fieldsConfirmed: false }));
-    expect(screen.queryByRole("region", { name: "Unpublished changes" })).toBeNull();
+  it("a published flow with changes says they are not in use, with one way to use them and one to undo", async () => {
+    api.publishFlow.mockResolvedValue({ ...flow, publishedVersion: 4, hasChanges: false });
+    renderBar({ fieldsConfirmed: true, publishedVersion: 3, hasChanges: true });
+    const region = within(screen.getByRole("region", { name: "Changes not in use yet" }));
+    expect(region.getByText("Your changes aren't in use yet.")).toBeInTheDocument();
+    expect(region.getByText("New documents still follow the last saved setup.")).toBeInTheDocument();
+    expect(region.getAllByRole("button").map((b) => b.textContent)).toEqual(["Undo my changes", "Use these changes"]);
+    fireEvent.click(region.getByRole("button", { name: "Use these changes" }));
+    expect(await screen.findByText("Your changes are in use.")).toBeInTheDocument();
+  });
+
+  it("before the first save, one button saves the setup; unconfirmed, there is no bar", async () => {
+    const { unmount } = renderBar({ fieldsConfirmed: false });
+    expect(screen.queryByRole("region", { name: "Changes not in use yet" })).toBeNull();
     unmount();
-    render(page({ ...flow, publishedVersion: null, hasChanges: false }));
-    expect(bar().getByText("Changes to this flow apply straight away until you publish it.")).toBeTruthy();
-    expect(bar().getByRole("button", { name: "Publish" })).toBeTruthy();
-    expect(bar().queryByRole("button", { name: "Discard" })).toBeNull();
+    api.publishFlow.mockResolvedValue({ ...flow, publishedVersion: 1, hasChanges: false });
+    renderBar({ fieldsConfirmed: true, publishedVersion: null, hasChanges: false });
+    expect(screen.getByText("Changes to this flow are in use straight away until you save this setup.")).toBeInTheDocument();
+    expect(bar().getAllByRole("button").map((b) => b.textContent)).toEqual(["Save this setup"]);
+    expect(barPending({ fieldsConfirmed: true, publishedVersion: undefined } as Flow)).toBe(false);
+    fireEvent.click(bar().getByRole("button", { name: "Save this setup" }));
+    expect(await screen.findByText("Setup saved. Later changes wait until you use them.")).toBeInTheDocument();
   });
 
   it("an older backend with no version info gets no bar", () => {
     render(page({ ...flow, publishedVersion: undefined }));
-    expect(screen.queryByRole("region", { name: "Unpublished changes" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Changes not in use yet" })).toBeNull();
   });
 });

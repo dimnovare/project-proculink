@@ -11,20 +11,31 @@ import ts from "typescript";
 const ROOT = process.cwd();
 const read = (f: string) => readFileSync(join(ROOT, f), "utf8");
 
-/** A key, a route (query string included) or an id. A capitalised single word ("Outputs") is a label, not a key. */
-const looksLikeCode = (t: string) => /^[\w./\-[\]:?=&#]+$/.test(t) && !/^[A-Z][a-z]+$/.test(t);
+/** A key, a route (query string included) or an id. A capitalised single word ("Outputs") is a label, not a key, and so
+ *  is any single word with punctuation after it ("Output:", "outputs."). */
+const looksLikeCode = (t: string) => {
+  const word = t.replace(/[.:,;!?]+$/, "");
+  if (word !== t && /^[A-Za-z]+$/.test(word)) return false;
+  return /^[\w./\-[\]:?=&#]+$/.test(t) && !/^[A-Z][a-z]+$/.test(t);
+};
 
 /** Person-read text of a source file: string literals, template-literal text and JSX text, comments stripped.
- *  A literal with no space that looks like code (`/^[\w./\-\[\]:]+$/`) is a key, a route or an id, not words. */
+ *  Only a WHOLE string literal with no space that looks like code is a key, a route or an id. A piece of a template
+ *  literal (`${n} outputs`) and JSX text are always read: a piece is part of a sentence, whatever its shape. */
 export function personText(source: string): string[] {
   const out: string[] = [];
   const walk = (n: ts.Node) => {
     if (ts.isJsxText(n)) {
       const t = n.text.replace(/\s+/g, " ").trim();
       if (t) out.push(t);
-    } else if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n) || ts.isTemplateHead(n) || ts.isTemplateMiddle(n) || ts.isTemplateTail(n)) {
+    } else if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) {
       const t = n.text.trim();
       if (t && !looksLikeCode(t)) out.push(t);
+    } else if (ts.isTemplateHead(n) || ts.isTemplateMiddle(n) || ts.isTemplateTail(n)) {
+      // looksLikeCode never runs here. The one piece left out is one with no whitespace at all, glued to `${}` by a
+      // route or key separator (`/outputs/`, `?tab=outputs`, `output:`, `output-preview-`): a path or id, not words.
+      const t = n.text.trim();
+      if (t && !/^\S*[/?=&#:-]\S*$/.test(n.text)) out.push(t);
     }
     ts.forEachChild(n, walk);
   };
@@ -54,15 +65,20 @@ const HELP_PAGES = (readdirSync(join(ROOT, HELP), { recursive: true }) as string
   .map((f) => join(HELP, f).replace(/\\/g, "/"))
   .filter((f) => !f.includes("/old-orders/") && (f.endsWith("/page.mdx") || (f.endsWith(".tsx") && !/\.test\./.test(f))));
 
-const FLOW_FILES = [
-  "src/components/flows/FlowOutputs.tsx",
-  "src/components/flows/FlowPage.tsx",
-  "src/components/flows/OutputEditor.tsx",
-  "src/components/flows/DocumentOutputsPanel.tsx",
-  "src/components/flows/DraftReview.tsx",
-  "src/components/flows/advanced/AdvancedView.tsx",
-  "src/components/flows/DocumentScreen.tsx",
-  "src/components/destinations/DestinationsSection.tsx",
+/** The signed-in flow area, read whole: every source file under these folders, test files excluded. */
+const APP_DIRS = ["src/components/flows", "src/components/destinations", "src/components/lookups", "src/components/activity"];
+const inDir = (dir: string) => (readdirSync(join(ROOT, dir), { recursive: true }) as string[])
+  .map((f) => `${dir}/${f.replace(/\\/g, "/")}`)
+  .filter((f) => /\.tsx?$/.test(f) && !/\.test\./.test(f));
+
+/** Files whose old words a LATER task of plan 16a removes. Nothing else may be listed here. */
+const LATER = (f: string) =>
+  f === "src/components/flows/OutputBuilder.tsx" ||        // Task 4: "Make another file"
+  f === "src/components/lookups/LookupPage.tsx" ||         // Task 8: the unused-lookup sentence
+  f.startsWith("src/components/flows/advanced/");          // Task 9: the Advanced view and its mapper words
+
+/** Person-read files outside those folders that this guard read before it was widened. */
+const OTHER_FILES = [
   "src/components/bridge/BillingSection.tsx",
   "src/lib/documentRefusals.ts",
   "src/lib/destinations.ts",
@@ -72,21 +88,45 @@ const FLOW_FILES = [
   "src/lib/activityRows.ts",
 ];
 
-const RETIRED: { word: RegExp; files: string[] }[] = [{ word: /\boutputs?\b/i, files: [...FLOW_FILES, ...HELP_PAGES] }];
+/** The audit manifest's notes are for developers; only its labels reach a person. */
+const MANIFEST = "src/lib/auditActionManifest.ts";
+const labels = (source: string) => [...source.matchAll(/\blabel: "([^"]*)"/g)].map((m) => m[1]);
+
+const CORPUS = [...APP_DIRS.flatMap(inDir).filter((f) => !LATER(f)), ...OTHER_FILES, ...HELP_PAGES];
+
+const RETIRED: { word: RegExp; files: string[] }[] = [
+  { word: /\boutputs?\b/i, files: CORPUS },
+  // The manifest's labels are read for the release words only: its "output" label belongs to the archived order
+  // pipeline's status vocabulary (problemCopy.ts, statusVocabulary.test.ts), outside this piece.
+  { word: /\bpublish(ed|es|ing)?\b|\bdiscard|\bdraft saved\b|\blive, version\b|\bunpublished\b/i, files: [...CORPUS, MANIFEST] },
+];
+
+const textOf = (f: string) => (f.endsWith(".mdx") ? mdxText : f === MANIFEST ? labels : personText)(read(f));
+const hitsFor = ({ word, files }: (typeof RETIRED)[number]) =>
+  files.flatMap((f) => textOf(f).filter((t) => word.test(t)).map((t) => `${f}: ${t}`));
 
 describe("retired words stay retired in what a person reads", () => {
   it("no person-read word says output", () => {
-    const hits = RETIRED[0].files.flatMap((f) =>
-      (f.endsWith(".mdx") ? mdxText : personText)(read(f)).filter((t) => RETIRED[0].word.test(t)).map((t) => `${f}: ${t}`),
-    );
-    expect(hits).toEqual([]);
+    expect(hitsFor(RETIRED[0])).toEqual([]);
+  });
+
+  it("no person-read word says publish", () => {
+    expect(hitsFor(RETIRED[1])).toEqual([]);
   });
 
   it("sees the defect it guards against, and reads enough", () => {
     expect(personText(`const a = <h2>Add an output</h2>; // an output in a comment\nconst k = ["outputs", id];`)).toEqual(["Add an output"]);
     expect(mdxText("Press **Add an output**. See [the guide](/help/guides/build-an-output).")).toEqual(["Press **Add an output**. See the guide."]);
     expect(mdxText(`export const metadata = m({\n  slug: "outputs",\n  title: "Output formats",\n});\n\n# Output formats`)).toEqual(["# Output formats", "Output formats"]);
-    expect(RETIRED[0].files.length).toBeGreaterThanOrEqual(35); // anti-vacuity floor: the source files + the help pages
-    expect(HELP_PAGES.length).toBeGreaterThanOrEqual(30);
+    expect(personText("<Button>Publish changes</Button>").filter((t) => RETIRED[1].word.test(t))).toEqual(["Publish changes"]);
+    expect(labels(`{ action: "flow.published", label: "Version published", note: "was published" }`)).toEqual(["Version published"]);
+    expect(personText("const s = `${n} outputs`;")).toEqual(["outputs"]);
+    expect(personText('const s = `${n} output${n === 1 ? "" : "s"}`;').filter((t) => RETIRED[0].word.test(t))).toEqual(["output"]);
+    expect(personText('const a = <p>{n} output{n === 1 ? "" : "s"} use this</p>;').filter((t) => RETIRED[0].word.test(t))).toEqual(["output"]);
+    expect(personText('const a = ["Output:", "Outputs."];')).toEqual(["Output:", "Outputs."]);
+    expect(personText("const s = `Output: ${name}`; const r = `/flows/${id}/outputs/${o}`;")).toEqual(["Output:"]);
+    // Anti-vacuity: every folder yields a file, and the corpus yields person-read text to check.
+    for (const dir of [...APP_DIRS, HELP]) expect(CORPUS.some((f) => f.startsWith(dir.replace(/\\/g, "/") + "/")), dir).toBe(true);
+    expect(CORPUS.flatMap(textOf).length).toBeGreaterThan(0);
   });
 });

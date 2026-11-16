@@ -186,13 +186,12 @@ export function FlowLink({ href, push, className, current, label, describedBy, c
 /** What DraftState reads from a part: any useDraftPart<T>, whatever its T. */
 export type DraftPart = Omit<ReturnType<typeof useDraftPart>, "change">;
 
-/** What a draft part's last change came to: "Saving…", "Draft saved", or the refusal with a way on. On a flow never
- *  published (`flow.publishedVersion` not a number) a change applies at once, so it says "Saved". */
-export function DraftState({ part, flow }: { part: DraftPart; flow: { publishedVersion?: number | null } }) {
+/** What a draft part's last change came to: "Saving…", or the refusal with a way on. A saved change says nothing here:
+ *  the bar under the step says whether it is in use. `flow` stays in the props for the callers. */
+export function DraftState({ part }: { part: DraftPart; flow: { publishedVersion?: number | null } }) {
   const { bump } = useFlowDraft();
   const failed = part.state === "failed";
-  const done = flow.publishedVersion != null ? "Draft saved" : "Saved";
-  const text = part.state === "saving" ? "Saving…" : failed ? documentRefusalMessage(part.error) : part.changed ? done : "";
+  const text = part.state === "saving" ? "Saving…" : failed ? documentRefusalMessage(part.error) : "";
   return (
     <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
       <span aria-live="polite" className={failed ? "text-danger" : "text-ink-muted"}>{text}</span>

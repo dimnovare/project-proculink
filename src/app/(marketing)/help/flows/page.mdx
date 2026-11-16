@@ -17,7 +17,7 @@ A flow is one setup for one kind of document. Its page has four steps, with **Do
 - **Arrives.** How documents reach the flow: upload, the flow's email address, pickups from a mailbox or server, and the API. See [Ways to send documents in](/help/intake-channels).
 - **We read.** The values and tables to read from every document, each with a name, a type and a **Required** tick.
 - **You check.** Whether documents wait for you or are sent on their own.
-- **We send.** The files we make, each sent to a destination. A file can have a **Send when** condition, so one flow can send different documents to different places. See [File formats](/help/outputs).
+- **We send.** The files we make, each sent to a destination. A file can have a **Send when** condition, so one flow can send different documents to different places. See [Files we make](/help/outputs).
 
 **Documents** lists the newest documents in this flow. **History** lists its versions.
 
@@ -25,7 +25,7 @@ A flow is one setup for one kind of document. Its page has four steps, with **Do
 
 The first time, upload one document like the ones you will receive. We read it, and **We read** lists the values we found. Untick what you do not need, rename values, set types and tick **Required** for values that must always be there. Then press **Looks right, next** while you set up a new flow, or **Keep these values** on the flow's **We read** step.
 
-Every later document is read into these values. After that, changes save as a draft. If the latest document has something extra, it appears under **New values we noticed**, with **Add** beside it.
+Every later document is read into these values. After that, changes wait until you use them. If the latest document has something extra, it appears under **New values we noticed**, with **Add** beside it.
 
 ## Automation
 
@@ -38,11 +38,11 @@ The flow shows how many recent documents were sent without a correction. Use it 
 
 ## Versions
 
-A flow can be published. Publishing saves its values and files as a numbered version. New documents are read and sent with the live version, so you can change a flow without breaking what is running.
+Each time you use your changes, the flow keeps its values and files as a numbered version. New documents are read and sent with the setup in use, so you can change a flow without breaking what is running.
 
-Changes to the values and the files save as a draft as you make them. While a draft is waiting, a bar under each step says so. Before the first publish, changes apply straight away and the bar offers only **Publish**. After that, you can **Publish changes** or **Discard**. The flow's name, its mode and how documents arrive are not part of a draft: they change at once.
+Changes to the values and the files save as you make them. While a change is not in use yet, a bar under each step says so. Before the first save of the setup, changes are in use straight away and the bar offers only **Save this setup**. After that, you can **Use these changes** or **Undo my changes**. The flow's name, its mode and how documents arrive do not wait: they change at once.
 
-**History** lists every version with the date and who published it. You can restore an earlier one. Restoring puts it back into your changes. It goes live only when you publish. Publishing and restoring are for workspace admins. See [Publish and restore flow versions](/help/guides/publish-a-flow-version).
+**History** lists every version with the date and who put it in use. You can restore an earlier one. Restoring puts it back into your changes. It is in use only after you press **Use these changes**. Putting changes in use and restoring are for workspace admins. See [Use changes and restore earlier versions](/help/guides/publish-a-flow-version).
 
 ## The Advanced view
 

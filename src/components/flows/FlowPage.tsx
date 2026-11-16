@@ -226,8 +226,8 @@ function FlowFrame({ flowId }: { flowId: string }) {
         <PageHeader
           title={f?.name ?? "Flow"}
           back={{ href: "/flows", label: "Flows", onClick: leaveClick(go, "/flows", true) }}
-          sub={live === null ? "Not published yet" : typeof live === "number" ? (
-            <span className="inline-flex items-center gap-2"><span aria-hidden className="h-2 w-2 rounded-full bg-brand-green" />{`Live, version ${live}`}</span>
+          sub={typeof live === "number" ? (
+            <span className="inline-flex items-center gap-2"><span aria-hidden className="h-2 w-2 rounded-full bg-brand-green" />In use</span>
           ) : undefined}
           titleAction={f && (
             <button

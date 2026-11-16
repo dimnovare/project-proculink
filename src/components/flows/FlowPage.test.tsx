@@ -134,7 +134,7 @@ describe("FlowPage", () => {
     for (const step of ["arrives", "read", "check", "send"]) {
       search.q = `tab=${step}`;
       const { unmount } = renderPage();
-      await screen.findByRole("button", { name: "Publish changes" });
+      await screen.findByRole("button", { name: "Use these changes" });
       if (step === "send") {
         const editor = within(await screen.findByRole("region", { name: "Edit the file Invoice CSV" }));
         await editor.findByText("Invoice 1001");
@@ -143,7 +143,7 @@ describe("FlowPage", () => {
       }
       if (step === "arrives") await screen.findByRole("button", { name: "Add a pickup" });
       const fills = [...document.body.querySelectorAll("button, a")].filter(filled);
-      expect(fills.map((b) => b.textContent), step).toEqual(["Publish changes"]);
+      expect(fills.map((b) => b.textContent), step).toEqual(["Use these changes"]);
       unmount();
     }
   });

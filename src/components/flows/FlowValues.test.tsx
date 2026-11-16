@@ -48,7 +48,7 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.clearAllMocks(); });
 
 describe("FlowValues", () => {
-  it("a confirmed flow saves a change on its own; never published, it says Saved, not Draft saved", async () => {
+  it("a confirmed flow saves a change on its own, and says nothing once it is saved", async () => {
     mount({ ...flow, publishedVersion: null });
     fireEvent.click(screen.getByRole("checkbox", { name: "Read VAT" }));
     await act(async () => { await vi.advanceTimersByTimeAsync(800); });
@@ -56,7 +56,8 @@ describe("FlowValues", () => {
     const [id, list] = api.saveFlowFields.mock.calls[0] as [string, FlowFieldList];
     expect(id).toBe("flow-1");
     expect(list.fields.map((f) => f.key)).toEqual(["invoice_number", "due_date"]);
-    expect(await screen.findByText("Saved")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText("Saving…")).toBeNull());
+    expect(screen.queryByText("Saved")).toBeNull();
   });
 
   it("an unconfirmed flow does not save until kept", async () => {

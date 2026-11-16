@@ -2,66 +2,66 @@ import { guideMetadata } from "@/lib/seo";
 
 export const metadata = guideMetadata({
   slug: "publish-a-flow-version",
-  title: "Publish and restore flow versions — ProcuLink guide",
-  description: "Change a flow, publish the new version, and restore an earlier one if you need to.",
+  title: "Use changes and restore earlier versions — ProcuLink guide",
+  description: "Change a flow, put the changes in use, and restore an earlier version if you need to.",
 });
 
 import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 
 <Prereqs>
-- A workspace admin account. Publishing and restoring are for admins.
+- A workspace admin account. Putting changes in use and restoring are for admins.
 - A flow you want to change. See [Flows](/help/flows) for what a version holds.
 </Prereqs>
 
 <Step n={1} title="Change the flow">
 
-Change the values on the **We read** step, or add and edit files on the **We send** step. Changes save as a draft as you make them. Documents that are already running keep using the live version, so your changes do not disturb them.
+Change the values on the **We read** step, or add and edit files on the **We send** step. Changes save as you make them, but they wait until you use them. Documents that are already running keep following the setup in use, so your changes do not disturb them.
 
 A bar under the step tells you where you stand:
 
-- Before the first publish: "Changes to this flow apply straight away until you publish it."
-- After: it says your changes are saved as a draft, and which version new documents still use until you publish.
+- Before the first save of the setup: "Changes to this flow are in use straight away until you save this setup."
+- After: "Your changes aren't in use yet. New documents still follow the last saved setup."
 
 <Outcome>
-The bar offers **Publish** before the first publish. After that it offers **Publish changes** and **Discard**.
+The bar offers **Save this setup** before the first save. After that it offers **Use these changes** and **Undo my changes**.
 </Outcome>
 
 </Step>
 
-<Step n={2} title="Publish">
+<Step n={2} title="Use your changes">
 
-Select **Publish changes**. Any change still waiting is saved first. The bar then says the version is live. New documents are read with it, and documents still waiting for review are checked again against it.
+Select **Use these changes**. Any change still waiting is saved first. The bar then says your changes are in use. New documents are read with them, and documents still waiting for review are checked again against them.
 
 <Outcome>
-A new version appears at the top of **History**, marked **Live**.
+A new version appears at the top of **History**, marked **In use**.
 </Outcome>
 
 <IfThisFails>
-- **A change couldn't be saved.** Nothing is published. The bar names the step with the change, with a link to it.
-- **There are no changes to publish.** The flow already matches its live version.
-- **Someone else published this flow just now.** Reload to see the latest version, then make your change again if it is gone.
+- **A change couldn't be saved.** Nothing is put in use. The bar names the step with the change, with a link to it.
+- **There are no changes to use.** The flow already matches the setup in use.
+- **Someone else put changes in use just now.** Reload to see the latest setup, then make your change again if it is gone.
 </IfThisFails>
 
 </Step>
 
-<Step n={3} title="Discard changes you do not want">
+<Step n={3} title="Undo changes you do not want">
 
-Select **Discard** and confirm. The flow goes back to the live version. This cannot be undone.
+Select **Undo my changes** and confirm. The flow goes back to the setup in use. This cannot be undone.
 
 <Outcome>
-The bar says your changes were discarded and which version is live.
+The bar says your changes are undone.
 </Outcome>
 
 </Step>
 
 <Step n={4} title="Restore an earlier version">
 
-Open the flow's **History**. Each version shows when it was published and by whom. Select **Restore** beside the one you want, and confirm.
+Open the flow's **History**. Each version shows when it was put in use and by whom. Select **Restore** beside the one you want, and confirm.
 
-Restoring does not make it live. It replaces your unpublished changes with that version. Check the flow, then select **Publish changes** to make it live as a new version.
+Restoring does not put it in use. It replaces your changes with that version. Check the flow, then select **Use these changes** to put it in use as a new version.
 
 <Outcome>
-A message says the version is back in your changes and tells you to publish it.
+A message says the version is back in your changes and tells you to press **Use these changes** to put it in use.
 </Outcome>
 
 <IfThisFails>

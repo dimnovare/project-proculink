@@ -39,7 +39,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
 /** One-line section descriptions for the index. Plain copy. */
 export const SECTION_BLURB: Record<GuideSection, string> = {
   "Get started": "Set up a flow and take your first document through it.",
-  "Check and teach": "Review what we read, teach a value, and publish changes to a flow.",
+  "Check and teach": "Review what we read, teach a value, and put changes to a flow in use.",
   "Send documents in": "Every way a document can reach a flow, set up step by step.",
   "Files and destinations": "Build the file your system needs and send it on.",
   Lookups: "Translate values with a list you import.",
@@ -104,8 +104,8 @@ export const GUIDES: Guide[] = [
   {
     slug: "publish-a-flow-version",
     href: "/help/guides/publish-a-flow-version",
-    title: "Publish and restore flow versions",
-    blurb: "Change a flow, publish the new version, and restore an earlier one if you need to.",
+    title: "Use changes and restore earlier versions",
+    blurb: "Change a flow, put the changes in use, and restore an earlier version if you need to.",
     section: "Check and teach",
     audience: "client",
     status: "live",
