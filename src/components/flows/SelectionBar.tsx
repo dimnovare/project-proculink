@@ -97,7 +97,8 @@ export function SelectionBar({ selected, sent, report, onReport, onSent, onClear
   useEffect(() => {
     if (report && (!document.activeElement || document.activeElement === document.body)) live.current?.focus();
   }, [report]);
-  const ready = selected.filter((d) => d.status === "ready" && !sent.has(d.id) && !rowSending.includes(d.id));
+  // An inbox document is never sent from here (it is answered on its own screen).
+  const ready = selected.filter((d) => d.status === "ready" && d.inInbox !== true && !sent.has(d.id) && !rowSending.includes(d.id));
   const label = sendLabel(selected.length, ready.length);
   const n = selected.length;
   if (n === 0 && !report && !running) return null;

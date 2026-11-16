@@ -242,8 +242,10 @@ function TableValues({ table: t, marks, edits, onLocate, sum, editable }: { tabl
 const emptyWords = (labels: string[]) =>
   `${labels.length} value${labels.length === 1 ? " is" : "s are"} empty: ${labels.slice(0, 4).join(", ")}${labels.length > 4 ? ` and ${labels.length - 4} more` : ""}.`;
 
-export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow, onTeach, history, walk, onChecked }: {
+export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow, onTeach, history, walk, onChecked, inbox }: {
   detail: DocumentDetail; editable: boolean; edits: DocumentEdits; marks: ReviewMarks;
+  /** The document is in the workspace's inbox: its checks say nothing about setup or sending. */
+  inbox?: boolean;
   flow?: Flow; onLocate?(location: SourceLocation | null): void; onTeach?(t: Teach): void; history?: ReactNode;
   /** The review screen on a wide window: the cursor starts in the first value to check, and Enter goes to the next one. */
   walk?: boolean;
@@ -406,7 +408,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
         {tables.map((t) => <TableValues key={t.key} table={t} marks={marks} edits={edits} onLocate={onLocate} editable={editable} sum={sum?.table === t.key ? sum : null} />)}
       </fieldset>
       {pasteNote && <StatusNotice tone="warning">{pasteNote}</StatusNotice>}
-      <Checks checks={marks.unattached} />
+      <Checks checks={marks.unattached} inbox={inbox} />
       {(hasMore || history) && (
         <div className="flex flex-wrap items-start justify-between gap-2">
           {hasMore && (

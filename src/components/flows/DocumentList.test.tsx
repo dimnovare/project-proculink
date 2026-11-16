@@ -70,6 +70,7 @@ describe("DocumentList", () => {
           row({ id: "i", fileName: "invoice-2292.pdf", kind: "Invoice", sender: "Example Supplier Ltd", number: "2292", inInbox: false }),
           row({ id: "n", fileName: "statement.pdf", flowId: "inbox", flowName: "New documents", statusReason: "new_kind", kind: null, inInbox: true, createdAt: "2026-11-02T10:00:00Z" }),
           row({ id: "d", fileName: "remittance.pdf", status: "sent", statusReason: "downloaded", inInbox: true, createdAt: "2026-10-30T10:00:00Z" }),
+          row({ id: "r", fileName: "price-list.xlsx", status: "ready", inInbox: true, createdAt: "2026-10-29T10:00:00Z" }),
         ]} />
       </QueryClientProvider>,
     );
@@ -80,6 +81,7 @@ describe("DocumentList", () => {
     expect(inbox[1]).toHaveTextContent(/^New documents$/);
     expect(inbox[2]).toHaveTextContent("New kind");
     expect(inbox[5]).toHaveTextContent(/^Open$/);
+    expect(table.queryByRole("button", { name: "Send price-list.xlsx" })).toBeNull(); // a ready inbox document is never sent from a row
     const downloaded = within(table.getByRole("row", { name: /remittance\.pdf/ })).getAllByRole("cell");
     expect(downloaded[2]).toHaveTextContent("Downloaded");
     expect(downloaded.filter((c) => /\bSent\b/.test(c.textContent ?? ""))).toEqual([]);

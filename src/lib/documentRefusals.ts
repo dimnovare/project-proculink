@@ -1,6 +1,7 @@
 import { ApiHttpError } from "@/lib/api/core";
 import { errorField } from "@/lib/api/refusal";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
+import { isPlanGateError } from "@/lib/planGate";
 
 const GENERIC = "Something went wrong. Try again.";
 
@@ -101,6 +102,12 @@ const field = (error: unknown, key: string): string | null => {
 export const ORDERS_RETIRED_MESSAGE = "This workspace now receives documents through flows.";
 
 export const refusalToken = (error: unknown): string | null => errorField(body(error));
+
+/** The global rate limiter's 429: no code, a sentence. Every coded 429 is in `COPY` or is a plan gate. */
+export const rateLimited = (e: unknown) => {
+  const t = refusalToken(e);
+  return e instanceof ApiHttpError && e.status === 429 && !(t && (Object.hasOwn(COPY, t) || isPlanGateError(t)));
+};
 
 export function documentRefusalMessage(error: unknown): string {
   const token = refusalToken(error);

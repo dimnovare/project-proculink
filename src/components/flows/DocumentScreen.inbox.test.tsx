@@ -12,6 +12,7 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => tru
 vi.mock("@/components/bridge/document/SourceDocumentBody", () => ({ SourceDocumentBody: () => null, scrollTo: () => {} }));
 
 import { DocumentScreen } from "./DocumentScreen";
+import { getDocument } from "@/lib/api/documents";
 
 type Spy = { calls: string[]; answer?: Record<string, object> };
 const spy = () => (window as unknown as { __mockEngine: Spy }).__mockEngine;
@@ -42,6 +43,8 @@ describe("DocumentScreen, a document in the inbox", () => {
     expect(screen.queryByRole("button", { name: "Skip" })).toBeNull();
     expect(screen.queryByRole("tab", { name: /send/i })).toBeNull();
     expect(screen.queryByText(/Teach|Point to it|Something missing/)).toBeNull();
+    // Nothing is set up and nothing is sent from here, so no check says either.
+    expect(screen.queryByText(/have not been confirmed|never stop you sending/)).toBeNull();
     // P15: the flow route refuses the inbox (404 flow_not_found), and only then is the inbox asked.
     expect(calls().filter((c) => c === "GET /flows/flow-inbox" || c === "GET /inbox")).toEqual(["GET /flows/flow-inbox", "GET /inbox"]);
     first.unmount();
@@ -63,6 +66,33 @@ describe("DocumentScreen, a document in the inbox", () => {
     expect(calls()).not.toContain("GET /inbox");
   });
 
+  it("a correction is saved before a download, and the rate limiter's sentence is shown as it is", async () => {
+    const LIMIT = "Rate limit exceeded. Please slow down and retry shortly.";
+    spy().answer = { "POST /documents/doc-in-1/download": { refuse: [429, LIMIT] } };
+    mount("doc-in-1");
+    const panel = await answers();
+    fireEvent.change(screen.getAllByRole("textbox")[0], { target: { value: "Corrected" } });
+    fireEvent.click(within(panel).getByRole("button", { name: "Download what we read as Excel" }));
+    expect(await within(panel).findByText(LIMIT)).toBeVisible();
+    const order = calls().filter((c) => c.startsWith("PATCH /documents/doc-in-1/values") || c.startsWith("POST /documents/doc-in-1/download")).map((c) => c.split(" ")[0]);
+    expect(order).toEqual(["PATCH", "POST"]);
+  });
+
+  it("a press the document outran says it changed, and shows it as it is now", async () => {
+    mount("doc-in-1");
+    await answers();
+    const now = await getDocument("doc-in-1");
+    // Someone put it with a flow meanwhile: the server refuses, and the document is now in Supplier invoices.
+    spy().answer = {
+      "POST /documents/doc-in-1/set-up": { refuse: [409, "not_in_inbox"] },
+      "GET /documents/doc-in-1": { ...now, summary: { ...now.summary, flowId: "flow-1", flowName: "Supplier invoices", statusReason: null, inInbox: false } },
+    };
+    fireEvent.click(within(await answers()).getByRole("button", { name: "Set it up" }));
+    expect(await screen.findByText("This document changed while you were looking at it. This is how it is now.")).toBeVisible();
+    await waitFor(() => expect(document.getElementById("review-send")).toBeEnabled());
+    expect(screen.queryByRole("region", { name: "What to do with it" })).toBeNull();
+  });
+
   it("pressing twice sets up one flow, and nothing else can be pressed while it runs", async () => {
     mount("doc-in-1");
     const panel = await answers();
@@ -82,7 +112,7 @@ describe("DocumentScreen, a document in the inbox", () => {
     mount("doc-in-2");
     const panel = await answers();
     expect(within(panel).getByRole("heading", { name: "Which flow does this invoice belong with?" })).toBeVisible();
-    expect(within(panel).queryByText(/first/)).toBeNull();
+    expect(within(panel).queryByText(/the first/i)).toBeNull(); // "Choose a flow first." is the move list's hint, not "new"
     expect(within(panel).getAllByRole("button").map((b) => b.textContent)).toEqual(["Move it", "Set it up", "Excel", "CSV"]);
     const list = within(panel).getByRole("combobox", { name: "Flow it belongs with" });
     // The flows that fit first, then the others; none chosen.
@@ -95,6 +125,9 @@ describe("DocumentScreen, a document in the inbox", () => {
     fireEvent.click(within(panel).getByRole("button", { name: "Move it" }));
     await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/flows/flow-4/documents/doc-in-2"));
     expect(calls().filter((c) => c.startsWith("POST /documents/doc-in-2/move"))).toEqual(['POST /documents/doc-in-2/move {"flowId":"flow-4"}']);
+    // flow-4 already has this file: it is held there, with the way on, although its values were read.
+    expect(await screen.findByRole("button", { name: "Read it anyway" })).toBeEnabled();
+    expect(screen.getAllByText("This file was already uploaded to this flow.")[0]).toBeVisible();
   });
 
   it("a sort that is not certain says where it went and can be moved, and Send stays", async () => {

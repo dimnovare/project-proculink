@@ -466,11 +466,11 @@ const upload = (flow: Flow, body: Body): DocumentSummary => {
   if (refusal) throw refusal;
   if (file.size === 0) throw new ApiHttpError("mock engine: empty file", 422, { error: "unreadable_file" });
   const key = `${flow.id}/${file.name}/${file.size}`;
-  // Held when this flow already has the file, or when the workspace does (an earlier upload of the same name and size, or a
-  // stored document of the same name in any flow). The sentence says which.
+  // A file added straight into a flow is held only when that flow has it; one added with no flow, when the workspace does (an
+  // earlier upload of the same name and size, or a stored document of the same name in any flow). The sentence says which.
   const kept = (d: DocumentRow) => d.fileName === file.name && !d.isSample;
   const inFlow = flow !== INBOX && (uploaded.has(key) || ROWS.some((d) => kept(d) && d.flowId === flow.id));
-  const held = inFlow || [...uploaded].some((k) => k.endsWith(`/${file.name}/${file.size}`)) || ROWS.some(kept);
+  const held = flow !== INBOX ? inFlow : [...uploaded].some((k) => k.endsWith(`/${file.name}/${file.size}`)) || ROWS.some(kept);
   uploaded.add(key);
   const row = doc(0, flow, held ? STATUS.needs_review : STATUS.reading, {
     id: `doc-up-${++uploads}`, fileName: file.name, createdAt: new Date().toISOString(),

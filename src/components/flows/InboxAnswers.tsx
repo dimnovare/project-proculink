@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -8,69 +8,113 @@ import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { ApiHttpError } from "@/lib/api/core";
-import { downloadDocument, getSortFlows, moveDocument, setUpDocument, type DocumentDetail } from "@/lib/api/documents";
-import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
+import { downloadDocument, getSortFlows, moveDocument, setUpDocument, type DocumentDetail, type DocumentSummary } from "@/lib/api/documents";
+import { COPY, documentRefusalMessage, rateLimited, refusalToken } from "@/lib/documentRefusals";
 import { kindWords } from "@/lib/documentKind";
 import { firstRunAddress } from "@/lib/firstRun";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
 import { saveBlob } from "@/lib/saveBlob";
 import { flowsQuery } from "@/hooks/useDocumentEngine";
-import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { INPUT } from "./DestinationForm";
 
 type Act = "set-up" | "xlsx" | "csv" | { move: string };
 const FORMATS = [["xlsx", "Excel"], ["csv", "CSV"]] as const;
 const byName = <T extends { name: string }>(list: readonly T[]) => [...list].sort((a, b) => a.name.localeCompare(b.name));
+/** Someone or something got there first: the screen shows the document as it is now. */
+const GONE = new Set(["not_movable", "not_in_inbox"]);
+export const CHANGED = "This document changed while you were looking at it. This is how it is now.";
+/** A stable ref callback, so focus moves once, when the element appears. */
+const focusOnMount = (el: HTMLElement | null) => el?.focus();
 
-/** The three answers' one request at a time, and the flows a document can be moved to. */
-function useAnswers({ summary: s }: DocumentDetail) {
+/**
+ * The three answers' one request at a time, and the flows a document can be moved to. Held by the review screen, so a refusal
+ * outlives the panel it came from, and Send, Skip and Review next wait while one runs. `flush` saves a typed correction first.
+ */
+export function useAnswers(s: DocumentSummary | undefined, { enabled, flush }: { enabled: boolean; flush: () => Promise<unknown> }) {
   const qc = useQueryClient();
   const router = useRouter();
-  const enabled = useTenantQueriesEnabled();
   const flows = useQuery({ ...flowsQuery, enabled });
   // P1: the flows that take this kind come first; if that answer fails, every flow in name order.
-  const fits = useQuery({ queryKey: ["sort-flows", s.id], queryFn: () => getSortFlows(s.id), enabled: enabled && s.statusReason === "choose_flow" });
+  const fits = useQuery({ queryKey: ["sort-flows", s?.id], queryFn: () => getSortFlows(s!.id), enabled: enabled && s?.statusReason === "choose_flow" });
   const fitIds = new Set(fits.data?.map((f) => f.id));
-  const list = [...byName(fits.data ?? []), ...byName((flows.data ?? []).filter((f) => !fitIds.has(f.id)))].filter((f) => f.id !== s.flowId);
+  const list = [...byName(fits.data ?? []), ...byName((flows.data ?? []).filter((f) => !fitIds.has(f.id)))].filter((f) => f.id !== s?.flowId);
   const refresh = (keys: string[][]) => Promise.all(keys.map((queryKey) => qc.invalidateQueries({ queryKey })));
+  const docKey = ["document", s?.id ?? ""];
+  // A 409 that moved the document under us: true once it is shown as it is now; the refusal itself when even that failed.
+  const [gone, setGone] = useState<unknown>(null);
   const act = useMutation({
     mutationFn: async (a: Act) => {
+      if (!s) return;
+      await flush();
       if (a === "set-up") return router.push(firstRunAddress({ step: "send", flow: (await setUpDocument(s.id)).flowId, doc: s.id }));
       if (typeof a === "object") return router.replace(`/flows/${(await moveDocument(s.id, a.move)).flowId}/documents/${s.id}`);
       saveBlob(await downloadDocument(s.id, a), `${s.fileName.replace(/\.[^.]*$/, "")}.${a}`);
     },
     // The answer may hold the document as a duplicate rather than read it again: the refetched document says which.
-    onSuccess: (_d, a) => refresh([["document", s.id], ["documents"], ["document-history", s.id], ...(a === "set-up" ? [["flows"]] : [])]),
-    // Someone or something got there first: the document is shown as it is now, with the refusal.
-    onError: (e) => { if (refusalToken(e) === "not_movable" || refusalToken(e) === "not_in_inbox") void refresh([["document", s.id], ["documents"]]); },
+    onSuccess: (_d, a) => refresh([docKey, ["documents"], ["document-history", s?.id ?? ""], ...(a === "set-up" ? [["flows"]] : [])]),
+    onError: async (e) => {
+      // A flow or the document went away: the list and the document are read again.
+      if (e instanceof ApiHttpError && e.status === 404) await refresh([["flows"], docKey]);
+      if (!GONE.has(refusalToken(e) ?? "")) return;
+      await refresh([docKey, ["documents"]]);
+      setGone(qc.getQueryState(docKey)?.status === "error" ? e : true);
+    },
   });
   // A second press before the first re-renders sends nothing (the ref); every answer is disabled from the press on (the state),
-  // because the mutation's own pending flag arrives a tick later. Set-up and move leave, so they stay pressed.
+  // because the mutation's own pending flag arrives a tick later. Set-up leaves this screen, so it stays pressed.
   const pressed = useRef(false);
   const [running, setRunning] = useState<string | null>(null);
+  const clear = () => { setGone(null); act.reset(); };
   const press = (a: Act) => {
     if (pressed.current) return;
     pressed.current = true;
+    clear();
     setRunning(typeof a === "object" ? "move" : a);
-    act.mutate(a, { onSettled: (_d, e) => { if (e || (typeof a === "string" && a !== "set-up")) { pressed.current = false; setRunning(null); } } });
+    act.mutate(a, {
+      onSettled: (_d, e) => {
+        if (a === "set-up" && !e) return;
+        pressed.current = false;
+        setRunning(null);
+        // The pressed download button gets focus back once it is enabled again.
+        const word = FORMATS.find(([f]) => f === a)?.[1];
+        if (word) setTimeout(() => document.querySelector<HTMLElement>(`button[aria-label="Download what we read as ${word}"]`)?.focus(), 0);
+      },
+    });
   };
-  return { list, none: !!flows.data && list.length === 0, flows, press, pending: running, busy: running !== null, error: act.error };
+  const refused = GONE.has(refusalToken(act.error) ?? "") ? null : act.error;
+  return { list, none: !!flows.data && list.length === 0, flows, press, clear, pending: running, busy: running !== null, error: refused, act: act.variables, gone };
 }
-type Answers = ReturnType<typeof useAnswers>;
+export type Answers = ReturnType<typeof useAnswers>;
 
-/** A refusal with its way on; the rate limiter's 429 has no code and is shown in its own words. */
-function Refused({ error }: { error: unknown }) {
+/** A refusal with its way on; the rate limiter's 429 is shown in its own words. Focus moves to it. */
+function Refused({ a }: { a: Answers }) {
+  const error = a.error;
   const t = refusalToken(error) ?? "";
   const plan = t === "processing_paused" || t === "flow_limit_reached" || LIMIT_CODES.has(t);
+  const download = a.act === "xlsx" || a.act === "csv";
+  const text = rateLimited(error) ? (t || (error as Error).message)
+    : download && t === "output_invalid" ? "We couldn't make that file. Try the other format."
+    : a.act === "set-up" && t === "invalid_name" ? COPY.invalid_fields
+    : documentRefusalMessage(error);
   return (
-    <StatusNotice tone="error" action={plan && <Link href="/settings?tab=billing" className={buttonClass("secondary", "sm")}>Open Plan &amp; billing</Link>}>
-      {error instanceof ApiHttpError && error.status === 429 && !t ? error.message : documentRefusalMessage(error)}
-    </StatusNotice>
+    <div ref={focusOnMount} tabIndex={-1} className="outline-none">
+      <StatusNotice tone="error" action={plan && <Link href="/settings?tab=billing" className={buttonClass("secondary", "sm")}>Open Plan &amp; billing</Link>}>
+        {text}
+      </StatusNotice>
+    </div>
   );
 }
 
+/** Drawn by the review screen above its content: the document changed under a press. */
+export const Changed = ({ a }: { a: Answers }) => a.gone ? (
+  <div ref={focusOnMount} tabIndex={-1} className="outline-none">
+    <StatusNotice tone="warning">{a.gone === true ? CHANGED : documentRefusalMessage(a.gone)}</StatusNotice>
+  </div>
+) : null;
+
 function MoveTo({ a, label, filled }: { a: Answers; label: string; filled: boolean }) {
   const [to, setTo] = useState("");
+  const id = useId();
   // A list with only "Choose a flow" would read as "you have no flow".
   if (a.flows.isError && !a.flows.data) return (
     <div className="flex flex-wrap items-center gap-2">
@@ -79,12 +123,16 @@ function MoveTo({ a, label, filled }: { a: Answers; label: string; filled: boole
     </div>
   );
   return (
-    <div className="flex flex-wrap gap-2">
-      <select aria-label={label} className={`${INPUT} min-h-[44px] w-auto min-w-[180px] flex-1`} value={to} onChange={(e) => setTo(e.target.value)}>
-        <option value="" disabled>Choose a flow</option>
-        {a.list.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-      </select>
-      <Button variant={filled ? "primary" : "secondary"} disabled={!to || a.busy} loading={a.pending === "move"} onClick={() => a.press({ move: to })}>Move it</Button>
+    <div className="grid gap-1">
+      <label htmlFor={id} className="text-[13px] font-medium text-ink">{label}</label>
+      <div className="flex flex-wrap gap-2">
+        <select id={id} className={`${INPUT} min-h-[44px] w-auto min-w-[180px] flex-1`} value={to} onChange={(e) => setTo(e.target.value)}>
+          <option value="" disabled>Choose a flow</option>
+          {a.list.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+        </select>
+        <Button variant={filled ? "primary" : "secondary"} disabled={!to || a.busy} loading={a.pending === "move"} onClick={() => a.press({ move: to })}>Move it</Button>
+      </div>
+      {!to && <p className="m-0 text-[12.5px] text-ink-muted">Choose a flow first.</p>}
     </div>
   );
 }
@@ -97,9 +145,8 @@ const Downloads = ({ a }: { a: Answers }) => (
   </div>
 );
 
-/** Task 6: a document in the workspace's inbox, and what a person can do with it. Drawn once per document (keyed by the screen). */
-export function InboxAnswers({ detail }: { detail: DocumentDetail }) {
-  const a = useAnswers(detail);
+/** Task 6: a document in the workspace's inbox, and what a person can do with it. */
+export function InboxAnswers({ detail, a }: { detail: DocumentDetail; a: Answers }) {
   const { status, statusReason } = detail.summary;
   const k = detail.read.kindLabel?.trim();
   const kind = k && /[\p{L}\p{N}]/u.test(k) ? kindWords(k) : null;
@@ -139,20 +186,19 @@ export function InboxAnswers({ detail }: { detail: DocumentDetail }) {
           ))}
         </>
       )}
-      {a.error && <Refused error={a.error} />}
+      {a.error && <Refused a={a} />}
     </Card>
   );
 }
 
 /** Task 7: a sort we were not sure of. Send stays the filled button, and sending confirms the sort. */
-export function SortNotice({ detail }: { detail: DocumentDetail }) {
-  const a = useAnswers(detail);
+export function SortNotice({ detail, a }: { detail: DocumentDetail; a: Answers }) {
   return (
     <div className="grid gap-2">
       <StatusNotice tone="warning" action={!a.none && <MoveTo a={a} label="Another flow" filled={false} />}>
         {`We put this with ${detail.summary.flowName}. Check that is right.`}
       </StatusNotice>
-      {a.error && <Refused error={a.error} />}
+      {a.error && <Refused a={a} />}
     </div>
   );
 }

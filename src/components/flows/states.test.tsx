@@ -9,7 +9,7 @@ import { buttonClass } from "@/components/bridge/DSPrimitives";
 describe("ReadProblem", () => {
   it("says why a held document is waiting when no output matches", () => {
     const summary = { id: "d", status: "needs_review", statusReason: "no_output_matches" };
-    const { container } = render(<ReadProblem summary={summary as never} nothingRead={false} retry={{} as never} uploadHref="/flows/f?tab=documents" />);
+    const { container } = render(<ReadProblem summary={summary as never} retry={{} as never} uploadHref="/flows/f?tab=documents" />);
     expect(within(container).getByText(COPY.no_output_matches)).toBeTruthy();
   });
 });
@@ -60,7 +60,7 @@ describe("LoadingRows and a document we couldn't read", () => {
 
   it("a document we couldn't read says it was not sent or counted, and offers a clearer copy", () => {
     const summary = { id: "d", status: "read_failed", statusReason: "unreadable_file" };
-    const { container } = render(<ReadProblem summary={summary as never} nothingRead retry={{ isPending: false, isError: false, mutate() {} } as never} uploadHref="/flows/f?tab=documents" />);
+    const { container } = render(<ReadProblem summary={summary as never} retry={{ isPending: false, isError: false, mutate() {} } as never} uploadHref="/flows/f?tab=documents" />);
     expect(within(container).getByText(COPY.unreadable_file)).toBeTruthy();
     expect(within(container).getByText("It hasn't been sent anywhere, and it doesn't count as a document on your plan.")).toBeTruthy();
     const link = within(container).getByRole("link", { name: "Upload a clearer copy" });
