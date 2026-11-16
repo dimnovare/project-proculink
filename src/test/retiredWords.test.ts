@@ -24,7 +24,7 @@ const looksLikeCode = (t: string) => {
 const isModulePath = (n: ts.Node) => {
   const p = n.parent;
   return ((ts.isImportDeclaration(p) || ts.isExportDeclaration(p)) && p.moduleSpecifier === n)
-    || (ts.isLiteralTypeNode(p) && ts.isImportTypeNode(p.parent))
+    || (ts.isLiteralTypeNode(p) && ts.isImportTypeNode(p.parent) && p.parent.argument === p)
     || (ts.isCallExpression(p) && p.arguments[0] === n
       && (p.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(p.expression) && p.expression.text === "require")));
 };
@@ -173,6 +173,7 @@ describe("retired words stay retired in what a person reads", () => {
     expect(["Open Activity", "Activity records such as delivery attempts are removed", "History"].filter((t) => RETIRED[3].word.test(t))).toEqual(["Open Activity"]);
     for (const f of SHELL) expect(textOf(f).length, `${f} yields person-read text`).toBeGreaterThan(0);
     expect(personText('import A from "@/components/activity/ActivityPage"; export { b } from "@/lib/activityRows"; const C = dynamic(() => import("@/components/activity/ActivityPage")); const d = require("@/components/activity/x"); type T = import("@/components/activity/x").Y;')).toEqual([]);
+    expect(personText('type T = import("@/lib/x").Box<"Open Activity">;')).toEqual(["Open Activity"]);
     expect(mdxText("Activity is open to everyone.").filter((t) => RETIRED[3].word.test(t))).toEqual(["Activity is open to everyone."]);
     // Anti-vacuity: every folder yields a file, and the corpus yields person-read text to check.
     for (const dir of [...APP_DIRS, HELP]) expect(CORPUS.some((f) => f.startsWith(dir.replace(/\\/g, "/") + "/")), dir).toBe(true);
