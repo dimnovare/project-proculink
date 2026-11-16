@@ -9,7 +9,7 @@ import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { getDocument, listDocuments, saveFlowFields } from "@/lib/api/documents";
 import type { DocumentSummary, Flow, FlowField, FlowFieldList, ReadResult } from "@/lib/api/documents";
-import { documentRefusalMessage, readFailureMessage } from "@/lib/documentRefusals";
+import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
 import { addReadExtra, FIELD_TYPES, fieldListFromRead, replaceField, withReadExtras } from "@/lib/flowFieldModel";
@@ -69,13 +69,16 @@ const Tick = ({ label, checked, disabled, onChange }: { label: string; checked: 
 function ValueRow({ field, scope, on, example, columns, indent, failed, onInclude, onChange }: {
   field: FlowField; scope: "header" | "line"; on: boolean; example: string | null | undefined; columns: number; indent?: boolean;
   /** This row's last change in More did not save. */ failed?: boolean;
-  onInclude(on: boolean): void; onChange(field: FlowField): void;
+  /** `inMore`: the change was made inside More (Required, Type, Meaning), not to the name. */
+  onInclude(on: boolean): void; onChange(field: FlowField, inMore?: boolean): void;
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const meaning = field.meaning ? FIELD_MEANINGS[field.meaning as keyof typeof FIELD_MEANINGS] : undefined;
   // A fold never hides a problem: a type or meaning we do not know for this row, or a change that did not save.
   const forced = !!failed || !(field.type in FIELD_TYPES) || (!!field.meaning && meaning?.scope !== scope);
+  // Forced open, it stays open (nothing remembers it): fixing the problem never closes it under the person's focus.
+  if (forced && !open) setOpen(true);
   const shown = open || forced;
   // Opening moves focus to the first box inside; closing returns it to More.
   const more = useRef<HTMLButtonElement>(null);
@@ -86,7 +89,7 @@ function ValueRow({ field, scope, on, example, columns, indent, failed, onInclud
     moved.current = false;
     (open ? body.current?.querySelector("input") : more.current)?.focus();
   }, [open]);
-  const toggle = () => { moved.current = true; setOpen(!open); };
+  const toggle = () => { if (forced) return; moved.current = true; setOpen(!open); }; // a problem keeps it open
   return (
     <>
       <tr className="border-t border-border-faint">
@@ -101,9 +104,12 @@ function ValueRow({ field, scope, on, example, columns, indent, failed, onInclud
           <td className={`${CELL} text-[13px] ${example ? "font-mono text-ink" : "text-ink-muted"}`}>{example ?? NOT_FOUND}</td>
         )}
         <td className={CELL}>
-          {!forced && (
-            <button ref={more} type="button" className={buttonClass("ghost", "sm")} aria-expanded={shown} aria-controls={id} disabled={!on} onClick={toggle}>More</button>
-          )}
+          <button
+            ref={more} type="button" className={buttonClass("ghost", "sm")} aria-label={`More for ${field.label}`} aria-expanded={shown} aria-controls={id}
+            disabled={!on} onClick={toggle}
+          >
+            More
+          </button>
         </td>
       </tr>
       {shown && (
@@ -111,20 +117,20 @@ function ValueRow({ field, scope, on, example, columns, indent, failed, onInclud
           <td colSpan={columns} className="px-2 pb-3">
             <div ref={body} className="grid gap-3 rounded-md bg-surface-2 p-3 min-[720px]:grid-cols-2">
               <div className="flex items-center gap-1 min-[720px]:col-span-2">
-                <Tick label={`${field.label} is required`} checked={field.required} disabled={!on} onChange={(required) => onChange({ ...field, required })} />
+                <Tick label={`${field.label} is required`} checked={field.required} disabled={!on} onChange={(required) => onChange({ ...field, required }, true)} />
                 <div className="grid">
                   <span aria-hidden className="text-[14px] font-semibold text-ink">Required</span>
                   <span className="text-[13px] text-ink-muted">We mark the value when it is missing from a document.</span>
                 </div>
               </div>
               <Field label="Type">
-                <select className={INPUT} value={field.type} onChange={(e) => onChange({ ...field, type: e.target.value })}>
+                <select className={INPUT} value={field.type} onChange={(e) => onChange({ ...field, type: e.target.value }, true)}>
                   {!(field.type in FIELD_TYPES) && <option value={field.type}>{field.type}</option>}
                   {Object.entries(FIELD_TYPES).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
                 </select>
               </Field>
               <Field label="Meaning">
-                <select className={INPUT} value={field.meaning ?? ""} onChange={(e) => onChange({ ...field, meaning: e.target.value || null })}>
+                <select className={INPUT} value={field.meaning ?? ""} onChange={(e) => onChange({ ...field, meaning: e.target.value || null }, true)}>
                   <option value="">None</option>
                   {field.meaning && meaning?.scope !== scope && <option value={field.meaning}>{meaning?.label ?? field.meaning}</option>}
                   {Object.entries(FIELD_MEANINGS).filter(([, m]) => m.scope === scope).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}
@@ -148,7 +154,8 @@ function ValueTable({ rows, edit, read, fileName, failed }: {
 }) {
   const id = useId();
   const { list, off } = rows;
-  // The row whose Required, Type or Meaning was changed last, by "key" or "table/column".
+  // The row whose Required, Type or Meaning, or its Read tick, was changed last, by "key" or "table/column". Any other
+  // change clears it: a failed save never forces open a row the person did not just touch.
   const [last, setLast] = useState<string | null>(null);
   const showExample = !!read && !!fileName;
   const columns = showExample ? 4 : 3;
@@ -172,9 +179,12 @@ function ValueTable({ rows, edit, read, fileName, failed }: {
       ]
     : [];
 
-  const setFields = (fields: FlowField[], key: string) => { setLast(key); edit({ list: { ...list, fields }, off }); };
-  const setTable = (ti: number, patch: (t: FlowFieldList["tables"][number]) => FlowFieldList["tables"][number]) =>
+  const include = (key: string, on: boolean) => { setLast(key); edit({ list, off: toggled(off, key, on) }); };
+  const setFields = (fields: FlowField[], key: string | null) => { setLast(key); edit({ list: { ...list, fields }, off }); };
+  const setTable = (ti: number, patch: (t: FlowFieldList["tables"][number]) => FlowFieldList["tables"][number], key: string | null = null) => {
+    setLast(key);
     edit({ list: { ...list, tables: list.tables.map((t, j) => (j === ti ? patch(t) : t)) }, off });
+  };
 
   return (
     <div className="grid gap-4">
@@ -193,7 +203,7 @@ function ValueTable({ rows, edit, read, fileName, failed }: {
               <ValueRow
                 key={f.key} field={f} scope="header" on={!off.has(f.key)} example={fieldExample(f.key)} columns={columns}
                 failed={failed && last === f.key}
-                onInclude={(on) => edit({ list, off: toggled(off, f.key, on) })} onChange={(x) => setFields(replaceField(list.fields, i, x), f.key)}
+                onInclude={(on) => include(f.key, on)} onChange={(x, inMore) => setFields(replaceField(list.fields, i, x), inMore ? f.key : null)}
               />
             ))}
           </tbody>
@@ -203,7 +213,7 @@ function ValueTable({ rows, edit, read, fileName, failed }: {
             return (
               <tbody key={t.key}>
                 <tr className="border-t border-border">
-                  <td className={CELL}><Tick label={`Read the table ${t.label}`} checked={tableOn} onChange={(on) => edit({ list, off: toggled(off, t.key, on) })} /></td>
+                  <td className={CELL}><Tick label={`Read the table ${t.label}`} checked={tableOn} onChange={(on) => include(t.key, on)} /></td>
                   <td className={CELL}>
                     <input
                       aria-label={`Name for ${t.label}`} className={`${INPUT} min-w-36 font-semibold`} value={t.label} disabled={!tableOn}
@@ -218,8 +228,8 @@ function ValueTable({ rows, edit, read, fileName, failed }: {
                   <ValueRow
                     key={c.key} field={c} scope="line" indent on={tableOn && !off.has(`${t.key}/${c.key}`)} example={cellExample(t.key, c.key)} columns={columns}
                     failed={failed && last === `${t.key}/${c.key}`}
-                    onInclude={(on) => edit({ list, off: toggled(off, `${t.key}/${c.key}`, on) })}
-                    onChange={(x) => { setLast(`${t.key}/${c.key}`); setTable(ti, (tb) => ({ ...tb, columns: replaceField(tb.columns, ci, x) })); }}
+                    onInclude={(on) => include(`${t.key}/${c.key}`, on)}
+                    onChange={(x, inMore) => setTable(ti, (tb) => ({ ...tb, columns: replaceField(tb.columns, ci, x) }), inMore ? `${t.key}/${c.key}` : null)}
                   />
                 ))}
               </tbody>
@@ -326,8 +336,8 @@ function FirstDocument({ flow, newest }: { flow: Flow; newest?: DocumentSummary 
   return (
     <Frame>
       {newest?.status === "read_failed" && (
-        <StatusNotice tone="error" action={<Link href={`/flows/${flow.id}/documents/${newest.id}`} className={buttonClass("secondary", "sm")}>{newest.fileName}</Link>}>
-          {readFailureMessage(newest.statusReason)}
+        <StatusNotice tone="error" action={<Link href={`/flows/${flow.id}/documents/${newest.id}`} className={buttonClass("secondary", "sm")}>Open it</Link>}>
+          {`We couldn't read ${newest.fileName}.`}
         </StatusNotice>
       )}
       <FileDrop accept={acceptFor(flow)} maxBytes={MAX_UPLOAD_BYTES} prompt={prompt} onFile={(f) => queue.add([f], flow)} />

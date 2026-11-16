@@ -56,6 +56,7 @@ export function standardFamilies(peppolOn: boolean | undefined): { invoices: Fam
 /** R9: which group of standards fits a flow's documents, from the kind we read; null when not known. Whole words only,
  *  and an answer to an order (a confirmation, an acknowledgement, a response) is not an order. */
 export const kindGroup = (kindLabel: string | null): "invoices" | "orders" | null =>
-  !kindLabel ? null
-  : /\b(invoices?|credit notes?)\b/i.test(kindLabel) ? "invoices"
-  : /\borders?\b/i.test(kindLabel) && !/confirm|acknowledg|response/i.test(kindLabel) ? "orders" : null;
+  // An answer to a document (a confirmation, an acknowledgement, a response) is not the document itself.
+  !kindLabel || /confirm|acknowledg|response/i.test(kindLabel) ? null
+  : /\b(invoices?|credit[- ]notes?)\b/i.test(kindLabel) ? "invoices"
+  : /\borders?\b/i.test(kindLabel) ? "orders" : null;

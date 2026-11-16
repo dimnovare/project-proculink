@@ -230,7 +230,7 @@ export function OutputBuilder(props: Props) {
           <span className="text-[14px] font-semibold text-ink">{name}{invoice && <span className="text-[13px] font-normal text-ink-muted"> invoice</span>}</span>
           {line && <span className="text-[13px] text-ink-muted">{line}</span>}
         </div>
-        <Button size="sm" variant="secondary" aria-label={`Use ${name}`} disabled={standard.isPending}
+        <Button size="sm" variant="secondary" aria-label={`Use ${name}`} data-standard={id} disabled={standard.isPending}
           loading={standard.isPending && standard.variables?.id === id} onClick={() => use(s)}>Use</Button>
       </div>
     );
@@ -258,7 +258,8 @@ export function OutputBuilder(props: Props) {
 
   return (
     <div className="grid gap-3">
-      <div><button type="button" className={LINK} aria-label={`Back to ${title}`} onClick={() => go("quick")}>{title}</button></div>
+      {/* Not while a standard's Use is on its way: Back, then Create, would make a second file. */}
+      <div><button type="button" className={`${LINK} disabled:opacity-50`} aria-label={`Back to ${title}`} disabled={standard.isPending} onClick={() => go("quick")}>{title}</button></div>
       {way === "standards" ? (
         <div className="grid gap-3">
           <div className="grid gap-0.5">

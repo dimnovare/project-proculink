@@ -89,7 +89,7 @@ describe("SendStep", () => {
     const { container } = render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() });
     const finish = await screen.findByRole("region", { name: "Finish" });
     expect(screen.getByText("Nothing to set up. Each file waits in Documents, ready to download.")).toBeInTheDocument();
-    expect(await within(finish).findByText("Your first file is ready. You will find it in Documents, ready to download.")).toBeInTheDocument();
+    expect(await within(finish).findByText("Press Finish and we make your first file. You will find it in Documents, ready to download.")).toBeInTheDocument();
     expect(within(finish).queryByText(/Finish without/)).toBeNull();
     expect(filled(container).map((b) => b.textContent)).toEqual(["Finish"]);
     fireEvent.click(within(finish).getByRole("button", { name: "Finish" }));
@@ -99,13 +99,29 @@ describe("SendStep", () => {
     expect(blob.saveBlob).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["refused", () => api.sendDocument.mockRejectedValue(new ApiHttpError("paused", 402, { error: "processing_paused" })), COPY.processing_paused],
+    ["not made", () => api.sendDocument.mockResolvedValue([{ id: "dl-1", outputName: "CSV file", protocol: "download", status: "failed", attempts: 1, lastError: "The file could not be written.", fileName: null, deliveredAt: null }]), "The file could not be written."],
+  ])("with Download, a file %s keeps the person on the step and says why", async (_, answer, why) => {
+    api.listOutputs.mockResolvedValue([csvOutput]);
+    api.listDestinations.mockResolvedValue([]);
+    api.publishFlow.mockResolvedValue(confirmed);
+    answer();
+    render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() });
+    const finish = await screen.findByRole("region", { name: "Finish" });
+    fireEvent.click(await within(finish).findByRole("button", { name: "Finish" }));
+    expect(await within(finish).findByText(why)).toBeInTheDocument();
+    expect(within(finish).getByText("Press Finish and we make your first file. You will find it in Documents, ready to download.")).toBeInTheDocument();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
   it("fills one button, and only when the choice is ready", async () => {
     api.listOutputs.mockResolvedValue([csvOutput]);
     api.listDestinations.mockResolvedValue([]);
     api.listDocumentPage.mockResolvedValue({ items: [{ ...row, isSample: false, fileName: "po-1.pdf" }], totalCount: 1, page: 1, pageSize: 20, sampleCount: 0 });
     const { container, unmount } = render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() });
     const finish = await screen.findByRole("region", { name: "Finish" });
-    expect(await within(finish).findByText("Your first file is ready. You will find it in Documents, ready to download.")).toBeInTheDocument();
+    expect(await within(finish).findByText("Press Finish and we make your first file. You will find it in Documents, ready to download.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /^A server or another system/ }));
     fireEvent.click(within(screen.getByRole("radiogroup", { name: "Where should the file go?" })).getByRole("radio", { name: /^SFTP or FTPS/ }));
     const send = within(finish).getByRole("button", { name: "Send po-1.pdf now" });
@@ -206,7 +222,7 @@ describe("SendStep", () => {
     expect(within(finish).queryByText(/is ready/)).toBeNull();
     expect(within(finish).queryByRole("button", { name: /^(Finish|Send )/ })).toBeNull();
     fireEvent.click(within(finish).getByRole("button", { name: "Try again" }));
-    expect(await within(finish).findByText("Your first file is ready. You will find it in Documents, ready to download.")).toBeInTheDocument();
+    expect(await within(finish).findByText("Press Finish and we make your first file. You will find it in Documents, ready to download.")).toBeInTheDocument();
   });
 
   it("a document that no longer exists says so, with the way back, and offers no finish", async () => {

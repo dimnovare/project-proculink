@@ -55,12 +55,15 @@ export function readiness(choice: SendChoice, tested: Tested | null, isSample: b
 }
 
 /** A refusal in the server's words, under the control that was pressed; the plan's codes with their way on. */
+/** A send that answered without a stored file (Download): it says why in the delivery's own words. */
+class FileNotMade extends Error {}
+
 function Refusal({ error }: { error: unknown }) {
   const code = refusalToken(error) ?? "";
   const billing = code === "processing_paused" || LIMIT_CODES.has(code);
   return (
     <StatusNotice tone="error" action={billing && <Link href="/settings?tab=billing" className="inline-flex items-center text-[12.5px] font-semibold text-brand-blue">Open Plan &amp; billing</Link>}>
-      {documentRefusalMessage(error)}
+      {error instanceof FileNotMade ? error.message : documentRefusalMessage(error)}
     </StatusNotice>
   );
 }
@@ -154,7 +157,10 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
       if (run.isSample !== false || (state !== "ready" && state !== "download")) throw new Error("Not ready to send.");
       await prepare();
       // Download (R15): the file is made and waits in Documents; nothing is saved by the browser here.
-      await sendDocument(id);
+      const deliveries = await sendDocument(id);
+      // Only a stored file moves on; anything else stays on this step and says why.
+      if (state === "download" && !deliveries.some((d) => d.status === "stored"))
+        throw new FileNotMade(deliveries.find((d) => d.lastError)?.lastError ?? documentRefusalMessage(null));
     },
     onSuccess: done, onError: settle,
     // A refused send may still have changed the document.
@@ -191,8 +197,8 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
     }] : []),
     ...(servers ? newTiles(TILES.filter((t) => t.server)) : []),
   ];
-  // Closing the fold while one of its kinds is chosen goes back to Download.
-  const toggleServers = () => { if (servers && tile?.server) pick({ kind: "download" }); moved.current = true; setServerOpen(!servers); };
+  // The fold stays open while one of its kinds is the choice: closing it would drop a destination just saved and tested.
+  const toggleServers = () => { if (tile?.server) return; moved.current = true; setServerOpen(!servers); };
   // Opening moves focus to the first server tile; closing returns it to the fold's button.
   const fold = useRef<HTMLButtonElement>(null);
   const moved = useRef(false);
@@ -284,7 +290,7 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
           {state === "sample" ? "This is our sample invoice, so we never send it. Download its CSV file to see what your documents will become, then add one of your own."
             : state === "unknown" ? "Finish now and send your document later from Documents."
             : state === "closed" ? `${fileName}: ${status!.label}.`
-            : state === "download" ? "Your first file is ready. You will find it in Documents, ready to download."
+            : state === "download" ? "Press Finish and we make your first file. You will find it in Documents, ready to download."
             : state === "ready" ? `Your document is ready. It goes to ${going!.name} as a CSV file.`
             : "Send a test first to check the settings. Or finish now and send your document later from Documents."}
         </p>

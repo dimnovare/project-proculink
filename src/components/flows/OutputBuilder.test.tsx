@@ -163,7 +163,7 @@ describe("OutputBuilder", () => {
     const kinds: [string | null, ReturnType<typeof kindGroup>][] = [
       ["Purchase order", "orders"], ["Invoice", "invoices"], ["credit note", "invoices"], ["Proforma invoice", "invoices"],
       ["Order confirmation", null], ["Sales order acknowledgement", null], ["Reorder list", null], ["Border crossing note", null],
-      ["Delivery note", null], ["Voice memo", null], [null, null],
+      ["Delivery note", null], ["Voice memo", null], [null, null], ["Credit-note", "invoices"], ["Invoice response", null],
     ];
     expect(kinds.map(([k]) => [k, kindGroup(k)])).toEqual(kinds);
   });
@@ -175,10 +175,10 @@ describe("OutputBuilder", () => {
         fireEvent.click(screen.getByRole("button", { name: "A standard format" }));
         let closed: HTMLElement | undefined;
         while ((closed = screen.queryAllByRole("button", { expanded: false })[0])) fireEvent.click(closed);
-        const labels = screen.getAllByRole("button", { name: /^Use / }).map((b) => b.getAttribute("aria-label"));
+        // Each row read back to the standard it makes, so one id under two names plus one missing cannot pass.
+        const ids = screen.getAllByRole("button", { name: /^Use / }).map((b) => b.getAttribute("data-standard"));
         const offered = STANDARD_OUTPUTS.filter((id) => peppolOn || !RULE_SETS[id]);
-        expect(labels.length, `${kind} ${peppolOn}`).toBe(offered.length);
-        expect(new Set(labels).size).toBe(labels.length);
+        expect([...ids].sort(), `${kind} ${peppolOn}`).toEqual([...offered].sort());
         r.unmount();
       }
   });

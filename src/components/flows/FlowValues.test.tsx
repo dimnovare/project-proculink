@@ -86,10 +86,20 @@ describe("FlowValues", () => {
     await screen.findByRole("columnheader", { name: "Example from invoice-1001.csv" });
     const row = screen.getByRole("textbox", { name: "Name for Invoice number" }).closest("tr")!;
     expect(within(row).queryByRole("checkbox", { name: "Invoice number is required" })).toBeNull();
-    fireEvent.click(within(row).getByRole("button", { name: "More" }));
+    fireEvent.click(within(row).getByRole("button", { name: "More for Invoice number" }));
     expect(document.activeElement).toBe(screen.getByRole("checkbox", { name: "Invoice number is required" }));
     expect(screen.getByText("We mark the value when it is missing from a document.")).toBeTruthy();
     expect(screen.queryByText(/Required means we mark|save as a draft/)).toBeNull();
+  });
+
+  it("a More opened by a problem stays open while the person fixes it, with focus in the control", async () => {
+    mount({ ...flow, fields: { ...fields, fields: [{ ...field("invoice_number", "Invoice number"), type: "barcode" }] } });
+    const type = (await screen.findAllByRole("combobox", { name: "Type" }))[0];
+    type.focus();
+    fireEvent.change(type, { target: { value: "text" } });
+    expect(type).toBeInTheDocument();
+    expect(document.activeElement).toBe(type);
+    expect(screen.getByRole("button", { name: "More for Invoice number" })).toHaveAttribute("aria-expanded", "true");
   });
 
   it("before the first document, a drop zone adds one to this flow", async () => {
@@ -112,7 +122,8 @@ describe("FlowValues", () => {
     unmount();
     api.listDocuments.mockResolvedValue([{ ...pending, status: "read_failed" }]);
     mount(first);
-    expect(await screen.findByRole("link", { name: "invoice-2292.pdf" })).toHaveAttribute("href", "/flows/flow-1/documents/doc-2");
+    expect(await screen.findByText("We couldn't read invoice-2292.pdf.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open it" })).toHaveAttribute("href", "/flows/flow-1/documents/doc-2");
     expect(screen.getByText("Drop one document like the ones this flow will get.")).toBeTruthy();
   });
 });
