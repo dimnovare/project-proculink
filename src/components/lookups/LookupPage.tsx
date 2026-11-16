@@ -30,7 +30,7 @@ const TABLE_TYPES = ".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedo
 const PAD = "px-[18px] py-[14px]";
 const CELL =
   "h-10 w-full rounded-md border-2 border-transparent bg-transparent px-2 font-mono text-[14px] text-ink focus:border-brand-blue focus:outline-none max-sm:h-11 max-sm:text-base";
-const ICON_BUTTON = "inline-flex h-10 w-10 flex-none items-center justify-center rounded-md text-ink-muted hover:bg-surface-2 hover:text-ink max-sm:h-11 max-sm:w-11";
+import { ICON_BUTTON } from "@/components/flows/DestinationForm";
 const TEXT_BUTTON = "min-h-[44px] text-[14px] font-semibold text-brand-blue disabled:cursor-not-allowed disabled:opacity-50";
 
 function LookupEditor({ lookup, lookupId, usedBy }: { lookup: Lookup; lookupId: string; usedBy: string[] | undefined }) {

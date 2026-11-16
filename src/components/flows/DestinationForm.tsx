@@ -82,6 +82,7 @@ const TEST_NOTE: Record<string, string> = {
 
 export const INPUT_BASE = "w-full rounded-md border border-border-strong bg-surface px-3 text-[14px] font-medium text-ink";
 export const INPUT = `h-10 ${INPUT_BASE}`;
+export const ICON_BUTTON = "inline-flex h-10 w-10 flex-none items-center justify-center rounded-md text-ink-muted hover:bg-surface-2 hover:text-ink max-sm:h-11 max-sm:w-11";
 // Imported here, beside the one component that uses them, so this change stays one hunk.
 /**
  * `look`: the sentence under the control when a value needs a look; it also gives the control an amber edge.
