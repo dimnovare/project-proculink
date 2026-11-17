@@ -354,6 +354,7 @@ export {
   setOrgAccountStatus,
   setOrgRetention,
   eraseOrganisation,
+  eraseDocuments,
 } from "@/lib/api/billing";
 export type {
   AdminOverview,
@@ -368,6 +369,7 @@ export type {
   OrgAccountStatusResult,
   OrgRetentionResult,
   OrgEraseReceipt,
+  DocumentEraseReceipt,
   SetOrgRetentionRequest,
 } from "@/lib/api/billing";
 

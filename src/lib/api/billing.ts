@@ -597,3 +597,32 @@ export async function eraseOrganisation(orgId: string, confirmSlug: string): Pro
   if (!res.ok) return adminError(res, "admin/organisations/erase");
   return res.json() as Promise<OrgEraseReceipt>;
 }
+
+/** POST /api/admin/organisations/{id}/documents/erase — response. */
+export interface DocumentEraseReceipt extends OrgEraseReceipt {
+  documentsErased: number;
+  skippedInFlight: string[];
+  more: boolean;
+}
+
+/**
+ * Permanently delete chosen documents of one workspace on a written request. IRREVERSIBLE.
+ * Give `ids`, `receivedBefore`, or both; with neither the server answers 400 `filter_required`.
+ */
+export async function eraseDocuments(
+  orgId: string,
+  body: { confirmSlug: string; ids?: string[]; receivedBefore?: string },
+): Promise<DocumentEraseReceipt> {
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/admin/organisations/${orgId}/documents/erase`,
+    {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    60000,
+  );
+  if (!res.ok) return adminError(res, "admin/organisations/documents/erase");
+  return res.json() as Promise<DocumentEraseReceipt>;
+}
