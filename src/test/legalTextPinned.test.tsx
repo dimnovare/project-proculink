@@ -35,7 +35,7 @@ const sha256 = (s: string) => createHash("sha256").update(s, "utf8").digest("hex
 
 const PINNED: Record<"/privacy" | "/terms" | "/aup" | "/dpa" | "/subprocessors" | "/security#statements", string> = {
   "/privacy": "6a218955bbc61ff9ac3f5ed2a68709a2e698854210f04d5f0f34d1767b3df716",
-  "/terms": "956ddada611494eceb92a44fba4364382a66a51a6b50f5a07fa31011e130ea96",
+  "/terms": "ae25fb8cb42c3fcc5d053c5b0c3f630bca58751810227182747d711cbb148478",
   "/aup": "e9398125d3b0e8b4c41df0c9f3a92607bfff7bb35e8235419fa02cdd99062e1c",
   "/dpa": "cec1d1e805b2ad2f506c491079ca97f28f9e63d26b57a85f6eb8653136690301",
   "/subprocessors": "e4bd03fe1c61f9709e8a396e8070351c8ec6991a0b202b3b2dc7d47a89956122",

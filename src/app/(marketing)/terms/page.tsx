@@ -53,17 +53,15 @@ export default function TermsPage() {
         FOUNDER DECISION (2026-11-17). Until 16 November this section carried a disclaimer for
         invoices only ("offered as they are"). It went when invoices stopped being early
         access, and nothing replaced it, although every document is read automatically. This
-        paragraph says so for all documents. It adds a duty for the customer, so section 10
-        applies: it carries its own start date, at least 14 days after the notice email.
-        Counsel to check the wording.
+        paragraph says so for all documents and applies from publication. Counsel to check
+        the wording.
       */}
       <p>
         ProcuLink reads documents automatically, and automatic reading can be wrong. It marks
         what it could not read with confidence and what does not pass its checks, but it does
         not replace your own review. You are responsible for checking a document, and the file
         made from it, before you rely on them, including where you have set a flow to send
-        documents on without a person checking them first. This paragraph applies from
-        8 December 2026.
+        documents on without a person checking them first.
       </p>
 
       <LegalH2>3. Acceptable use</LegalH2>
