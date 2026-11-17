@@ -215,6 +215,11 @@ export async function applyProtectedRouteGuards(
   loadSession: () => Promise<EdgeSession>,
 ): Promise<NextResponse | undefined> {
   if (!isProtectedRoute(req)) return;
+  // A share that reached the server with no worker: answered before the session read, because the signed-out
+  // 307 would re-POST the files to /sign-in. A GET redirect to a guarded page reaches past nothing.
+  if (req.method === "POST" && req.nextUrl.pathname === "/upload" && !req.headers.has("next-action")) {
+    return NextResponse.redirect(new URL("/upload?shared=none", req.url), 303);
+  }
 
   const session = await loadSession();
 

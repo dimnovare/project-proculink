@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Camera, Plus } from "lucide-react";
 import { PageShell } from "@/components/bridge/layout/PageShell";
@@ -22,6 +23,7 @@ import { acceptFor, anyDocumentLine } from "@/lib/fileKinds";
 import { NUMBER_LOCALE } from "@/lib/format-number";
 import { knownPlanId, LIMIT_CODES, limitRefusalCopy, readLimitRefusal } from "@/lib/limitRefusal";
 import { PLAN_BY_ID } from "@/lib/plans";
+import { HELD_MAX_BYTES, HELD_MAX_FILES } from "@/lib/pwa/heldUploads";
 import type { BillingStatus } from "@/types/procurement";
 import { rowNeed, useRowSend, type ListedDocument } from "./DocumentList";
 import { PhotoCheck, useCamera } from "./PhotoCheck";
@@ -175,8 +177,15 @@ export function UploadToFlow() {
     },
   });
 
+  // The worker, or the middleware with no worker, lands a share it could not keep here (plan 19).
+  const notKeptNotice = useSearchParams().get("shared") === "none" && (
+    <StatusNotice tone="warning">
+      The shared files couldn&apos;t be kept on this phone. It keeps up to {HELD_MAX_FILES} files, {HELD_MAX_BYTES / 1024 / 1024} MB in all. Share fewer at a time, or add them from Add documents.
+    </StatusNotice>
+  );
+
   // Only an answered list can say the workspace is new: loading or failed draws its own state below.
-  if (isNew) return <Welcome flows={flows.data!} />;
+  if (isNew) return <>{notKeptNotice && <div className="px-4 pt-4 md:px-6">{notKeptNotice}</div>}<Welcome flows={flows.data!} /></>;
 
   let body;
   if (flows.isError && !flows.data) {
@@ -193,6 +202,7 @@ export function UploadToFlow() {
     const address = !inbox.isError && inbox.data?.address;
     body = (
       <div className="grid gap-5">
+        {notKeptNotice}
         {paused && <PausedNotice {...paused} />}
         {inbox.isError && !inbox.data ? (
           <Failed error={inbox.error} retry={() => void inbox.refetch()} />

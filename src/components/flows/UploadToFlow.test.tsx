@@ -24,7 +24,8 @@ const billing = vi.hoisted(() => ({ getBillingStatus: vi.fn<() => Promise<Billin
 vi.mock("@/lib/api/documents", async (orig) => ({ ...(await orig<typeof import("@/lib/api/documents")>()), ...api }));
 vi.mock("@/lib/api-client", () => billing);
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), usePathname: () => "/upload" }));
+let search = "";
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), usePathname: () => "/upload", useSearchParams: () => new URLSearchParams(search) }));
 vi.mock("@clerk/nextjs", () => ({ useUser: () => ({ user: null, isLoaded: true }) }));
 vi.mock("@/lib/api/linkedAccounts", () => ({ listLinkedAccounts: () => Promise.resolve({ available: false, accounts: [] }) }));
 
@@ -56,6 +57,7 @@ const drop = (files: File[]) => fireEvent.drop(screen.getByRole("region", { name
 
 beforeEach(async () => {
   vi.resetAllMocks();
+  search = "";
   resetMockEngine();
   const real = await vi.importActual<typeof import("@/lib/api/documents")>("@/lib/api/documents");
   api.listFlows.mockImplementation(() => real.listFlows());
@@ -67,6 +69,12 @@ beforeEach(async () => {
 });
 
 describe("UploadToFlow", () => {
+  it("says when shared files could not be kept", async () => {
+    search = "shared=none";
+    mount();
+    expect(await screen.findByText("The shared files couldn't be kept on this phone. It keeps up to 10 files, 50 MB in all. Share fewer at a time, or add them from Add documents.")).toBeInTheDocument();
+  });
+
   it.each([
     [{ scansOn: false, formatsOn: false }, ".pdf,.csv,.xlsx"],
     [{ scansOn: true, formatsOn: true }, ".pdf,.csv,.xlsx,.png,.jpg,.jpeg,.docx,.txt,.xml,.cxml,.json,.edi,.x12"],

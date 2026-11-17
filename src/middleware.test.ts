@@ -247,7 +247,8 @@ describe("the allowance is scoped to the shape a handshake actually returns on",
 
   it("rejects a genuine token on a non-GET request", async () => {
     const req = new NextRequest(
-      new URL(`/upload?__clerk_handshake=${genuineHandshakeToken}`, "https://proculink.eu"),
+      // Not /upload: a POST there is a share, answered before the session read (plan 19).
+      new URL(`/documents?__clerk_handshake=${genuineHandshakeToken}`, "https://proculink.eu"),
       { method: "POST", headers: { "sec-fetch-dest": "document" } },
     );
 
@@ -650,5 +651,15 @@ describe("an address that does not exist", () => {
       const to = new URL(res!.headers.get("location")!);
       expect([to.pathname, to.searchParams.get("redirect_url")]).toEqual(["/sign-in", path]);
     }
+  });
+});
+
+describe("a share sent with no worker", () => {
+  it("a share that reaches the server without a worker lands on Add documents by GET, before any session read", async () => {
+    const loadSession = vi.fn();
+    const res = await applyProtectedRouteGuards(new NextRequest("https://proculink.eu/upload", { method: "POST" }), loadSession);
+    expect(res?.status).toBe(303);
+    expect(res?.headers.get("location")).toBe("https://proculink.eu/upload?shared=none");
+    expect(loadSession).not.toHaveBeenCalled();
   });
 });
