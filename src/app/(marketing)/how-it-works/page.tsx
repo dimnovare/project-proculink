@@ -246,7 +246,7 @@ export default function HowItWorksPage() {
                 "The flow tells you how many documents in a row went out without a correction.",
                 `When you trust it, switch that flow to ${AUTOMATIC_DELIVERY_LABEL}. You can switch back at any time.`,
                 "A document with a number we have already received always waits for you, so nothing is sent twice.",
-                "The first document from a new email address waits for you too. Send it once and that sender is trusted.",
+                "The first document from a new email address waits for you too. Send it once and later documents from that address go by themselves.",
               ]}
             />
           </div>

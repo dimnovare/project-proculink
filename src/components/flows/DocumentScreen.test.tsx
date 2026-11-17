@@ -127,12 +127,12 @@ describe("DocumentScreen", () => {
     await waitFor(() => expect(api.retryDocumentRead).toHaveBeenCalledWith("d"));
   });
 
-  it("says why the first document from a sender waits", async () => {
+  it("says why the first document from an email address waits", async () => {
     api.getDocument.mockResolvedValue(withValues([["invoice_no", "INV-1", 0.99, false]],
-      [{ code: "new_sender", passed: false, fieldKey: null, message: "First document from this sender. Check it before sending." }]));
+      [{ code: "new_sender", passed: false, fieldKey: null, message: "First document from this email address. Check it before sending." }]));
     renderScreen();
-    expect(await screen.findByText("First document from this sender. Check it before sending.")).toBeTruthy();
-    expect(screen.getByText("First document from this sender")).toBeTruthy(); // the tag, as on its row
+    expect(await screen.findByText("First document from this email address. Check it before sending.")).toBeTruthy();
+    expect(screen.getByText("First document from this email address")).toBeTruthy(); // the tag, as on its row
   });
 
   it("refreshes deliveries and history when the status changes under it", async () => {
