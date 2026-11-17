@@ -1,13 +1,20 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { expect, it, vi } from "vitest";
-import type { UploadItem } from "@/components/flows/UploadQueue";
+import { INBOX_TARGET, type UploadItem } from "@/components/flows/UploadQueue";
+import type { Flow } from "@/lib/api/documents";
 import { HeldRefusal } from "@/lib/pwa/heldUploads";
-import { HeldUploads } from "./HeldUploads";
+import { HeldUploads, SharedWaiting, sharedLine } from "./HeldUploads";
 
 const nav = vi.hoisted(() => ({ path: "/documents" }));
 vi.mock("next/navigation", () => ({ usePathname: () => nav.path }));
 
-const { remove, retry } = vi.hoisted(() => ({ remove: vi.fn(), retry: vi.fn() }));
+const { remove, retry, addShared, discardShared, queue, returningFlow } = vi.hoisted(() => ({
+  remove: vi.fn(), retry: vi.fn(), addShared: vi.fn(), discardShared: vi.fn(),
+  queue: { shared: null as readonly string[] | null },
+  returningFlow: { id: "f1", name: "Supplier invoices", fieldsConfirmed: true, documentCount: 3, scansOn: true, formatsOn: false } as unknown as Flow,
+}));
 const item = (key: string, name: string, over: Partial<UploadItem>): UploadItem => ({
   key, file: new File(["x"], name), flowId: "f1", state: "held", ...over,
 });
@@ -19,8 +26,11 @@ const items: UploadItem[] = [
 ];
 vi.mock("@/components/flows/UploadQueue", async (actual) => ({
   ...(await actual<typeof import("@/components/flows/UploadQueue")>()),
-  useUploadQueue: () => ({ items, add: vi.fn(), retry, remove }),
+  useUploadQueue: () => ({ items, add: vi.fn(), retry, remove, shared: queue.shared, addShared, discardShared }),
 }));
+vi.mock("@/lib/api/documents", () => ({ listFlows: async () => [returningFlow] }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
+const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>;
 
 it("lists files waiting for the connection on any app screen except Upload, with a way to remove each", () => {
   const first = render(<HeldUploads />);
@@ -37,4 +47,17 @@ it("lists files waiting for the connection on any app screen except Upload, with
   nav.path = "/upload";
   render(<HeldUploads />);
   expect(screen.queryByTestId("held-uploads")).toBeNull();
+});
+
+it("names the shared files waiting on this phone on every app screen, Upload included, and offers Add them or Discard", async () => {
+  nav.path = "/upload"; queue.shared = ["a.pdf", "b.jpg", "c.pdf", "d.pdf", "e.pdf"];
+  render(<SharedWaiting />, { wrapper });
+  expect(await screen.findByText("5 shared files are waiting on this phone: a.pdf, b.jpg, c.pdf and 2 more.")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Add them" }));
+  expect(addShared).toHaveBeenCalledWith(INBOX_TARGET(returningFlow));
+  fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+  expect(discardShared).toHaveBeenCalled();
+  expect(sharedLine(["a.pdf"])).toBe("1 shared file is waiting on this phone: a.pdf.");
+  expect(sharedLine(["a.pdf", "b.jpg"])).toBe("2 shared files are waiting on this phone: a.pdf and b.jpg.");
+  expect(sharedLine(["a.pdf", "b.jpg", "c.pdf"])).toBe("3 shared files are waiting on this phone: a.pdf, b.jpg and c.pdf.");
 });

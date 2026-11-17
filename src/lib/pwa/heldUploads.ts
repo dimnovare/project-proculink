@@ -119,9 +119,9 @@ async function soon<T>(work: () => Promise<T> | undefined, fallback: T): Promise
   return Promise.race([answer, new Promise<T>((r) => setTimeout(() => r(fallback), SIGN_OUT_WAIT_MS))]);
 }
 
-/** For sign-out: how many of this person's files the device holds (0 without a store, or when it cannot be read in time). */
+/** For sign-out: how many of this person's files, and files shared to this phone, the device holds (0 without a store, or when it cannot be read in time). */
 export function heldCount(userId: string): Promise<number> {
-  return soon(async () => (await heldStore()?.all())?.filter((r) => r.userId === userId).length, 0);
+  return soon(async () => (await heldStore()?.all())?.filter((r) => r.userId === userId || r.userId === "").length, 0);
 }
 
 /**

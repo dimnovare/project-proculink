@@ -198,4 +198,33 @@ describe("upload queue", () => {
     await waitFor(() => expect(result.current.items[0].state).toBe("done"));
     expect(uploadDocument).toHaveBeenCalledTimes(2);
   });
+
+  it("a file shared to this phone is never bound or sent without Add them, even online and signed in; Discard deletes it", async () => {
+    who.owner = { userId: "u1", orgId: "o1" };
+    const ownerless = (key: string) => ({ key, userId: "", orgId: "", flowId: "", file: file(`${key}.pdf`), heldAt: "2026-05-20T09:00:00Z" });
+    const store = fakeStore([ownerless("s1"), ownerless("s2"), ownerless("s3")]);
+    addDocument.mockResolvedValue({ ...summary("d1", "s1.pdf"), flowId: "" });
+    const { result } = mount({ store });                         // navigator.onLine is true in this file's beforeEach
+    await waitFor(() => expect(result.current.shared).toEqual(["s1.pdf", "s2.pdf", "s3.pdf"]));
+    await new Promise((r) => setTimeout(r, 50));                 // nothing happens on its own
+    expect(addDocument).not.toHaveBeenCalled();
+    expect(uploadDocument).not.toHaveBeenCalled();
+    expect(store.put).not.toHaveBeenCalled();
+    act(() => result.current.discardShared());
+    await waitFor(() => expect(result.current.shared).toEqual([]));
+    expect(store.remove).toHaveBeenCalledTimes(3);
+    expect(addDocument).not.toHaveBeenCalled();
+  });
+
+  it("Add them binds the shared files to this person and workspace and sends them the ordinary way", async () => {
+    who.owner = { userId: "u1", orgId: "o1" };
+    const store = fakeStore([{ key: "s1", userId: "", orgId: "", flowId: "", file: file("s1.pdf"), heldAt: "2026-05-20T09:00:00Z" }]);
+    addDocument.mockResolvedValue({ ...summary("d1", "s1.pdf"), flowId: "" });
+    const { result } = mount({ store });
+    await waitFor(() => expect(result.current.shared).toEqual(["s1.pdf"]));
+    act(() => result.current.addShared(INBOX_TARGET({})));
+    await waitFor(() => expect(addDocument).toHaveBeenCalledTimes(1));
+    expect(store.put).toHaveBeenCalledWith(expect.objectContaining({ key: "s1", userId: "u1", orgId: "o1", flowId: "" }));
+    expect(result.current.shared).toEqual([]);
+  });
 });

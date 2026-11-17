@@ -8,10 +8,9 @@ import { flowsQuery } from "@/hooks/useDocumentEngine";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { acceptFor, PHOTO_ACCEPT } from "@/lib/fileKinds";
-import { firstRunOf } from "@/lib/firstRun";
 import { isOnline } from "@/lib/pwa/online";
 import { PhotoCheck, useCamera } from "./PhotoCheck";
-import { INBOX_TARGET, useUploadQueue } from "./UploadQueue";
+import { addTarget, useUploadQueue } from "./UploadQueue";
 
 /** The phone's "Add a document" sheet. Mounted only while open. A pick goes to the workspace (no flow; on a first run, to its first flow) through the upload queue, then the sheet closes and, online, /upload opens (R9). */
 export function AddSheet({ onClose }: { onClose(): void }) {
@@ -24,10 +23,8 @@ export function AddSheet({ onClose }: { onClose(): void }) {
   const photosInput = useRef<HTMLInputElement>(null);
   const titleId = useId();
   const camera = useCamera(setPhoto, "sheet-camera-input");
-  // What the workspace reads is set per workspace, so any flow carries it (R7); with no flow the sheet is not offered.
-  // A workspace still on its first run sends to its first flow, as Welcome does: in the inbox the file would wait unseen.
-  const run = firstRunOf(flows.data);
-  const flow = run.state === "new" && run.flow ? run.flow : flows.data?.[0] && INBOX_TARGET(flows.data[0]);
+  // With no flow the sheet is not offered.
+  const flow = addTarget(flows.data);
   useDialogA11y({ open: !!flow && !photo, onClose, panelRef });
   if (!flow) return null;
 
