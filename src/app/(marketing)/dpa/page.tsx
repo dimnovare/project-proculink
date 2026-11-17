@@ -17,7 +17,7 @@ export default function DpaPage() {
   return (
     // FOUNDER DECISION: set the effective month when this version is published. Revised from
     // an advisor's pilot review (2026-11): roles, breach notice, termination, Annex I/II.
-    <LegalPage title="Data Processing Addendum" updated="Effective: November 2026 · Version 1.3" path="/dpa">
+    <LegalPage title="Data Processing Addendum" updated="Effective: November 2026 · Version 1.4" path="/dpa">
       <p>
         This Data Processing Addendum (&quot;DPA&quot;) forms part of the agreement between{" "}
         {LEGAL_ENTITY.legalName}, operator of the ProcuLink service (the &quot;Processor&quot;),
@@ -39,16 +39,16 @@ export default function DpaPage() {
       <LegalH2>1. Definitions</LegalH2>
       <p>
         Capitalised terms used but not defined here have the meaning given in the GDPR.
-        &quot;Service&quot; means the ProcuLink platform for business documents such as purchase
-        orders and invoices, as described in
+        &quot;Service&quot; means the ProcuLink platform for business documents such as invoices,
+        purchase orders and delivery notes, as described in
         the <Link href="/terms">Terms of Service</Link>.
       </p>
 
       <LegalH2>2. Roles and scope</LegalH2>
       <p>
         This DPA covers the personal data contained in the documents the Controller submits to
-        the Service — purchase orders, and invoices while invoices are in early access — and in
-        the supplier, buyer and contact records the Controller keeps in the Service. For that
+        the Service, in the files the Service makes from them, and in the records the
+        Controller keeps in the Service. For that
         data the Controller determines the purposes and means of processing, and ProcuLink acts
         as processor: it processes the data only on the Controller&apos;s documented
         instructions as set out in this DPA and the Terms of Service.
@@ -128,8 +128,8 @@ export default function DpaPage() {
         <Link href="/subprocessors">Subprocessors</Link>{" "}
         page. Some of them process Controller personal data outside the EEA: authentication,
         AI document extraction and mapping suggestions, payments, and email in both
-        directions — including the outbound purchase order itself — are handled from the
-        United States. Where any sub-processor processes Controller personal data outside
+        directions — including the files the Service emails out on the Controller&apos;s
+        instruction — are handled from the United States. Where any sub-processor processes Controller personal data outside
         the EEA, the relevant Standard Contractual Clauses (Commission Implementing
         Decision 2021/914) apply.
       </p>
@@ -154,27 +154,27 @@ export default function DpaPage() {
 
       <h3>Categories of data subjects</h3>
       <p>
-        Employees and authorised users of the Controller; contacts at the Controller&apos;s
-        suppliers, buyers and customers who are named in documents (such as purchase orders and
-        invoices) submitted by the Controller, or in the records the Controller keeps in the
-        Service.
+        Employees and authorised users of the Controller; people named in the documents the
+        Controller submits, such as contacts at its suppliers and customers; people who send
+        documents to the Controller&apos;s ProcuLink address by email; and people in the
+        records the Controller keeps in the Service.
       </p>
 
       {/* "Account data" and "usage data" moved OUT of this list: §2 now says ProcuLink is the
           controller for those (Privacy Policy). Users' names and emails stay in where they are
           recorded against workspace activity, because that is part of the Controller's
-          workspace. Invoices are read today (UBL upload, early access), so what an invoice can
-          carry is listed. Counsel to check this split. */}
+          workspace. The Service takes any business document (2026-11-17), so the list names
+          what such documents typically carry and does not stop at one kind. Counsel to check
+          this split. */}
       <h3>Categories of personal data</h3>
       <p>
-        The content of submitted documents: on purchase orders, contact names, email addresses,
-        phone numbers and postal and delivery addresses of the Controller&apos;s suppliers,
-        buyers and customers; on invoices, the same contact details for suppliers and vendors,
-        plus bank account details such as IBAN and payment references. Supplier, buyer and
-        contact records the Controller keeps in the Service. Names and work email addresses of
+        The content of submitted documents, whatever personal data they contain: typically
+        contact names, email addresses, phone numbers and postal addresses, and bank account
+        details such as IBAN and payment references. The email address a document was sent
+        from. Records the Controller keeps in the Service. Names and work email addresses of
         the Controller&apos;s users where they are recorded against workspace activity — for
-        example, who approved or sent an order. Credentials the Controller configures for
-        delivering and collecting documents.
+        example, who checked, changed or sent a document. Credentials the Controller
+        configures for delivering and collecting documents.
       </p>
 
       <h3>Purpose and duration</h3>
@@ -187,9 +187,9 @@ export default function DpaPage() {
       <LegalH2>Annex II — Technical and organisational measures</LegalH2>
       <ul>
         <li><strong>Encryption in transit</strong>: TLS 1.2+ for all client and inter-service traffic.</li>
-        <li><strong>Encryption at rest</strong>: AES-256-GCM authenticated encryption for delivery credentials and IMAP passwords. Cloudflare R2 server-side encryption for stored document files.</li>
+        <li><strong>Encryption at rest</strong>: AES-256-GCM authenticated encryption for the credentials the Controller stores for collecting and delivering documents. Cloudflare R2 server-side encryption for stored document files.</li>
         <li><strong>Access control</strong>: Clerk-issued JWT authentication, organisation-scoped session isolation, every database query bound to the authenticated organisation id.</li>
-        <li><strong>Logging and monitoring</strong>: Sentry error monitoring (EU region) without PII leakage; structured backend logging; audit trail for status transitions, delivery attempts, and mapping changes.</li>
+        <li><strong>Logging and monitoring</strong>: Sentry error monitoring (EU region), with secrets removed from error reports; structured backend logging; a record of what happened to each document and of changes made in the workspace.</li>
         {/* Was "Daily automated PostgreSQL backups with point-in-time recovery". Neon does not
             take daily backups; it keeps a continuous point-in-time history for a restore window
             set by the plan, and nothing in either repo takes a separate backup (no pg_dump job,
