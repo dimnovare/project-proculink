@@ -483,11 +483,11 @@ describe("/dpa international transfers", () => {
     expect(body).toMatch(/United States/i);
   });
 
-  it("names the outbound purchase order as one of those transfers", () => {
-    // Postmark attaches the generated artifact and sends it to the supplier
+  it("names the files emailed out as one of those transfers", () => {
+    // Postmark attaches the generated file and sends it to the recipient
     // over api.postmarkapp.com. A DPA that lists "email" without saying the
-    // order itself travels leaves the reader to guess the exposure.
-    expect(clause()).toMatch(/purchase order/i);
+    // file itself travels leaves the reader to guess the exposure.
+    expect(clause()).toMatch(/files the Service emails out/i);
   });
 
   it("discloses the AI transfer as widely as the marketing pages do", () => {
@@ -540,8 +540,8 @@ describe("/privacy data storage and residency", () => {
     expect(body).toMatch(/Stripe/);
   });
 
-  it("says the purchase order itself is carried by a US provider", () => {
-    expect(residency()).toMatch(/purchase orders we email to your suppliers/i);
+  it("says the files we email out are carried by a US provider", () => {
+    expect(residency()).toMatch(/the files we email to the recipients you set/i);
   });
 
   it("separates storage from the outbound route, and calls the route unknown", () => {
@@ -994,13 +994,16 @@ describe("legal pages after the pilot review", () => {
   });
 
   it("states the retention the backend enforces, and no automatic file removal it does not", () => {
-    // DataRetention is enabled on the Worker (180-day prune); the per-workspace file window is
-    // still a dry run, and nothing deletes data when an account closes.
+    // DataRetention is enabled on the Worker (180-day prune of the history); no job deletes
+    // documents or their files, and nothing deletes data when an account closes. The 12-month
+    // sender-domain line described the older order path only.
     const body = section(<PrivacyPage />, /how long we keep data/i);
     expect(body).toMatch(/180 days/);
     expect(body).toMatch(/nothing is deleted automatically/i);
+    expect(body).toMatch(/no automatic age limit/i);
     expect(body).not.toMatch(/life of the account/i);
     expect(body).not.toMatch(/files are removed once/i);
+    expect(body).not.toMatch(/12 months/i);
   });
 });
 

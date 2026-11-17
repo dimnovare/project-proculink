@@ -22,7 +22,7 @@ export const metadata = pageMetadata({
 export default function TermsPage() {
   return (
     // FOUNDER DECISION: set this date to the day the page is published.
-    <LegalPage title="Terms of Service" updated="Last updated: 16 November 2026" path="/terms">
+    <LegalPage title="Terms of Service" updated="Last updated: 17 November 2026" path="/terms">
 
       <LegalH2>1. Agreement</LegalH2>
       <p>
@@ -48,6 +48,20 @@ export default function TermsPage() {
         We do not guarantee that the service will be uninterrupted or error-free. No specific
         uptime or availability service level applies unless one is agreed with you separately
         in writing.
+      </p>
+      {/*
+        FOUNDER DECISION (2026-11-17). Until 16 November this section carried a disclaimer for
+        invoices only ("offered as they are"). It went when invoices stopped being early
+        access, and nothing replaced it, although every document is read automatically. This
+        paragraph says so for all documents and applies from publication. Counsel to check
+        the wording.
+      */}
+      <p>
+        ProcuLink reads documents automatically, and automatic reading can be wrong. It marks
+        what it could not read with confidence and what does not pass its checks, but it does
+        not replace your own review. You are responsible for checking a document, and the file
+        made from it, before you rely on them, including where you have set a flow to send
+        documents on without a person checking them first.
       </p>
 
       <LegalH2>3. Acceptable use</LegalH2>
@@ -182,7 +196,7 @@ export default function TermsPage() {
         <li><strong>If you end the agreement because we breached it</strong>, or because you object to a new subprocessor and we cannot resolve the objection, we refund the prepaid fees for the period after termination, pro rata.</li>
       </ul>
       <p>
-        When a subscription ends, new orders are no longer accepted. Nothing is deleted
+        When a subscription ends, new documents are no longer accepted. Nothing is deleted
         automatically: what happens to your data, and how to have it deleted, is described in
         the{" "}
         <Link href="/privacy">Privacy Policy</Link>.

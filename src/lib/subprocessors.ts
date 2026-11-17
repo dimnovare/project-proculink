@@ -136,8 +136,12 @@ export const SUBPROCESSORS: Subprocessor[] = [
   },
   {
     name: "Cloudflare",
-    purpose: "R2 object storage (the documents you send us and the output files we generate) and DNS",
-    location: "EU-region bucket",
+    // The relay is the small proxy in front of the inbound-email endpoint: mail emailed to a
+    // ProcuLink address passes through it on its way to our API (checked 2026-11-17). A
+    // wording correction, so SUBPROCESSORS_UPDATED does not move.
+    purpose:
+      "R2 object storage (the documents you send us and the output files we generate), DNS, and the relay that passes inbound email to our API",
+    location: "EU-region bucket; the relay runs on Cloudflare's global network",
     contract: "Cloudflare DPA",
   },
   {

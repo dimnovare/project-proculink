@@ -9,14 +9,14 @@ export const metadata = pageMetadata({
   path: "/privacy",
   title: "Privacy Policy — ProcuLink",
   description:
-    "What ProcuLink collects — account, document, usage, billing, email configuration and delivery credentials — how each is used, how long it is kept, and how it is protected.",
+    "What ProcuLink collects — account, document, usage and billing data, and connection details — how each is used, how long it is kept, and how it is protected.",
   ogDescription: "What data ProcuLink collects, how it is used, and how it is stored and protected.",
 });
 
 export default function PrivacyPage() {
   return (
     // FOUNDER DECISION: set this date to the day the page is published.
-    <LegalPage title="Privacy Policy" updated="Last updated: 16 November 2026" path="/privacy">
+    <LegalPage title="Privacy Policy" updated="Last updated: 17 November 2026" path="/privacy">
 
       <LegalH2>Who we are</LegalH2>
       <p>
@@ -43,12 +43,12 @@ export default function PrivacyPage() {
       </p>
       <p>
         <strong>We are normally a processor</strong> for the personal data inside the documents
-        our customers send us — purchase orders and invoices — and in the supplier, buyer and
-        contact records they keep in their workspace. Our customer decides why that data is
+        our customers send us and the files we make from them, and in the records they keep in
+        their workspace. Our customer decides why that data is
         processed; we process it on their instructions, under the{" "}
         <Link href="/dpa">Data Processing Addendum</Link>.
-        If your details reached us that way — for example, you are a contact named on a
-        purchase order — the organisation that sent the document is the controller, and
+        If your details reached us that way — for example, you are a contact named on an
+        invoice — the organisation that sent the document is the controller, and
         requests about that data are best made to them. If you contact us instead, we pass the
         request on and help them answer it.
       </p>
@@ -56,12 +56,11 @@ export default function PrivacyPage() {
       <LegalH2>What data we collect</LegalH2>
       <ul>
         <li><strong>Account data</strong> — name, work email, organisation name, collected via Clerk authentication on sign-up.</li>
-        <li><strong>Document data</strong> — the purchase orders you send us, and invoices while invoices are in early access; the order and invoice data we extract from them; and the output files we generate. These documents can carry personal data: contact names, email addresses, phone numbers and delivery addresses, and on invoices also bank account details such as IBAN and payment references.</li>
-        <li><strong>Workspace records</strong> — the suppliers, buyers and contacts you set up, with their names, email addresses and delivery settings.</li>
+        <li><strong>Document data</strong> — the documents you send us, such as invoices, purchase orders and delivery notes; the data we read from them; and the files we generate from them. When a document reaches us by email we also keep the address it was sent from, and the text of the message if it has no attachment we can read. These documents can carry personal data: contact names, email addresses, phone numbers and postal addresses, and bank account details such as IBAN and payment references.</li>
+        <li><strong>Workspace records</strong> — the flows, destinations and lookup lists you set up, and a record of who checked, changed or sent each document.</li>
         <li><strong>Usage data</strong> — page views, feature interactions, error events, collected via product analytics.</li>
         <li><strong>Billing data</strong> — subscription plan and status, handled by Stripe. We never store your card numbers or payment credentials.</li>
-        <li><strong>Email configuration</strong> — IMAP server credentials (host, port, username, password) for email ingestion features. Passwords are encrypted at rest using AES-256-GCM authenticated encryption.</li>
-        <li><strong>Delivery credentials</strong> — webhook URLs and authentication tokens for supplier delivery configurations, encrypted at rest.</li>
+        <li><strong>Connection details</strong> — the addresses and credentials you give us for collecting documents from your systems and delivering files to them, such as a mailbox, a file server, a storage bucket or a web address. Credentials are encrypted at rest.</li>
       </ul>
 
       {/*
@@ -71,9 +70,9 @@ export default function PrivacyPage() {
 
         The two analytics legs have different bases ON PURPOSE, because they are different
         mechanisms: the browser SDK only loads after the cookie banner records
-        "analytics-allowed" (src/lib/analytics.ts), while the backend's PostHogAnalyticsService
-        records server-side events (supplier created, order parsed/delivered, plan changes) that
-        no banner gates. Claiming consent for both would be false for the second.
+        "analytics-allowed" (src/lib/analytics.ts), while the backend records server-side
+        events (a workspace created, billing changes; checked 2026-11-17) that no banner
+        gates. Claiming consent for both would be false for the second.
 
         Counsel to check the wording of each basis; the mapping itself is the conventional one.
       */}
@@ -83,11 +82,11 @@ export default function PrivacyPage() {
       </p>
       <ul>
         <li><strong>Running your account and the service</strong> — signing you in, operating your organisation&apos;s workspace, and support. Basis: performance of our contract with your organisation (Art. 6(1)(b)), and, for the people your organisation adds as users, our legitimate interest in providing the service they use for work (Art. 6(1)(f)).</li>
-        <li><strong>Service emails</strong> — such as order status notifications, billing receipts and notices about your account. Basis: performance of our contract (Art. 6(1)(b)).</li>
+        <li><strong>Service emails</strong> — such as notifications about your documents, billing receipts and notices about your account. Basis: performance of our contract (Art. 6(1)(b)).</li>
         <li><strong>Billing, invoicing and tax records</strong>. Basis: performance of our contract (Art. 6(1)(b)), and our legal obligation to keep accounting records (Art. 6(1)(c)).</li>
         <li><strong>Keeping the service secure and working</strong> — error monitoring, security and access logs, and preventing abuse. Basis: our legitimate interest in a secure, reliable service (Art. 6(1)(f)).</li>
         <li><strong>Product analytics in your browser</strong> — only if you accept analytics cookies in the cookie banner. Basis: your consent (Art. 6(1)(a)). You can withdraw it at any time: clear this site&apos;s cookies and stored data in your browser, and the banner asks again.</li>
-        <li><strong>Pseudonymous service events</strong> recorded by our servers — for example, that a workspace added a supplier, processed an order or changed plan. Basis: our legitimate interest in understanding how the product is used, so we can improve it (Art. 6(1)(f)).</li>
+        <li><strong>Pseudonymous service events</strong> recorded by our servers — for example, that a workspace was created or changed plan. Basis: our legitimate interest in understanding how the product is used, so we can improve it (Art. 6(1)(f)).</li>
         <li><strong>Answering enquiries and demo requests</strong>. Basis: our legitimate interest in responding to you, or steps you asked for before entering a contract (Art. 6(1)(f) and 6(1)(b)).</li>
         <li><strong>Meeting legal obligations and handling legal claims</strong>. Basis: legal obligation (Art. 6(1)(c)) and our legitimate interest in establishing or defending legal claims (Art. 6(1)(f)).</li>
       </ul>
@@ -138,23 +137,23 @@ export default function PrivacyPage() {
       </ul>
       <p>
         Some processing happens outside the EEA, under Standard Contractual Clauses. These
-        providers are not a rare exception — they sit on the normal path an order takes:
+        providers are not a rare exception — they sit on the normal path a document takes:
       </p>
       <ul>
         <li><strong>Authentication</strong>: Clerk (US-based, EU data residency available on request)</li>
         {/* NOT "self-hosted mode" — that phrasing was removed from /security in this same
             pass because nothing runs on customer infrastructure. Two pages describing the
             same flag two different ways is how the Postmark inbound/outbound defect got in. */}
-        <li><strong>AI document extraction and mapping suggestions</strong>: OpenAI (US) — receives purchase-order content, unless we have turned AI extraction off for your organisation</li>
-        <li><strong>Payments</strong>: Stripe (US, EU establishment) — billing data only, no order content</li>
-        <li><strong>Email in and out</strong>: Postmark (US) — carries orders emailed to your ProcuLink address, and the purchase orders we email to your suppliers, as attachments</li>
+        <li><strong>AI document extraction and mapping suggestions</strong>: OpenAI (US) — receives the content of your documents, unless we have turned AI extraction off for your organisation</li>
+        <li><strong>Payments</strong>: Stripe (US, EU establishment) — billing data only, no document content</li>
+        <li><strong>Email in and out</strong>: Postmark (US) — carries documents emailed to your ProcuLink address, and the files we email to the recipients you set, as attachments</li>
       </ul>
       {/*
         The no-AI mode, made operational. It is Organisation.SelfHostedOcr: honoured at every
         OpenAI call site (extraction, mapping suggestions, schema inference, inbound email) and
         it fails safe — but it has NO write site in the product, no endpoint and no settings
         screen. So this paragraph says exactly how a customer gets it (ask) and what changes
-        (no AI steps, manual entry for what our parsers cannot read), and repeats /security's
+        (no AI steps; what our own readers cannot read is not read), and repeats /security's
         "does not change where your files are stored". Do not describe a switch here until one
         exists; do not attach it to a plan (legalCommitments.test.tsx pins both).
       */}
@@ -162,13 +161,13 @@ export default function PrivacyPage() {
         <strong>Turning AI off.</strong> If you do not want your documents sent to OpenAI, email{" "}
         <a href="mailto:support@proculink.eu">support@proculink.eu</a>{" "}
         and we will turn AI extraction off for your organisation and tell you when it is done.
-        It is not a setting in the product; we switch it on our side. With it off, nothing about
-        your orders reaches OpenAI: our own parsers read your documents, anything they cannot
-        read is left for you to enter by hand, and AI mapping suggestions are not offered. It
+        It is not a setting in the product; we switch it on our side. With it off, nothing from
+        your documents reaches OpenAI: only our own readers are used, documents they cannot
+        read are not read, and AI suggestions are not offered. It
         does not change where your files are stored.
       </p>
       <p>
-        Where your data is stored and the route it travels to reach your supplier are two
+        Where your data is stored and the route it travels to reach its destination are two
         different questions. The outbound network path is chosen by our hosting provider and
         is not pinned to a region by us, so we cannot tell you today which country an
         outbound delivery leaves from. The{" "}
@@ -177,34 +176,28 @@ export default function PrivacyPage() {
       </p>
 
       {/*
-        Every line here was re-derived from the backend (origin/main, 2026-11-04). What it
-        replaced made two claims the product does not keep:
+        Every line here was re-derived from the backend (origin/main, 2026-11-17):
 
-          • "Audit log entries are retained for the life of the account." FALSE in production.
-            DataRetentionService is enabled on the Worker (DataRetention__Enabled=true) with the
-            default windows in DataRetentionOptions: audit_events, po_passport_events,
-            delivery_attempts (finished orders only) and resolved/ignored order_exceptions are
-            deleted at 180 days; inbound_sender_domain is scrubbed at 365 days.
-          • "A shorter automatic window can be set ... so that stored order files are removed."
-            The per-workspace window (organisations.retention_days, set from /admin) exists, but
-            BlobRetentionOptions.DryRun defaults to TRUE and nothing on the Worker sets
-            Retention__DryRun, so the sweep only writes "would delete" rows. No file is removed.
+          • Documents, the data read from them and the files made from them have NO automatic
+            age limit: no job deletes them. They go only when the workspace is deleted.
+          • The history rows (what happened to each document, and changes in the workspace)
+            are deleted at 180 days: DataRetention is enabled on the Worker (read 2026-11-17).
+          • The 12-month "sender domain" line described the older order path only and was
+            removed. The address an emailed document came from is kept with the document
+            (listed under "What data we collect").
 
-        FOUNDER DECISION: automatic deletion after account closure. There is no closure trigger
-        anywhere (no Clerk webhook, no subscription-end job), so nothing is deleted when a
-        subscription ends; this section says so. If you want "deleted N days after closure",
-        that needs a job built first — do not write the number until it exists.
-        FOUNDER DECISION: arm the per-workspace file window (set Retention__DryRun=false on the
-        Worker) and only then restore a sentence offering it.
-        FOUNDER DECISION: confirm Neon's restore window for our plan from the Neon dashboard and,
-        if wanted, print it in the backups line.
+        FOUNDER DECISION: automatic deletion after account closure. There is no closure
+        trigger, so nothing is deleted when a subscription ends; this section says so. If you
+        want "deleted N days after closure", that needs a job built first — do not write the
+        number until it exists.
+        FOUNDER DECISION: confirm the database provider's restore window for our plan and, if
+        wanted, print it in the backups line.
       */}
       <LegalH2>How long we keep data</LegalH2>
       <ul>
-        <li><strong>Workspace data</strong> — the documents you send us, the data we extract from them, the output files we generate, and your suppliers, mappings and settings — is kept for as long as your account exists. There is no automatic age limit on it today.</li>
+        <li><strong>Workspace data</strong> — the documents you send us, the data we read from them, the files we generate, and your flows and settings — is kept for as long as your account exists. There is no automatic age limit on it today.</li>
         <li><strong>After a subscription ends or a Trial expires</strong>, nothing is deleted automatically. Your workspace stays readable, so you can sign in and view or download what you have processed for as long as it exists. There is no fixed export window: it stays until you ask us to delete it — see &quot;Deleting your data&quot; below.</li>
-        <li><strong>Activity records</strong> — each order&apos;s processing timeline, the record of delivery attempts once an order is finished, resolved review flags, and the workspace audit log — are deleted automatically once they are 180 days old.</li>
-        <li><strong>The sender domain</strong> we note when an order is emailed to your ProcuLink address, used to suggest which supplier it belongs to, is cleared after 12 months. The order itself stays.</li>
+        <li><strong>History</strong> — the record of what happened to each document, and of changes made in the workspace — is deleted automatically once it is 180 days old. The documents themselves stay.</li>
         <li><strong>Your sign-in account</strong> is held by our authentication provider while your account exists, and is removed when you ask us to delete your account.</li>
         <li><strong>Billing and tax records</strong> are kept for as long as accounting law requires, including after an account is deleted.</li>
         <li><strong>Backups.</strong> Our database provider keeps a rolling point-in-time history of the database so it can be recovered after a failure. Deleted data drops out of that history automatically once it is older than the provider&apos;s recovery window. We keep no separate long-term backup copies, and we do not restore deleted data from backups.</li>
@@ -238,58 +231,43 @@ export default function PrivacyPage() {
 
       <LegalH2>Deleting your data</LegalH2>
       <p>
-        To have order data deleted, email{" "}
+        To have documents deleted, email{" "}
         <a href="mailto:privacy@proculink.eu">privacy@proculink.eu</a>{" "}
-        from the address on your account and tell us which orders — a list of PO numbers, a
-        number prefix, or a date range. We check that the address belongs to the workspace you
-        name, and we confirm the scope with you in writing before anything is deleted. Deletion
-        is run by us rather than from a button in the product, and it cannot be undone.
+        from the address on your account and tell us what to delete: particular documents,
+        everything received before a date, or the whole workspace. We check that the address
+        belongs to the workspace you name, and we confirm the scope with you in writing before
+        anything is deleted. Deletion is carried out by us rather than from a button in the
+        product, and it cannot be undone.
       </p>
       <p><strong>What gets deleted</strong></p>
       <ul>
         <li>The document you sent us, as held in our file storage.</li>
-        <li>The order content we extracted from it — line items, quantities, prices, and the names, addresses and contact details captured from the document.</li>
-        <li>The output files we generated for your supplier.</li>
-        <li>The processing and delivery history for those orders, and the mapping decisions recorded against them.</li>
+        <li>The data we read from it, including the names, addresses and contact details it carried.</li>
+        <li>The files we generated from it.</li>
+        <li>The record of what happened to it.</li>
       </ul>
       <p><strong>What we keep, and why</strong></p>
       <ul>
-        {/* FOUNDER DECISION: the per-order erase receipt (admin.order.erased /
-            admin.orders.bulk_erased) is an audit_events row, and the 180-day prune in
-            DataRetentionService does not exempt it — so the receipt itself goes at 180 days.
-            Either accept that (this line says so) or exempt erase receipts from the prune in
-            the backend, then change this line to the longer period. */}
-        <li><strong>A note that the deletion happened</strong> — the date, who ran it, and how much it covered. It holds none of your order content. We keep it because we have to be able to demonstrate what we did and when, which is what GDPR Article 5(2) asks of us. It sits in the workspace audit log, so it is itself deleted once it is 180 days old.</li>
-        <li><strong>Workspace configuration</strong> — suppliers, buyers, mappings, validation rules, output templates, and delivery settings with their stored credentials. These are settings rather than order content, so deleting orders leaves them in place and the workspace keeps working. Ask us if you want them removed as well; we do that by hand.</li>
+        <li><strong>A short record that the deletion took place</strong> — the date, who carried it out and what it covered. It holds none of your document content. We keep it because we have to be able to demonstrate what we did and when, which is what GDPR Article 5(2) asks of us.</li>
+        <li><strong>Workspace settings</strong> — your flows, destinations, lookup lists and stored credentials, and the note of which files we have already collected from your own systems, so that they are not collected again. Deleting documents leaves these in place and the workspace keeps working. Ask us if you want them removed as well.</li>
         <li><strong>Billing and tax records</strong> — kept for as long as accounting law requires us to keep them.</li>
-        <li><strong>A marker for orders collected from your own systems</strong> — where we picked a file up from your SFTP server or S3 bucket, we keep a note that the file was already handled, with its link to the deleted order cut. The file itself stays yours and we never remove it. Without that marker your file would simply be collected again and turned into a new order.</li>
-        <li><strong>Backup copies</strong> — until they age out of our database provider&apos;s recovery window, as described under &quot;How long we keep data&quot;. We do not restore deleted order data from a backup.</li>
+        <li><strong>Backup copies</strong> — until they age out of our database provider&apos;s recovery window, as described under &quot;How long we keep data&quot;. We do not restore deleted data from a backup.</li>
       </ul>
-      {/* Invoices have NO erasure path on backend main: DataErasureService covers orders
-          only, and the operator runbook (docs/ops/2026-08-18-gdpr-erasure-runbook.md §1)
-          says invoices and their R2 blobs must be escalated. So this paragraph does not
-          offer invoice deletion; it promises an answer, which is all we can deliver.
-          FOUNDER DECISION: build invoice erasure before invoices leave early access. */}
+      {/* Checked against the backend 2026-11-17: deletion is run by staff, and for a single
+          document, for a workspace that has paid, and for sign-in accounts, part of it is
+          done by hand. So this section promises the result and a period, not a button.
+          FOUNDER DECISION: build the missing parts, or keep doing them by hand on request. */}
       <p>
-        Three things sit outside this. Invoices uploaded while invoices are in early access are
-        not covered by this process yet: if your request includes invoices, say so and we will
-        tell you in writing what we can remove. Your sign-in account is held by our
-        authentication provider, and deleting order data does not remove it — ask us and we
-        will. And a purchase order we have already sent to your supplier is in your
-        supplier&apos;s systems from that point on, which we have no way to reach.
+        Two things sit outside this. Your sign-in account is held by our authentication
+        provider, and deleting documents does not remove it — ask us and we will. And a file
+        we have already sent on is in the recipient&apos;s systems from that point on, which we
+        have no way to reach.
       </p>
-      {/* FOUNDER DECISION: whole-account deletion. On backend main there is NO code path that
-          deletes an Organisation row (runbook §1), so "we delete the workspace" can today only
-          be done as bulk order erase + removing settings by hand, and leaves the organisation
-          record and any invoices behind. Backend PR 265 (org erase, admin-only) closes that and
-          is NOT merged. Merge PR 265 before publishing this paragraph, or soften it. The 30 days
-          is inherited from the previous version of this page, not new. Note PR 265 writes its
-          receipt to platform_audit_events, which the 180-day prune does not touch — so a
-          whole-workspace receipt is kept with no end date; state its period once decided. */}
       <p>
         <strong>Closing your account.</strong> Ending a subscription does not close the account
-        or delete anything. To close it and have the workspace deleted — documents, extracted
-        data, output files, settings, and your users&apos; sign-in accounts — email{" "}
+        or delete anything. To close it and have the workspace deleted — documents, the data
+        read from them, the files generated from them, settings, and your users&apos; sign-in
+        accounts — email{" "}
         <a href="mailto:privacy@proculink.eu">privacy@proculink.eu</a>{" "}
         from an address on the account. We confirm the request with you in writing and complete
         it within 30 days of that confirmation. Billing and tax records are kept as described
@@ -306,7 +284,7 @@ export default function PrivacyPage() {
         <li><strong>How we use it.</strong> Only to deliver the documents your flows produce to the folder or spreadsheet you chose, and to show which account is connected. Before we add a file, we check whether ProcuLink already put a file with the same name in that folder, so a re-send replaces it instead of making a copy. Before we add rows, we read the spreadsheet&apos;s tab names and its first row, so a repeated header row is not added again.</li>
         <li><strong>What we store.</strong> The account&apos;s email address and an encrypted token issued by Google that lets ProcuLink reach the items you chose. We do not keep copies of anything we read from your Google account.</li>
         <li><strong>Sharing.</strong> We do not share data from your Google account with anyone. We do not use it for advertising, and we do not use it to train AI models.</li>
-        <li><strong>Removing access.</strong> Disconnect the account in ProcuLink, and we delete its token at once. You can also remove ProcuLink from your Google account&apos;s third-party access at any time. Deleting your workspace deletes the connection too.</li>
+        <li><strong>Removing access.</strong> Disconnect the account in ProcuLink, and we delete its token at once. If a destination still uses the account, remove or change that destination first. You can also remove ProcuLink from your Google account&apos;s third-party access at any time. Deleting your workspace deletes the connection too.</li>
       </ul>
       <p>
         ProcuLink&apos;s use and transfer to any other app of information received from Google APIs
