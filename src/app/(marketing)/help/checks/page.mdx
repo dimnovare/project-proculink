@@ -22,7 +22,7 @@ Checks are a heads-up. They never stop you sending. If you look at a flag and de
 ## What we check
 
 - **A required value is missing.** You mark a field as **Required** in the flow's fields. If we cannot find it, the message says the value is required but was not found.
-- **A required value is not on the page.** For scans and photos, we flag a required value we could not find anywhere on the page.
+- **A required value isn't in the page's text.** We flag a required value we could not find word for word in the document's text, such as a name read from a logo, so you can check it against the page.
 - **A required value was hard to read.** If we are less than 75% sure of a required value, we ask you to check it.
 - **A value is the wrong kind.** Each field has a type: text, number, amount, currency, date, IBAN, VAT number, email or code. A value that does not look like its type is flagged, for example a date that is not a date.
 - **We have seen this document before.** See below.
