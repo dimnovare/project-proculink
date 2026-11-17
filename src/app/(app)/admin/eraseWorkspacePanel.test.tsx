@@ -41,7 +41,7 @@ describe("EraseWorkspacePanel", () => {
     // A failure that is not a refusal may have landed mid-erase: never claim nothing happened.
     eraseOrganisation.mockRejectedValue(new Error("network"));
     fireEvent.click(button);
-    expect(await panel.findByText("The erase did not confirm — check the receipt before retrying.")).toBeInTheDocument();
+    expect(await panel.findByText("The erase did not confirm. Run it again — if it already ran, the earlier receipt comes back.")).toBeInTheDocument();
   });
 
   it("sends the agreement flag and names a running subscription", { timeout: 20_000 }, async () => {
@@ -50,7 +50,11 @@ describe("EraseWorkspacePanel", () => {
     );
     const { container } = render(<EraseWorkspacePanel org={ORG} onClose={() => {}} />);
     const panel = within(container);
-    fireEvent.click(panel.getByRole("checkbox"));
+    const checkbox = panel.getByRole("checkbox");
+    expect(checkbox).not.toBeChecked();
+    fireEvent.click(checkbox);
+    // The tick alone never arms the button: only the slug typed back does.
+    expect(panel.getByRole("button", { name: "Erase permanently" })).toBeDisabled();
     fireEvent.change(panel.getByRole("textbox"), { target: { value: ORG.slug } });
     fireEvent.click(panel.getByRole("button", { name: "Erase permanently" }));
     expect(

@@ -605,7 +605,7 @@ export async function eraseOrganisation(orgId: string, confirmSlug: string, agre
 }
 
 /** POST /api/admin/organisations/{id}/documents/erase — response. */
-export interface DocumentEraseReceipt extends OrgEraseReceipt {
+export interface DocumentEraseReceipt extends Pick<OrgEraseReceipt, "rowsDeleted" | "blobsDeleted" | "failedBlobKeys"> {
   documentsErased: number;
   skippedInFlight: string[];
   more: boolean;

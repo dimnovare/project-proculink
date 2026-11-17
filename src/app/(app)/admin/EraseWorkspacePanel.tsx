@@ -27,7 +27,7 @@ function refusalMessage(err: unknown): string {
   if (code === "unbilled_overage")
     return "This workspace has overage that is not billed yet — erase it once the final invoice is out.";
   if (code) return `The server refused the erase (${code}).`;
-  return "The erase did not confirm — check the receipt before retrying.";
+  return "The erase did not confirm. Run it again — if it already ran, the earlier receipt comes back.";
 }
 
 export function EraseWorkspacePanel({ org, onClose }: { org: AdminOrganisation; onClose: () => void }) {
@@ -54,19 +54,29 @@ export function EraseWorkspacePanel({ org, onClose }: { org: AdminOrganisation; 
   if (receipt) {
     const tables = Object.entries(receipt.rowsDeleted).filter(([, n]) => n > 0);
     const rows = tables.reduce((sum, [, n]) => sum + n, 0);
+    const removed = receipt.signInAccountsRemoved ?? 0;
+    const failed = [...receipt.failedBlobKeys, ...(receipt.failedSignInAccounts ?? [])];
+    const signInFailed = receipt.failedSignInAccounts?.length ?? 0;
+    const leftBehind = receipt.failedBlobKeys.length > 0 || receipt.signIn === "failed" || receipt.signIn === "skipped_no_key";
+    const list = { fontSize: 11.5, color: "var(--ink-muted)", fontFamily: "var(--font-mono)", overflowWrap: "anywhere" } as const;
     return (
       <div data-testid="admin-erase-panel" style={panel}>
-        <StatusNotice tone="success" action={<Button variant="secondary" size="sm" onClick={onClose}>Done</Button>}>
+        <StatusNotice
+          tone={leftBehind ? "warning" : "success"}
+          action={<Button variant="secondary" size="sm" onClick={onClose}>Done</Button>}
+        >
           Erased {org.name}: {rows} rows across {tables.length} tables, {receipt.blobsDeleted} stored files.
           {receipt.failedBlobKeys.length > 0 && ` ${receipt.failedBlobKeys.length} stored files could not be deleted — they are listed in the receipt.`}
-          {receipt.signIn === "done" && ` Removed ${receipt.signInAccountsRemoved ?? 0} sign-in accounts.`}
+          {receipt.signIn === "done" && ` Removed ${removed} sign-in ${removed === 1 ? "account" : "accounts"}.`}
           {receipt.signIn === "failed" &&
-            ` ${receipt.failedSignInAccounts?.length ?? 0} sign-in steps failed — they are listed in the receipt.`}
-          {receipt.signIn === "skipped_no_key" && " Sign-in accounts were not removed: no sign-in key is set on the server."}
+            (signInFailed > 0
+              ? ` ${signInFailed} sign-in steps failed — they are listed in the receipt.`
+              : " Sign-in accounts could not be removed. Check the workspace in Clerk and remove them by hand.")}
+          {receipt.signIn === "skipped_no_key" &&
+            " Sign-in accounts were not removed: no sign-in key is set on the server. Remove them by hand in Clerk."}
         </StatusNotice>
-        <div style={{ fontSize: 11.5, color: "var(--ink-muted)", fontFamily: "var(--font-mono)" }}>
-          {tables.map(([table, n]) => `${table} ${n}`).join(" · ")}
-        </div>
+        <div style={list}>{tables.map(([table, n]) => `${table} ${n}`).join(" · ")}</div>
+        {failed.length > 0 && <div style={list}>{failed.join(" · ")}</div>}
       </div>
     );
   }
