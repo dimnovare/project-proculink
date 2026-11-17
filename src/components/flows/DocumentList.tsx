@@ -37,6 +37,7 @@ export function rowNeed(d: ListedDocument): { text: string; tone: Tone } {
   if (d.status === "ready") return { text: "Ready to send", tone: "green" };
   if (d.status === "needs_review" && d.checks) {
     if (d.checks.includes("duplicate")) return { text: "Same number as an earlier document", tone: "amber" };
+    if (d.checks.includes("new_sender")) return { text: "First document from this sender", tone: "amber" };
     const values = d.failedChecks - d.checks.filter((c) => WHOLE.includes(c)).length;
     if (values >= 1) return { text: values === 1 ? "1 value to check" : `${values} values to check`, tone: "amber" };
   }
