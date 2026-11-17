@@ -4,7 +4,7 @@ import { cssToken } from "@/lib/cssTokens";
 import { HELD_DB, HELD_MAX_BYTES, type HeldRecord } from "./heldUploads";
 
 type Listener = (event: never) => void;
-type Req = { url: string; mode: string; method: string; referrer?: string; formData?: () => Promise<FormData> };
+type Req = { url: string; mode: string; method: string; destination?: string; referrer?: string; formData?: () => Promise<FormData> };
 
 /** Just enough IndexedDB for the worker: requests settle on a microtask, a transaction completes after them. */
 function fakeIdb() {
@@ -13,6 +13,8 @@ function fakeIdb() {
     stores: [] as string[],
     records: [] as Pick<HeldRecord, "key" | "file">[],
     puts: [] as HeldRecord[],
+    /** The store can't be opened (blocked site data, private mode). */
+    fails: false,
     open(name: string, version: number) {
       idb.opened = [name, version];
       const db = {
@@ -37,8 +39,8 @@ function fakeIdb() {
           return tx;
         },
       };
-      const req: { result: typeof db; onupgradeneeded?: () => void; onsuccess?: () => void } = { result: db };
-      queueMicrotask(() => { req.onupgradeneeded?.(); req.onsuccess?.(); });
+      const req: { result: typeof db; onupgradeneeded?: () => void; onsuccess?: () => void; onerror?: () => void } = { result: db };
+      queueMicrotask(() => (idb.fails ? req.onerror?.() : (req.onupgradeneeded?.(), req.onsuccess?.())));
       return req;
     },
   };
@@ -88,7 +90,7 @@ function fire(request: Req, preload?: Response) {
 async function post(files: File[], referrer = ""): Promise<Response> {
   const fd = new FormData();
   for (const f of files) fd.append("files", f);
-  return fire({ url: "https://app.example.test/upload", mode: "navigate", method: "POST", referrer, formData: async () => fd }).respondWith.mock.calls[0][0];
+  return fire({ url: "https://app.example.test/upload", mode: "navigate", method: "POST", destination: "document", referrer, formData: async () => fd }).respondWith.mock.calls[0][0];
 }
 
 it("a share, or any form post that looks like one, is only kept on this phone with no owner: nothing is fetched or sent", async () => {
@@ -105,13 +107,19 @@ it("a share, or any form post that looks like one, is only kept on this phone wi
   expect(idb.puts).toHaveLength(2);
   expect(fetchMock).not.toHaveBeenCalled();
   expect((await post([new File(["%PDF"], "from-app.pdf", { type: "application/pdf" })], "android-app://com.example.app/")).headers.get("location")).toBe("https://app.example.test/upload?shared=kept");
-  expect(fire({ url: "https://app.example.test/settings", mode: "navigate", method: "POST" }).respondWith).not.toHaveBeenCalled();
+  expect(fire({ url: "https://app.example.test/settings", mode: "navigate", method: "POST", destination: "document" }).respondWith).not.toHaveBeenCalled();
+  // A form posted into a hidden iframe is not a share: it passes through untouched.
+  expect(fire({ url: "https://app.example.test/upload", mode: "navigate", method: "POST", destination: "iframe" }).respondWith).not.toHaveBeenCalled();
 });
 
 it("past the limit nothing is kept; offline, the follow-up page says which happened", async () => {
   idb.records = Array.from({ length: 10 }, (_, i) => ({ key: `k${i}`, file: new File(["x"], "a.pdf") }));
   const res = await post([new File(["%PDF"], "more.pdf", { type: "application/pdf" })]);
   expect(res.headers.get("location")).toBe("https://app.example.test/upload?shared=none");
+  expect(idb.puts).toEqual([]);
+  idb.records = [];
+  idb.fails = true;                                             // the store can't be opened at all
+  expect((await post([new File(["%PDF"], "more.pdf", { type: "application/pdf" })])).headers.get("location")).toBe("https://app.example.test/upload?shared=none");
   expect(idb.puts).toEqual([]);
   fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
   const page = async (q: string) => (await fire({ url: `https://app.example.test/upload?shared=${q}`, mode: "navigate", method: "GET" }).respondWith.mock.calls[0][0]).text();

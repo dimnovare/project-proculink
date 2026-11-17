@@ -20,7 +20,8 @@
  * worker on every non-production build and when NEXT_PUBLIC_PWA_WORKER=off at build
  * time. Set that variable and redeploy, and every client that loads any page
  * unregisters it. Its one limit: a client that never loads a page again keeps this
- * worker, which only passes navigations through. Removing it without a page load
+ * worker, which passes navigations through and keeps shared files on the phone for
+ * the person to add or discard (it never sends them). Removing it without a page load
  * would need new bytes in this file, which means a code deploy.
  */
 
@@ -136,8 +137,11 @@ self.addEventListener("fetch", (e) => {
   if (request.mode !== "navigate") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  if (request.method === "POST" && url.pathname === SHARE_PATH) return e.respondWith(receiveShare(request));
-  if (request.method !== "GET") return;
+  if (request.method !== "GET") {
+    // A share is a top-level document navigation. A form posted into a hidden iframe is destination "iframe": it passes through and keeps nothing.
+    if (request.method === "POST" && request.destination === "document" && url.pathname === SHARE_PATH) e.respondWith(receiveShare(request));
+    return;
+  }
   e.respondWith(
     (async () => {
       try {

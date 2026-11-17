@@ -205,13 +205,15 @@ describe("upload queue", () => {
     const store = fakeStore([ownerless("s1"), ownerless("s2"), ownerless("s3")]);
     addDocument.mockResolvedValue({ ...summary("d1", "s1.pdf"), flowId: "" });
     const { result } = mount({ store });                         // navigator.onLine is true in this file's beforeEach
-    await waitFor(() => expect(result.current.shared).toEqual(["s1.pdf", "s2.pdf", "s3.pdf"]));
-    act(() => void window.dispatchEvent(new Event("online")));   // nor when the connection returns
-    await new Promise((r) => setTimeout(r, 50));                 // nothing happens on its own
+    await waitFor(() => expect(result.current.shared?.map((f) => f.name)).toEqual(["s1.pdf", "s2.pdf", "s3.pdf"]));
+    await act(async () => {
+      window.dispatchEvent(new Event("online"));                 // nor when the connection returns
+      await new Promise((r) => setTimeout(r, 50));               // nothing happens on its own
+    });
     expect(addDocument).not.toHaveBeenCalled();
     expect(uploadDocument).not.toHaveBeenCalled();
     expect(store.put).not.toHaveBeenCalled();
-    act(() => result.current.discardShared());
+    act(() => result.current.discardShared(["s1", "s2", "s3"]));
     await waitFor(() => expect(result.current.shared).toEqual([]));
     expect(store.remove).toHaveBeenCalledTimes(3);
     expect(addDocument).not.toHaveBeenCalled();
@@ -222,15 +224,25 @@ describe("upload queue", () => {
     const store = fakeStore([{ key: "s1", userId: "", orgId: "", flowId: "", file: file("s1.pdf"), heldAt: "2026-05-20T09:00:00Z" }]);
     addDocument.mockResolvedValue({ ...summary("d1", "s1.pdf"), flowId: "" });
     const { result } = mount({ store });
-    await waitFor(() => expect(result.current.shared).toEqual(["s1.pdf"]));
-    // Posted after the notice drew: Add them must not take it unseen.
-    store.map.set("s2", { key: "s2", userId: "", orgId: "", flowId: "", file: file("s2.pdf"), heldAt: "2026-05-20T09:01:00Z" });
-    act(() => result.current.addShared(INBOX_TARGET({})));
+    const names = () => result.current.shared?.map((f) => f.name);
+    const keys = () => result.current.shared!.map((f) => f.key);
+    const arrives = (key: string, heldAt: string) => store.map.set(key, { key, userId: "", orgId: "", flowId: "", file: file(`${key}.pdf`), heldAt });
+    await waitFor(() => expect(names()).toEqual(["s1.pdf"]));
+    // Posted after the notice drew: Add them, even tapped twice, must not take it unseen.
+    const shown = keys();
+    arrives("s2", "2026-05-20T09:01:00Z");
+    act(() => { result.current.addShared(INBOX_TARGET({}), shown); result.current.addShared(INBOX_TARGET({}), shown); });
     await waitFor(() => expect(addDocument).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(names()).toEqual(["s2.pdf"]));
+    // Discard, too, acts on what was on screen: a later arrival stays waiting.
+    const shownNow = keys();
+    arrives("s3", "2026-05-20T09:02:00Z");
+    act(() => result.current.discardShared(shownNow));
+    await waitFor(() => expect(names()).toEqual(["s3.pdf"]));
+    expect(store.map.has("s2")).toBe(false);
+    expect(store.map.get("s3")?.userId).toBe("");
     expect(store.put).toHaveBeenCalledWith(expect.objectContaining({ key: "s1", userId: "u1", orgId: "o1", flowId: "" }));
     expect(store.put).toHaveBeenCalledTimes(1);
     expect(addDocument.mock.calls.map(([f]) => f.name)).toEqual(["s1.pdf"]);
-    expect(store.map.get("s2")?.userId).toBe("");
-    expect(result.current.shared).toEqual(["s2.pdf"]);
   });
 });

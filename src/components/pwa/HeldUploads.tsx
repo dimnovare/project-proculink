@@ -29,18 +29,20 @@ export function SharedWaiting() {
   const flows = useQuery({ ...flowsQuery, enabled: useTenantQueriesEnabled() && !!shared?.length });
   const target = addTarget(flows.data);
   if (!shared?.length || !target) return null;
+  // The keys of the files this render names: the buttons act on exactly these.
+  const keys = shared.map((f) => f.key);
   return (
     <div className="px-4 pt-4 md:px-6">
       <StatusNotice
         tone="warning"
         action={
           <span className="flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" onClick={() => addShared(target)}>Add them</Button>
-            <Button variant="ghost" size="sm" onClick={discardShared}>Discard</Button>
+            <Button variant="secondary" size="sm" onClick={() => addShared(target, keys)}>Add them</Button>
+            <Button variant="ghost" size="sm" onClick={() => discardShared(keys)}>Discard</Button>
           </span>
         }
       >
-        <span className="break-words">{sharedLine(shared)}</span>
+        <span className="break-words">{sharedLine(shared.map((f) => f.name))}</span>
       </StatusNotice>
     </div>
   );

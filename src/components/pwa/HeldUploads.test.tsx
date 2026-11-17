@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({ usePathname: () => nav.path }));
 
 const { remove, retry, addShared, discardShared, queue, returningFlow } = vi.hoisted(() => ({
   remove: vi.fn(), retry: vi.fn(), addShared: vi.fn(), discardShared: vi.fn(),
-  queue: { shared: null as readonly string[] | null },
+  queue: { shared: null as readonly { key: string; name: string }[] | null },
   returningFlow: { id: "f1", name: "Supplier invoices", fieldsConfirmed: true, documentCount: 3, scansOn: true, formatsOn: false } as unknown as Flow,
 }));
 const item = (key: string, name: string, over: Partial<UploadItem>): UploadItem => ({
@@ -50,13 +50,14 @@ it("lists files waiting for the connection on any app screen except Upload, with
 });
 
 it("names the shared files waiting on this phone on every app screen, Upload included, and offers Add them or Discard", async () => {
-  nav.path = "/upload"; queue.shared = ["a.pdf", "b.jpg", "c.pdf", "d.pdf", "e.pdf"];
+  nav.path = "/upload"; queue.shared = ["a.pdf", "b.jpg", "c.pdf", "d.pdf", "e.pdf"].map((name, i) => ({ key: `s${i}`, name }));
   render(<SharedWaiting />, { wrapper });
   expect(await screen.findByText("5 shared files are waiting on this phone: a.pdf, b.jpg, c.pdf and 2 more.")).toBeInTheDocument();
+  const shown = ["s0", "s1", "s2", "s3", "s4"];                // the buttons act on exactly the files this render names
   fireEvent.click(screen.getByRole("button", { name: "Add them" }));
-  expect(addShared).toHaveBeenCalledWith(INBOX_TARGET(returningFlow));
+  expect(addShared).toHaveBeenCalledWith(INBOX_TARGET(returningFlow), shown);
   fireEvent.click(screen.getByRole("button", { name: "Discard" }));
-  expect(discardShared).toHaveBeenCalled();
+  expect(discardShared).toHaveBeenCalledWith(shown);
   expect(sharedLine(["a.pdf"])).toBe("1 shared file is waiting on this phone: a.pdf.");
   expect(sharedLine(["a.pdf", "b.jpg"])).toBe("2 shared files are waiting on this phone: a.pdf and b.jpg.");
   expect(sharedLine(["a.pdf", "b.jpg", "c.pdf"])).toBe("3 shared files are waiting on this phone: a.pdf, b.jpg and c.pdf.");

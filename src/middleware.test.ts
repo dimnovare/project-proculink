@@ -661,5 +661,10 @@ describe("a share sent with no worker", () => {
     expect(res?.status).toBe(303);
     expect(res?.headers.get("location")).toBe("https://proculink.eu/upload?shared=none");
     expect(loadSession).not.toHaveBeenCalled();
+    // A server action POST to /upload is not a share: the session is read as usual.
+    const action = vi.fn(async () => ({ userId: "u1", orgId: "o1" }));
+    const acted = await applyProtectedRouteGuards(new NextRequest("https://proculink.eu/upload", { method: "POST", headers: { "next-action": "a1" } }), action);
+    expect(action).toHaveBeenCalled();
+    expect(acted?.status).not.toBe(303);
   });
 });

@@ -56,14 +56,16 @@ type Queue = {
   retry(key: string): void;
   /** Drops a held or refused item, and its copy on this device. */
   remove(key: string): void;
-  /** Names of the files shared to this phone that wait for a press, oldest first; null until the device was read (or with no store or owner). */
-  shared: readonly string[] | null;
-  /** Binds the shared files named in `shared` (no other) to this person, workspace and `target`; then they go the ordinary held way. */
-  addShared(target: UploadFlow): void;
-  /** Deletes the shared files from this phone. */
-  discardShared(): void;
+  /** The files shared to this phone that wait for a press, oldest first; null until the device was read (or with no store or owner). */
+  shared: readonly SharedFile[] | null;
+  /** Binds the shared files with these keys (the ones on screen, and no other) to this person, workspace and `target`; then they go the ordinary held way. */
+  addShared(target: UploadFlow, keys: readonly string[]): void;
+  /** Deletes the shared files with these keys from this phone. */
+  discardShared(keys: readonly string[]): void;
 };
+export type SharedFile = { key: string; name: string };
 const QueueContext = createContext<Queue | null>(null);
+const byHeldAt = (a: HeldRecord, b: HeldRecord) => (a.heldAt < b.heldAt ? -1 : a.heldAt > b.heldAt ? 1 : 0);
 
 const sameOwner = (a: DeviceOwner | null | undefined, b: DeviceOwner | null) => !!a && !!b && a.userId === b.userId && a.orgId === b.orgId;
 
@@ -90,15 +92,10 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
   const kept = useRef(new Set<string>());
   // The Web Locks this tab holds on kept files.
   const claims = useRef(new Map<string, () => void>());
-  // Files shared to this phone that wait for a press, and, only during Add them, where they go.
-  const [shared, setShared] = useState<readonly string[] | null>(null);
-  const take = useRef<UploadFlow | null>(null);
-  // The keys behind the names on screen: Add them binds these and no file that arrived after the notice drew.
-  const shown = useRef<readonly string[]>([]);
-  const showShared = (records: readonly HeldRecord[]) => {
-    shown.current = records.map((r) => r.key);
-    setShared(records.map((r) => r.file.name));
-  };
+  // Files shared to this phone that wait for a press, and, only during Add them, where the pressed ones go.
+  const [shared, setShared] = useState<readonly SharedFile[] | null>(null);
+  const take = useRef<{ target: UploadFlow; keys: readonly string[] } | null>(null);
+  const showShared = (records: HeldRecord[]) => setShared(records.sort(byHeldAt).map((r) => ({ key: r.key, name: r.file.name })));
 
   const update = (change: (list: readonly UploadItem[]) => readonly UploadItem[]) => setItems((live.current = change(live.current)));
   const patch = (key: string, p: Partial<UploadItem>) => update((list) => list.map((i) => (i.key === key ? { ...i, ...p } : i)));
@@ -187,16 +184,16 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
         drop(i.key);
       }
     }
-    const records = (await store.all().catch(() => [])).sort((a, b) => (a.heldAt < b.heldAt ? -1 : a.heldAt > b.heldAt ? 1 : 0));
+    const records = (await store.all().catch(() => [])).sort(byHeldAt);
     const left: HeldRecord[] = [];
     for (let r of records) {
-      // Shared to this phone (any site can post a share): no owner until Add them, and then only the files the notice named.
+      // Shared to this phone (any site can post a share): no owner until Add them, and then only the files that press saw.
       if (r.userId === "") {
-        if (!take.current || !shown.current.includes(r.key) || !(await own(r.key))) {
+        if (!take.current?.keys.includes(r.key) || !(await own(r.key))) {
           left.push(r);
           continue;
         }
-        r = { ...r, userId: who.userId, orgId: who.orgId, flowId: take.current.id };
+        r = { ...r, userId: who.userId, orgId: who.orgId, flowId: take.current.target.id };
         // Safe to swallow: the file is sent from memory below; if the tab dies first, the device copy stays ownerless and asks again.
         await store.put(r).catch(() => {});
       }
@@ -265,9 +262,10 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
     if (kept.current.has(key)) void forget(key);
   };
 
-  const addShared = (target: UploadFlow) => {
+  // Both act only on the keys the press saw: a file that arrived since, or a second tap, never rides along. A key already bound or gone is a no-op.
+  const addShared = (target: UploadFlow, keys: readonly string[]) => {
     chain.current = chain.current.then(async () => {
-      take.current = target;
+      take.current = { target, keys };
       try {
         await sync();
       } finally {
@@ -276,13 +274,13 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
     });
   };
 
-  const discardShared = () => {
+  const discardShared = (keys: readonly string[]) => {
     chain.current = chain.current.then(async () => {
       const left: HeldRecord[] = [];
       for (const r of (await store?.all().catch(() => [])) ?? []) {
         if (r.userId !== "") continue;
-        if (await own(r.key)) await forget(r.key);
-        else left.push(r); // another tab holds it
+        if (keys.includes(r.key) && (await own(r.key))) await forget(r.key);
+        else left.push(r); // not on screen at the press, or another tab holds it
       }
       showShared(left);
     });
