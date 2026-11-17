@@ -105,6 +105,9 @@ function keepOnDevice(files) {
 }
 
 async function receiveShare(request) {
+  // A share-sheet launch has no referrer: a post from another site keeps nothing (Add them stays mandatory anyway, as a page can hide its referrer).
+  if (request.referrer && new URL(request.referrer).origin !== self.location.origin)
+    return Response.redirect(new URL(SHARE_PATH, self.location.origin).href, 303);
   let path = `${SHARE_PATH}?${SHARE_PARAM}=none`;
   try {
     const files = (await request.formData()).getAll("files").filter((v) => v instanceof File).map(named);

@@ -4,7 +4,7 @@ import { cssToken } from "@/lib/cssTokens";
 import { HELD_DB, HELD_MAX_BYTES, type HeldRecord } from "./heldUploads";
 
 type Listener = (event: never) => void;
-type Req = { url: string; mode: string; method: string; formData?: () => Promise<FormData> };
+type Req = { url: string; mode: string; method: string; referrer?: string; formData?: () => Promise<FormData> };
 
 /** Just enough IndexedDB for the worker: requests settle on a microtask, a transaction completes after them. */
 function fakeIdb() {
@@ -85,10 +85,10 @@ function fire(request: Req, preload?: Response) {
   return event;
 }
 
-async function post(files: File[]): Promise<Response> {
+async function post(files: File[], referrer = ""): Promise<Response> {
   const fd = new FormData();
   for (const f of files) fd.append("files", f);
-  return fire({ url: "https://app.example.test/upload", mode: "navigate", method: "POST", formData: async () => fd }).respondWith.mock.calls[0][0];
+  return fire({ url: "https://app.example.test/upload", mode: "navigate", method: "POST", referrer, formData: async () => fd }).respondWith.mock.calls[0][0];
 }
 
 it("a share, or any form post that looks like one, is only kept on this phone with no owner: nothing is fetched or sent", async () => {
@@ -100,6 +100,10 @@ it("a share, or any form post that looks like one, is only kept on this phone wi
   expect(idb.puts.map((r) => [r.userId, r.orgId, r.flowId, r.file.name])).toEqual([["", "", "", "scan.pdf"], ["", "", "", "Shared file.jpg"]]);
   expect(fetchMock).not.toHaveBeenCalled();
   expect((await post([])).headers.get("location")).toBe("https://app.example.test/upload");
+  const elsewhere = await post([new File(["%PDF"], "planted.pdf", { type: "application/pdf" })], "https://elsewhere.example.test/page");
+  expect(elsewhere.headers.get("location")).toBe("https://app.example.test/upload");
+  expect(idb.puts).toHaveLength(2);
+  expect(fetchMock).not.toHaveBeenCalled();
   expect(fire({ url: "https://app.example.test/settings", mode: "navigate", method: "POST" }).respondWith).not.toHaveBeenCalled();
 });
 
