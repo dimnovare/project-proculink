@@ -575,25 +575,60 @@ export interface OrgEraseReceipt {
   rowsDeleted: Record<string, number>;
   blobsDeleted: number;
   failedBlobKeys: string[];
+  // Workspace erase only. An old receipt replayed by the server has none of these:
+  // a missing `signIn` reads as "not_requested".
+  signIn?: "done" | "failed" | "skipped_no_key" | "not_requested";
+  signInAccountsRemoved?: number;
+  failedSignInAccounts?: string[] | null;
 }
 
 /**
- * Permanently erase a whole workspace: every row it owns, its stored files and the
- * organisation itself. IRREVERSIBLE. The server re-checks `confirmSlug` against the
- * org's slug (400) and refuses a workspace with a paid subscription or billed
- * overage (409, `error` = `paid_subscription` | `billing_evidence`).
+ * Permanently erase a whole workspace: every row it owns, its stored files, its
+ * sign-in accounts and the organisation itself. IRREVERSIBLE. The server re-checks
+ * `confirmSlug` against the org's slug (400) and refuses with 409, `error` =
+ * `paid_subscription` (paid, agreement not confirmed ended) | `billing_evidence` |
+ * `subscription_running` | `subscription_unknown` | `unbilled_overage`.
  */
-export async function eraseOrganisation(orgId: string, confirmSlug: string): Promise<OrgEraseReceipt> {
+export async function eraseOrganisation(orgId: string, confirmSlug: string, agreementEnded = false): Promise<OrgEraseReceipt> {
   const headers = await authHeader();
   const res = await fetchWithTimeout(
     `${API_BASE_URL}/api/admin/organisations/${orgId}/erase`,
     {
       method: "POST",
       headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ confirmSlug }),
+      body: JSON.stringify({ confirmSlug, agreementEnded }),
     },
     60000,
   );
   if (!res.ok) return adminError(res, "admin/organisations/erase");
   return res.json() as Promise<OrgEraseReceipt>;
+}
+
+/** POST /api/admin/organisations/{id}/documents/erase — response. */
+export interface DocumentEraseReceipt extends Pick<OrgEraseReceipt, "rowsDeleted" | "blobsDeleted" | "failedBlobKeys"> {
+  documentsErased: number;
+  skippedInFlight: string[];
+  more: boolean;
+}
+
+/**
+ * Permanently delete chosen documents of one workspace on a written request. IRREVERSIBLE.
+ * Give `ids`, `receivedBefore`, or both; with neither the server answers 400 `filter_required`.
+ */
+export async function eraseDocuments(
+  orgId: string,
+  body: { confirmSlug: string; ids?: string[]; receivedBefore?: string },
+): Promise<DocumentEraseReceipt> {
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/admin/organisations/${orgId}/documents/erase`,
+    {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    60000,
+  );
+  if (!res.ok) return adminError(res, "admin/organisations/documents/erase");
+  return res.json() as Promise<DocumentEraseReceipt>;
 }
