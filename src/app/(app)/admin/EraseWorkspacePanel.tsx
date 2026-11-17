@@ -4,8 +4,9 @@
 //
 // IRREVERSIBLE, so it is an inline panel under the row rather than a modal: the row
 // and its slug stay in view, and the button only arms once the exact slug is typed
-// back. The server re-checks the slug (400) and refuses a paying or billed workspace
-// (409); that refusal is the one an operator can act on, so it is named.
+// back. The server re-checks the slug (400) and refuses a paid workspace whose agreement
+// is not confirmed ended, or one Stripe or billing still ties up (409); an operator can
+// act on those refusals, so each is named.
 
 import { useState } from "react";
 import { ApiHttpError, eraseOrganisation, type AdminOrganisation, type OrgEraseReceipt } from "@/lib/api-client";
@@ -17,13 +18,21 @@ import { Button } from "@/components/bridge/DSPrimitives";
 function refusalMessage(err: unknown): string {
   const code = err instanceof ApiHttpError && err.status === 409 ? (err.body as { error?: string } | null)?.error : undefined;
   if (code === "billing_evidence") return "This workspace has been billed for overage — its billing records can't be erased.";
-  if (code === "paid_subscription") return "This workspace has a paid subscription — cancel it in Stripe first.";
+  if (code === "paid_subscription")
+    return "This workspace has paid. Erase it only after the agreement has ended — tick the box above to confirm it has.";
+  if (code === "subscription_running")
+    return "Stripe still shows a running subscription for this workspace — cancel it in Stripe first.";
+  if (code === "subscription_unknown")
+    return "Stripe could not confirm the subscription has ended, so nothing was erased. Try again, or check the customer in Stripe.";
+  if (code === "unbilled_overage")
+    return "This workspace has overage that is not billed yet — erase it once the final invoice is out.";
   if (code) return `The server refused the erase (${code}).`;
   return "The erase did not confirm — check the receipt before retrying.";
 }
 
 export function EraseWorkspacePanel({ org, onClose }: { org: AdminOrganisation; onClose: () => void }) {
   const [typed, setTyped] = useState("");
+  const [agreementEnded, setAgreementEnded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<OrgEraseReceipt | null>(null);
@@ -32,7 +41,7 @@ export function EraseWorkspacePanel({ org, onClose }: { org: AdminOrganisation; 
     setError(null);
     setSubmitting(true);
     try {
-      setReceipt(await eraseOrganisation(org.id, typed));
+      setReceipt(await eraseOrganisation(org.id, typed, agreementEnded));
     } catch (err) {
       setError(refusalMessage(err));
     } finally {
@@ -50,6 +59,10 @@ export function EraseWorkspacePanel({ org, onClose }: { org: AdminOrganisation; 
         <StatusNotice tone="success" action={<Button variant="secondary" size="sm" onClick={onClose}>Done</Button>}>
           Erased {org.name}: {rows} rows across {tables.length} tables, {receipt.blobsDeleted} stored files.
           {receipt.failedBlobKeys.length > 0 && ` ${receipt.failedBlobKeys.length} stored files could not be deleted — they are listed in the receipt.`}
+          {receipt.signIn === "done" && ` Removed ${receipt.signInAccountsRemoved ?? 0} sign-in accounts.`}
+          {receipt.signIn === "failed" &&
+            ` ${receipt.failedSignInAccounts?.length ?? 0} sign-in steps failed — they are listed in the receipt.`}
+          {receipt.signIn === "skipped_no_key" && " Sign-in accounts were not removed: no sign-in key is set on the server."}
         </StatusNotice>
         <div style={{ fontSize: 11.5, color: "var(--ink-muted)", fontFamily: "var(--font-mono)" }}>
           {tables.map(([table, n]) => `${table} ${n}`).join(" · ")}
@@ -76,6 +89,10 @@ export function EraseWorkspacePanel({ org, onClose }: { org: AdminOrganisation; 
           className="rounded-[8px] px-3 py-2 text-[13px]"
           style={{ border: "1px solid var(--border-strong)", background: "var(--surface)", color: "var(--ink)", maxWidth: 360 }}
         />
+      </label>
+      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "var(--ink-muted)" }}>
+        <input type="checkbox" checked={agreementEnded} onChange={(e) => setAgreementEnded(e.target.checked)} />
+        The customer&apos;s agreement has ended (needed for a workspace that has paid)
       </label>
       <div style={{ display: "flex", gap: 8 }}>
         <Button variant="danger" size="sm" disabled={typed !== org.slug || submitting} onClick={submit}>
