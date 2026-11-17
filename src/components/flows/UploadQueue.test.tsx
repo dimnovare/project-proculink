@@ -206,6 +206,7 @@ describe("upload queue", () => {
     addDocument.mockResolvedValue({ ...summary("d1", "s1.pdf"), flowId: "" });
     const { result } = mount({ store });                         // navigator.onLine is true in this file's beforeEach
     await waitFor(() => expect(result.current.shared).toEqual(["s1.pdf", "s2.pdf", "s3.pdf"]));
+    act(() => void window.dispatchEvent(new Event("online")));   // nor when the connection returns
     await new Promise((r) => setTimeout(r, 50));                 // nothing happens on its own
     expect(addDocument).not.toHaveBeenCalled();
     expect(uploadDocument).not.toHaveBeenCalled();
@@ -222,9 +223,14 @@ describe("upload queue", () => {
     addDocument.mockResolvedValue({ ...summary("d1", "s1.pdf"), flowId: "" });
     const { result } = mount({ store });
     await waitFor(() => expect(result.current.shared).toEqual(["s1.pdf"]));
+    // Posted after the notice drew: Add them must not take it unseen.
+    store.map.set("s2", { key: "s2", userId: "", orgId: "", flowId: "", file: file("s2.pdf"), heldAt: "2026-05-20T09:01:00Z" });
     act(() => result.current.addShared(INBOX_TARGET({})));
     await waitFor(() => expect(addDocument).toHaveBeenCalledTimes(1));
     expect(store.put).toHaveBeenCalledWith(expect.objectContaining({ key: "s1", userId: "u1", orgId: "o1", flowId: "" }));
-    expect(result.current.shared).toEqual([]);
+    expect(store.put).toHaveBeenCalledTimes(1);
+    expect(addDocument.mock.calls.map(([f]) => f.name)).toEqual(["s1.pdf"]);
+    expect(store.map.get("s2")?.userId).toBe("");
+    expect(result.current.shared).toEqual(["s2.pdf"]);
   });
 });

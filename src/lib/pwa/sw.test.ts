@@ -104,6 +104,7 @@ it("a share, or any form post that looks like one, is only kept on this phone wi
   expect(elsewhere.headers.get("location")).toBe("https://app.example.test/upload");
   expect(idb.puts).toHaveLength(2);
   expect(fetchMock).not.toHaveBeenCalled();
+  expect((await post([new File(["%PDF"], "from-app.pdf", { type: "application/pdf" })], "android-app://com.example.app/")).headers.get("location")).toBe("https://app.example.test/upload?shared=kept");
   expect(fire({ url: "https://app.example.test/settings", mode: "navigate", method: "POST" }).respondWith).not.toHaveBeenCalled();
 });
 

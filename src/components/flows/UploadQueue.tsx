@@ -9,7 +9,7 @@ import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { acceptFor, fileRefusal } from "@/lib/fileKinds";
 import { firstRunOf } from "@/lib/firstRun";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
-import { canHoldMore, HeldRefusal, heldStore, type HeldStore } from "@/lib/pwa/heldUploads";
+import { canHoldMore, HeldRefusal, heldStore, type HeldRecord, type HeldStore } from "@/lib/pwa/heldUploads";
 import { isOnline } from "@/lib/pwa/online";
 import type { DeviceOwner } from "@/hooks/useDeviceOwner";
 import type { BillingStatus } from "@/types/procurement";
@@ -58,7 +58,7 @@ type Queue = {
   remove(key: string): void;
   /** Names of the files shared to this phone that wait for a press, oldest first; null until the device was read (or with no store or owner). */
   shared: readonly string[] | null;
-  /** Binds the shared files to this person, workspace and `target`; then they go the ordinary held way. */
+  /** Binds the shared files named in `shared` (no other) to this person, workspace and `target`; then they go the ordinary held way. */
   addShared(target: UploadFlow): void;
   /** Deletes the shared files from this phone. */
   discardShared(): void;
@@ -93,6 +93,12 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
   // Files shared to this phone that wait for a press, and, only during Add them, where they go.
   const [shared, setShared] = useState<readonly string[] | null>(null);
   const take = useRef<UploadFlow | null>(null);
+  // The keys behind the names on screen: Add them binds these and no file that arrived after the notice drew.
+  const shown = useRef<readonly string[]>([]);
+  const showShared = (records: readonly HeldRecord[]) => {
+    shown.current = records.map((r) => r.key);
+    setShared(records.map((r) => r.file.name));
+  };
 
   const update = (change: (list: readonly UploadItem[]) => readonly UploadItem[]) => setItems((live.current = change(live.current)));
   const patch = (key: string, p: Partial<UploadItem>) => update((list) => list.map((i) => (i.key === key ? { ...i, ...p } : i)));
@@ -182,15 +188,16 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
       }
     }
     const records = (await store.all().catch(() => [])).sort((a, b) => (a.heldAt < b.heldAt ? -1 : a.heldAt > b.heldAt ? 1 : 0));
-    const left: string[] = [];
+    const left: HeldRecord[] = [];
     for (let r of records) {
-      // Shared to this phone (any site can post a share): no owner until the person presses Add them.
+      // Shared to this phone (any site can post a share): no owner until Add them, and then only the files the notice named.
       if (r.userId === "") {
-        if (!take.current || !(await own(r.key))) {
-          left.push(r.file.name);
+        if (!take.current || !shown.current.includes(r.key) || !(await own(r.key))) {
+          left.push(r);
           continue;
         }
         r = { ...r, userId: who.userId, orgId: who.orgId, flowId: take.current.id };
+        // Safe to swallow: the file is sent from memory below; if the tab dies first, the device copy stays ownerless and asks again.
         await store.put(r).catch(() => {});
       }
       if (r.userId !== who.userId) {
@@ -203,7 +210,7 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
       kept.current.add(r.key);
       update((list) => [{ key: r.key, file: r.file, flowId: r.flowId, state: "held" as const, wasHeld: true }, ...list]);
     }
-    setShared(left);
+    showShared(left);
     if (!isOnline()) return;
     for (const i of live.current.filter((x) => x.state === "held")) {
       patch(i.key, { state: "waiting" });
@@ -271,13 +278,13 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
 
   const discardShared = () => {
     chain.current = chain.current.then(async () => {
-      const left: string[] = [];
+      const left: HeldRecord[] = [];
       for (const r of (await store?.all().catch(() => [])) ?? []) {
         if (r.userId !== "") continue;
         if (await own(r.key)) await forget(r.key);
-        else left.push(r.file.name); // another tab holds it
+        else left.push(r); // another tab holds it
       }
-      setShared(left);
+      showShared(left);
     });
   };
 

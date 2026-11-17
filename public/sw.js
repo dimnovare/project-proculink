@@ -89,8 +89,11 @@ function keepOnDevice(files) {
           held.onsuccess = () => {
             const all = [...held.result.map((r) => r.file), ...files];
             if (all.length > HELD_MAX_FILES || all.reduce((n, f) => n + f.size, 0) > HELD_MAX_BYTES) return;
-            const heldAt = new Date().toISOString();
-            for (const file of files) store.put({ key: crypto.randomUUID(), userId: "", orgId: "", flowId: "", file, heldAt });
+            // One millisecond apart, so the notice lists them in the order they were shared.
+            const now = Date.now();
+            files.forEach((file, i) =>
+              store.put({ key: crypto.randomUUID(), userId: "", orgId: "", flowId: "", file, heldAt: new Date(now + i).toISOString() }),
+            );
             kept = true;
           };
         } catch {
@@ -105,11 +108,16 @@ function keepOnDevice(files) {
 }
 
 async function receiveShare(request) {
-  // A share-sheet launch has no referrer: a post from another site keeps nothing (Add them stays mandatory anyway, as a page can hide its referrer).
-  if (request.referrer && new URL(request.referrer).origin !== self.location.origin)
-    return Response.redirect(new URL(SHARE_PATH, self.location.origin).href, 303);
   let path = `${SHARE_PATH}?${SHARE_PARAM}=none`;
   try {
+    // A post from another web page keeps nothing. An empty, same-origin, unparsable or non-web referrer (a share-sheet
+    // launch may carry android-app://) is kept; Add them stays mandatory anyway, as a page can hide its referrer.
+    let from = null;
+    try {
+      from = new URL(request.referrer);
+    } catch {}
+    if (from && /^https?:$/.test(from.protocol) && from.origin !== self.location.origin)
+      return Response.redirect(new URL(SHARE_PATH, self.location.origin).href, 303);
     const files = (await request.formData()).getAll("files").filter((v) => v instanceof File).map(named);
     if (!files.length) path = SHARE_PATH;
     else if (await keepOnDevice(files)) path = `${SHARE_PATH}?${SHARE_PARAM}=kept`;
