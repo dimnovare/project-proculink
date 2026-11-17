@@ -41,7 +41,7 @@ const mount = () =>
     </QueryClientProvider>,
   );
 
-afterEach(() => { cleanup(); clerk.org = undefined; staff.on = true; vi.clearAllMocks(); });
+afterEach(() => { cleanup(); clerk.org = undefined; staff.on = true; vi.clearAllMocks(); vi.unstubAllEnvs(); });
 
 describe("Settings › Workspace", () => {
   it("the name saves once when the box is left with a new name, and a refusal keeps what was typed", async () => {
@@ -94,6 +94,8 @@ describe("Settings › Workspace", () => {
   });
 
   it("on a phone Settings holds the account menu, and Admin for staff", async () => {
+    // The runner sets a placeholder Clerk key and a laptop usually has none: pin the chip to one of its two forms.
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "");
     staff.answered = 0;
     mount();
     expect(screen.queryByRole("link", { name: "Admin" })).toBeNull();
