@@ -221,3 +221,25 @@ test("cookie consent banner appears on first marketing visit", async ({ context,
   await page.getByRole("button", { name: /accept analytics/i }).click();
   await expect(banner).toBeHidden({ timeout: 5_000 });
 });
+
+test.describe("Skip link", () => {
+  // The link is the first node of the home page, so the router's focus after a navigation lands
+  // on it. It is for the keyboard: after a tap or a click it must stay hidden, where it used to
+  // come up over the site header on a phone.
+  test("shows for the keyboard and stays hidden after a pointer navigation", async ({ page }) => {
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    const width = async () => (await skip.boundingBox())?.width ?? 0;
+
+    await page.goto("/pricing");
+    await page.getByRole("banner").locator('a[href="/"]').first().click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(skip).toBeFocused();
+    expect(await width()).toBeLessThanOrEqual(1);
+
+    await page.goto("/");
+    await page.keyboard.press("Tab");
+    await expect(skip).toBeFocused();
+    expect(await width()).toBeGreaterThan(100);
+  });
+});
