@@ -33,7 +33,7 @@ function Meta({ read, inTable, className = "" }: { read: { edited: boolean; loca
   if (!read.notOnPage && !read.edited && !where) return null;
   return (
     <span className={`flex flex-wrap items-center gap-2 text-[12.5px] text-ink-muted ${className}`}>
-      {read.notOnPage && <span>Not found on the page</span>}
+      {read.notOnPage && <span>Not in the page's text</span>}
       {read.edited && <span>Edited</span>}
       {where && <span>{where}</span>}
     </span>

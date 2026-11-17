@@ -47,7 +47,8 @@ export function reviewMarks(detail: DocumentDetail, editable: boolean): ReviewMa
     const named = failed.filter((c) => c.fieldKey === field.key);
     const check = named.find((c) => c.code === "required_missing" || c.code === "not_on_page") ?? named.find((c) => c.code === "low_confidence") ?? named[0];
     const look = !editable ? null
-      : check?.code === "required_missing" || check?.code === "not_on_page" ? { kind: "missing" as const, text: "Not found on the page. Type it." }
+      : check?.code === "required_missing" ? { kind: "missing" as const, text: "Not found on the page. Type it." }
+      : check?.code === "not_on_page" ? { kind: "unsure" as const, text: "Not in the page's text. Check it." }
       : check?.code === "low_confidence" ? unsure(field.confidence)
       : check ? { kind: "unsure" as const, text: `Check this one. ${check.message}` }
       : byConfidence(field);
