@@ -45,8 +45,8 @@ export function canHoldMore(records: readonly Pick<HeldRecord, "file">[], file: 
   return records.length >= HELD_MAX_FILES || bytes > HELD_MAX_BYTES ? new HeldRefusal("held_limit") : null;
 }
 
-const DB_NAME = "plk-device";
-const STORE = "held-uploads";
+/** The device store's layout. public/sw.js writes shared files into it with these same values. */
+export const HELD_DB = { name: "plk-device", store: "held-uploads", version: 1 } as const;
 let instance: HeldStore | null | undefined;
 
 /** The device store, or null when this browser has no IndexedDB or Web Locks. One instance per page. */
@@ -62,8 +62,8 @@ export function heldStore(): HeldStore | null {
   let opening: Promise<IDBDatabase> | undefined;
   const open = () =>
     (opening ??= new Promise<IDBDatabase>((resolve, reject) => {
-      const r = indexedDB.open(DB_NAME, 1);
-      r.onupgradeneeded = () => r.result.createObjectStore(STORE, { keyPath: "key" });
+      const r = indexedDB.open(HELD_DB.name, HELD_DB.version);
+      r.onupgradeneeded = () => r.result.createObjectStore(HELD_DB.store, { keyPath: "key" });
       r.onsuccess = () => resolve(r.result);
       r.onerror = () => reject(r.error);
     }).catch((e) => {
@@ -75,8 +75,8 @@ export function heldStore(): HeldStore | null {
   const run = async <T>(mode: IDBTransactionMode, op: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> => {
     const db = await open();
     return new Promise<T>((resolve, reject) => {
-      const tx = db.transaction(STORE, mode);
-      const r = op(tx.objectStore(STORE));
+      const tx = db.transaction(HELD_DB.store, mode);
+      const r = op(tx.objectStore(HELD_DB.store));
       tx.oncomplete = () => resolve(r.result);
       tx.onerror = tx.onabort = () => reject(tx.error ?? r.error);
     });
