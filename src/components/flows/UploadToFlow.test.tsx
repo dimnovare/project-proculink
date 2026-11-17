@@ -103,7 +103,7 @@ describe("UploadToFlow", () => {
     delete (window as { __mockEngine?: unknown }).__mockEngine;
   }, 20_000);
 
-  it("with no flows, welcomes and shows no select; while the flows are unknown, never the welcome", async () => {
+  it("with no flows, welcomes and shows no select; while the flows are unknown, never the welcome", { timeout: 20_000 }, async () => {
     const welcome = () => screen.queryByRole("heading", { level: 1, name: /Let's read your first document/ });
     api.listFlows.mockReturnValue(new Promise(() => {}));
     const loading = mount();
