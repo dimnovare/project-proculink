@@ -18,7 +18,7 @@ function refusalMessage(err: unknown): string {
   const code = err instanceof ApiHttpError && err.status === 400 ? (err.body as { error?: string } | null)?.error : undefined;
   return code === "filter_required"
     ? "Give at least one document id or a date."
-    : "The delete did not confirm — check the receipt before retrying.";
+    : "The delete did not confirm. Run it again — documents already deleted are left out.";
 }
 
 const label = { display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5, color: "var(--ink-muted)" } as const;
@@ -68,7 +68,7 @@ export function EraseDocumentsPanel({ org, onClose }: { org: AdminOrganisation; 
           )}
           {receipt.more && <div>More documents match — run it again to continue.</div>}
         </StatusNotice>
-        <div style={{ fontSize: 11.5, color: "var(--ink-muted)", fontFamily: "var(--font-mono)" }}>
+        <div style={{ fontSize: 11.5, color: "var(--ink-muted)", fontFamily: "var(--font-mono)", overflowWrap: "anywhere" }}>
           {[...tables.map(([table, n]) => `${table} ${n}`), ...receipt.failedBlobKeys].join(" · ")}
         </div>
       </div>

@@ -204,6 +204,15 @@ export default function AdminPage() {
     setDocsOrgId(null);
     void orgsQ.refetch();
   };
+  // At most one slug box under a row, so a slug can never land in the wrong panel.
+  const openErase = (id: string) => {
+    setDocsOrgId(null);
+    setEraseOrgId(id);
+  };
+  const openDocs = (id: string) => {
+    setEraseOrgId(null);
+    setDocsOrgId(id);
+  };
 
   const accessError =
     (overviewQ.error instanceof AdminAccessError && overviewQ.error) ||
@@ -467,10 +476,10 @@ export default function AdminPage() {
                               Unfreeze
                             </Button>
                           )}
-                          <Button variant="secondary" size="sm" onClick={() => setEraseOrgId(org.id)}>
+                          <Button variant="secondary" size="sm" onClick={() => openErase(org.id)}>
                             Erase workspace
                           </Button>
-                          <Button variant="secondary" size="sm" onClick={() => setDocsOrgId(org.id)}>
+                          <Button variant="secondary" size="sm" onClick={() => openDocs(org.id)}>
                             Delete documents
                           </Button>
                         </div>
@@ -528,10 +537,10 @@ export default function AdminPage() {
                         Unfreeze
                       </Button>
                     )}
-                    <Button variant="secondary" size="sm" onClick={() => setEraseOrgId(org.id)}>
+                    <Button variant="secondary" size="sm" onClick={() => openErase(org.id)}>
                       Erase workspace
                     </Button>
-                    <Button variant="secondary" size="sm" onClick={() => setDocsOrgId(org.id)}>
+                    <Button variant="secondary" size="sm" onClick={() => openDocs(org.id)}>
                       Delete documents
                     </Button>
                     {org.stripeCustomerId && (
