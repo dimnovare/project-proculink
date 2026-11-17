@@ -145,7 +145,7 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up", onLight 
 
   const closeMenu = () => setOpen(false);
 
-  // Files added while offline must not stay on a device nobody is signed in to: ask, then remove them.
+  // Files added while offline, and files shared to this phone, must not stay on a device nobody is signed in to: ask, then remove them.
   // Neither step can hold the sign-out up for more than about two seconds (heldUploads.ts).
   const signOut = async () => {
     closeMenu();
@@ -154,8 +154,8 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up", onLight 
       const ok = await confirm({
         title: "Sign out?",
         description: n === 1
-          ? "1 file you added while offline hasn't gone up yet. Signing out removes it from this device."
-          : `${n} files you added while offline haven't gone up yet. Signing out removes them from this device.`,
+          ? "1 file on this device hasn't gone up yet. Signing out removes it from this device."
+          : `${n} files on this device haven't gone up yet. Signing out removes them from this device.`,
         confirmLabel: "Sign out",
         danger: true,
       });

@@ -205,16 +205,23 @@ type EdgeSession = { userId?: string | null; orgId?: string | null };
 /**
  * The sign-in and organisation gates for protected app routes.
  *
- * Order matters and is load-bearing. The session is read first and unconditionally, so
- * no query parameter can reach past it: the handshake allowance below can only ever
- * shorten the path of an *already signed-out* request to a redirect, and the
- * organisation gate is downstream of a real `userId` that only Clerk can produce.
+ * Order matters and is load-bearing. The session is read first, so no query parameter
+ * can reach past it: the handshake allowance below can only ever shorten the path of an
+ * *already signed-out* request to a redirect, and the organisation gate is downstream of
+ * a real `userId` that only Clerk can produce. The one exception is the no-worker share
+ * POST to /upload (no `next-action` header): it only redirects to a GET of a guarded page
+ * and reads nothing, so it reaches past nothing. A server action POST is read as usual.
  */
 export async function applyProtectedRouteGuards(
   req: NextRequest,
   loadSession: () => Promise<EdgeSession>,
 ): Promise<NextResponse | undefined> {
   if (!isProtectedRoute(req)) return;
+  // A share that reached the server with no worker: answered before the session read, because the signed-out
+  // 307 would re-POST the files to /sign-in. A GET redirect to a guarded page reaches past nothing.
+  if (req.method === "POST" && req.nextUrl.pathname === "/upload" && !req.headers.has("next-action")) {
+    return NextResponse.redirect(new URL("/upload?shared=none", req.url), 303);
+  }
 
   const session = await loadSession();
 

@@ -1,9 +1,52 @@
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { cssToken } from "@/lib/cssTokens";
+import { HELD_DB, HELD_MAX_BYTES, type HeldRecord } from "./heldUploads";
 
 type Listener = (event: never) => void;
-type Req = { url: string; mode: string; method: string };
+type Req = { url: string; mode: string; method: string; destination?: string; referrer?: string; formData?: () => Promise<FormData> };
+
+/** Just enough IndexedDB for the worker: requests settle on a microtask, a transaction completes after them. */
+function fakeIdb() {
+  const idb = {
+    opened: [] as unknown[],
+    stores: [] as string[],
+    records: [] as Pick<HeldRecord, "key" | "file">[],
+    puts: [] as HeldRecord[],
+    /** The store can't be opened (blocked site data, private mode). */
+    fails: false,
+    open(name: string, version: number) {
+      idb.opened = [name, version];
+      const db = {
+        createObjectStore: (s: string) => void idb.stores.push(s),
+        close: () => {},
+        transaction: (store: string) => {
+          const tx: { oncomplete?: () => void; objectStore: (s: string) => unknown } = {
+            objectStore: (s: string) => {
+              idb.stores.push(s);
+              return {
+                getAll: () => {
+                  const r: { result?: unknown; onsuccess?: () => void } = {};
+                  queueMicrotask(() => { r.result = idb.records; r.onsuccess?.(); });
+                  return r;
+                },
+                put: (v: HeldRecord) => (idb.puts.push(v), {}),
+              };
+            },
+          };
+          idb.stores.push(store);
+          setTimeout(() => tx.oncomplete?.(), 0);
+          return tx;
+        },
+      };
+      const req: { result: typeof db; onupgradeneeded?: () => void; onsuccess?: () => void; onerror?: () => void } = { result: db };
+      queueMicrotask(() => (idb.fails ? req.onerror?.() : (req.onupgradeneeded?.(), req.onsuccess?.())));
+      return req;
+    },
+  };
+  return idb;
+}
+let idb: ReturnType<typeof fakeIdb>;
 
 let source: string;
 let listeners: Record<string, Listener>;
@@ -30,7 +73,8 @@ beforeEach(() => {
   };
   const caches = new Proxy({}, { get: () => { throw new Error("the worker must not touch Cache Storage"); } });
   (globalThis as { caches?: unknown }).caches = caches;
-  new Function("self", "fetch", "caches", source)(self, fetchMock, caches);
+  idb = fakeIdb();
+  new Function("self", "fetch", "caches", "indexedDB", source)(self, fetchMock, caches, idb);
 });
 
 afterEach(() => {
@@ -42,6 +86,51 @@ function fire(request: Req, preload?: Response) {
   (listeners.fetch as (e: typeof event) => void)(event);
   return event;
 }
+
+async function post(files: File[], referrer = ""): Promise<Response> {
+  const fd = new FormData();
+  for (const f of files) fd.append("files", f);
+  return fire({ url: "https://app.example.test/upload", mode: "navigate", method: "POST", destination: "document", referrer, formData: async () => fd }).respondWith.mock.calls[0][0];
+}
+
+it("a share, or any form post that looks like one, is only kept on this phone with no owner: nothing is fetched or sent", async () => {
+  const res = await post([new File(["%PDF"], "scan.pdf", { type: "application/pdf" }), new File(["x"], "1000123", { type: "image/jpeg" })]);
+  expect(res.status).toBe(303);
+  expect(res.headers.get("location")).toBe("https://app.example.test/upload?shared=kept");
+  expect(idb.opened).toEqual([HELD_DB.name, HELD_DB.version]);
+  expect(idb.stores).toEqual(expect.arrayContaining([HELD_DB.store]));
+  expect(idb.puts.map((r) => [r.userId, r.orgId, r.flowId, r.file.name])).toEqual([["", "", "", "scan.pdf"], ["", "", "", "Shared file.jpg"]]);
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect((await post([])).headers.get("location")).toBe("https://app.example.test/upload");
+  const elsewhere = await post([new File(["%PDF"], "planted.pdf", { type: "application/pdf" })], "https://elsewhere.example.test/page");
+  expect(elsewhere.headers.get("location")).toBe("https://app.example.test/upload");
+  expect(idb.puts).toHaveLength(2);
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect((await post([new File(["%PDF"], "from-app.pdf", { type: "application/pdf" })], "android-app://com.example.app/")).headers.get("location")).toBe("https://app.example.test/upload?shared=kept");
+  expect(fire({ url: "https://app.example.test/settings", mode: "navigate", method: "POST", destination: "document" }).respondWith).not.toHaveBeenCalled();
+  // A form posted into a hidden iframe is not a share: it passes through untouched.
+  expect(fire({ url: "https://app.example.test/upload", mode: "navigate", method: "POST", destination: "iframe" }).respondWith).not.toHaveBeenCalled();
+});
+
+it("past the limit nothing is kept; offline, the follow-up page says which happened", async () => {
+  idb.records = Array.from({ length: 10 }, (_, i) => ({ key: `k${i}`, file: new File(["x"], "a.pdf") }));
+  const res = await post([new File(["%PDF"], "more.pdf", { type: "application/pdf" })]);
+  expect(res.headers.get("location")).toBe("https://app.example.test/upload?shared=none");
+  expect(idb.puts).toEqual([]);
+  idb.records = [];
+  idb.fails = true;                                             // the store can't be opened at all
+  expect((await post([new File(["%PDF"], "more.pdf", { type: "application/pdf" })])).headers.get("location")).toBe("https://app.example.test/upload?shared=none");
+  expect(idb.puts).toEqual([]);
+  fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+  const page = async (q: string) => (await fire({ url: `https://app.example.test/upload?shared=${q}`, mode: "navigate", method: "GET" }).respondWith.mock.calls[0][0]).text();
+  const kept = await page("kept");
+  expect(kept).toContain("<title>Saved on this phone</title>");
+  expect(kept).toContain("You're offline. Open ProcuLink when you're connected to add them.");
+  expect(kept).toMatch(/<a href="\/upload">Open ProcuLink<\/a>/);
+  expect(await page("none")).toContain("The shared files couldn't be kept on this phone. It keeps up to 10 files, 50 MB in all. Share fewer at a time, or add them from Add documents.");
+  expect(source).toMatch(/HELD_MAX_FILES = 10\b/);
+  expect(source).toContain(`HELD_MAX_BYTES = ${HELD_MAX_BYTES}`);
+});
 
 it("answers only same-origin GET navigations, and never opens Cache Storage", async () => {
   const pass = [

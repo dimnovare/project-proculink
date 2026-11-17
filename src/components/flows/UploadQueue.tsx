@@ -7,8 +7,9 @@ import { addDocument, uploadDocument } from "@/lib/api/documents";
 import type { DocumentSummary, Flow } from "@/lib/api/documents";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { acceptFor, fileRefusal } from "@/lib/fileKinds";
+import { firstRunOf } from "@/lib/firstRun";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
-import { canHoldMore, HeldRefusal, heldStore, type HeldStore } from "@/lib/pwa/heldUploads";
+import { canHoldMore, HeldRefusal, heldStore, type HeldRecord, type HeldStore } from "@/lib/pwa/heldUploads";
 import { isOnline } from "@/lib/pwa/online";
 import type { DeviceOwner } from "@/hooks/useDeviceOwner";
 import type { BillingStatus } from "@/types/procurement";
@@ -23,6 +24,15 @@ export interface UploadItem {
 export type UploadFlow = Pick<Flow, "id" | "name" | "scansOn" | "formatsOn">;
 /** The target for "no flow": the workspace inbox. `id: ""` is sent with addDocument (R5). */
 export const INBOX_TARGET = (s: { scansOn?: boolean; formatsOn?: boolean }): UploadFlow => ({ id: "", name: "", scansOn: s.scansOn, formatsOn: s.formatsOn });
+/**
+ * Where an added file goes: the workspace inbox, or, on a first run, the first flow (as Welcome does: in the
+ * inbox the file would wait unseen). What the workspace reads is set per workspace, so any flow carries it (R7).
+ * undefined while the flows are loading, or with no flow yet.
+ */
+export function addTarget(flows: readonly Flow[] | undefined): UploadFlow | undefined {
+  const run = firstRunOf(flows);
+  return run.state === "new" && run.flow ? run.flow : flows?.[0] && INBOX_TARGET(flows[0]);
+}
 
 /** Refusals every later file would get too: the queue stops sending after one. */
 export const STOP_CODES: ReadonlySet<string> = new Set([...LIMIT_CODES, "processing_paused"]);
@@ -46,8 +56,16 @@ type Queue = {
   retry(key: string): void;
   /** Drops a held or refused item, and its copy on this device. */
   remove(key: string): void;
+  /** The files shared to this phone that wait for a press, oldest first; null until the device was read (or with no store or owner). */
+  shared: readonly SharedFile[] | null;
+  /** Binds the shared files with these keys (the ones on screen, and no other) to this person, workspace and `target`; then they go the ordinary held way. */
+  addShared(target: UploadFlow, keys: readonly string[]): void;
+  /** Deletes the shared files with these keys from this phone. */
+  discardShared(keys: readonly string[]): void;
 };
+export type SharedFile = { key: string; name: string };
 const QueueContext = createContext<Queue | null>(null);
+const byHeldAt = (a: HeldRecord, b: HeldRecord) => (a.heldAt < b.heldAt ? -1 : a.heldAt > b.heldAt ? 1 : 0);
 
 const sameOwner = (a: DeviceOwner | null | undefined, b: DeviceOwner | null) => !!a && !!b && a.userId === b.userId && a.orgId === b.orgId;
 
@@ -74,6 +92,10 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
   const kept = useRef(new Set<string>());
   // The Web Locks this tab holds on kept files.
   const claims = useRef(new Map<string, () => void>());
+  // Files shared to this phone that wait for a press, and, only during Add them, where the pressed ones go.
+  const [shared, setShared] = useState<readonly SharedFile[] | null>(null);
+  const take = useRef<{ target: UploadFlow; keys: readonly string[] } | null>(null);
+  const showShared = (records: HeldRecord[]) => setShared(records.sort(byHeldAt).map((r) => ({ key: r.key, name: r.file.name })));
 
   const update = (change: (list: readonly UploadItem[]) => readonly UploadItem[]) => setItems((live.current = change(live.current)));
   const patch = (key: string, p: Partial<UploadItem>) => update((list) => list.map((i) => (i.key === key ? { ...i, ...p } : i)));
@@ -162,8 +184,19 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
         drop(i.key);
       }
     }
-    const records = await store.all().catch(() => []);
-    for (const r of records) {
+    const records = (await store.all().catch(() => [])).sort(byHeldAt);
+    const left: HeldRecord[] = [];
+    for (let r of records) {
+      // Shared to this phone (any site can post a share): no owner until Add them, and then only the files that press saw.
+      if (r.userId === "") {
+        if (!take.current?.keys.includes(r.key) || !(await own(r.key))) {
+          left.push(r);
+          continue;
+        }
+        r = { ...r, userId: who.userId, orgId: who.orgId, flowId: take.current.target.id };
+        // Safe to swallow: the file is sent from memory below; if the tab dies first, the device copy stays ownerless and asks again.
+        await store.put(r).catch(() => {});
+      }
       if (r.userId !== who.userId) {
         await store.remove(r.key).catch(() => {});
         continue;
@@ -174,6 +207,7 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
       kept.current.add(r.key);
       update((list) => [{ key: r.key, file: r.file, flowId: r.flowId, state: "held" as const, wasHeld: true }, ...list]);
     }
+    showShared(left);
     if (!isOnline()) return;
     for (const i of live.current.filter((x) => x.state === "held")) {
       patch(i.key, { state: "waiting" });
@@ -228,7 +262,31 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
     if (kept.current.has(key)) void forget(key);
   };
 
-  return <QueueContext.Provider value={{ items, add, retry, remove }}>{children}</QueueContext.Provider>;
+  // Both act only on the keys the press saw: a file that arrived since, or a second tap, never rides along. A key already bound or gone is a no-op.
+  const addShared = (target: UploadFlow, keys: readonly string[]) => {
+    chain.current = chain.current.then(async () => {
+      take.current = { target, keys };
+      try {
+        await sync();
+      } finally {
+        take.current = null;
+      }
+    });
+  };
+
+  const discardShared = (keys: readonly string[]) => {
+    chain.current = chain.current.then(async () => {
+      const left: HeldRecord[] = [];
+      for (const r of (await store?.all().catch(() => [])) ?? []) {
+        if (r.userId !== "") continue;
+        if (keys.includes(r.key) && (await own(r.key))) await forget(r.key);
+        else left.push(r); // not on screen at the press, or another tab holds it
+      }
+      showShared(left);
+    });
+  };
+
+  return <QueueContext.Provider value={{ items, add, retry, remove, shared, addShared, discardShared }}>{children}</QueueContext.Provider>;
 }
 
 /** Items newest first; `add` answers the new items' keys. Throws outside the provider. */

@@ -65,5 +65,6 @@ it("in the installed app it says so and offers nothing; elsewhere without a prom
   render(<InstallPanel />);
   panel = within(screen.getByTestId("install-panel"));
   expect(panel.getByText("On an iPhone: tap Share, then Add to Home Screen.")).toBeInTheDocument();
+  expect(panel.getByText("On Android, once it's installed, ProcuLink is in the Share menu of your other apps.")).toBeInTheDocument();
   expect(panel.queryByRole("button")).toBeNull();
 });

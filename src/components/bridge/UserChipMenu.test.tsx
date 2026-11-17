@@ -31,7 +31,7 @@ it("asks before signing out with held files, then removes them; with none it sig
   let dialog = await screen.findByRole("alertdialog");
   expect(heldCount).toHaveBeenCalledWith("user_alex");                // only this person's files are counted
   expect(within(dialog).getByText("Sign out?")).toBeInTheDocument();
-  expect(within(dialog).getByText("2 files you added while offline haven't gone up yet. Signing out removes them from this device.")).toBeInTheDocument();
+  expect(within(dialog).getByText("2 files on this device haven't gone up yet. Signing out removes them from this device.")).toBeInTheDocument();
   fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
   await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
   expect(signOut).not.toHaveBeenCalled();
