@@ -138,6 +138,16 @@ export function activityView(e: ActivityEvent, ctx: { who: string; destinationNa
       sentence = fileSentence("Started reading ", " again");
       tag = { label: "Read again", tone: "blue" };
       break;
+    case "document.split": {
+      // One document left means the file repeated it: its copies were left out.
+      const n = p("documents");
+      const after = n === "1" ? " was printed more than once, so only its first copy is read" : n ? ` held ${n} documents, so each is read on its own` : " was split into documents";
+      // The file as it arrived; the document itself is renamed to its first part. An erased document keeps no name.
+      const file = p("file");
+      sentence = e.documentName && file ? { before: "", strong: file, after } : fileSentence("", after);
+      tag = { label: "Split", tone: "blue" };
+      break;
+    }
     case "document.sorted":
     case "document.moved": {
       const flow = p("flow");

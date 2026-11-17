@@ -884,6 +884,16 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     note: "Move it, or Set it up (payload newFlow).",
   },
   {
+    action: "document.split",
+    // The machine's act, like the read: not a person's change.
+    kind: "parsed",
+    label: "Split into documents",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Jobs/ReadDocumentJob.cs:374",
+    reasonKeys: [],
+    note: "One file held several documents; payload documents is how many, file the name it arrived with.",
+  },
+  {
     action: "document.downloaded",
     kind: "delivered",
     label: "Downloaded",

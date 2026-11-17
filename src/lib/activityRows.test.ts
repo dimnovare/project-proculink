@@ -102,6 +102,8 @@ describe("activityRows", () => {
     expect([said("document.moved", { flow: "Supplier invoices" }), at("document.moved", {}).tag]).toEqual(["invoice-2292.pdf was moved to Supplier invoices", { label: "Moved", tone: "neutral" }]);
     expect(said("document.moved", { flow: "Invoices", newFlow: true })).toBe("invoice-2292.pdf was put with the new flow Invoices");
     expect(said("document.moved", { newFlow: true })).toBe("invoice-2292.pdf was moved");
+    expect([said("document.split", { documents: 4, file: "march.pdf" }), at("document.split", {}).tag]).toEqual(["march.pdf held 4 documents, so each is read on its own", { label: "Split", tone: "blue" }]);
+    expect(said("document.split", { documents: 1 })).toBe("invoice-2292.pdf was printed more than once, so only its first copy is read");
     const down = at("document.downloaded", { format: "xlsx" });
     expect([plainSentence(down.sentence), down.tag, down.facts]).toEqual(["What we read from invoice-2292.pdf was downloaded", { label: "Downloaded", tone: "green" }, [{ term: "Format", value: "Excel" }]]);
     expect([at("document.downloaded", { format: "csv" }).facts, at("document.downloaded", null).facts]).toEqual([[{ term: "Format", value: "CSV" }], []]);
