@@ -263,6 +263,7 @@ export function UploadToFlow() {
                 <p className="m-0 break-all text-[14px] text-ink-muted">
                   Forward any email with documents attached to <span className="font-mono text-[13px] text-ink">{address}</span>
                 </p>
+                <p className="m-0 text-[13px] text-ink-muted sm:hidden">On a phone: in any app, tap Share, choose Mail, and send the file to this address.</p>
               </div>
               <CopyButton text={address} label="Copy address" />
             </div>
@@ -297,8 +298,13 @@ export function UploadToFlow() {
 
   return (
     <PageShell variant="narrow">
-      <PageHeader title="Add documents" sub="Drop in anything you receive. We read each one, work out what it is, and handle it like the ones before it." />
+      {HEADER}
       {body}
     </PageShell>
   );
 }
+
+const HEADER = <PageHeader title="Add documents" sub="Drop in anything you receive. We read each one, work out what it is, and handle it like the ones before it." />;
+
+/** The page's Suspense fallback: exactly what UploadToFlow draws while the flows load. */
+export const UploadLoading = () => <PageShell variant="narrow">{HEADER}<Quiet>Loading flows…</Quiet></PageShell>;

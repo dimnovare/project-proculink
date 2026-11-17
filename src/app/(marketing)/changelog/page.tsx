@@ -24,6 +24,14 @@ export const metadata = pageMetadata({
 // those entries byte for byte.
 const ENTRIES = [
   {
+    version: "v2.5",
+    date: "17 November 2026",
+    items: [
+      "On Android, an installed ProcuLink is in the Share menu: share photos or PDFs from any app, then choose Add them in ProcuLink.",
+      "On a phone, Add documents shows how to send a file by Mail to your workspace's address.",
+    ],
+  },
+  {
     version: "v2.4",
     date: "17 November 2026",
     items: [

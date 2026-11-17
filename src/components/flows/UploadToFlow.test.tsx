@@ -75,6 +75,16 @@ describe("UploadToFlow", () => {
     expect(await screen.findByText("The shared files couldn't be kept on this phone. It keeps up to 10 files, 50 MB in all. Share fewer at a time, or add them from Add documents.")).toBeInTheDocument();
   });
 
+  it("on a phone, says how to send a file by Mail to the workspace address, from the inbox answer it already has", async () => {
+    const real = await vi.importActual<typeof import("@/lib/api/documents")>("@/lib/api/documents");
+    api.getInbox.mockImplementation(async () => ({ ...(await real.getInbox()), address: "documents@in.example.test" }));
+    mount();
+    const card = await screen.findByRole("region", { name: "Or send them by email" });
+    expect(within(card).getByText("On a phone: in any app, tap Share, choose Mail, and send the file to this address.")).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Copy address" })).toBeInTheDocument();
+    expect(api.getInbox).toHaveBeenCalledTimes(1);
+  });
+
   it.each([
     [{ scansOn: false, formatsOn: false }, ".pdf,.csv,.xlsx"],
     [{ scansOn: true, formatsOn: true }, ".pdf,.csv,.xlsx,.png,.jpg,.jpeg,.docx,.txt,.xml,.cxml,.json,.edi,.x12"],

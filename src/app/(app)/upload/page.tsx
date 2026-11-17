@@ -1,18 +1,16 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { PageHeader } from "@/components/bridge/layout/PageHeader";
-import { PageShell } from "@/components/bridge/layout/PageShell";
-import { UploadToFlow } from "@/components/flows/UploadToFlow";
+import { UploadLoading, UploadToFlow } from "@/components/flows/UploadToFlow";
 import { appPageTitle } from "@/lib/pageTitles";
 
 export const metadata: Metadata = {
   title: appPageTitle("/upload"),
 };
 
-// UploadToFlow reads ?shared=, so the static page needs a Suspense boundary.
+// UploadToFlow reads ?shared=, so the static page needs a Suspense boundary; its fallback is the page's own loading state.
 export default function UploadPage() {
   return (
-    <Suspense fallback={<PageShell variant="narrow"><PageHeader title="Add documents" /></PageShell>}>
+    <Suspense fallback={<UploadLoading />}>
       <UploadToFlow />
     </Suspense>
   );

@@ -25,7 +25,10 @@ export function InstallPanel() {
       )}
       {line && <p className="m-0 text-[14px] text-ink">{line}</p>}
       {state !== "app" && state !== "unknown" && (
-        <p className="m-0 text-[13px] text-ink-muted">On an iPhone: tap Share, then Add to Home Screen.</p>
+        <>
+          <p className="m-0 text-[13px] text-ink-muted">On an iPhone: tap Share, then Add to Home Screen.</p>
+          <p className="m-0 text-[13px] text-ink-muted">On Android, once it&apos;s installed, ProcuLink is in the Share menu of your other apps.</p>
+        </>
       )}
     </SettingsPanel>
   );
