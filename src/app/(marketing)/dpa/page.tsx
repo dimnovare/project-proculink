@@ -17,7 +17,7 @@ export default function DpaPage() {
   return (
     // FOUNDER DECISION: set the effective month when this version is published. Revised from
     // an advisor's pilot review (2026-11): roles, breach notice, termination, Annex I/II.
-    <LegalPage title="Data Processing Addendum" updated="Effective: November 2026 · Version 1.4" path="/dpa">
+    <LegalPage title="Data Processing Addendum" updated="Effective: November 2026 · Version 1.5" path="/dpa">
       <p>
         This Data Processing Addendum (&quot;DPA&quot;) forms part of the agreement between{" "}
         {LEGAL_ENTITY.legalName}, operator of the ProcuLink service (the &quot;Processor&quot;),
@@ -175,6 +175,12 @@ export default function DpaPage() {
         the Controller&apos;s users where they are recorded against workspace activity — for
         example, who checked, changed or sent a document. Credentials the Controller
         configures for delivering and collecting documents.
+      </p>
+      <p>
+        The Service is not intended for special categories of personal data (GDPR Article 9),
+        data about criminal convictions or offences, or payroll and personnel records. The{" "}
+        <Link href="/aup">Acceptable Use Policy</Link>{" "}
+        prohibits submitting them.
       </p>
 
       <h3>Purpose and duration</h3>

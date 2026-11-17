@@ -12,7 +12,7 @@ export const metadata = pageMetadata({
 export default function AupPage() {
   return (
     // FOUNDER DECISION: set the effective month when this version is published.
-    <LegalPage title="Acceptable Use Policy" updated="Effective: November 2026 · Version 1.1" path="/aup">
+    <LegalPage title="Acceptable Use Policy" updated="Effective: November 2026 · Version 1.2" path="/aup">
       <p>
         This Acceptable Use Policy supplements the{" "}
         <Link href="/terms">Terms of Service</Link> and applies to
@@ -30,12 +30,17 @@ export default function AupPage() {
       <LegalH2>Prohibited use</LegalH2>
       <p>You must not use ProcuLink to:</p>
       <ul>
-        <li>Process orders or invoices for goods or services that are illegal in the supplier&apos;s or buyer&apos;s jurisdiction.</li>
+        <li>Process documents for goods or services that are illegal where they are sold or bought.</li>
         <li>Upload malware, exploits, or files crafted to attack ProcuLink, suppliers, or other tenants.</li>
         <li>Attempt to bypass authentication, organisation isolation, or rate limits.</li>
         <li>Reverse engineer, decompile, or extract proprietary algorithms or models.</li>
         <li>Send unsolicited bulk messages or use delivery destinations to spam recipients.</li>
-        <li>Process the personal data of natural persons unrelated to procurement or invoicing (for example, marketing email lists).</li>
+        <li>Process personal data that has nothing to do with your business documents (for example, marketing email lists).</li>
+        {/* FOUNDER DECISION (2026-11-17): the tool takes any business document, and it is not
+            meant for sensitive personal data. Payroll and personnel records are named on
+            purpose: they are not an Article 9 category, but they are excluded too. Counsel to
+            check the wording. The DPA (Annex I) says the same. */}
+        <li>Process documents that hold special categories of personal data under Article 9 of the GDPR (for example, a person&apos;s health records), data about criminal convictions or offences, or payroll and personnel records such as payslips. ProcuLink is made for ordinary business documents and is not intended for data of that kind.</li>
         <li>Share account credentials, sublicense access, or resell the Service without a written agreement.</li>
         <li>Operate workloads that materially degrade Service availability for other customers.</li>
       </ul>
