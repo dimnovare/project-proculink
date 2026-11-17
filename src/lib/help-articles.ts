@@ -142,7 +142,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   },
   {
     slug: "activity-and-notifications",
-    title: "Activity and notifications",
+    title: "History and notifications",
     blurb: "Where to see what happened to each document, and how ProcuLink tells you when something needs you.",
     category: "Account",
     keywords: ["activity", "audit", "history", "notifications", "alerts", "email"],

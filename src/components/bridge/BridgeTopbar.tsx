@@ -214,8 +214,8 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
           <HelpCircle size={17} strokeWidth={1.9} aria-hidden />
         </button>
 
-        {/* Account chip — real name/role, Profile · Settings · Sign out. Phones
-            reach Settings through the tab bar's More. */}
+        {/* Account chip — real name/role, Profile · Settings · Sign out.
+            Phones reach the account menu at the top of Settings. */}
         <div className="hidden shrink-0 md:block">
           <UserChipMenu collapsed placement="down" />
         </div>

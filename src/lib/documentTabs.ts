@@ -1,16 +1,17 @@
 import { DOCUMENT_STATUSES, type DocumentStatusRow } from "@/lib/documentStatusManifest";
 
-export type DocumentTab = "needs-you" | "in-progress" | "sent" | "failed" | "all";
+export type DocumentTab = "needs-you" | "sent" | "failed" | "all";
 export interface DocumentTabDef { id: DocumentTab; label: string; /** null = every status. */ statuses: readonly string[] | null }
 
 const where = (test: (s: DocumentStatusRow) => boolean) => Object.keys(DOCUMENT_STATUSES).filter((k) => test(DOCUMENT_STATUSES[k]));
 
 export const NEEDS_YOU_STATUSES: readonly string[] = where((s) => s.needsYou && s.tone !== "error");
+/** Received and reading: working, before Check. Sending is not reading. */
+export const BEING_READ_STATUSES: readonly string[] = where((s) => s.tone === "working" && typeof s.stage === "number" && s.stage < 2);
 
 /** In the board's order. Statuses are derived from DOCUMENT_STATUSES, never typed. */
 export const DOCUMENT_TABS: readonly DocumentTabDef[] = [
   { id: "needs-you", label: "Needs you", statuses: NEEDS_YOU_STATUSES },
-  { id: "in-progress", label: "In progress", statuses: where((s) => s.tone === "working") },
   { id: "sent", label: "Sent", statuses: where((s) => s.tone === "success") },
   { id: "failed", label: "Couldn't send or read", statuses: where((s) => s.tone === "error") },
   { id: "all", label: "All", statuses: null },
@@ -43,10 +44,11 @@ export function startOfWeek(now: Date): Date {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
 }
 
-/** The line under the title. null while the needs-you number is unknown (the caller keeps the plain line). */
-export function documentsHelper(needsYou: number | undefined, sentThisWeek: number | undefined): string | null {
+/** The line under the title. null while the needs-you number is unknown (the caller keeps the plain line);
+ *  the other clauses only for a number above zero. */
+export function documentsHelper(needsYou: number | undefined, sentThisWeek: number | undefined, beingRead?: number): string | null {
   if (needsYou === undefined) return null;
   const needs = needsYou === 0 ? "Nothing needs you." : `${needsYou} ${needsYou === 1 ? "needs" : "need"} you.`;
-  if (!sentThisWeek) return needs;
-  return `${needs} ${sentThisWeek} ${sentThisWeek === 1 ? "was" : "were"} sent this week.`;
+  const reading = beingRead ? ` ${beingRead} being read.` : "";
+  return `${needs}${reading}${sentThisWeek ? ` ${sentThisWeek} ${sentThisWeek === 1 ? "was" : "were"} sent this week.` : ""}`;
 }

@@ -15,7 +15,7 @@ import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 
 <Step n={1} title="Find the flow's address">
 
-Open the flow and go to the **Arrives** step. The **Email** card shows the address. Select the copy button next to it.
+Open the flow and go to the **Arrives** step. Open **This flow's own address** and select the copy button next to the address. If you see an **Email** card instead, the address is on that card.
 
 <Outcome>
 You have the flow's own address on your clipboard.
@@ -38,10 +38,10 @@ After a short wait, the document appears on the flow's **Documents** page, and w
 <IfThisFails>
 If nothing appears, check these in order:
 
-- The **On** box on the **Email** card is ticked. When it is off, mail to the address is ignored.
-- The files are of a type we read. Other files are ignored. A message whose files we cannot read leaves a note on the card: "An email from … had no file we can read attached."
+- The **On** box next to the flow's own address is ticked. When it is off, mail to the address is ignored.
+- The files are of a type we read. Other files are ignored. A message whose files we cannot read leaves a note next to the address: "An email from … had no file we can read attached."
 - Each file is 10 MB or smaller.
-- Your plan has room. If it does not, the card says processing is paused. See the [billing FAQ](/help/billing-faq).
+- Your plan has room. If it does not, the **Arrives** step says processing is paused. See the [billing FAQ](/help/billing-faq).
 </IfThisFails>
 
 </Step>

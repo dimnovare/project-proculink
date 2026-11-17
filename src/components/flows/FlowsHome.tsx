@@ -148,7 +148,9 @@ export function FlowsHome() {
         </p>
         {plan && typeof limit === "number" && (
           <p className="m-0 text-[13px] text-ink-muted">
-            {`${flows.data.length} of ${limit} flows on ${planName(plan)}. Need more? `}
+            {flows.data.length > limit
+              ? "You have more flows than your plan includes. New flows can't be added until you upgrade. "
+              : `${flows.data.length} of ${limit} flows on ${planName(plan)}. Need more? `}
             <Link href="/settings?tab=billing" className="inline-flex items-center font-semibold underline">See plans</Link>
           </p>
         )}
@@ -170,8 +172,8 @@ export function FlowsHome() {
     <PageShell variant="wide">
       <PageHeader
         title="Flows"
-        sub="A flow is one kind of document and where its data goes."
-        actions={flows.data?.length ? <Button variant="primary" size="md" onClick={newFlow}>New flow</Button> : undefined}
+        sub="A flow is what happens to one kind of document. We sort each document into the right one."
+        actions={flows.data?.length ? <Button variant="secondary" size="md" onClick={newFlow}>New flow</Button> : undefined}
       />
       {body}
     </PageShell>

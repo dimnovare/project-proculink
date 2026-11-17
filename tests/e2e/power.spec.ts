@@ -146,8 +146,8 @@ test.describe("power tools", () => {
     }
     expect(await smallestText(page), "no text under 12.5px in Select mode on a phone").toBeGreaterThanOrEqual(12.5);
     expect(await page.locator("#main-content").evaluate((el) => Math.max(...[el, ...el.children].map((e) => e.scrollWidth - e.clientWidth)))).toBeLessThanOrEqual(1);
-    // The footer's inline controls are tap targets too.
-    expect((await box(page.getByRole("button", { name: "Search all documents" }))).height).toBeGreaterThanOrEqual(44);
+    // The footer's inline controls are tap targets too. (Its Ctrl K search shows from 768 up; on a phone History is the link.)
+    expect((await box(page.locator("#main-content").getByRole("link", { name: "History", exact: true }))).height).toBeGreaterThanOrEqual(44);
     expect((await box(page.getByRole("link", { name: "Old orders" }))).height).toBeGreaterThanOrEqual(44);
     // Everything ticked went: the result is drawn clear of the tab bar, with no Review next bar over it, and holds focus.
     await one.getByRole("button", { name: "Send" }).click();

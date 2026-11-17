@@ -71,9 +71,11 @@ interface UserChipMenuProps {
    * upward menu would clip off-screen).
    */
   placement?: "up" | "down";
+  /** On a light page (the Settings header on phones): larger initials, and hover, open and focus from the light tokens. */
+  onLight?: boolean;
 }
 
-export function UserChipMenu({ collapsed, onNavigate, placement = "up" }: UserChipMenuProps) {
+export function UserChipMenu({ collapsed, onNavigate, placement = "up", onLight }: UserChipMenuProps) {
   const clerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
   const { user } = useUser();
   const { membership } = useOrganization();
@@ -107,7 +109,7 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up" }: UserCh
         style={placement === "down" ? undefined : { borderTop: "1px solid #1F3252", padding: collapsed ? "10px 0" : "10px 14px" }}
         title={clerkConfigured ? undefined : "Clerk is not configured"}
       >
-        <AvatarCircle initials={clerkConfigured ? "…" : "MK"} />
+        <AvatarCircle initials={clerkConfigured ? "…" : "MK"} onLight={onLight} />
         {!collapsed && (
           <div className="min-w-0 flex-1" style={{ lineHeight: 1.25 }}>
             <div className="truncate text-[12.5px] font-semibold text-white">
@@ -173,20 +175,21 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up" }: UserCh
         aria-expanded={open}
         aria-label={`Account: ${name}. Open account menu`}
         title={collapsed ? name : undefined}
-        className={`flex w-full items-center flex-shrink-0 ${collapsed ? "justify-center" : "gap-2.5"}`}
+        className={`flex w-full items-center flex-shrink-0 ${collapsed ? "justify-center" : "gap-2.5"}${onLight
+          ? " rounded-card-sm p-1 hover:bg-surface-2 aria-expanded:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" : ""}`}
         style={{
           border: "none",
           borderTop: placement === "down" ? undefined : "1px solid #1F3252",
-          padding: placement === "down" ? 0 : collapsed ? "10px 0" : "10px 14px",
-          background: open ? "rgba(255,255,255,0.05)" : "transparent",
-          borderRadius: 0,
+          padding: onLight ? undefined : placement === "down" ? 0 : collapsed ? "10px 0" : "10px 14px",
+          background: onLight ? undefined : open ? "rgba(255,255,255,0.05)" : "transparent",
+          borderRadius: onLight ? undefined : 0,
           cursor: "pointer",
           transition: "background 140ms",
         }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)"; }}
-        onMouseLeave={(e) => { if (!open) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+        onMouseEnter={onLight ? undefined : (e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)"; }}
+        onMouseLeave={onLight ? undefined : (e) => { if (!open) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
       >
-        <AvatarCircle initials={initials} />
+        <AvatarCircle initials={initials} onLight={onLight} />
         {!collapsed && (
           <>
             <div className="min-w-0 flex-1 text-left" style={{ lineHeight: 1.25 }}>
@@ -275,11 +278,11 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up" }: UserCh
 }
 
 /** Dark navy initials circle (matches the design's footer avatar). */
-function AvatarCircle({ initials }: { initials: string }) {
+function AvatarCircle({ initials, onLight }: { initials: string; onLight?: boolean }) {
   return (
     <span
-      className="flex items-center justify-center rounded-full font-[700] flex-shrink-0"
-      style={{ width: 28, height: 28, fontSize: 10.5, background: "#14253D", border: "1px solid #2A3F5F", color: "#FFFFFF" }}
+      className={`flex items-center justify-center rounded-full font-[700] flex-shrink-0${onLight ? " text-[12.5px]" : ""}`}
+      style={{ width: 28, height: 28, fontSize: onLight ? undefined : 10.5, background: "#14253D", border: "1px solid #2A3F5F", color: "#FFFFFF" }}
       aria-hidden
     >
       {initials}

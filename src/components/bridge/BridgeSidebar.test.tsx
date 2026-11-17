@@ -45,7 +45,8 @@ vi.mock("@/lib/api-client", () => ({
 
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true, useTenantQueriesEnabled: () => true }));
 
-import { BridgeSidebar, buildVisibleNav, isItemActive, PINNED_ACTION_HREF } from "./BridgeSidebar";
+import { BridgeSidebar, buildVisibleNav, currentPlace, isItemActive, PINNED_ACTION_HREF } from "./BridgeSidebar";
+import { APP_PAGE_TITLES } from "@/lib/pageTitles";
 
 afterEach(() => {
   cleanup();
@@ -60,7 +61,7 @@ describe("BridgeSidebar — the document tool's nav", () => {
       ["Documents", "/documents"],
       ["Flows", "/flows"],
       ["Lookups", "/lookups"],
-      ["Activity", "/operations/log"],
+      ["History", "/operations/log"],
       ["Settings", "/settings"],
     ]);
   });
@@ -79,5 +80,27 @@ describe("BridgeSidebar — the document tool's nav", () => {
     expect(screen.getByRole("link", { name: /Upload document/i })).toHaveAttribute("href", PINNED_ACTION_HREF);
     expect(screen.getByRole("link", { name: /^Flows/i })).toHaveAttribute("aria-current", "page");
     expect(isItemActive("/flowsx", buildVisibleNav(false).main[0].items[1])).toBe(false);
+    // The panel has its own History and Lookups; only a document's review borrows Documents.
+    const LIT = { "/flows/f1/documents/d1": "Documents", "/flows/f1": "Flows", "/operations/log": "History", "/lookups": "Lookups" };
+    for (const [path, label] of Object.entries(LIT)) {
+      cleanup();
+      mockPath = path;
+      const { container } = render(<BridgeSidebar />);
+      const lit = container.querySelectorAll('[aria-current="page"]');
+      expect([path, lit.length, lit[0]?.textContent?.trim()]).toEqual([path, 1, label]);
+    }
+  });
+
+  it("every app address lights exactly the place it belongs to", () => {
+    const PLACES: Record<string, string | null> = {
+      "/upload": null, "/documents": "/documents", "/archive": "/documents", "/archive/x": "/documents",
+      "/flows": "/flows", "/flows/new": "/flows", "/flows/x": "/flows", "/flows/x/documents/x": "/documents",
+      "/flows/x/outputs/x/advanced": "/flows", "/lookups": "/flows", "/lookups/x": "/flows",
+      "/operations/log": "/documents", "/settings": "/settings", "/settings/google-callback": "/settings", "/admin": null,
+    };
+    const paths = Object.keys(APP_PAGE_TITLES).map((r) => r.replace(/\[[^\]]+\]/g, "x"));
+    expect(Object.fromEntries(paths.map((p) => [p, currentPlace(p)]))).toEqual(PLACES);
+    expect(paths.length).toBeGreaterThanOrEqual(15); // anti-vacuity: every app route has a title entry
+    expect(currentPlace("/flows/x/documents/x?from=documents")).toBe("/documents"); // a query string changes nothing
   });
 });

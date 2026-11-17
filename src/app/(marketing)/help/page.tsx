@@ -24,7 +24,7 @@ const CATEGORY_BLURB: Record<HelpCategory, string> = {
   "Sending in": "Upload, email, mailbox, SFTP, FTP, S3 and API.",
   "Files and destinations": "Choose a format, then send it by email, to a web address, to an SFTP or FTPS server, an S3 bucket, Google Drive or Google Sheets, or download it.",
   Lookups: "Translate one value into another with a list you import.",
-  Account: "Your team, API keys, plan, activity and old orders.",
+  Account: "Your team, API keys, plan, history and old orders.",
   API: "Send files in and get results out, with signed webhooks.",
 };
 

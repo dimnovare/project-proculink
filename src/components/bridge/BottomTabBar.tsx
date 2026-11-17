@@ -4,14 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { MoreHorizontal, Plus } from "lucide-react";
-import { buildVisibleNav, isItemActive, PHONE_TAB_HREFS, PINNED_ACTION_HREF, type SidebarNavItem } from "./BridgeSidebar";
+import { Plus } from "lucide-react";
+import { buildVisibleNav, currentPlace, PHONE_TAB_HREFS, PINNED_ACTION_HREF, type SidebarNavItem } from "./BridgeSidebar";
 import { AddSheet } from "@/components/flows/AddSheet";
 import { flowsQuery, needsYouQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { pageTotal } from "@/lib/pageTotal";
 
-const MORE_ROOTS = ["/lookups", "/settings", "/admin", "/archive"];
 const FULL_SCREEN = [/^\/flows\/new$/, /^\/flows\/[^/]+\/documents\/[^/]+$/, /^\/flows\/[^/]+\/outputs\/[^/]+\/advanced$/];
 
 /** Review, setup and the Advanced view fill a phone screen: no tab bar there. */
@@ -26,11 +25,11 @@ export function needsYouBadge(total: number | undefined): string | null {
 }
 
 // "!" because the phone tap-floor rule in globals.css sets a 44px minimum with !important.
-// No side padding: "Documents" needs a full fifth of a 360px screen. The focus ring sits
+// No side padding, so "Documents" fits a quarter of a 360px screen. The focus ring sits
 // inside the target so the screen edge cannot clip it on the first and last tab.
 const TAB = "relative flex !min-h-[50px] min-w-0 flex-col items-center justify-center gap-0.5 text-[12.5px] text-ink-muted focus-visible:[outline-offset:-3px]";
 
-export function BottomTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpen: boolean }) {
+export function BottomTabBar() {
   const pathname = usePathname();
   const engine = useDocumentEngine();
   const tenantReady = useTenantQueriesEnabled();
@@ -44,12 +43,10 @@ export function BottomTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpe
   const badge = needsYouBadge(total);
   const navItems = buildVisibleNav(false).main[0].items;
   const [first, second, third] = PHONE_TAB_HREFS.flatMap((h) => navItems.filter((i) => i.href === h));
-  const moreActive = MORE_ROOTS.some((r) => pathname === r || !!pathname?.startsWith(r + "/"));
-  const tab = (active: boolean) => `${TAB} ${active ? "font-semibold text-ink" : "font-medium"}`;
   const link = (item?: SidebarNavItem) => {
     if (!item) return null;
     const href = item.href;
-    const active = !!pathname && isItemActive(pathname, item);
+    const active = !!pathname && currentPlace(pathname) === href;
     const Icon = item.icon;
     const count = href === PHONE_TAB_HREFS[0] ? badge : null;
     return (
@@ -58,7 +55,7 @@ export function BottomTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpe
         href={href}
         aria-current={active ? "page" : undefined}
         aria-label={count ? `${item.label}, ${total} ${total === 1 ? "needs" : "need"} you` : undefined}
-        className={tab(active)}
+        className={`${TAB} ${active ? "font-semibold text-ink" : "font-medium"}`}
       >
         <span className="relative inline-flex">
           <Icon size={22} aria-hidden />
@@ -83,7 +80,7 @@ export function BottomTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpe
       <nav
         aria-label="Main"
         data-testid="tab-bar"
-        className="plk-tabbar fixed inset-x-0 bottom-0 z-drawer grid grid-cols-5 items-end border-t border-border bg-surface pt-1 md:hidden"
+        className="plk-tabbar fixed inset-x-0 bottom-0 z-drawer grid grid-cols-4 items-end border-t border-border bg-surface pt-1 md:hidden"
         style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}
       >
         {link(first)}
@@ -105,16 +102,6 @@ export function BottomTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpe
           </Link>
         )}
         {link(third)}
-        <button
-          type="button"
-          aria-haspopup="dialog"
-          aria-expanded={moreOpen}
-          onClick={onMore}
-          className={tab(moreActive)}
-        >
-          <MoreHorizontal size={22} aria-hidden />
-          <span>More</span>
-        </button>
       </nav>
       {adding && <AddSheet onClose={() => setAdding(false)} />}
     </>

@@ -216,7 +216,7 @@ test.describe("help panel", () => {
     await expect(page).toHaveURL(/\/documents$/);
     await expect(panel.getByRole("heading", { name: "Documents and their statuses" })).toBeVisible();
     await expect(panel.getByText("Open Documents to see everything that has arrived.", { exact: false })).toBeVisible();
-    const other = panel.getByRole("link", { name: "Activity and notifications" });
+    const other = panel.getByRole("link", { name: "History and notifications" });
     await expect(other).toHaveAttribute("target", "_blank");
     await expect(other).toHaveAttribute("rel", /noopener/);
     expect(await panel.locator("iframe, frame, object, embed").count()).toBe(0);
@@ -254,8 +254,8 @@ test.describe("help panel", () => {
         const control = c.role === "summary" ? main.locator("summary").filter({ hasText: c.name }) : main.getByRole(c.role, { name: c.name });
         await expect(control.first(), `${path} has no ${c.role} ${c.name}`).toBeVisible();
       }
-      // Settings opens on Workspace, which saves as you type and has no filled button (plan 14.7b).
-      expect(await filledButtons(page), "the screen's filled buttons with the panel open").toHaveLength(path === "/settings" ? 0 : 1);
+      // Settings opens on Workspace, which saves as you type and has no filled button (plan 14.7b); on Flows "New flow" is outlined (plan 16b).
+      expect(await filledButtons(page), "the screen's filled buttons with the panel open").toHaveLength(path === "/settings" || path === "/flows" ? 0 : 1);
     });
   }
 

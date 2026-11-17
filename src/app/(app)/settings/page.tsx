@@ -8,15 +8,17 @@ import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { Card } from "@/components/bridge/layout/Card";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Copy, Plus } from "lucide-react";
+import { AlertTriangle, ChevronRight, Copy, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { BillingSection } from "@/components/bridge/BillingSection";
 import { SavedMark, SettingsPanel } from "@/components/settings/SettingsPrimitives";
-import { Button, Pill } from "@/components/bridge/DSPrimitives";
-import { membershipRoleLabel, nameInitials } from "@/components/bridge/UserChipMenu";
+import { Button, buttonClass, Pill } from "@/components/bridge/DSPrimitives";
+import { membershipRoleLabel, nameInitials, UserChipMenu } from "@/components/bridge/UserChipMenu";
+import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { Failed, Quiet } from "@/components/flows/states";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import {
+  checkAdminAccess,
   getBillingStatus,
   getApiKeys,
   createApiKey,
@@ -51,10 +53,20 @@ function SettingsScreen() {
   const orgName   = organization?.name ?? "…";
   // Until billing has loaded (or when it fails) the header names only the workspace.
   const planLabel = billing && planDisplayName(billing.plan);
+  // The top bar's own staff check (same key and options), so the two share one request.
+  const staff = useQuery({ queryKey: ["admin-access"], queryFn: checkAdminAccess, enabled: useTenantQueriesEnabled(), staleTime: 300_000, retry: false }).data === true;
 
   return (
     <PageShell variant="wide">
-      <PageHeader title="Settings" sub={organization && (billing ? `${orgName}, on the ${planLabel}` : orgName)} />
+      {/* Phones have no account chip in the top bar: the account menu, and Admin for staff, sit here. */}
+      <PageHeader
+        title="Settings"
+        sub={organization && (billing ? `${orgName}, on the ${planLabel}` : orgName)}
+        actions={<div className="flex items-center gap-2 md:hidden">
+          {staff && <Link href="/admin" className={buttonClass("secondary", "sm")}>Admin</Link>}
+          <UserChipMenu collapsed placement="down" onLight />
+        </div>}
+      />
       <nav aria-label="Settings sections" className="mb-5 flex gap-1 overflow-x-auto shadow-[inset_0_-1px_0_var(--border)]">
         {SETTINGS_TABS.map((t) => {
           const on = tab === t.id;
@@ -202,9 +214,12 @@ function OrgSection({ developersOpen }: { developersOpen: boolean }) {
         )}
         <NotificationEmailSection />
         <details open={developers} onToggle={(e) => setDevelopers(e.currentTarget.open)} className="grid gap-4">
-          <summary className="grid min-h-11 cursor-pointer content-center gap-0.5 rounded-card border border-border bg-surface px-6 py-3 max-[560px]:px-4">
-            <span className="text-[14px] font-semibold text-ink">For developers</span>
-            <span className="text-[13px] text-ink-muted">API keys, for connecting another system to this workspace.</span>
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-card border border-border bg-surface px-6 py-3 max-[560px]:px-4 [&::-webkit-details-marker]:hidden">
+            <ChevronRight size={16} aria-hidden data-disclosure-chevron />
+            <span className="grid gap-0.5">
+              <span className="text-[14px] font-semibold text-ink">For developers</span>
+              <span className="text-[13px] text-ink-muted">API keys, for connecting another system to this workspace.</span>
+            </span>
           </summary>
           {developers && <div className="mt-4"><ApiKeysSection /></div>}
         </details>

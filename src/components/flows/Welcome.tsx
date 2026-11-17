@@ -168,9 +168,10 @@ export function Welcome({ flows, flowId }: { flows: readonly Flow[]; flowId?: st
           <section aria-labelledby="welcome-flow-heading" className="text-[14px] text-ink-muted">
             <h2 id="welcome-flow-heading" className="m-0 mb-1 hidden text-[14px] font-semibold text-ink sm:block">What is a flow?</h2>
             <p className="m-0 hidden sm:block">
-              A flow is one kind of document and where its data goes, for example supplier invoices into your accounting system. We create your first flow from this document.
+              A flow is what happens to one kind of document, for example supplier invoices sent to your accounting system.{" "}
+              {first ? "We create your first flow from this document." : "We set this flow up from this document."}
             </p>
-            <p className="m-0 sm:hidden">We set up your first flow from it. A flow is one kind of document and where its data goes.</p>
+            <p className="m-0 sm:hidden">{first ? "We set up your first flow from it." : "We set this flow up from it."} A flow is what happens to one kind of document.</p>
           </section>
         </aside>
       </div>

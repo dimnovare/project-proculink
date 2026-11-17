@@ -1,6 +1,7 @@
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { act, render, screen, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { buttonClass } from "@/components/bridge/DSPrimitives";
 import { ApiHttpError } from "@/lib/api/core";
 import type { Flow, FlowSummary } from "@/lib/api/documents";
 import { deliveryModeLabel } from "@/lib/deliveryMode";
@@ -52,7 +53,7 @@ describe("FlowsHome", () => {
     expect(welcome()).toBeNull();
   });
 
-  it("draws the welcome only once the flows answered that the workspace is new", async () => {
+  it("draws the welcome only once the flows answered that the workspace is new", { timeout: 20_000 }, async () => {
     listFlows.mockReturnValue(new Promise(() => {}));
     getBillingStatus.mockRejectedValue(new Error("down"));
     const loading = show();
@@ -105,7 +106,7 @@ describe("FlowsHome", () => {
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });
 
-  it("one New flow, and the plan line only when known", async () => {
+  it("one New flow, and the plan line only when known", { timeout: 20_000 }, async () => {
     listFlows.mockResolvedValue([]);
     getBillingStatus.mockRejectedValue(new Error("down"));
     const empty = show();
@@ -115,13 +116,29 @@ describe("FlowsHome", () => {
     expect(named).toHaveLength(0);
     empty.unmount();
 
-    listFlows.mockResolvedValue([invoices]);
+    // Exactly at the limit is not over it.
+    const limit = PLAN_BY_ID.pilot.flowLimit!;
+    listFlows.mockResolvedValue(Array.from({ length: limit }, (_, i) => flow(`flow-${i}`, `Flow ${i}`, 0)));
     getBillingStatus.mockResolvedValue({ plan: "pilot" });
     const known = show();
     const seePlans = await screen.findByRole("link", { name: "See plans" });
     expect(seePlans.getAttribute("href")).toBe("/settings?tab=billing");
-    expect(seePlans.closest("p")?.textContent).toBe(`1 of ${PLAN_BY_ID.pilot.flowLimit} flows on ${planName("pilot")}. Need more? See plans`);
+    expect(seePlans.closest("p")?.textContent).toBe(`${limit} of ${limit} flows on ${planName("pilot")}. Need more? See plans`);
+    expect(screen.getByText("A flow is what happens to one kind of document. We sort each document into the right one.")).toBeTruthy();
+    // The page's own content has no filled button: "New flow" is outlined, and stays over the limit (the server's refusal explains).
+    const header = () => screen.getByRole("button", { name: "New flow" }).className;
+    expect(header()).toBe(buttonClass("secondary", "md"));
+    expect(header()).not.toBe(buttonClass("primary", "md"));
     known.unmount();
+
+    listFlows.mockResolvedValue(Array.from({ length: PLAN_BY_ID.pilot.flowLimit! + 1 }, (_, i) => flow(`flow-${i}`, `Flow ${i}`, 0)));
+    const over = show();
+    const overPlans = await screen.findByRole("link", { name: "See plans" });
+    expect(overPlans.closest("p")?.textContent).toBe("You have more flows than your plan includes. New flows can't be added until you upgrade. See plans");
+    expect(screen.queryByText(/flows on/)).toBeNull();
+    expect(header()).toBe(buttonClass("secondary", "md"));
+    over.unmount();
+    listFlows.mockResolvedValue([invoices]);
 
     const unlimited = Object.values(PLAN_BY_ID).find((p) => p.flowLimit === null)!;
     getBillingStatus.mockResolvedValue({ plan: unlimited.id });

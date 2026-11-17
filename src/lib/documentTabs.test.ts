@@ -1,15 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { DOCUMENT_TABS, documentsAddress, documentsHelper, readDocumentsAddress, startOfWeek } from "./documentTabs";
+import { BEING_READ_STATUSES, DOCUMENT_TABS, documentsAddress, documentsHelper, readDocumentsAddress, startOfWeek } from "./documentTabs";
 
 describe("documentTabs", () => {
   it("derives each tab's statuses from the status table and reads only an address it understands", () => {
     expect(DOCUMENT_TABS.map((t) => [t.id, t.label, t.statuses])).toEqual([
       ["needs-you", "Needs you", ["needs_review", "ready"]],
-      ["in-progress", "In progress", ["received", "reading", "sending"]],
       ["sent", "Sent", ["sent"]],
       ["failed", "Couldn't send or read", ["read_failed", "send_failed"]],
       ["all", "All", null],
     ]);
+    expect(BEING_READ_STATUSES).toEqual(["received", "reading"]);
     const read = (q: string) => readDocumentsAddress(new URLSearchParams(q));
     expect(read("")).toEqual({ tab: null, page: 1 });
     expect(read("show=sent&page=3")).toEqual({ tab: "sent", page: 3 });
@@ -32,5 +32,10 @@ describe("documentTabs", () => {
     expect(documentsHelper(0, 0)).toBe("Nothing needs you.");
     expect(documentsHelper(2, undefined)).toBe("2 need you.");
     expect(documentsHelper(undefined, 24)).toBeNull();
+    expect(documentsHelper(3, 24, 2)).toBe("3 need you. 2 being read. 24 were sent this week.");
+    expect(documentsHelper(0, 0, 1)).toBe("Nothing needs you. 1 being read.");
+    expect(documentsHelper(3, 24, 0)).toBe("3 need you. 24 were sent this week.");
+    expect(documentsHelper(3, 24, undefined)).toBe("3 need you. 24 were sent this week.");
+    expect(documentsHelper(undefined, 24, 2)).toBeNull();
   });
 });

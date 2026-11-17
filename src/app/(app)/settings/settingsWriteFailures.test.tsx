@@ -30,6 +30,7 @@ vi.mock("@clerk/nextjs", () => ({
   useUser: () => ({ user: undefined }),
   useClerk: () => ({}),
 }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => false })); // the header's staff check stays idle
 // `tab=api` opens Workspace with For developers open; the rest of Workspace is not what these tests are about.
 vi.mock("@/components/pwa/InstallPanel", () => ({ InstallPanel: () => null }));
 

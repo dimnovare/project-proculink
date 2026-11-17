@@ -8,7 +8,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, FileText, Keyboard, LifeBuoy, Plus, Search, Settings, Table2, Upload, Workflow } from "lucide-react";
+import { Clock, FileText, Keyboard, LifeBuoy, Plus, Search, Settings, Table2, Upload, Workflow } from "lucide-react";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { flowsQuery } from "@/hooks/useDocumentEngine";
@@ -24,7 +24,7 @@ import { Pill } from "./DSPrimitives";
 import { buildMapperCommands, dispatchMapper } from "./mapper/mapperCommands";
 
 const NAME = "Search documents, flows, lookups and actions";
-/** R5: the same pause as Activity's search. */
+/** R5: the same pause as History's search. */
 const PAUSE_MS = 300;
 /** R7: the first three actions show with or without a term. */
 const ALWAYS = 3;
@@ -97,7 +97,7 @@ export function CommandPalette({ onClose, onShortcuts }: { onClose: () => void; 
   const actions: Option[] = [
     { id: "upload", label: "Upload a document", href: "/upload", icon: icon(Upload) },
     { id: "new-flow", label: "New flow", href: "/flows/new", icon: icon(Plus) },
-    { id: "activity", label: "Open Activity", href: "/operations/log", icon: icon(Activity) },
+    { id: "activity", label: "Open History", href: "/operations/log", icon: icon(Clock) },
     { id: "lookups", label: "Open Lookups", href: "/lookups", icon: icon(Table2) },
     { id: "shortcuts", label: "Keyboard shortcuts", run: onShortcuts, icon: icon(Keyboard) },
     { id: "settings", label: "Settings", href: "/settings", icon: icon(Settings) },

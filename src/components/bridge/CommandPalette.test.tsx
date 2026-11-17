@@ -87,7 +87,7 @@ describe("CommandPalette", () => {
     expect(dialog.getAllByRole("group").map((g) => g.getAttribute("aria-label"))).toEqual(["Actions"]);
     const actions = within(dialog.getByRole("group", { name: "Actions" })).getAllByRole("option");
     expect(actions).toHaveLength(3);
-    ["Upload a document", "New flow", "Open Activity"].forEach((name, i) => expect(actions[i]).toHaveAccessibleName(name));
+    ["Upload a document", "New flow", "Open History"].forEach((name, i) => expect(actions[i]).toHaveAccessibleName(name));
 
     fireEvent.change(box, { target: { value: "invoice" } });
     await wait(310);

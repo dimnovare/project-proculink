@@ -20,7 +20,7 @@ import { UserChipMenu } from "./UserChipMenu";
 
 // ─── Nav structure ───────────────────────────────────────────────────────────
 //
-// One flat section, no group headers: Documents · Flows · Lookups · Activity ·
+// One flat section, no group headers: Documents · Flows · Lookups · History ·
 // Settings. The order product's hubs (Orders → /inbox, Activity → /bridge) went
 // with its screens; both URLs 308 to their successors (src/lib/retired-routes.ts).
 // Guarded by BridgeSidebar.test.tsx (reachability) and navRoutesResolve.test.ts
@@ -38,11 +38,11 @@ export type SidebarNavSection = { group?: string; items: SidebarNavItem[] };
 export const PINNED_ACTION_HREF = "/upload";
 
 /** The pages the phone tab bar carries. The navigation panel hides them on phones. */
-export const PHONE_TAB_HREFS: readonly string[] = ["/documents", "/flows", "/operations/log"];
+export const PHONE_TAB_HREFS: readonly string[] = ["/documents", "/flows", "/settings"];
 /** The pages the desktop top bar carries (R19). The rest of NAV_MAIN is reached from these and from Ctrl K. */
 export const TOP_BAR_HREFS: readonly string[] = ["/documents", "/flows", "/settings"];
 /** A page not in the top bar lights the place it is reached from. */
-export const TOP_BAR_PARENT: Readonly<Record<string, string>> = { "/lookups": "/flows", "/operations/log": "/documents" };
+export const TOP_BAR_PARENT: Readonly<Record<string, string>> = { "/lookups": "/flows", "/operations/log": "/documents", "/archive": "/documents" };
 
 const NAV_MAIN: SidebarNavSection[] = [
   {
@@ -50,7 +50,7 @@ const NAV_MAIN: SidebarNavSection[] = [
       { label: "Documents", href: "/documents", icon: FileText },
       { label: "Flows", href: "/flows", icon: Workflow },
       { label: "Lookups", href: "/lookups", icon: ArrowRightLeft },
-      { label: "Activity", href: "/operations/log", icon: Clock },
+      { label: "History", href: "/operations/log", icon: Clock },
       { label: "Settings", href: "/settings", icon: Settings },
     ],
   },
@@ -98,10 +98,18 @@ export function isItemActive(pathname: string, item: SidebarNavItem): boolean {
   return pathname === path || pathname.startsWith(path + "/");
 }
 
+/** The one top-bar place an address lights, or null for none (Upload and Admin have their own controls).
+ *  A document's review lights Documents first: its address also starts with /flows/. */
+export const isReviewAddress = (pathname: string) => /^\/flows\/[^/]+\/documents\/[^/]+/.test(pathname);
+export function currentPlace(pathname: string): string | null {
+  if (isReviewAddress(pathname)) return "/documents";
+  const lit = (href: string) => isItemActive(pathname, { label: "", href, icon: FileText });
+  return TOP_BAR_HREFS.find(lit) ?? Object.entries(TOP_BAR_PARENT).find(([child]) => lit(child))?.[1] ?? null;
+}
+
 /** The top bar's lit place: its own page, or a page it does not carry that is reached from it. */
 export function isTopBarActive(pathname: string, item: SidebarNavItem): boolean {
-  return isItemActive(pathname, item)
-    || Object.entries(TOP_BAR_PARENT).some(([child, parent]) => parent === item.href && isItemActive(pathname, { ...item, href: child }));
+  return currentPlace(pathname) === item.href;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -207,7 +215,8 @@ export function BridgeSidebar({
   const isCollapsed = (collapseBelowLg && belowLg) || (collapsible && autoCollapsed) || (collapsible && collapsed);
 
   const renderItem = (item: SidebarNavItem) => {
-    const active = isItemActive(pathname, item);
+    // A document's review lights Documents (as the top bar and the phone bar do); every other address its own item.
+    const active = isReviewAddress(pathname) ? item.href === "/documents" : isItemActive(pathname, item);
     const Ico = item.icon;
     // Collapsed rail → the label (icons only); expanded items show their label.
     const title = isCollapsed ? item.label : undefined;

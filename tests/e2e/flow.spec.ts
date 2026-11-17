@@ -310,6 +310,41 @@ test.describe("flow page", () => {
     expect(overlap, `Use these changes overlaps the Add button: ${JSON.stringify({ bar: b, tabBar: t, add: a, publish: p })}`).toBe(false);
   });
 
+  test("Arrives leads with the workspace address, and this flow's own is one press away, at 1440 and 360", async ({ page }) => {
+    await open(page, 1440, at("arrives"));
+    for (const width of [1440, 360]) {
+      await page.setViewportSize({ width, height: width < 768 ? 844 : 900 });
+      await page.goto(at("arrives"));
+      await settle(page);
+      const main = page.locator("#main-content");
+      await expect(main.getByText("Send any document to", { exact: false })).toContainText(/@inbound\.example\.test/);
+      await expect(main.getByRole("button", { name: "Copy address" })).toBeVisible();
+      const own = main.locator("details").filter({ has: page.locator("summary", { hasText: "This flow's own address" }) });
+      await expect(own).not.toHaveAttribute("open");
+      await expect(main.getByText("invoices@in.example.test")).toBeHidden();
+      await own.locator("summary").click();
+      await expect(own).toHaveAttribute("open", "");
+      await expect(own.getByText("invoices@in.example.test")).toBeVisible();
+      await expect(own.getByRole("button", { name: "Copy email address" })).toBeVisible();
+      expect(await main.evaluate((el) => Math.max(...[el, ...el.children].map((e) => e.scrollWidth - e.clientWidth))), `sideways scroll at ${width}`).toBeLessThanOrEqual(1);
+    }
+    expect(await sends(page)).toEqual([]);
+  });
+
+  test("Arrives names the + button on a phone and the top bar's Upload from 768 up", async ({ page }) => {
+    const PHONE = "Or add a file with the + button at the bottom of the screen.";
+    const WIDE = "Or drop a file on this flow's Documents page, or press Upload in the top bar.";
+    await open(page, 390, at("arrives"));
+    for (const [width, shown, hidden] of [[390, PHONE, WIDE], [1440, WIDE, PHONE]] as const) {
+      await page.setViewportSize({ width, height: width < 768 ? 844 : 900 });
+      await page.goto(at("arrives"));
+      await settle(page);
+      const main = page.locator("#main-content");
+      await expect(main.getByText(shown, { exact: true }), `at ${width}`).toBeVisible();
+      await expect(main.getByText(hidden, { exact: true }), `at ${width}`).toBeHidden();
+    }
+  });
+
   const WIDTHS = [1440, 1024, 768, 390, 360] as const;
   const VIEWS = ["arrives", "read", "check", "send", "documents"] as const;
 

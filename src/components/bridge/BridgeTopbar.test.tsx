@@ -26,7 +26,7 @@ describe("BridgeTopbar", () => {
 
   it("is one row: one Main navigation with three places, and Upload", () => {
     // A page the bar does not carry lights the place it is reached from.
-    for (const [path, lit] of [["/lookups", "Flows"], ["/lookups/l1", "Flows"], ["/operations/log", "Documents"]]) {
+    for (const [path, lit] of [["/lookups", "Flows"], ["/lookups/l1", "Flows"], ["/operations/log", "Documents"], ["/flows/f1/documents/d1", "Documents"], ["/archive", "Documents"]]) {
       mockPath = path;
       render(<BridgeTopbar />);
       const main = screen.getByRole("navigation", { name: "Main" });

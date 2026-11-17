@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CopyButton } from "@/components/bridge/CopyButton";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useConfirm } from "@/components/ui/confirm";
+import { inboxQuery } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import {
   createIntake, deleteIntake, flowApiEndpoint, listIntakes, newIntakeAddress, testIntake, updateIntake,
@@ -15,6 +17,7 @@ import {
 import type { Flow, FlowIntake, IntakeRequest } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { kindsLine } from "@/lib/fileKinds";
+import { flowAddress } from "@/lib/flowSteps";
 import { Field, INPUT } from "./DestinationForm";
 import { PICKUP_KINDS, PickupForm } from "./PickupForm";
 import { Failed, Quiet } from "./states";
@@ -32,10 +35,11 @@ type Run = ReturnType<typeof useRun>;
 const Refused = ({ run }: { run: Run }) =>
   run.isError ? <StatusNotice tone="error">{documentRefusalMessage(run.error)}</StatusNotice> : null;
 
-/** Only the two statuses the worker writes get a tone; anything else is printed plain. */
+/** Only the two statuses the worker writes get a tone; anything else is printed plain. A toned run needs the person. */
+const runTone = (i: FlowIntake) => (i.lastStatus === "paused" ? "warning" : i.lastStatus === "failed" ? "error" : null);
 function LastRun({ intake }: { intake: FlowIntake }) {
   if (!intake.lastMessage) return null;
-  const tone = intake.lastStatus === "paused" ? "warning" : intake.lastStatus === "failed" ? "error" : null;
+  const tone = runTone(intake);
   return tone ? <StatusNotice tone={tone}>{intake.lastMessage}</StatusNotice>
     : <p className="m-0 text-[12.5px] text-ink-muted">{intake.lastMessage}</p>;
 }
@@ -54,7 +58,8 @@ function OnOff({ intake, flowId, run }: { intake: FlowIntake; flowId: string; ru
   );
 }
 
-function EmailCard({ flowId, intake }: { flowId: string; intake: FlowIntake }) {
+/** This flow's own address: address and Copy, On, the last run, and a new address (asks first) or a first one (does not). */
+function OwnAddress({ flowId, intake }: { flowId: string; intake: FlowIntake }) {
   const confirm = useConfirm();
   const run = useRun(flowId);
   const ask = async () => {
@@ -62,27 +67,39 @@ function EmailCard({ flowId, intake }: { flowId: string; intake: FlowIntake }) {
       run.mutate(() => newIntakeAddress(flowId, intake.id));
   };
   return (
+    <div className="grid gap-3">
+      {intake.address && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="break-all font-mono text-[13px]">{intake.address}</span>
+          <CopyButton text={intake.address} />
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-3">
+        <OnOff intake={intake} flowId={flowId} run={run} />
+        {intake.address
+          ? <Button variant="secondary" size="sm" loading={run.isPending} onClick={ask}>Get a new address</Button>
+          : <Button variant="secondary" size="sm" loading={run.isPending} onClick={() => run.mutate(() => newIntakeAddress(flowId, intake.id))}>Get an address</Button>}
+      </div>
+      <LastRun intake={intake} />
+      <Refused run={run} />
+    </div>
+  );
+}
+
+function EmailCard({ flowId, intake }: { flowId: string; intake: FlowIntake }) {
+  return (
     <Card edge="blue" title="Email">
       <div className="grid gap-3">
         <p className="m-0 text-[13px] text-ink-muted">
           Forward or send documents to this address. Each attached file we can read becomes a document in this flow.
         </p>
-        {intake.address ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="break-all font-mono text-[13px]">{intake.address}</span>
-            <CopyButton text={intake.address} />
-          </div>
-        ) : <Quiet>This flow has no address right now.</Quiet>}
-        <div className="flex flex-wrap items-center gap-3">
-          <OnOff intake={intake} flowId={flowId} run={run} />
-          <Button variant="secondary" size="sm" loading={run.isPending} onClick={ask}>Get a new address</Button>
-        </div>
-        <LastRun intake={intake} />
-        <Refused run={run} />
+        <OwnAddress flowId={flowId} intake={intake} />
       </div>
     </Card>
   );
 }
+
+const SUMMARY = "flex min-h-11 cursor-pointer list-none items-center gap-1.5 text-[14px] font-semibold text-ink [&::-webkit-details-marker]:hidden";
 
 const useIntakes = (flowId: string) => {
   const enabled = useTenantQueriesEnabled();
@@ -159,7 +176,7 @@ function PickupsCard({ flowId, pickups }: { flowId: string; pickups: FlowIntake[
   if (editing)
     return <PickupForm key={editing === "new" ? "new" : editing.id} flowId={flowId} intake={editing === "new" ? undefined : editing} onDone={() => setEditing(null)} />;
   return (
-    <Card edge="blue" title="Pick up from a mailbox or server">
+    <Card edge="blue" title="Collect from a mailbox or a server">
       <div className="grid gap-3">
         <p className="m-0 text-[13px] text-ink-muted">We collect new files from a mailbox, a server or an S3 bucket you already use, so nobody has to forward them.</p>
         {pickups.length === 0 && <Quiet>No pickups yet.</Quiet>}
@@ -189,10 +206,24 @@ function PickupsCard({ flowId, pickups }: { flowId: string; pickups: FlowIntake[
   );
 }
 
-/** The Arrives step: upload, email, pickups, and the API folded away for developers. Every button here is outlined:
+/** How to add a file by hand, in both layouts: under 768 there is no Upload in the top bar, only the round + at the bottom. */
+/** `or={false}` where nothing before it in the card is an alternative (the Upload card). */
+const AddFileLine = ({ flowId, or = true }: { flowId: string; or?: boolean }) => (
+  <p className="m-0 text-[13px] text-ink-muted">
+    <span className="hidden md:inline">
+      {or ? "Or drop" : "Drop"} a file on this flow&apos;s <Link href={flowAddress(flowId, "documents")} className="text-brand-blue underline">Documents</Link> page, or press Upload in the top bar.
+    </span>
+    <span className="md:hidden">{or ? "Or add" : "Add"} a file with the + button at the bottom of the screen.</span>
+  </p>
+);
+
+/** The Arrives step: the workspace address when known (this flow's own folded under it), else this flow's email and upload; pickups; the API folded away for developers. Every button here is outlined:
  *  the publish bar under the step holds the one filled button. */
 export function FlowIntakePanel({ flow }: { flow: Flow }) {
   const intakes = useIntakes(flow.id);
+  const inbox = useQuery({ ...inboxQuery, staleTime: 60_000, enabled: useTenantQueriesEnabled() });
+  // Only from an answer that has not failed since, and never this flow's own address folded under itself.
+  const workspace = !inbox.isError && inbox.data?.address && inbox.data.flowId !== flow.id ? inbox.data.address : null;
   const body = () => {
     if (intakes.isError && !intakes.data) return <Failed error={intakes.error} retry={() => intakes.refetch()} />;
     if (!intakes.data) return <Quiet>Loading…</Quiet>;
@@ -200,10 +231,21 @@ export function FlowIntakePanel({ flow }: { flow: Flow }) {
     const api = intakes.data.find((i) => i.kind === "api");
     return (
       <>
-        {email && <EmailCard flowId={flow.id} intake={email} />}
+        {email && workspace && (
+          <details open={runTone(email) !== null}>
+            <summary className={SUMMARY}>
+              <ChevronRight size={16} aria-hidden data-disclosure-chevron />
+              <span className="grid">
+                This flow&apos;s own address
+                <span className="text-[13px] font-normal text-ink-muted">Documents sent there skip the sorting and go straight into this flow.</span>
+              </span>
+            </summary>
+            <div className="mt-2"><OwnAddress flowId={flow.id} intake={email} /></div>
+          </details>
+        )}
         <PickupsCard flowId={flow.id} pickups={intakes.data.filter((i) => i.kind !== "email" && i.kind !== "api")} />
         <details>
-          <summary className="inline-flex min-h-11 cursor-pointer items-center text-[14px] font-semibold text-ink">For developers</summary>
+          <summary className={SUMMARY}><ChevronRight size={16} aria-hidden data-disclosure-chevron />For developers</summary>
           <div className="mt-2 grid gap-3">
             <p className="m-0 text-[13px] text-ink-muted">Send documents from another system, and be told when one is read or sent.</p>
             <ApiCard flowId={flow.id} intake={api} />
@@ -212,16 +254,31 @@ export function FlowIntakePanel({ flow }: { flow: Flow }) {
       </>
     );
   };
+  const email = !workspace && intakes.data?.find((i) => i.kind === "email");
   return (
     <section aria-labelledby={`arrives-${flow.id}`} className="grid gap-4">
-      <div className="grid gap-0.5">
-        <h2 id={`arrives-${flow.id}`} className="m-0 text-[16px] font-semibold text-ink">How documents arrive</h2>
-        <p className="m-0 text-[13px] text-ink-muted">Three ways in. Use one, or all of them.</p>
-      </div>
-      <Card title="Upload" sub="Always on. Nothing to set up.">
-        <p className="m-0 text-[13px] text-ink-muted">Drop a file on this flow&apos;s Documents page, or press Upload in the top bar.</p>
-        <p className="m-0 mt-1 text-[13px] text-ink-muted">{kindsLine(flow)}</p>
-      </Card>
+      <h2 id={`arrives-${flow.id}`} className="m-0 text-[16px] font-semibold text-ink">How documents arrive</h2>
+      {workspace ? (
+        <Card edge="blue">
+          <div className="grid gap-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="m-0 text-[14px] text-ink">Send any document to <span className="break-all font-mono">{workspace}</span></p>
+              <CopyButton text={workspace} label="Copy address" />
+            </div>
+            <p className="m-0 text-[13px] text-ink-muted">We work out which flow each document belongs to.</p>
+            <AddFileLine flowId={flow.id} />
+            <p className="m-0 text-[13px] text-ink-muted">{kindsLine(flow)}</p>
+          </div>
+        </Card>
+      ) : (
+        <>
+          {email && <EmailCard flowId={flow.id} intake={email} />}
+          <Card title="Upload" sub="Always on. Nothing to set up.">
+            <AddFileLine flowId={flow.id} or={false} />
+            <p className="m-0 mt-1 text-[13px] text-ink-muted">{kindsLine(flow)}</p>
+          </Card>
+        </>
+      )}
       {body()}
     </section>
   );

@@ -19,6 +19,16 @@ const looksLikeCode = (t: string) => {
   return /^[\w./\-[\]:?=&#]+$/.test(t) && !/^[A-Z][a-z]+$/.test(t);
 };
 
+/** A module path (`import … from "x"`, `export … from "x"`, `import("x")`, `require("x")`, the type `import("x").T`),
+ *  decided by its parent node. */
+const isModulePath = (n: ts.Node) => {
+  const p = n.parent;
+  return ((ts.isImportDeclaration(p) || ts.isExportDeclaration(p)) && p.moduleSpecifier === n)
+    || (ts.isLiteralTypeNode(p) && ts.isImportTypeNode(p.parent) && p.parent.argument === p)
+    || (ts.isCallExpression(p) && p.arguments[0] === n
+      && (p.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(p.expression) && p.expression.text === "require")));
+};
+
 /** Person-read text of a source file: string literals, template-literal text and JSX text, comments stripped.
  *  Only a WHOLE string literal with no space that looks like code is a key, a route or an id. A piece of a template
  *  literal (`${n} outputs`) and JSX text are always read: a piece is part of a sentence, whatever its shape. */
@@ -29,6 +39,7 @@ export function personText(source: string): string[] {
       const t = n.text.replace(/\s+/g, " ").trim();
       if (t) out.push(t);
     } else if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) {
+      if (isModulePath(n)) return;
       const t = n.text.trim();
       if (t && !looksLikeCode(t)) out.push(t);
     } else if (ts.isTemplateHead(n) || ts.isTemplateMiddle(n) || ts.isTemplateTail(n)) {
@@ -79,7 +90,8 @@ const MAPPER = inDir("src/components/bridge/mapper");
  *  the panes take only field labels from it, and the rest of it is developer notes. */
 const MAPPER_FED = [
   "src/components/flows/advanced/flowMapperModel.ts",
-  "src/components/flows/advanced/flowMapperAdapter.ts",
+  // Not flowMapperAdapter.ts: it has no words of its own; the errors it passes to the panes are documentRefusals.ts's.
+  "src/lib/documentRefusals.ts",
   "src/lib/sourceDocument.ts",
 ];
 
@@ -102,6 +114,12 @@ const labels = (source: string) => [...source.matchAll(/\blabel: "([^"]*)"/g)].m
  *  sweep's "generated output", a Stripe "draft" invoice), so they are not read. */
 const CORPUS = [...APP_DIRS.flatMap(inDir).filter((f) => !f.startsWith("src/app/(app)/admin/")), ...OTHER_FILES, ...HELP_PAGES];
 
+/** The shell files that draw the page's name, read only for this rule. */
+const SHELL = ["src/components/bridge/BridgeSidebar.tsx", "src/components/bridge/CommandPalette.tsx",
+  "src/components/bridge/BottomTabBar.tsx", "src/components/bridge/BridgeTopbar.tsx", "src/lib/pageTitles.ts",
+  "src/components/bridge/HelpPanel.tsx", "src/components/bridge/ShortcutsSheet.tsx", "src/components/bridge/UserChipMenu.tsx",
+  "src/components/bridge/OrgSwitcher.tsx", "src/lib/shortcuts.ts", ...inDir("src/components/settings"), ...inDir("src/components/pwa"), MANIFEST];
+
 const RETIRED: { word: RegExp; files: string[] }[] = [
   { word: /\boutputs?\b/i, files: CORPUS },
   // The manifest's labels are read for the release words only: its "output" label belongs to the archived order
@@ -111,6 +129,8 @@ const RETIRED: { word: RegExp; files: string[] }[] = [
   { word: /publish|\bdiscard|\bdrafts?\b|\blive, version\b|\bis live\b/i, files: [...CORPUS, ...MAPPER, MANIFEST] },
   // The mapper speaks of the document and the file: no order, supplier, output or engine words (plan 16a R19, R20).
   { word: /\b(orders?|suppliers?|canonical|deterministic|outputs?)\b/i, files: [...MAPPER, ...MAPPER_FED] },
+  // The History page is never called Activity. "Activity records" is the retention term (billing FAQ, privacy).
+  { word: /\bactivit(y|ies)\b(?! records\b)/i, files: [...CORPUS, ...SHELL] },
 ];
 
 const textOf = (f: string) => (f.endsWith(".mdx") ? mdxText : f === MANIFEST ? labels : personText)(read(f));
@@ -130,6 +150,10 @@ describe("retired words stay retired in what a person reads", () => {
     expect(hitsFor(RETIRED[2])).toEqual([]);
   });
 
+  it("no person-read word names the History page Activity", () => {
+    expect(hitsFor(RETIRED[3])).toEqual([]);
+  });
+
   it("sees the defect it guards against, and reads enough", () => {
     expect(personText(`const a = <h2>Add an output</h2>; // an output in a comment\nconst k = ["outputs", id];`)).toEqual(["Add an output"]);
     expect(mdxText("Press **Add an output**. See [the guide](/help/guides/build-an-output).")).toEqual(["Press **Add an output**. See the guide."]);
@@ -146,12 +170,23 @@ describe("retired words stay retired in what a person reads", () => {
     expect(personText('const a = <p>{n} output{n === 1 ? "" : "s"} use this</p>;').filter((t) => RETIRED[0].word.test(t))).toEqual(["output"]);
     expect(personText('const a = ["Output:", "Outputs."];')).toEqual(["Output:", "Outputs."]);
     expect(personText("const s = `Output: ${name}`; const r = `/flows/${id}/outputs/${o}`;")).toEqual(["Output:"]);
+    expect(personText('const n = [{ label: "Activity", href: "/operations/log" }]; const a = <PageHeader title="Activity" />;')
+      .filter((t) => RETIRED[3].word.test(t))).toEqual(["Activity", "Activity"]);
+    expect(["Open Activity", "Activity records such as delivery attempts are removed", "History"].filter((t) => RETIRED[3].word.test(t))).toEqual(["Open Activity"]);
+    for (const f of SHELL) expect(textOf(f).length, `${f} yields person-read text`).toBeGreaterThan(0);
+    expect(personText('import A from "@/components/activity/ActivityPage"; export { b } from "@/lib/activityRows"; const C = dynamic(() => import("@/components/activity/ActivityPage")); const d = require("@/components/activity/x"); type T = import("@/components/activity/x").Y;')).toEqual([]);
+    expect(personText('type T = import("@/lib/x").Box<"Open Activity">;')).toEqual(["Open Activity"]);
+    expect(mdxText("Activity is open to everyone.").filter((t) => RETIRED[3].word.test(t))).toEqual(["Activity is open to everyone."]);
     // Anti-vacuity: every folder yields a file, and the corpus yields person-read text to check.
     for (const dir of [...APP_DIRS, HELP]) expect(CORPUS.some((f) => f.startsWith(dir.replace(/\\/g, "/") + "/")), dir).toBe(true);
-    // Measured 2026-11-16: 5,079 person-read strings (the Advanced view read since Task 9; the signed-in pages and the help components since the final review), 759 for the mapper rule (its folder and the files that feed it), and 31 help pages. Raise these floors when the corpus grows; never lower them.
-    expect(CORPUS.flatMap(textOf).length).toBeGreaterThanOrEqual(5000);
+    // Measured 2026-11-16: 5,079 person-read strings (the Advanced view read since Task 9; the signed-in pages and the help components since the final review), 759 for the mapper rule (its folder and the files that feed it), and 31 help pages. Raise these floors when the corpus grows; never lower them (corrected once on 2026-11-16 when module paths stopped counting: see below).
+    // Re-measured 2026-11-16 (plan 16b S11): the old floors counted module paths as read text (664 of 5,161; 34 of 759 for
+    // the mapper). Without them: 4,497, and 808 for the mapper with documentRefusals.ts in place of the adapter (S12), so
+    // the floors are 4,300 and 700 (the measure minus 3%, rounded down to a hundred). Re-measured 2026-11-17 with type-level
+    // `import("x")` paths skipped too: 4,491 (the History tabs went) and 807; the floors stand.
+    expect(CORPUS.flatMap(textOf).length).toBeGreaterThanOrEqual(4300);
     expect(MAPPER).toContain("src/components/bridge/mapper/MapperWorkbench.tsx");
-    expect([...MAPPER, ...MAPPER_FED].flatMap(textOf).length).toBeGreaterThanOrEqual(750);
+    expect([...MAPPER, ...MAPPER_FED].flatMap(textOf).length).toBeGreaterThanOrEqual(700);
     for (const f of MAPPER_FED) expect(textOf(f).length, `${f} yields person-read text`).toBeGreaterThan(0);
     expect(HELP_PAGES.filter((f) => f.endsWith(".mdx")).length).toBeGreaterThanOrEqual(30);
   });

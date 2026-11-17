@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/settings",
 }));
 vi.mock("@clerk/nextjs", () => ({ useOrganization: () => ({ organization: undefined }), useUser: () => ({ user: undefined }), useClerk: () => ({}) }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => false })); // the header's staff check stays idle
 vi.mock("@/components/flows/NotificationEmailSection", () => ({ NotificationEmailSection: () => null }));
 vi.mock("@/components/pwa/InstallPanel", () => ({ InstallPanel: () => null }));
 const api = vi.hoisted(() => ({ getApiKeys: vi.fn(), createApiKey: vi.fn() }));
@@ -48,6 +49,8 @@ describe("Settings › API keys", () => {
     mount();
     const developers = screen.getByText("For developers").closest("details")!;
     expect(developers).not.toHaveAttribute("open");
+    expect(developers.querySelector(":scope > summary [data-disclosure-chevron]")).not.toBeNull();
+    expect(developers.querySelector(":scope > summary")!.textContent).toMatch(/^For developers/);
     await new Promise((r) => setTimeout(r, 50));
     expect(api.getApiKeys).not.toHaveBeenCalled();
     developers.open = true;

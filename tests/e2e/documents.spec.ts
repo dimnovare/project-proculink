@@ -22,8 +22,29 @@ test.describe("documents", () => {
     await expect(tab(/^Sent/)).toHaveAttribute("aria-selected", "true");
     await page.goto("/documents?show=bogus&page=-3");
     await expect(tab(/^Needs you/)).toHaveAttribute("aria-selected", "true");
+    // The In progress tab is gone: its old address opens on the default tab.
     await page.goto("/documents?show=in-progress");
-    await expect(page.getByRole("heading", { name: "Nothing is in progress right now." })).toBeVisible();
+    await expect(tab(/^Needs you/)).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tablist").getByRole("tab")).toHaveCount(4);
+    await expect(tab(/In progress/)).toHaveCount(0);
+  });
+
+  test("the footer: History on every width, and the Ctrl K search from 768 up", async ({ page }) => {
+    await preparePage(page, { dismissCookieBanner: true });
+    const search = page.getByRole("button", { name: "Search all documents, Ctrl K", exact: true });
+    const history = page.locator("#main-content").getByRole("link", { name: "History", exact: true });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/documents");
+    await settle(page);
+    await expect(history).toBeVisible();
+    await expect(history).toHaveAttribute("href", "/operations/log");
+    await expect(search).toBeHidden();
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.reload();
+    await settle(page);
+    await expect(history).toBeVisible();
+    await search.click();
+    await expect(page.getByRole("dialog", { name: "Search documents, flows, lookups and actions" })).toBeVisible();
   });
 
   test("a ready document is sent from its row, and a stopped delivery is one alert with a way on", async ({ page }) => {

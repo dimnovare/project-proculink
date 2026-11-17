@@ -116,9 +116,9 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
   },
   {
     route: "/operations/log",
-    screen: "Activity",
+    screen: "History",
     tasks: [
-      { title: "What Activity shows", line: "Everything that happened to your documents, newest first.", href: "/help/activity-and-notifications" },
+      { title: "What History shows", line: "Everything that happened to your documents, newest first.", href: "/help/activity-and-notifications" },
       { title: "When a document couldn't be sent", line: "See where it stopped, fix the destination, then send it again.", href: "/help/destinations" },
       EMAIL_WHEN_NEEDED,
     ],

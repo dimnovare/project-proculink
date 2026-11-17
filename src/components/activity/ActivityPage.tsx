@@ -55,7 +55,7 @@ export function ActivityPage() {
     return () => clearTimeout(t);
   }, [text, term, tab, page, router]);
 
-  // No placeholderData: a new tab or page shows "Loading activity…", never the rows of the one before.
+  // No placeholderData: a new tab or page shows "Loading history…", never the rows of the one before.
   const activity = useQuery({
     queryKey: ["activity", tab, term, page],
     queryFn: () => listActivity({ page, pageSize: ACTIVITY_PAGE_SIZE, actions: tabDef.actions, q: term }),
@@ -86,7 +86,7 @@ export function ActivityPage() {
       const names = kept.some(unnamed) ? await qc.ensureQueryData({ queryKey: ["destinations"], queryFn: listDestinations }) : [];
       const name = (id: string) => names.find((d) => d.id === id)?.name ?? null;
       if (run !== exportRun.current) return null;
-      saveBlob(new Blob([activityCsv(kept, members, name)], { type: "text/csv" }), `activity-${new Date().toLocaleDateString("en-CA")}.csv`);
+      saveBlob(new Blob([activityCsv(kept, members, name)], { type: "text/csv" }), `history-${new Date().toLocaleDateString("en-CA")}.csv`);
       return { kept: kept.length, total };
     },
   });
@@ -109,11 +109,11 @@ export function ActivityPage() {
   if (activity.isError && !activity.data) {
     panel = (
       <StatusNotice tone="error" action={<Button size="sm" onClick={() => activity.refetch()}>Try again</Button>}>
-        We couldn&apos;t load your activity. Nothing is lost. Check your connection and try again.
+        We couldn&apos;t load your history. Nothing is lost. Check your connection and try again.
       </StatusNotice>
     );
   } else if (!activity.data) {
-    panel = <Quiet>Loading activity…</Quiet>;
+    panel = <Quiet>Loading history…</Quiet>;
   } else if (activity.data.events.length === 0) {
     panel = page > 1 ? (
       <div className="flex flex-col items-start gap-2">
@@ -172,7 +172,7 @@ export function ActivityPage() {
           ))}
         </Card>
         {/* Edge-aligned, with room below: on phones the round Add button rises over the page's centre. */}
-        <nav aria-label="Activity pages" className="flex flex-wrap items-center gap-x-4 gap-y-2.5 pb-6">
+        <nav aria-label="History pages" className="flex flex-wrap items-center gap-x-4 gap-y-2.5 pb-6">
           <p className="m-0 flex-[1_1_200px] text-[13px] text-ink-muted">{shown}</p>
           <div className="flex gap-2.5">
             {page > 1 && <Link href={activityAddress(tab, page - 1)} className={buttonClass()}>Newer</Link>}
@@ -211,7 +211,7 @@ export function ActivityPage() {
             })}
           </div>
           <div className="relative mb-1.5 w-full sm:w-auto sm:flex-[0_1_360px]">
-            <label className="sr-only" htmlFor="activity-search">Search activity</label>
+            <label className="sr-only" htmlFor="activity-search">Search history</label>
             <Search size={16} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
             <input
               id="activity-search" type="search" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search by file name or document number"
@@ -219,7 +219,7 @@ export function ActivityPage() {
             />
           </div>
         </div>
-        <section id="activity-panel" role="tabpanel" aria-label="Activity, newest first">{panel}</section>
+        <section id="activity-panel" role="tabpanel" aria-label="History, newest first">{panel}</section>
       </div>
     </Frame>
   );
@@ -227,10 +227,10 @@ export function ActivityPage() {
 
 const Frame = ({ children, actions }: { children: React.ReactNode; actions?: React.ReactNode }) => (
   <PageShell variant="wide">
-    <PageHeader title="Activity" sub="Everything that happened to your documents." actions={actions} />
+    <PageHeader title="History" sub="Everything that happened to your documents." back={{ href: "/documents", label: "Documents" }} actions={actions} />
     {children}
   </PageShell>
 );
 
 /** The route's Suspense fallback: the page frame and the in-page loading line, so the first paint does not shift. */
-export const ActivityLoading = () => <Frame actions={<Button disabled><Download size={16} aria-hidden />Export</Button>}><Quiet>Loading activity…</Quiet></Frame>;
+export const ActivityLoading = () => <Frame actions={<Button disabled><Download size={16} aria-hidden />Export</Button>}><Quiet>Loading history…</Quiet></Frame>;
