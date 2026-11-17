@@ -138,6 +138,10 @@ export function activityView(e: ActivityEvent, ctx: { who: string; destinationNa
       sentence = fileSentence("Started reading ", " again");
       tag = { label: "Read again", tone: "blue" };
       break;
+    case "document.split":
+      sentence = fileSentence("", ` held ${p("documents")} documents, so each is read on its own`);
+      tag = { label: "Split", tone: "blue" };
+      break;
     case "document.sorted":
     case "document.moved": {
       const flow = p("flow");

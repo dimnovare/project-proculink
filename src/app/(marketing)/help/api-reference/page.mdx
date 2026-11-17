@@ -53,6 +53,8 @@ A new document is answered with `201`. The body is a summary. Reading happens af
 
 Use `id` to fetch the result. Do not rely on the `Location` header.
 
+One file can hold several documents. Each is read as its own document with its own `id`. The first keeps the `id` the upload returned. The others are announced by the `document.read` webhook.
+
 ### Refusals
 
 | Status | `error` | When |
