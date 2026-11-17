@@ -71,7 +71,7 @@ function Refusal({ error }: { error: unknown }) {
 
 const MODES = [
   ["review", REVIEW_BEFORE_DELIVERY_LABEL, "It waits in Documents, under Needs you, until you press Send."],
-  ["auto", AUTOMATIC_DELIVERY_LABEL, "It is sent as soon as it is read. A document we couldn't read, or one with a number we've already received, still waits for you."],
+  ["auto", AUTOMATIC_DELIVERY_LABEL, "It is sent as soon as it is read. A document we couldn't read, one with a number we've already received, or the first from a new email address still waits for you."],
 ] as const;
 
 /** One radio of the group: only the checked one is a tab stop, and the arrow keys move and pick (the radiogroup pattern). */

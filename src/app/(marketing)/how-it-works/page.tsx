@@ -156,7 +156,7 @@ const STEPS = [
 const PIPELINE: Record<(typeof STAGES)[number], { dot: string; body: string }> = {
   In: { dot: "border-[var(--brand-blue-bright)]", body: "A file arrives by upload, email, a pickup or the API, and becomes a document in its flow." },
   Read: { dot: "border-[var(--brand-blue-bright)]", body: "Every value and table is read, with where on the page it was found and how sure we are." },
-  Check: { dot: "border-[var(--amber-bright)]", body: "Built-in checks mark a value that is missing, in the wrong shape or hard to read. A repeated document number is held." },
+  Check: { dot: "border-[var(--amber-bright)]", body: "Built-in checks mark a value that is missing, in the wrong shape or hard to read. A repeated document number is held, and so is the first document from a new email address." },
   Transform: { dot: "border-[var(--brand-green-bright)]", body: "Each output file is built from the read values, with your column names and any lookups applied." },
   Send: { dot: "border-[var(--brand-green-bright)]", body: "The file goes to each destination. Each delivery keeps its attempts, the destination's answer where it gives one and, when it fails, the error." },
 };
@@ -246,6 +246,7 @@ export default function HowItWorksPage() {
                 "The flow tells you how many documents in a row went out without a correction.",
                 `When you trust it, switch that flow to ${AUTOMATIC_DELIVERY_LABEL}. You can switch back at any time.`,
                 "A document with a number we have already received always waits for you, so nothing is sent twice.",
+                "The first document from a new email address waits for you too. Send it once and later documents from that address go by themselves.",
               ]}
             />
           </div>

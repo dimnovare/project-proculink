@@ -81,13 +81,13 @@ describe("the checks claim", () => {
     if (process.env.PROCULINK_REQUIRE_BACKEND_MIRROR === "1") expect(job && existsSync(job), "PROCULINK_REQUIRE_BACKEND_MIRROR=1 but no backend checkout").toBeTruthy();
   });
 
-  // The articles say checks never stop you sending, and only a repeated document number holds an AUTOMATIC send.
+  // The articles say checks never stop you sending, and only a repeated document number or the first document from a new email address holds an AUTOMATIC send.
   // `SendDocumentJob.ShouldSend` is where that is decided, and the UI says the first half in `states.tsx`.
   it.skipIf(!job || !existsSync(job))("matches the rule the automatic send and the UI really use", () => {
     const send = readFileSync(job as string, "utf8");
     const rule = send.slice(send.indexOf("ShouldSend(FlowDocument"));
     const codes = [...rule.slice(0, rule.indexOf("public static")).matchAll(/DocumentChecks\.(\w+)/g)].map((m) => m[1]);
-    expect(codes, "ShouldSend must look at exactly one check: the duplicate number").toEqual(["Duplicate"]);
+    expect(codes, "ShouldSend must look at exactly two checks: the duplicate number and the new email address").toEqual(["Duplicate", "NewSender"]);
     expect(readFileSync(join(process.cwd(), "src/components/flows/states.tsx"), "utf8")).toContain("they never stop you sending");
     const article = readFileSync(join(HELP_DIR, "checks", "page.mdx"), "utf8");
     expect(article).toContain("never stop you sending");

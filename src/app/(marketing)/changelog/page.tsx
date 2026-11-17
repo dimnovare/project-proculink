@@ -31,6 +31,7 @@ const ENTRIES = [
       "Activity is now called History, with two tabs, All and Changes, and a way back to Documents.",
       "Documents says how many are being read, and points once to everything older.",
       "A flow's Arrives step starts with your workspace's address. Each flow's own address is one press away.",
+      "The first document from a new email address waits for you on a flow that sends automatically.",
     ],
   },
   {
