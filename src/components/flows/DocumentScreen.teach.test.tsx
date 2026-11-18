@@ -67,10 +67,30 @@ describe("DocumentScreen teach", () => {
     renderScreen();
     await choose("total");
     fireEvent.click(screen.getByRole("button", { name: "Point to it" }));
-    expect(screen.getByText("Click the cell that holds Total.")).toBeTruthy();
+    expect(screen.getByText("Choose the cell that holds Total.")).toBeTruthy();
+    expect(document.getElementById("review-pane-read")!.className).toMatch(/max-lg:hidden/);   // pointing happens on the Original tab
+    const scroll = vi.spyOn(Element.prototype, "scrollIntoView");
     fireEvent.click(await screen.findByLabelText("Use cell B2"));
     await waitFor(() => expect(api.teachDocument).toHaveBeenCalledWith("d", { key: "total", address: "cell:r2c2", value: "5" }));
-    expect(await screen.findByText("Saved. Next time a document from shop.example comes in, we'll look there for Total.")).toBeTruthy();
+    const saved = await screen.findByText("Saved. Next time a document from shop.example comes in, we'll look there for Total.");
+    // Below lg the notice's tab comes back, and the notice is brought into view.
+    expect(document.getElementById("review-pane-read")!.className).not.toMatch(/max-lg:hidden/);
+    expect(scroll.mock.contexts.some((el) => (el as Element).contains(saved))).toBe(true);
+    scroll.mockRestore();
+  });
+
+  it("opening Something missing brings its panel into view and focuses its first control, once", async () => {
+    renderScreen();
+    const toggle = await screen.findByRole("button", { name: "Something missing or in the wrong place?" });
+    const scroll = vi.spyOn(Element.prototype, "scrollIntoView");
+    fireEvent.click(toggle);
+    const panel = document.getElementById("read-more")!;
+    expect(scroll.mock.contexts).toContain(panel);
+    expect(document.activeElement).toBe(panel.querySelector("select, input, textarea, button"));
+    scroll.mockClear();
+    fireEvent.click(toggle);   // closing moves nothing
+    expect(scroll).not.toHaveBeenCalled();
+    scroll.mockRestore();
   });
 
   it("the notice keeps the field name when Cancel is pressed mid-request", async () => {

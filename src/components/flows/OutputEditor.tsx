@@ -378,7 +378,11 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
     <DestinationForm
       inline={!!draft} testAfterSave={!!draft}
       onCancel={() => setNewDestination(false)}
-      onSaved={(d) => { setDestinationId(d.id); setNewDestination(false); setSendOpen(false); focusNext.current = `${uid}-change`; qc.invalidateQueries({ queryKey: ["destinations"] }); }}
+      onSaved={(d) => {
+        setDestinationId(d.id); qc.invalidateQueries({ queryKey: ["destinations"] });
+        // With a test after the save the form stays open, its result in view and a Close, as in Settings.
+        if (!draft) { setNewDestination(false); setSendOpen(false); focusNext.current = `${uid}-change`; }
+      }}
     />
   );
   const sendWhenFields = (
