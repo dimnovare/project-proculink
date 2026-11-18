@@ -35,11 +35,12 @@ export async function alertsState(key = VAPID_PUBLIC_KEY): Promise<AlertsState> 
   }
 }
 
-/** Asks the Worker to send one test alert to this device; a 404 means the server no longer has it. */
-export async function sendTestAlert(): Promise<void> {
+/** Asks the Worker to send one test alert to this device: false when this browser holds no subscription; a 404 means the server no longer has it. */
+export async function sendTestAlert(): Promise<boolean> {
   const sub = await (await pushManager())?.getSubscription();
-  if (!sub) throw new Error("no subscription");
+  if (!sub) return false;
   await testPushDevice(sub.endpoint);
+  return true;
 }
 
 export async function turnOnAlerts(key = VAPID_PUBLIC_KEY): Promise<AlertsState> {

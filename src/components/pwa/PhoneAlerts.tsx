@@ -8,13 +8,13 @@ import { alertsState, sendTestAlert, turnOffAlerts, turnOnAlerts, VAPID_PUBLIC_K
 const LINE: Partial<Record<AlertsState | "error", string>> = {
   off: "Get an alert on this device when a document needs you, and a summary each day.",
   on: "Phone alerts are on for this device.",
-  stopped: "Alerts stopped on this device. Turn them on again.",
+  stopped: "Alerts aren't reaching this device for this workspace. Turn them on again.",
   blocked: "Alerts are blocked for ProcuLink in this browser. Allow them in its settings, then try again.",
   error: "Couldn't turn on phone alerts. Try again.",
 };
 
 const TEST_LINE = {
-  sent: "Test alert sent. It should arrive within a minute.",
+  sent: "Test alert on its way. If nothing arrives within a minute, turn phone alerts off and on again.",
   failed: "Couldn't send a test alert. Try again.",
 };
 
@@ -49,8 +49,8 @@ export function PhoneAlerts({ publicKey = VAPID_PUBLIC_KEY }: { publicKey?: stri
   const sendTest = () =>
     run(async () => {
       try {
-        await sendTestAlert();
-        setTest("sent");
+        if (await sendTestAlert()) setTest("sent");
+        else setState("off");
       } catch (err) {
         if (err instanceof ApiHttpError && err.status === 404) setState("stopped");
         else setTest("failed");
@@ -73,9 +73,9 @@ export function PhoneAlerts({ publicKey = VAPID_PUBLIC_KEY }: { publicKey?: stri
           </Button>
         </div>
       )}
-      <p role="status" className="m-0 text-[13px] text-ink empty:hidden">
-        {test && TEST_LINE[test]}
-      </p>
+      {test && <p aria-hidden className="m-0 text-[13px] text-ink">{TEST_LINE[test]}</p>}
+      {/* Always rendered and out of the layout, so a screen reader announces the result when it arrives. */}
+      <span role="status" className="sr-only">{test && TEST_LINE[test]}</span>
       <p className="m-0 text-[13px] text-ink-muted">
         Android phones get alerts in the browser or the installed app. On an iPhone, add ProcuLink to your home screen first (iOS 16.4 or later).
       </p>

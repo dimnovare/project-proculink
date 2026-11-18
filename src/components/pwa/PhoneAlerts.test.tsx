@@ -46,16 +46,22 @@ it("the button turns alerts on and off and says what happened", async () => {
 
 it("a test alert says it was sent, and a device the server dropped reads as stopped with a way back", async () => {
   vi.mocked(alertsState).mockResolvedValue("on");
-  vi.mocked(sendTestAlert).mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("offline"))
+  vi.mocked(sendTestAlert).mockResolvedValueOnce(true).mockRejectedValueOnce(new Error("offline"))
     .mockRejectedValueOnce(new ApiHttpError("gone", 404));
-  render(<PhoneAlerts publicKey="BAAA" />);
+  const { unmount } = render(<PhoneAlerts publicKey="BAAA" />);
   const test = await screen.findByRole("button", { name: "Send a test alert" });
+  const status = screen.getByRole("status");
   fireEvent.click(test);
-  expect(await screen.findByText("Test alert sent. It should arrive within a minute.")).toBeInTheDocument();
+  await waitFor(() => expect(status).toHaveTextContent("Test alert on its way. If nothing arrives within a minute, turn phone alerts off and on again."));
   fireEvent.click(test);
-  expect(await screen.findByText("Couldn't send a test alert. Try again.")).toBeInTheDocument();
+  await waitFor(() => expect(status).toHaveTextContent("Couldn't send a test alert. Try again."));
   fireEvent.click(test);
-  expect(await screen.findByText("Alerts stopped on this device. Turn them on again.")).toBeInTheDocument();
+  expect(await screen.findByText("Alerts aren't reaching this device for this workspace. Turn them on again.")).toBeInTheDocument();
   expect(await turnOn()).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Send a test alert" })).toBeNull();
+  unmount();
+  vi.mocked(sendTestAlert).mockResolvedValueOnce(false);         // the browser lost its subscription: plainly off
+  render(<PhoneAlerts publicKey="BAAA" />);
+  fireEvent.click(await screen.findByRole("button", { name: "Send a test alert" }));
+  expect(await screen.findByText("Get an alert on this device when a document needs you, and a summary each day.")).toBeInTheDocument();
 });
