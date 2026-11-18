@@ -3,6 +3,7 @@
  * standard outputs, ERP destinations, plain-FTP destinations, cloud drives other than Google, Peppol validation
  * and approval workflows. Whole-word and case-insensitive.
  *
+ * cXML, UBL, EDIFACT and X12 orders had a real send and were taken off on 2026-11-18.
  * S3 and Google Drive/Sheets delivery shipped (plans 9a, 9b) and were taken off this list on 2026-11-14.
  * OneDrive and SharePoint are offered on request only, so they may appear in a sentence that says "on request".
  *
@@ -36,11 +37,7 @@ const asDestination = (store: string) =>
   );
 
 export const NEVER_CLAIM: readonly NeverClaim[] = [
-  { label: "cXML", pattern: /\bcxml\b/i },
-  { label: "UBL", pattern: /\bubl\b/i },
   { label: "Peppol (output or validation)", pattern: /\bpeppol\b/i },
-  { label: "X12", pattern: /\bx12\b/i },
-  { label: "EDIFACT", pattern: /\bedifact\b/i },
   { label: "XRechnung or EN 16931", pattern: /\bxrechnung\b|\ben\s?16931\b/i },
   { label: "IDoc", pattern: /\bidoc\b/i },
   { label: "Erply", pattern: /\berply\b/i },
