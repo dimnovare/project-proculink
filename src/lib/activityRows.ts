@@ -217,6 +217,10 @@ export function activityView(e: ActivityEvent, ctx: { who: string; destinationNa
       sentence = { before: version ? `Version ${version} of ` : "A new version of ", strong: e.flowName, after: e.flowName ? " was put in use" : "a flow was put in use" };
       tag = { label: "Change", tone: "neutral" };
       break;
+    case "flow.deleted":
+      sentence = e.flowName ? { before: "", strong: e.flowName, after: " was deleted" } : { before: "A flow was deleted", strong: null, after: "" };
+      tag = { label: "Change", tone: "neutral" };
+      break;
     default:
       sentence = { before: `${auditActionLabel(e.action)}${e.poNumber ? ` (${e.poNumber})` : ""}`, strong: null, after: "" };
       tag = KIND_TAGS[auditEventKind(e.action)] ?? { label: "Other", tone: "neutral" };

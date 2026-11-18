@@ -108,5 +108,10 @@ describe("activityRows", () => {
     expect([plainSentence(down.sentence), down.tag, down.facts]).toEqual(["What we read from invoice-2292.pdf was downloaded", { label: "Downloaded", tone: "green" }, [{ term: "Format", value: "Excel" }]]);
     expect([at("document.downloaded", { format: "csv" }).facts, at("document.downloaded", null).facts]).toEqual([[{ term: "Format", value: "CSV" }], []]);
     expect(at("document.downloaded", { format: "pdf" }).facts).toEqual([]);
+
+    const gone = view(ev({ action: "flow.deleted", documentId: null, documentName: null, source: null, flowName: "Standards test", payload: { flow: "Standards test" } }));
+    expect([plainSentence(gone.sentence), gone.tag]).toEqual(["Standards test was deleted", { label: "Change", tone: "neutral" }]);
+    expect(plainSentence(view(ev({ action: "flow.deleted", documentId: null, documentName: null, source: null, flowName: null })).sentence)).toBe("A flow was deleted");
+    expect(ACTIVITY_TABS.find((t) => t.key === "changes")!.actions).toContain("flow.deleted");
   });
 });

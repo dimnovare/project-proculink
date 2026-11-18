@@ -26,6 +26,8 @@ export const COPY: Record<string, string> = {
   document_not_found: "This document or flow no longer exists.",
   missing_original: "The original isn't available right now.",
   flow_not_found: "This document or flow no longer exists.",
+  flow_in_use: "This flow can't be deleted: it has been put in use, or it has sent documents.",
+  flow_busy: "One of its documents is still being read or sent. Try again in a moment.",
   not_retryable: "This document can't be read again.",
   invalid_name: "Use a name of 120 characters or fewer.",
   pilot_expired: "Your trial has ended, so new documents aren't being accepted.",

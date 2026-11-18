@@ -20,6 +20,7 @@ import { and, waysInWords } from "@/lib/flowSentences";
 import { FLOW_STEPS, flowAddress, readFlowOutput, readFlowView, type FlowStep, type FlowView } from "@/lib/flowSteps";
 import { pageTotal } from "@/lib/pageTotal";
 import { INPUT } from "./DestinationForm";
+import { DeleteFlow } from "./DeleteFlow";
 import { FlowCheck } from "./FlowCheck";
 import { flowNeedsYouQuery, FlowDocuments, needsYouWords, StreakBand } from "./FlowDocuments";
 import { FlowIntakePanel } from "./FlowIntakePanel";
@@ -255,6 +256,7 @@ function FlowBody({ flow, view, output, renaming, onRenamed, blocked }: { flow: 
   return (
     <div className="grid gap-4">
       {renaming && <RenameForm flow={flow} onDone={onRenamed} />}
+      {renaming && flow.canDelete && <DeleteFlow flow={flow} />}
       <StepStrip flow={flow} view={view ?? "documents"} summaries={summaries} />
       {view && (
         <div className="lg:hidden">

@@ -602,11 +602,20 @@ const inboxAnswer = () => ({
   flowId: INBOX.id, address: `documents-${(0x7f3a + inboxAddresses).toString(16)}@inbound.example.test`, intakeId: "intake-inbox", scansOn: true, formatsOn: true,
 });
 
+/** The mock has no deliveries, so never put in use is the whole rule (FlowDeletion also refuses a flow that sent). */
+const deletable = (f: Flow) => f.publishedVersion == null;
+
 const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   // Like the server's list: a summary per flow, and none of the single response's draft facts.
   ["GET", re`/flows`, () => FLOWS.map((f) => ({ ...f, hasChanges: false, noCorrectionStreak: null, summary: flowSummaryOf(f) }))],
   ["POST", re`/flows`, (_m, _q, b) => echo({ ...flow2, id: "flow-new" }, b)],
-  ["GET", re`/flows/${S}`, (m) => ({ ...pick(FLOWS, m[1], "flow"), summary: null })],
+  ["GET", re`/flows/${S}`, (m) => { const f = pick(FLOWS, m[1], "flow"); return { ...f, summary: null, canDelete: deletable(f) }; }],
+  ["DELETE", re`/flows/${S}`, (m) => {
+    const f = pick(FLOWS, m[1], "flow");
+    if (!deletable(f)) refuse(409, "flow_in_use");   // as FlowDeletion
+    FLOWS.splice(FLOWS.indexOf(f), 1);
+    for (let i = ROWS.length - 1; i >= 0; i--) if (ROWS[i].flowId === f.id) ROWS.splice(i, 1);   // its documents go too
+  }],
   ["PATCH", re`/flows/${S}`, (m, _q, b) => echo(pick(FLOWS, m[1], "flow"), b)],
   ["POST", re`/flows/${S}/publish`, (m) => {
     const flow = pick(FLOWS, m[1], "flow");

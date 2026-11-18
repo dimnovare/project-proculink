@@ -63,6 +63,8 @@ const WRITER_FILES = [
   // 2026-11-16, plan 15: the sorter, Move it, Set it up and the one-off download.
   "ProcuLink.Api/Services/Documents/DocumentSort.cs",
   "ProcuLink.Api/Controllers/InboxController.cs",
+  // 2026-11-18, plan 21: the flow delete writer.
+  "ProcuLink.Api/Services/Documents/FlowDeletion.cs",
 ] as const;
 
 const PROBE_REL = "ProcuLink.Api/Controllers/AuditController.cs";
