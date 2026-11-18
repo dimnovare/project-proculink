@@ -3,6 +3,7 @@
 import { Button } from "@/components/bridge/DSPrimitives";
 import { SettingsPanel } from "@/components/settings/SettingsPrimitives";
 import { promptInstall, useInstallState, type InstallState } from "@/lib/pwa/install";
+import { PhoneAlerts } from "./PhoneAlerts";
 
 const LINE: Partial<Record<InstallState, string>> = {
   app: "You're using ProcuLink as an app on this device.",
@@ -30,6 +31,7 @@ export function InstallPanel() {
           <p className="m-0 text-[13px] text-ink-muted">On Android, once it&apos;s installed, ProcuLink is in the Share menu of your other apps.</p>
         </>
       )}
+      <PhoneAlerts />
     </SettingsPanel>
   );
 }

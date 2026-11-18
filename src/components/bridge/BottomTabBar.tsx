@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -10,6 +10,7 @@ import { AddSheet } from "@/components/flows/AddSheet";
 import { flowsQuery, needsYouQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { pageTotal } from "@/lib/pageTotal";
+import { showBadge } from "@/lib/pwa/push";
 
 const FULL_SCREEN = [/^\/flows\/new$/, /^\/flows\/[^/]+\/documents\/[^/]+$/, /^\/flows\/[^/]+\/outputs\/[^/]+\/advanced$/];
 
@@ -35,6 +36,8 @@ export function BottomTabBar() {
   const tenantReady = useTenantQueriesEnabled();
   // The same request and refresh as the Documents screen's needs-you number.
   const needsYou = useQuery({ ...needsYouQuery, enabled: tenantReady && engine === "on", refetchInterval: 60_000, refetchOnWindowFocus: true });
+  // The app icon carries the same number.
+  useEffect(() => showBadge(pageTotal(needsYou.data)), [needsYou.data]);
   const flows = useQuery({ ...flowsQuery, enabled: tenantReady });
   const [adding, setAdding] = useState(false);
   if (isFullScreenStep(pathname)) return null;

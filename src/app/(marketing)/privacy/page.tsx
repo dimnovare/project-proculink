@@ -16,7 +16,7 @@ export const metadata = pageMetadata({
 export default function PrivacyPage() {
   return (
     // FOUNDER DECISION: set this date to the day the page is published.
-    <LegalPage title="Privacy Policy" updated="Last updated: 17 November 2026" path="/privacy">
+    <LegalPage title="Privacy Policy" updated="Last updated: 18 November 2026" path="/privacy">
 
       <LegalH2>Who we are</LegalH2>
       <p>
@@ -148,6 +148,12 @@ export default function PrivacyPage() {
         <li><strong>Payments</strong>: Stripe (US, EU establishment) — billing data only, no document content</li>
         <li><strong>Email in and out</strong>: Postmark (US) — carries documents emailed to your ProcuLink address, and the files we email to the recipients you set, as attachments</li>
       </ul>
+      <p>
+        If you turn on phone alerts, we keep the push address your browser gives us for that device until you turn them
+        off or sign out. Each alert goes through your browser&apos;s push service, run by Google, Apple, Mozilla or
+        Microsoft depending on your device. It is encrypted, and it holds no document content: only a count, a fixed
+        sentence such as &quot;2 documents need you&quot;, and a link to a ProcuLink page.
+      </p>
       {/*
         The no-AI mode, made operational. It is Organisation.SelfHostedOcr: honoured at every
         OpenAI call site (extraction, mapping suggestions, schema inference, inbound email) and

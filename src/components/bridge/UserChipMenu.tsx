@@ -20,6 +20,7 @@ import { useClerk, useOrganization, useUser } from "@clerk/nextjs";
 import { MoreHorizontal } from "lucide-react";
 import { useConfirm } from "@/components/ui/confirm";
 import { clearHeldUploads, heldCount } from "@/lib/pwa/heldUploads";
+import { turnOffAlerts } from "@/lib/pwa/push";
 import { useMenuDismiss } from "./OrgSwitcher";
 
 /** "org:admin" → "Administrator"; "org:member" → "Member"; else title-case. */
@@ -161,6 +162,7 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up", onLight 
       });
       if (!ok) return;
     }
+    await turnOffAlerts();
     await clearHeldUploads();
     void clerk.signOut({ redirectUrl: "/" });
   };
