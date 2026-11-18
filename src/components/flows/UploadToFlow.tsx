@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -158,6 +158,13 @@ export function UploadToFlow() {
   const listHeading = useRef<HTMLHeadingElement>(null);
   const [photo, setPhoto] = useState<File | null>(null);
   const camera = useCamera(setPhoto, "camera-input");
+  // The first file of the visit moves focus to the list, so a phone shows what happened (later ones never steal it).
+  const focused = useRef(false);
+  useEffect(() => {
+    if (focused.current || !listHeading.current) return;
+    focused.current = true;
+    listHeading.current.focus();
+  }, [items.length, flows.data, inbox.data]);
   const done = items.filter((i) => i.state === "done");
   const uploaded = useQuery({
     queryKey: JUST_UPLOADED,
@@ -195,6 +202,7 @@ export function UploadToFlow() {
   } else {
     const paused = pausedBy(items, billing.data);
     const n = items.length;
+    const more = n > 0;
     // What the workspace reads comes from the inbox answer; an absent switch is off (P4).
     const target = inbox.data && INBOX_TARGET(inbox.data);
     const pick = (files: FileList | null) => target && files && files.length > 0 && add([...files], target);
@@ -204,6 +212,23 @@ export function UploadToFlow() {
       <div className="grid gap-5">
         {notKeptNotice}
         {paused && <PausedNotice {...paused} />}
+        {/* Above the drop zone: what was just added is the first thing in view, on a phone too. */}
+        {n > 0 && (
+          <Card flush as="section" aria-label="Just added">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 sm:px-[18px]">
+              <h2 ref={listHeading} tabIndex={-1} className="m-0 scroll-mt-16 text-[16px] font-semibold text-ink outline-none">Just added</h2>
+              <span className="text-[13px] text-ink-muted">{n === 1 ? "1 document" : `${n} documents`}</span>
+            </div>
+            <ul className="m-0 list-none p-0">
+              {items.map((i) => (
+                <UploadedRow
+                  key={i.key} item={i} listed={seen(i, uploaded.data)} inbox={inbox.data} sent={!!i.document && sent.has(i.document.id)}
+                  onSent={() => setSent((s) => new Set(s).add(i.document!.id))} retry={() => retry(i.key)} remove={() => { remove(i.key); focusAfterRemove(listHeading.current); }}
+                />
+              ))}
+            </ul>
+          </Card>
+        )}
         {inbox.isError && !inbox.data ? (
           <Failed error={inbox.error} retry={() => void inbox.refetch()} />
         ) : !target ? (
@@ -213,12 +238,13 @@ export function UploadToFlow() {
           <section
             aria-label="Add files"
             data-testid="upload-drop"
-            className={`grid justify-items-center gap-3 rounded-2xl border-2 border-dashed px-6 pb-7 pt-8 text-center ${over ? "border-brand-blue" : "border-border-strong"}`}
+            // Below 640px, once files are added, a compact Add more block: the list above stays the thing in view.
+            className={`grid justify-items-center gap-3 rounded-2xl border-2 border-dashed px-6 pb-7 pt-8 text-center ${more ? "max-sm:px-4 max-sm:py-4" : ""} ${over ? "border-brand-blue" : "border-border-strong"}`}
             onDragOver={(e) => { e.preventDefault(); setOver(true); }}
             onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(false); }}
             onDrop={(e) => { e.preventDefault(); setOver(false); pick(e.dataTransfer.files); }}
           >
-            <span aria-hidden className="relative flex h-[92px] items-end justify-center">
+            <span aria-hidden className={`relative flex h-[92px] items-end justify-center ${more ? "max-sm:hidden" : ""}`}>
               {[0, 1, 2].map((k) => (
                 <span key={k} className={`-mx-2 flex h-[84px] w-[66px] flex-col gap-1.5 rounded-[6px] border border-border bg-surface p-2.5 ${k === 1 ? "z-[1] -translate-y-2" : k === 0 ? "-rotate-6" : "rotate-6"}`}>
                   {k === 1 && <span className="block h-2 w-8 rounded-sm bg-brand-blue-soft" />}
@@ -231,11 +257,11 @@ export function UploadToFlow() {
                 <Plus size={18} />
               </span>
             </span>
-            <h2 className="m-0 text-[20px] font-semibold text-ink">
+            <h2 className={`m-0 font-semibold text-ink ${more ? "text-[16px] sm:text-[20px]" : "text-[20px]"}`}>
               <span className="hidden sm:inline">Drop your files here</span>
-              <span className="sm:hidden">Add your documents</span>
+              <span className="sm:hidden">{more ? "Add more" : "Add your documents"}</span>
             </h2>
-            <p className="m-0 max-w-[480px] text-[14.5px] text-ink-muted">
+            <p className={`m-0 max-w-[480px] text-[14.5px] text-ink-muted ${more ? "max-sm:hidden" : ""}`}>
               Invoices, orders, delivery notes, statements: any document. {anyDocumentLine(target)}
             </p>
             <div className="flex flex-col gap-2.5 justify-self-stretch sm:justify-self-center">
@@ -267,22 +293,6 @@ export function UploadToFlow() {
               </div>
               <CopyButton text={address} label="Copy address" />
             </div>
-          </Card>
-        )}
-        {n > 0 && (
-          <Card flush as="section" aria-label="Just added">
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 sm:px-[18px]">
-              <h2 ref={listHeading} tabIndex={-1} className="m-0 text-[16px] font-semibold text-ink outline-none">Just added</h2>
-              <span className="text-[13px] text-ink-muted">{n === 1 ? "1 document" : `${n} documents`}</span>
-            </div>
-            <ul className="m-0 list-none p-0">
-              {items.map((i) => (
-                <UploadedRow
-                  key={i.key} item={i} listed={seen(i, uploaded.data)} inbox={inbox.data} sent={!!i.document && sent.has(i.document.id)}
-                  onSent={() => setSent((s) => new Set(s).add(i.document!.id))} retry={() => retry(i.key)} remove={() => { remove(i.key); focusAfterRemove(listHeading.current); }}
-                />
-              ))}
-            </ul>
           </Card>
         )}
         <UsageLine billing={billing.data} />
