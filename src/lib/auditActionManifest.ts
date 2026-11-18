@@ -911,6 +911,15 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     reasonKeys: [],
     note: "A flow version was published (entity type Flow; payload { version, flow, by }). The list gives the row the flow's id and name.",
   },
+  {
+    action: "flow.deleted",
+    kind: "edited",
+    label: "Flow deleted",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Services/Documents/FlowDeletion.cs:43",
+    reasonKeys: [],
+    note: "A flow that was never put in use was deleted (entity type Flow; payload { flow, by }). The flow is gone, so the row has only its name.",
+  },
 
   // ── Linked accounts (entity type LinkedAccount; payload {provider, by}, never the email) ─
   {
