@@ -37,7 +37,7 @@ import { focusAfterRemove } from "@/components/pwa/HeldUploads";
 export const UPLOADED_LOOKBACK = 100;
 const JUST_UPLOADED = ["documents", "just-uploaded"] as const;
 const BILLING = "/settings?tab=billing";
-/** A filled blue button drawn as an outlined one below 640px, where another button is the filled one. */
+/** A filled blue button drawn as an outlined one below 640px, where Take a photo is the filled one. */
 const OUTLINED_ON_PHONE = "max-sm:border-border-strong max-sm:bg-surface max-sm:text-ink max-sm:hover:bg-surface-2";
 
 const working = (d: { status: string; statusReason: string | null }) => documentStatus(d.status, d.statusReason).tone === "working";
@@ -268,13 +268,13 @@ export function UploadToFlow() {
             </p>
             <div className="flex flex-col gap-2.5 justify-self-stretch sm:justify-self-center">
               {target.scansOn && (
-                <Button variant="blue" size="lg" className={`!h-12 w-full px-6 text-[15px] sm:hidden ${more ? OUTLINED_ON_PHONE : ""}`} onClick={camera.open}>
+                <Button variant="blue" size="lg" className="!h-12 w-full px-6 text-[15px] sm:hidden" onClick={camera.open}>
                   <Camera size={18} aria-hidden />Take a photo
                 </Button>
               )}
-              {/* One filled button per width: below 640px Take a photo is it, and once files are added the list's Send is. */}
+              {/* Outlined below 640px when Take a photo is the filled one: one filled button per width. */}
               <Button variant="blue" size="lg" onClick={() => input.current?.click()}
-                className={`!h-12 w-full px-6 text-[15px] sm:w-auto ${target.scansOn || more ? OUTLINED_ON_PHONE : ""}`}>Choose files</Button>
+                className={`!h-12 w-full px-6 text-[15px] sm:w-auto ${target.scansOn ? OUTLINED_ON_PHONE : ""}`}>Choose files</Button>
             </div>
             {camera.input}
             <input
