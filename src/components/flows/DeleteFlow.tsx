@@ -13,16 +13,20 @@ import { documentRefusalMessage } from "@/lib/documentRefusals";
 export function DeleteFlow({ flow }: { flow: Flow }) {
   const qc = useQueryClient();
   const router = useRouter();
-  const [asking, setAsking] = useState(false);
+  // null: never opened. Opening focuses Keep it (the safe one); Keep it gives focus back to Delete this flow.
+  const [asking, setAsking] = useState<boolean | null>(null);
   const del = useMutation({
     mutationFn: () => deleteFlow(flow.id),
     onSuccess: () => {
-      qc.removeQueries({ queryKey: ["flow", flow.id] });
-      qc.invalidateQueries({ queryKey: ["flows"] });
       router.replace("/flows");
+      // The page still observes ["flow", id] until /flows commits: mark it stale, never refetch it into a 404.
+      qc.invalidateQueries({ queryKey: ["flow", flow.id], refetchType: "none" });
+      qc.setQueryData<Flow[]>(["flows"], (l) => l?.filter((f) => f.id !== flow.id));
+      qc.invalidateQueries({ queryKey: ["flows"] });
+      qc.invalidateQueries({ queryKey: ["documents"] });   // its documents went with it
     },
   });
-  if (!asking) return <span><Button type="button" variant="ghost" onClick={() => setAsking(true)}>Delete this flow</Button></span>;
+  if (!asking) return <span><Button autoFocus={asking === false} type="button" variant="ghost" onClick={() => setAsking(true)}>Delete this flow</Button></span>;
   return (
     <div className="grid max-w-[480px] gap-2">
       <StatusNotice
@@ -30,7 +34,7 @@ export function DeleteFlow({ flow }: { flow: Flow }) {
         action={
           <span className="flex gap-2">
             <Button type="button" variant="danger" loading={del.isPending} onClick={() => del.mutate()}>Delete flow</Button>
-            <Button type="button" variant="ghost" onClick={() => { setAsking(false); del.reset(); }}>Keep it</Button>
+            <Button autoFocus type="button" variant="ghost" disabled={del.isPending} onClick={() => { setAsking(false); del.reset(); }}>Keep it</Button>
           </span>
         }
       >

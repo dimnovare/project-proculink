@@ -173,11 +173,14 @@ describe("FlowPage", () => {
   });
 
   it("offers Delete this flow only when the flow can be deleted, and deletes after the confirm", async () => {
-    const plain = renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: "Rename this flow" }));
-    expect(screen.getByRole("textbox", { name: "Flow name" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Delete this flow" })).toBeNull();
-    plain.unmount();
+    for (const fixture of [flow, { ...flow, publishedVersion: null, canDelete: false }]) {
+      api.getFlow.mockResolvedValue(fixture);
+      const plain = renderPage();
+      fireEvent.click(await screen.findByRole("button", { name: "Rename this flow" }));
+      expect(screen.getByRole("textbox", { name: "Flow name" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Delete this flow" })).toBeNull();
+      plain.unmount();
+    }
 
     api.getFlow.mockResolvedValue({ ...flow, publishedVersion: null, documentCount: 1, canDelete: true });
     api.deleteFlow.mockResolvedValue(undefined);
@@ -197,11 +200,12 @@ describe("FlowPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Rename this flow" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete this flow" }));
     expect(screen.getByText("Delete this flow? This can't be undone.")).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Keep it" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete flow" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("This flow can't be deleted: it has been put in use, or it has sent documents.");
     expect(replace).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Keep it" }));
     expect(screen.queryByRole("button", { name: "Delete flow" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Delete this flow" })).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Delete this flow" }));
   });
 });

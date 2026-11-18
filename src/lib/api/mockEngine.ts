@@ -614,6 +614,7 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
     const f = pick(FLOWS, m[1], "flow");
     if (!deletable(f)) refuse(409, "flow_in_use");   // as FlowDeletion
     FLOWS.splice(FLOWS.indexOf(f), 1);
+    for (let i = ROWS.length - 1; i >= 0; i--) if (ROWS[i].flowId === f.id) ROWS.splice(i, 1);   // its documents go too
   }],
   ["PATCH", re`/flows/${S}`, (m, _q, b) => echo(pick(FLOWS, m[1], "flow"), b)],
   ["POST", re`/flows/${S}/publish`, (m) => {
