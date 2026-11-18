@@ -37,6 +37,8 @@ import { focusAfterRemove } from "@/components/pwa/HeldUploads";
 export const UPLOADED_LOOKBACK = 100;
 const JUST_UPLOADED = ["documents", "just-uploaded"] as const;
 const BILLING = "/settings?tab=billing";
+/** A filled blue button drawn as an outlined one below 640px, where another button is the filled one. */
+const OUTLINED_ON_PHONE = "max-sm:border-border-strong max-sm:bg-surface max-sm:text-ink max-sm:hover:bg-surface-2";
 
 const working = (d: { status: string; statusReason: string | null }) => documentStatus(d.status, d.statusReason).tone === "working";
 /** The newest page, and every row seen on a page this visit (a file that falls off the page keeps its last known status). */
@@ -216,7 +218,7 @@ export function UploadToFlow() {
         {n > 0 && (
           <Card flush as="section" aria-label="Just added">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 sm:px-[18px]">
-              <h2 ref={listHeading} tabIndex={-1} className="m-0 scroll-mt-16 text-[16px] font-semibold text-ink outline-none">Just added</h2>
+              <h2 ref={listHeading} tabIndex={-1} className="m-0 scroll-mt-16 text-[16px] font-semibold text-ink outline-none focus-visible:outline-none">Just added</h2>
               <span className="text-[13px] text-ink-muted">{n === 1 ? "1 document" : `${n} documents`}</span>
             </div>
             <ul className="m-0 list-none p-0">
@@ -233,7 +235,7 @@ export function UploadToFlow() {
           <Failed error={inbox.error} retry={() => void inbox.refetch()} />
         ) : !target ? (
           // Nothing that would guess what the workspace reads: a calm space of the drop zone's height.
-          <div role="status" className="min-h-[316px] rounded-2xl border-2 border-dashed border-border"><span className="sr-only">Loading</span></div>
+          <div role="status" className={`min-h-[316px] rounded-2xl border-2 border-dashed border-border ${more ? "max-sm:min-h-[148px]" : ""}`}><span className="sr-only">Loading</span></div>
         ) : (
           <section
             aria-label="Add files"
@@ -266,13 +268,13 @@ export function UploadToFlow() {
             </p>
             <div className="flex flex-col gap-2.5 justify-self-stretch sm:justify-self-center">
               {target.scansOn && (
-                <Button variant="blue" size="lg" className="!h-12 w-full px-6 text-[15px] sm:hidden" onClick={camera.open}>
+                <Button variant="blue" size="lg" className={`!h-12 w-full px-6 text-[15px] sm:hidden ${more ? OUTLINED_ON_PHONE : ""}`} onClick={camera.open}>
                   <Camera size={18} aria-hidden />Take a photo
                 </Button>
               )}
-              {/* Outlined below 640px when Take a photo is the filled one: one filled button per width. */}
+              {/* One filled button per width: below 640px Take a photo is it, and once files are added the list's Send is. */}
               <Button variant="blue" size="lg" onClick={() => input.current?.click()}
-                className={`!h-12 w-full px-6 text-[15px] sm:w-auto ${target.scansOn ? "max-sm:border-border-strong max-sm:bg-surface max-sm:text-ink max-sm:hover:bg-surface-2" : ""}`}>Choose files</Button>
+                className={`!h-12 w-full px-6 text-[15px] sm:w-auto ${target.scansOn || more ? OUTLINED_ON_PHONE : ""}`}>Choose files</Button>
             </div>
             {camera.input}
             <input
@@ -286,8 +288,8 @@ export function UploadToFlow() {
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
               <div className="grid min-w-0 flex-[1_1_280px] gap-0.5">
                 <h2 className="m-0 text-[14.5px] font-semibold text-ink">Or send them by email</h2>
-                <p className="m-0 break-all text-[14px] text-ink-muted">
-                  Forward any email with documents attached to <span className="font-mono text-[13px] text-ink">{address}</span>
+                <p className="m-0 text-[14px] text-ink-muted">
+                  Forward any email with documents attached to <span className="break-all font-mono text-[13px] text-ink">{address}</span>
                 </p>
                 <p className="m-0 text-[13px] text-ink-muted sm:hidden">On a phone: in any app, tap Share, choose Mail, and send the file to this address.</p>
               </div>
