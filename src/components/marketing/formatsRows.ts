@@ -4,7 +4,7 @@ import { HELD_BACK } from "@/lib/marketing/heldBack";
 // formatsRows.test.ts fails when a registry holds a key that is neither a row nor held back
 // below, or when a row names a key the registry does not hold:
 //   read      file extensions in FILE_KINDS (src/lib/fileKinds.ts)
-//   outputs   keys of FORMATS (src/components/flows/OutputEditor.tsx)
+//   outputs   keys of FORMATS (src/components/flows/OutputEditor.tsx) and STANDARD_OUTPUTS (src/lib/standardOutputs.ts)
 //   ways in   "upload" plus the keys of WAY_IN_WORDS (src/lib/flowSentences.ts)
 //   ways out  keys of CHANNELS (src/lib/channels.ts; "" is Download)
 // Kept under components/marketing so the public-copy guards read these words.
@@ -30,6 +30,10 @@ export const OUTPUT_ROWS: readonly FormatRow[] = [
   { name: "PDF", note: "A clean page with your title, your own text at the top and bottom, and your logo.", keys: ["pdf"] },
   { name: "Text", note: "A plain text file with a title and the values.", keys: ["txt"] },
   { name: "Fixed-width", note: "Every value at a set width, for systems that read by position.", keys: ["fixed"] },
+  { name: "cXML", note: "A purchase order as cXML 1.2, for suppliers and procurement networks that take it.", keys: ["cxml-1-2"] },
+  { name: "UBL Order", note: "A purchase order as UBL 2.1, the XML order many European systems take.", keys: ["ubl-2-1-order"] },
+  { name: "EDIFACT ORDERS", note: "A purchase order as an EDIFACT ORDERS message (D.96A).", keys: ["edifact-orders"] },
+  { name: "ANSI X12 850", note: "A purchase order as an X12 850 (version 4010), for EDI partners in North America.", keys: ["x12-850"] },
 ];
 
 export const WAYS_IN_ROWS: readonly FormatRow[] = [
