@@ -296,8 +296,9 @@ export const savePushDevice = (d: PushDeviceKeys) =>
   apiFetch<void>(`/push-devices`, { method: "POST", body: json(d) });
 export const removePushDevice = (endpoint: string) =>
   apiFetch<void>(`/push-devices`, { method: "DELETE", body: json({ endpoint }) });
+export interface PushDeviceCheck { saved: boolean }
 export const checkPushDevice = (endpoint: string) =>
-  apiFetch<{ saved: boolean }>(`/push-devices/check`, { method: "POST", body: json({ endpoint }) });
+  apiFetch<PushDeviceCheck>(`/push-devices/check`, { method: "POST", body: json({ endpoint }) });
 export const testPushDevice = (endpoint: string) =>
   apiFetch<void>(`/push-devices/test`, { method: "POST", body: json({ endpoint }) });
 
