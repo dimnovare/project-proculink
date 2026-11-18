@@ -296,6 +296,10 @@ export const savePushDevice = (d: PushDeviceKeys) =>
   apiFetch<void>(`/push-devices`, { method: "POST", body: json(d) });
 export const removePushDevice = (endpoint: string) =>
   apiFetch<void>(`/push-devices`, { method: "DELETE", body: json({ endpoint }) });
+export const checkPushDevice = (endpoint: string) =>
+  apiFetch<{ saved: boolean }>(`/push-devices/check`, { method: "POST", body: json({ endpoint }) });
+export const testPushDevice = (endpoint: string) =>
+  apiFetch<void>(`/push-devices/test`, { method: "POST", body: json({ endpoint }) });
 
 export const listIntakes = (flowId: string) => apiFetch<FlowIntake[]>(`/flows/${seg(flowId)}/intakes`);
 export const createIntake = (flowId: string, req: IntakeRequest) =>

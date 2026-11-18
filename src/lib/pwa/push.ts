@@ -3,11 +3,12 @@
  * turnOnAlerts, which only a button press calls. The worker shows the alerts
  * (public/sw.js); this file subscribes, unsubscribes and sets the icon badge.
  */
-import { removePushDevice, savePushDevice } from "@/lib/api/documents";
+import { checkPushDevice, removePushDevice, savePushDevice, testPushDevice } from "@/lib/api/documents";
 
 export const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 
-export type AlertsState = "unavailable" | "off" | "on" | "blocked";
+/** "stopped": this browser still holds a subscription, but the push service refused it and the server removed it. */
+export type AlertsState = "unavailable" | "off" | "on" | "stopped" | "blocked";
 
 export function keyBytes(base64url: string): Uint8Array {
   const b64 = base64url.replace(/-/g, "+").replace(/_/g, "/");
@@ -25,10 +26,20 @@ export async function alertsState(key = VAPID_PUBLIC_KEY): Promise<AlertsState> 
     const pm = key ? await pushManager() : null;
     if (!pm) return "unavailable";
     if (Notification.permission === "denied") return "blocked";
-    return (await pm.getSubscription()) ? "on" : "off";
+    const sub = await pm.getSubscription();
+    if (!sub) return "off";
+    // A server that can't be asked leaves the browser's word standing.
+    return (await checkPushDevice(sub.endpoint).catch(() => ({ saved: true }))).saved ? "on" : "stopped";
   } catch {
     return "unavailable";
   }
+}
+
+/** Asks the Worker to send one test alert to this device; a 404 means the server no longer has it. */
+export async function sendTestAlert(): Promise<void> {
+  const sub = await (await pushManager())?.getSubscription();
+  if (!sub) throw new Error("no subscription");
+  await testPushDevice(sub.endpoint);
 }
 
 export async function turnOnAlerts(key = VAPID_PUBLIC_KEY): Promise<AlertsState> {

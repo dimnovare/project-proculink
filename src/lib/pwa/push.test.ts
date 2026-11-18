@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { removePushDevice, savePushDevice } from "@/lib/api/documents";
+import { checkPushDevice, removePushDevice, savePushDevice } from "@/lib/api/documents";
 import { alertsState, keyBytes, showBadge, turnOffAlerts, turnOnAlerts } from "./push";
 
-vi.mock("@/lib/api/documents", () => ({ savePushDevice: vi.fn(), removePushDevice: vi.fn() }));
+vi.mock("@/lib/api/documents", () => ({ savePushDevice: vi.fn(), removePushDevice: vi.fn(), checkPushDevice: vi.fn(), testPushDevice: vi.fn() }));
 
 const endpoint = "https://fcm.googleapis.com/fcm/send/t";
 let unsubscribe: ReturnType<typeof vi.fn>;
@@ -14,6 +14,7 @@ let requestPermission: ReturnType<typeof vi.fn>;
 beforeEach(() => {
   vi.mocked(savePushDevice).mockReset().mockResolvedValue(undefined);
   vi.mocked(removePushDevice).mockReset().mockResolvedValue(undefined);
+  vi.mocked(checkPushDevice).mockReset().mockResolvedValue({ saved: true });
   unsubscribe = vi.fn(async () => true);
   sub = { endpoint, toJSON: () => ({ endpoint, keys: { p256dh: "p", auth: "a" } }), unsubscribe };
   current = null;
@@ -77,4 +78,15 @@ it("turning off removes the device then unsubscribes and never throws; the badge
   delete nav.setAppBadge;
   delete nav.clearAppBadge;
   expect(() => showBadge(3)).not.toThrow();
+});
+
+it("a subscription the server no longer has reads as stopped; a server that can't be asked leaves it on", async () => {
+  current = sub;
+  vi.stubGlobal("Notification", { permission: "granted", requestPermission });
+  await expect(alertsState("BAAA")).resolves.toBe("on");
+  vi.mocked(checkPushDevice).mockResolvedValueOnce({ saved: false });
+  await expect(alertsState("BAAA")).resolves.toBe("stopped");
+  vi.mocked(checkPushDevice).mockRejectedValueOnce(new Error("offline"));
+  await expect(alertsState("BAAA")).resolves.toBe("on");
+  expect(checkPushDevice).toHaveBeenCalledWith(endpoint);
 });
