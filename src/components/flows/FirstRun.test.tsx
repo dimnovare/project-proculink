@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, waitFor, within, type RenderResult } from "@testing-library/react";
+import { fireEvent, render, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import type { Flow } from "@/lib/api/documents";
@@ -95,9 +95,8 @@ describe("FirstRun", () => {
     api.uploadDocument.mockResolvedValue({ id: "d-1", flowId: "f-1", fileName: "po.pdf", status: "received" });
     setSearch("");
     // As the real router does: the replaced address reaches FirstRun, which draws again while the file goes up.
-    let view!: RenderResult;
     nav.replace.mockImplementationOnce((to: string) => { setSearch(to.split("?")[1] ?? ""); view.rerender(<FirstRun />); });
-    view = render(<FirstRun />, { wrapper: freshWrapper() });
+    const view = render(<FirstRun />, { wrapper: freshWrapper() });
     fireEvent.change(await within(view.container).findByLabelText("Choose a file"), { target: { files: [new File(["x"], "po.pdf", { type: "application/pdf" })] } });
     await waitFor(() => expect(nav.push).toHaveBeenCalledWith("/flows/new?step=check&flow=f-1&doc=d-1"));
     expect(nav.replace).toHaveBeenCalledWith("/flows/new?flow=f-1");
