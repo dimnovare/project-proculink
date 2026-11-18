@@ -77,6 +77,8 @@ export function Welcome({ flows, flowId }: { flows: readonly Flow[]; flowId?: st
     const f = await createFlow(PROVISIONAL_FLOW_NAME);
     made.current = f;
     void qc.invalidateQueries({ queryKey: ["flows"] });
+    // FirstRun waits on the address's flow with Welcome unmounted, which would lose the queued file's key: seed it.
+    qc.setQueryData(["flow", f.id], f);
     if (onFirstRun) router.replace(firstRunAddress({ flow: f.id }));
     return f;
   };

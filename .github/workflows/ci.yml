@@ -432,7 +432,12 @@ jobs:
     # 15 -> 25 on 2026-11-15: the suite itself now runs about 14.5 minutes on the runner
     # (325 tests), so with install and browser setup the job hit the old limit and was
     # cancelled with every test so far green.
-    timeout-minutes: 25
+    # 25 -> 40 on 2026-11-18: cancelled again at 25.2 minutes, five seconds after
+    # "352 passed". Two things vary run to run and add up: the test step took 16.9 to
+    # 21.5 minutes across the week's runs, and "Install system deps" took 0.2 to 7.5,
+    # nearly all of it apt downloading 32 MB of fonts from a mirror at about 100 kB/s.
+    # The worst of each together is about 30 minutes; 40 leaves room for the suite to grow.
+    timeout-minutes: 40
     env:
       PROCULINK_QA_BYPASS_AUTH: 'true'
 
