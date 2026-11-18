@@ -8,13 +8,14 @@ const endpoint = "https://fcm.googleapis.com/fcm/send/t";
 let unsubscribe: ReturnType<typeof vi.fn>;
 let subscribe: ReturnType<typeof vi.fn>;
 let current: unknown;
+let sub: object;
 let requestPermission: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.mocked(savePushDevice).mockReset().mockResolvedValue(undefined);
   vi.mocked(removePushDevice).mockReset().mockResolvedValue(undefined);
   unsubscribe = vi.fn(async () => true);
-  const sub = { endpoint, toJSON: () => ({ endpoint, keys: { p256dh: "p", auth: "a" } }), unsubscribe };
+  sub = { endpoint, toJSON: () => ({ endpoint, keys: { p256dh: "p", auth: "a" } }), unsubscribe };
   current = null;
   subscribe = vi.fn(async () => (current = sub));
   requestPermission = vi.fn(async () => "granted");
@@ -30,11 +31,16 @@ afterEach(() => {
 });
 
 it("turning on asks once, subscribes with the key, and saves only the three keys; a refused save leaves nothing behind", async () => {
+  current = sub;                                     // an old subscription is removed, here and on the server, first
   await expect(turnOnAlerts("BAAA")).resolves.toBe("on");
+  expect(vi.mocked(removePushDevice)).toHaveBeenCalledWith(endpoint);
+  expect(vi.mocked(removePushDevice).mock.invocationCallOrder[0]).toBeLessThan(unsubscribe.mock.invocationCallOrder[0]);
+  expect(unsubscribe.mock.invocationCallOrder[0]).toBeLessThan(subscribe.mock.invocationCallOrder[0]);
   expect(requestPermission).toHaveBeenCalledTimes(1);
   expect(subscribe).toHaveBeenCalledWith({ userVisibleOnly: true, applicationServerKey: keyBytes("BAAA") });
   expect(savePushDevice).toHaveBeenCalledWith({ endpoint, p256dh: "p", auth: "a" });
   current = null;
+  unsubscribe.mockClear();
   vi.mocked(savePushDevice).mockRejectedValueOnce(new Error("refused"));
   await expect(turnOnAlerts("BAAA")).rejects.toThrow("refused");
   expect(unsubscribe).toHaveBeenCalled();

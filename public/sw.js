@@ -162,7 +162,8 @@ self.addEventListener("push", (e) => {
   try {
     d = e.data?.json() || {};
   } catch {}
-  const path = typeof d.path === "string" && d.path.startsWith("/") && !d.path.startsWith("//") ? d.path : "/documents";
+  // One leading slash, not followed by another or a backslash (the URL parser reads "\" as "/").
+  const path = typeof d.path === "string" && /^\/(?![/\\])/.test(d.path) ? d.path : "/documents";
   const badge = () => (d.count > 0 ? self.navigator.setAppBadge?.(d.count) : d.count === 0 ? self.navigator.clearAppBadge?.() : undefined);
   e.waitUntil(
     Promise.all([
@@ -188,7 +189,8 @@ self.addEventListener("notificationclick", (e) => {
       const win = wins.find((w) => new URL(w.url).origin === self.location.origin);
       if (!win) return self.clients.openWindow(url.href);
       await win.focus();
-      if (win.navigate) await win.navigate(url.href);
+      // A window this worker does not control refuses navigate(); it stays focused on its page.
+      if (win.navigate) await win.navigate(url.href).catch(() => {});
     })(),
   );
 });

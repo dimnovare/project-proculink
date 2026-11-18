@@ -171,6 +171,7 @@ it("a push shows one content-free notification under its tag, sets the badge, an
   expect(self.registration.showNotification).toHaveBeenCalledTimes(1);
   expect(self.navigator.setAppBadge).toHaveBeenCalledWith(3);
   expect((await push(() => ({ ...alert, path: "//evil.example.test/x" })))[1].data.path).toBe("/documents");
+  expect((await push(() => ({ ...alert, path: "/\\evil.example.test/x" })))[1].data.path).toBe("/documents");
   const [fallbackTitle, fallback] = await push(() => { throw new SyntaxError("bad json"); });
   expect(fallbackTitle).toBe("ProcuLink");
   expect(fallback.body).toBe("Open ProcuLink to see what needs you.");
@@ -179,8 +180,8 @@ it("a push shows one content-free notification under its tag, sets the badge, an
 });
 
 it("pressing an alert focuses an open ProcuLink window and goes to its page, or opens one", async () => {
-  const press = async () => {
-    const event = { notification: { data: { path: "/documents?show=needs-you" }, close: vi.fn() }, waitUntil: vi.fn() };
+  const press = async (path = "/documents?show=needs-you") => {
+    const event = { notification: { data: { path }, close: vi.fn() }, waitUntil: vi.fn() };
     (listeners.notificationclick as (e: typeof event) => void)(event);
     await event.waitUntil.mock.calls[0][0];
     expect(event.notification.close).toHaveBeenCalled();
@@ -196,6 +197,11 @@ it("pressing an alert focuses an open ProcuLink window and goes to its page, or 
   expect(self.clients.openWindow).not.toHaveBeenCalled();
   await press();
   expect(self.clients.openWindow).toHaveBeenCalledWith(target);
+  // A path that leaves this origin lands on /documents instead.
+  for (const path of ["/\\evil.example.test/x", "https://evil.example.test/x", "javascript:alert(1)"]) {
+    await press(path);
+    expect(self.clients.openWindow).toHaveBeenLastCalledWith("https://app.example.test/documents");
+  }
 });
 
 it("offline, a navigation gets a script-free page with its own strict headers, in token colours; it takes over at once", async () => {

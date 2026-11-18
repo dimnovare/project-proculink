@@ -16,5 +16,5 @@ const { publicKey, privateKey } = generateKeyPairSync("ec", { namedCurve: "prime
 const pub = publicKey.export({ format: "jwk" });
 const pubKey = Buffer.concat([Buffer.from([4]), Buffer.from(pub.x, "base64url"), Buffer.from(pub.y, "base64url")]).toString("base64url");
 const privKey = privateKey.export({ format: "jwk" }).d;
-writeFileSync(file, `NEXT_PUBLIC_VAPID_PUBLIC_KEY=${pubKey}\nWebPush__PublicKey=${pubKey}\nWebPush__PrivateKey=${privKey}\n`, { flag: "wx" });
+writeFileSync(file, `NEXT_PUBLIC_VAPID_PUBLIC_KEY=${pubKey}\nWebPush__PublicKey=${pubKey}\nWebPush__PrivateKey=${privKey}\n`, { flag: "wx", mode: 0o600 });
 console.log("Keys written.");

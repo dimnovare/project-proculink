@@ -37,8 +37,12 @@ export async function turnOnAlerts(key = VAPID_PUBLIC_KEY): Promise<AlertsState>
   if (permission === "default") return "off";
   const pm = await pushManager();
   if (!pm) return "unavailable";
-  // An existing subscription may carry an old key.
-  await (await pm.getSubscription())?.unsubscribe();
+  // An existing subscription may carry an old key. Its saved address goes too.
+  const old = await pm.getSubscription();
+  if (old) {
+    await removePushDevice(old.endpoint).catch(() => {});
+    await old.unsubscribe();
+  }
   const sub = await pm.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) as BufferSource });
   const { keys } = sub.toJSON();
   try {
@@ -53,12 +57,14 @@ export async function turnOnAlerts(key = VAPID_PUBLIC_KEY): Promise<AlertsState>
 export async function turnOffAlerts(): Promise<void> {
   try {
     const sub = await (await pushManager())?.getSubscription();
-    if (!sub) return;
-    await removePushDevice(sub.endpoint).catch(() => {});
-    await sub.unsubscribe();
+    if (sub) {
+      await removePushDevice(sub.endpoint).catch(() => {});
+      await sub.unsubscribe();
+    }
   } catch {
     // Sign-out and the off button go on regardless.
   }
+  showBadge(0);
 }
 
 export function showBadge(count: number | undefined): void {

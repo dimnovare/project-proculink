@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { alertsState, turnOffAlerts, turnOnAlerts } from "@/lib/pwa/push";
 import { PhoneAlerts } from "./PhoneAlerts";
@@ -20,7 +20,9 @@ it("renders nothing without a key, and never asks for permission on load", async
   unmount();
   vi.mocked(alertsState).mockResolvedValue("unavailable");
   render(<PhoneAlerts publicKey="BAAA" />);
-  expect(await screen.findByText(PHONE)).toBeInTheDocument();
+  await waitFor(() => expect(alertsState).toHaveBeenCalledWith("BAAA"));
+  await act(async () => {});                         // let the resolved state render before looking for a button
+  expect(screen.getByText(PHONE)).toBeInTheDocument();
   expect(screen.queryByRole("button")).toBeNull();
 });
 
