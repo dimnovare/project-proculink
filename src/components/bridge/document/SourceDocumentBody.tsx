@@ -20,6 +20,7 @@
 
 import { nextTabIndex } from "@/lib/tabKeys";
 import { saveBlob } from "@/lib/saveBlob";
+import { scrollTo } from "@/lib/scrollTo";
 import { useId, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
@@ -43,7 +44,7 @@ import {
 } from "@/lib/sheetPreview";
 
 /** Stable ref: scrolls the highlighted line or cell into view (jsdom has no scrollIntoView). */
-export const scrollTo = (el: HTMLElement | null) => el?.scrollIntoView?.({ block: "nearest" });
+export { scrollTo };
 
 // pdf.js is ~350KB and ESM-only; keeping it behind a client-only dynamic import means a CSV
 // order never downloads it and the server bundle never sees it.

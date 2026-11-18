@@ -218,7 +218,7 @@ export default function AppShellLayout({
             <BridgeTopbar onMenuClick={openSidebar} menuOpen={sidebarOpen} />
             <OfflineNotice />
             <div className="relative flex min-h-0 flex-1">
-              <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 overflow-auto outline-none mb-[var(--plk-tabbar-h)]">
+              <main id="main-content" tabIndex={-1} className="plk-main min-w-0 flex-1 overflow-auto outline-none mb-[var(--plk-tabbar-h)]">
                 <WorkspaceNameNudge />
                 <HeldUploads />
                 <SharedWaiting />

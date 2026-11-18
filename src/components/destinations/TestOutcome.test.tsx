@@ -24,6 +24,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
 describe("TestOutcome", () => {
@@ -131,6 +132,5 @@ describe("TestOutcome", () => {
     expect(scroll).toHaveBeenCalledTimes(1);
     rerender(outcome(at + 1));         // the next press does
     expect(scroll).toHaveBeenCalledTimes(2);
-    scroll.mockRestore();
   });
 });

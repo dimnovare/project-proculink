@@ -235,7 +235,9 @@ describe("OutputEditor on the flow page (draft)", () => {
   });
 
   it("Save and send a test keeps the new destination's form open with the test result and a Close", async () => {
-    api.createDestination.mockResolvedValue({ id: "D1", name: "Drop", protocol: "http", config: {}, hasCredentials: false });
+    const drop = { id: "D1", name: "Drop", protocol: "http", config: {}, hasCredentials: false };
+    api.createDestination.mockResolvedValue(drop);
+    api.listDestinations.mockResolvedValueOnce([]).mockResolvedValue([drop]);   // the saved one is listed after the save
     api.testDestination.mockResolvedValue({ success: false, message: "Host not found" });
     renderDraft(output);
     fireEvent.click(screen.getByRole("button", { name: "Change where it goes" }));
@@ -246,6 +248,7 @@ describe("OutputEditor on the flow page (draft)", () => {
     expect(await screen.findByText(/The test didn.t arrive/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(screen.queryByText(/The test didn.t arrive/)).toBeNull();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Change where it goes" })).toHaveFocus());
   });
 
   it("a column problem opens the columns and is said outside them", async () => {

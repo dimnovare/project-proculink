@@ -1023,13 +1023,14 @@ details[open] > summary [data-disclosure-chevron] {
     --plk-actionbar-pad: calc(10px + var(--plk-tabbar-raise) + max(0px, env(safe-area-inset-bottom) - var(--plk-tabbar-h)));
     --plk-actionbar-h: calc(59px + var(--plk-actionbar-pad));
   }
-  /* The page's end clears the raised Add, and whatever is scrolled into view (a result, a focused control) stops clear of
-     it and of an action bar. PageShell's own scroller (.plk-scroll) already ends above the raise, inside main's padding.
-     With an action bar its spacer holds the page's end clear, and both scrollers stop above the bar. */
-  #main-content { padding-bottom: var(--plk-tabbar-raise); scroll-padding-bottom: calc(var(--plk-tabbar-raise) + 8px); }
+  /* The app shell's main area (.plk-main) ends above the raised Add, so the page's end and anything sticky at bottom-0
+     inside PageShell's own scroller (.plk-scroll, e.g. PublishBar) clear it with no offset of their own. Whatever is
+     scrolled into view (a result, a focused control) stops clear of it and of an action bar. With an action bar its
+     spacer holds the page's end clear, and both scrollers stop above the bar. */
+  .plk-main { padding-bottom: var(--plk-tabbar-raise); scroll-padding-bottom: calc(var(--plk-tabbar-raise) + 8px); }
   .plk-scroll { scroll-padding-bottom: 8px; }
-  :root:has(.plk-actionbar) #main-content { padding-bottom: 0; }
-  :root:has(.plk-actionbar) :is(#main-content, .plk-scroll) { scroll-padding-bottom: calc(var(--plk-actionbar-h) + 8px); }
+  :root:has(.plk-actionbar) .plk-main { padding-bottom: 0; }
+  :root:has(.plk-actionbar) :is(.plk-main, .plk-scroll) { scroll-padding-bottom: calc(var(--plk-actionbar-h) + 8px); }
 }
 
 /* The hidden attribute always hides. Without this a display utility on the same element (grid, flex) wins over

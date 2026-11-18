@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type ClipboardEvent, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { Crosshair, X } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
-import { flushSync } from "react-dom";
 import { useLgViewport } from "@/components/bridge/document/useSourceDocument";
-import { scrollTo } from "@/components/bridge/document/SourceDocumentBody";
+import { scrollTo } from "@/lib/scrollTo";
 import { saveFlowFields } from "@/lib/api/documents";
 import type { DocumentDetail, Flow, SourceLocation } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
