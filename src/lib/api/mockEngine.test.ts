@@ -27,6 +27,12 @@ describe("mock engine", () => {
     expect(docs.every((d) => d.flowId === MOCK_ENGINE_IDS.flow)).toBe(true);
   });
 
+  it("DELETE /flows/{id} refuses a flow put in use, as FlowDeletion does", async () => {
+    const url = `/flows/${MOCK_ENGINE_IDS.flow}`;
+    await expect(mockEngineFetch(url, { method: "DELETE" })).rejects.toMatchObject({ status: 409, body: { error: "flow_in_use" } });
+    expect(await mockEngineFetch<Flow>(url)).toMatchObject({ id: MOCK_ENGINE_IDS.flow, canDelete: false });
+  });
+
   it("pages documents newest first, by several statuses and by when they were sent; only pages carry row facts", async () => {
     const needs = await mockEngineFetch<DocumentPage>("/documents?status=needs_review,ready&page=1&pageSize=2");
     expect([needs.totalCount, needs.items.length, needs.page, needs.pageSize]).toEqual([3, 2, 1, 2]);
