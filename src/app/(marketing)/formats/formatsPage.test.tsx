@@ -6,7 +6,7 @@ import { DOCUMENT_UNIT_SENTENCE } from "@/lib/plans";
 import FormatsPage from "./page";
 
 describe("/formats", () => {
-  it("lists every row in five sections the jump links reach, the limits from the code, and nothing about a standard or where data is", () => {
+  it("lists every row in five sections the jump links reach, the limits from the code, the order standards, and nothing about an e-invoice standard or where data is", () => {
     const { container } = render(<FormatsPage />);
     const page = within(container);
     expect(container.querySelector("main"), "the layout supplies <main>").toBeNull();
@@ -24,6 +24,7 @@ describe("/formats", () => {
     expect(limits).toContain(DOCUMENT_UNIT_SENTENCE);
     expect(container.textContent).toContain("Microsoft OneDrive and SharePoint: on request");
     expect(page.getByRole("link", { name: "See how it works" })).toHaveAttribute("href", "/how-it-works");
-    expect(container.textContent).not.toMatch(/cxml|\bubl\b|peppol|x12|xrechnung|edifact|EU-region|residen|Capabilities/i);
+    for (const name of ["cXML", "UBL Order", "EDIFACT ORDERS", "ANSI X12 850"]) expect(container.querySelector("#outputs")!.textContent, name).toContain(name);
+    expect(container.textContent).not.toMatch(/peppol|xrechnung|EU-region|residen|Capabilities/i);
   });
 });

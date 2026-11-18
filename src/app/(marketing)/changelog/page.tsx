@@ -24,6 +24,13 @@ export const metadata = pageMetadata({
 // those entries byte for byte.
 const ENTRIES = [
   {
+    version: "v2.7",
+    date: "18 November 2026",
+    items: [
+      "Purchase orders sent as cXML, UBL, EDIFACT or X12 now carry every value we read: delivery address and date, both addresses, VAT numbers, and proper unit and country codes.",
+    ],
+  },
+  {
     version: "v2.6",
     date: "18 November 2026",
     items: [

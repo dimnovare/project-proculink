@@ -8,12 +8,13 @@ import { NEVER_CLAIM } from "@/lib/neverClaim";
 import { STANDARD_OUTPUTS, standardName } from "@/lib/standardOutputs";
 import { HELD_BACK, OUTPUT_ROWS, READ_ROWS, WAYS_IN_ROWS, WAYS_OUT_ROWS, outOfStep } from "./formatsRows";
 
+const OUTPUT_KEYS = [...Object.keys(FORMATS), ...STANDARD_OUTPUTS];
+
 const REGISTRIES = [
   ["the file kinds the upload accepts", [...FILE_KINDS.base, ...FILE_KINDS.photos, ...FILE_KINDS.more], READ_ROWS],
-  ["the output formats", Object.keys(FORMATS), OUTPUT_ROWS],
+  ["the output formats", OUTPUT_KEYS, OUTPUT_ROWS],
   ["the ways in", ["upload", ...Object.keys(WAY_IN_WORDS)], WAYS_IN_ROWS],
   ["the ways out", [...CHANNELS.keys()], WAYS_OUT_ROWS],
-  ["the standard outputs", [...STANDARD_OUTPUTS], []],
 ] as const;
 
 describe("the Formats rows", () => {
@@ -26,17 +27,18 @@ describe("the Formats rows", () => {
       expect(new Set([...listed, ...held]).size, `${name}: a key is listed twice or both listed and held`).toBe(listed.length + held.length);
     }
     // Control: one extra registry key is caught, and so is a row naming a key no registry holds.
-    expect(outOfStep([...Object.keys(FORMATS), "heic"], OUTPUT_ROWS).unlisted).toEqual(["heic"]);
-    expect(outOfStep(Object.keys(FORMATS).filter((k) => k !== "fixed"), OUTPUT_ROWS).unknown).toEqual(["fixed"]);
+    expect(outOfStep([...OUTPUT_KEYS, "heic"], OUTPUT_ROWS).unlisted).toEqual(["heic"]);
+    expect(outOfStep(OUTPUT_KEYS.filter((k) => k !== "fixed"), OUTPUT_ROWS).unknown).toEqual(["fixed"]);
   });
 
-  it("names no standard, and every held-back standard is banned site-wide", () => {
-    for (const id of STANDARD_OUTPUTS) {
-      expect(HELD_BACK[id], id).toBeTruthy();
-      expect(NEVER_CLAIM.some((c) => c.pattern.test(standardName(id))), `${standardName(id)} is held back but not in NEVER_CLAIM`).toBe(true);
-    }
+  it("names only the listed standards, and every held-back standard output is banned site-wide", () => {
+    // Held-back standard OUTPUTS only: the read-side cxml/edi/x12 kinds share words with the listed order outputs.
+    const held = STANDARD_OUTPUTS.filter((id) => HELD_BACK[id]);
+    expect(held.length, "the e-invoice outputs stay held back").toBeGreaterThan(0);
+    for (const id of held) expect(NEVER_CLAIM.some((c) => c.pattern.test(standardName(id))), `${standardName(id)} is held back but not in NEVER_CLAIM`).toBe(true);
+    const listed = OUTPUT_ROWS.flatMap((r) => r.keys);
     const text = [READ_ROWS, OUTPUT_ROWS, WAYS_IN_ROWS, WAYS_OUT_ROWS].flat().map((r) => `${r.name} ${r.note}`).join("\n").toLowerCase();
-    for (const { token } of STANDARD_NAME_TOKENS) expect(text, String(token)).not.toMatch(token);
+    for (const { token, catalogId } of STANDARD_NAME_TOKENS) if (!listed.includes(catalogId)) expect(text, String(token)).not.toMatch(token);
     expect(text).not.toMatch(/certified|compliant|validated by/);
   });
 });
