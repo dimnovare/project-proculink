@@ -291,6 +291,12 @@ export const getNotificationSettings = () => apiFetch<NotificationSettings>(`/no
 export const saveNotificationSettings = (s: { onReview: boolean; onFailure: boolean }) =>
   apiFetch<NotificationSettings>(`/notification-settings`, { method: "PUT", body: json(s) });
 
+export interface PushDeviceKeys { endpoint: string; p256dh: string; auth: string }
+export const savePushDevice = (d: PushDeviceKeys) =>
+  apiFetch<void>(`/push-devices`, { method: "POST", body: json(d) });
+export const removePushDevice = (endpoint: string) =>
+  apiFetch<void>(`/push-devices`, { method: "DELETE", body: json({ endpoint }) });
+
 export const listIntakes = (flowId: string) => apiFetch<FlowIntake[]>(`/flows/${seg(flowId)}/intakes`);
 export const createIntake = (flowId: string, req: IntakeRequest) =>
   apiFetch<FlowIntake>(`/flows/${seg(flowId)}/intakes`, { method: "POST", body: json(req) });

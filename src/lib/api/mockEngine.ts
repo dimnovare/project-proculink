@@ -725,6 +725,8 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   }],
   ["GET", re`/notification-settings`, () => notifications],
   ["PUT", re`/notification-settings`, (_m, _q, b) => echo(notifications, b)],
+  ["POST", re`/push-devices`, () => undefined],
+  ["DELETE", re`/push-devices`, () => undefined],
   ["GET", re`/flows/${S}/intakes`, (m) => intakesOf(m[1])],
   ["POST", re`/flows/${S}/intakes`, (_m, _q, b) => echo(intakes[0], b)],
   ["PUT", re`/flows/${S}/intakes/${S}`, (_m, _q, b) => echo(intakes[0], b)],

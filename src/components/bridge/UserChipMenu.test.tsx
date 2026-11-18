@@ -15,6 +15,8 @@ const { heldCount, clearHeldUploads } = vi.hoisted(() => ({
   clearHeldUploads: vi.fn(async () => {}),
 }));
 vi.mock("@/lib/pwa/heldUploads", () => ({ heldCount, clearHeldUploads }));
+const turnOffAlerts = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock("@/lib/pwa/push", () => ({ turnOffAlerts }));
 
 beforeEach(() => vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "pk_test_x"));
 afterEach(() => vi.unstubAllEnvs());
@@ -42,6 +44,7 @@ it("asks before signing out with held files, then removes them; with none it sig
   fireEvent.click(within(dialog).getByRole("button", { name: "Sign out" }));
   await waitFor(() => expect(signOut).toHaveBeenCalledWith({ redirectUrl: "/" }));
   expect(clearHeldUploads.mock.invocationCallOrder[0]).toBeLessThan(signOut.mock.invocationCallOrder[0]);
+  expect(turnOffAlerts.mock.invocationCallOrder[0]).toBeLessThan(clearHeldUploads.mock.invocationCallOrder[0]);
   await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
 
   heldCount.mockResolvedValue(0);

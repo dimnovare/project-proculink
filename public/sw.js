@@ -16,6 +16,10 @@
  * itself, keeps nothing in memory, and never opens Cache Storage. Build assets stay in
  * the browser's ordinary HTTP cache, where they are already marked immutable.
  *
+ * What it shows: a phone alert the Worker pushes, which holds only a count and a fixed
+ * sentence; pressing it opens a ProcuLink page. The kill switch removes the worker, and
+ * with it this device's push subscription.
+ *
  * Kill switch: the page-side switch (src/lib/pwa/worker.ts, syncWorker) removes this
  * worker on every non-production build and when NEXT_PUBLIC_PWA_WORKER=off at build
  * time. Set that variable and redeploy, and every client that loads any page
@@ -149,6 +153,44 @@ self.addEventListener("fetch", (e) => {
       } catch {
         return new Response(pageFor(url), { status: 200, headers: OFFLINE_HEADERS });
       }
+    })(),
+  );
+});
+
+self.addEventListener("push", (e) => {
+  let d = {};
+  try {
+    d = e.data?.json() || {};
+  } catch {}
+  // One leading slash, not followed by another or a backslash (the URL parser reads "\" as "/").
+  const path = typeof d.path === "string" && /^\/(?![/\\])/.test(d.path) ? d.path : "/documents";
+  const badge = () => (d.count > 0 ? self.navigator.setAppBadge?.(d.count) : d.count === 0 ? self.navigator.clearAppBadge?.() : undefined);
+  e.waitUntil(
+    Promise.all([
+      self.registration.showNotification(d.title || "ProcuLink", {
+        body: d.body || "Open ProcuLink to see what needs you.",
+        tag: d.tag || "needs-you",
+        renotify: true,
+        icon: "/android-chrome-192x192.png",
+        data: { path },
+      }),
+      Promise.resolve().then(badge).catch(() => {}),
+    ]),
+  );
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  let url = new URL(e.notification.data?.path || "/documents", self.location.origin);
+  if (url.origin !== self.location.origin) url = new URL("/documents", self.location.origin);
+  e.waitUntil(
+    (async () => {
+      const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const win = wins.find((w) => new URL(w.url).origin === self.location.origin);
+      if (!win) return self.clients.openWindow(url.href);
+      await win.focus();
+      // A window this worker does not control refuses navigate(); it stays focused on its page.
+      if (win.navigate) await win.navigate(url.href).catch(() => {});
     })(),
   );
 });

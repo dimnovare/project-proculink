@@ -55,8 +55,9 @@ let self: {
   location: { origin: string };
   addEventListener: (type: string, fn: Listener) => void;
   skipWaiting: ReturnType<typeof vi.fn>;
-  clients: { claim: ReturnType<typeof vi.fn> };
-  registration: { navigationPreload: { enable: ReturnType<typeof vi.fn> } };
+  clients: { claim: ReturnType<typeof vi.fn>; matchAll: ReturnType<typeof vi.fn>; openWindow: ReturnType<typeof vi.fn> };
+  registration: { navigationPreload: { enable: ReturnType<typeof vi.fn> }; showNotification: ReturnType<typeof vi.fn> };
+  navigator: { setAppBadge: ReturnType<typeof vi.fn>; clearAppBadge: ReturnType<typeof vi.fn> };
 };
 const savedCaches = (globalThis as { caches?: unknown }).caches;
 
@@ -68,8 +69,9 @@ beforeEach(() => {
     location: { origin: "https://app.example.test" },
     addEventListener: (type, fn) => { listeners[type] = fn; },
     skipWaiting: vi.fn(async () => {}),
-    clients: { claim: vi.fn(async () => {}) },
-    registration: { navigationPreload: { enable: vi.fn(async () => {}) } },
+    clients: { claim: vi.fn(async () => {}), matchAll: vi.fn(async () => []), openWindow: vi.fn(async () => null) },
+    registration: { navigationPreload: { enable: vi.fn(async () => {}) }, showNotification: vi.fn(async () => {}) },
+    navigator: { setAppBadge: vi.fn(async () => {}), clearAppBadge: vi.fn(async () => {}) },
   };
   const caches = new Proxy({}, { get: () => { throw new Error("the worker must not touch Cache Storage"); } });
   (globalThis as { caches?: unknown }).caches = caches;
@@ -151,6 +153,55 @@ it("answers only same-origin GET navigations, and never opens Cache Storage", as
   const viaPreload = fire({ url: "https://app.example.test/settings", mode: "navigate", method: "GET" }, preloaded);
   expect(await viaPreload.respondWith.mock.calls[0][0]).toBe(preloaded);
   expect(source).not.toMatch(/\bcaches\b/);
+});
+
+async function push(json: () => unknown) {
+  const event = { data: { json }, waitUntil: vi.fn() };
+  (listeners.push as (e: typeof event) => void)(event);
+  expect(event.waitUntil).toHaveBeenCalledTimes(1);
+  await event.waitUntil.mock.calls[0][0];
+  return self.registration.showNotification.mock.lastCall!;
+}
+
+it("a push shows one content-free notification under its tag, sets the badge, and keeps the path on this origin", async () => {
+  const alert = { tag: "needs-you", title: "ProcuLink", body: "3 documents need you", path: "/documents?show=needs-you", count: 3 };
+  const [title, options] = await push(() => alert);
+  expect(title).toBe("ProcuLink");
+  expect(options).toEqual(expect.objectContaining({ body: "3 documents need you", tag: "needs-you", data: { path: "/documents?show=needs-you" } }));
+  expect(self.registration.showNotification).toHaveBeenCalledTimes(1);
+  expect(self.navigator.setAppBadge).toHaveBeenCalledWith(3);
+  expect((await push(() => ({ ...alert, path: "//evil.example.test/x" })))[1].data.path).toBe("/documents");
+  expect((await push(() => ({ ...alert, path: "/\\evil.example.test/x" })))[1].data.path).toBe("/documents");
+  const [fallbackTitle, fallback] = await push(() => { throw new SyntaxError("bad json"); });
+  expect(fallbackTitle).toBe("ProcuLink");
+  expect(fallback.body).toBe("Open ProcuLink to see what needs you.");
+  await push(() => ({ ...alert, count: 0 }));
+  expect(self.navigator.clearAppBadge).toHaveBeenCalled();
+});
+
+it("pressing an alert focuses an open ProcuLink window and goes to its page, or opens one", async () => {
+  const press = async (path = "/documents?show=needs-you") => {
+    const event = { notification: { data: { path }, close: vi.fn() }, waitUntil: vi.fn() };
+    (listeners.notificationclick as (e: typeof event) => void)(event);
+    await event.waitUntil.mock.calls[0][0];
+    expect(event.notification.close).toHaveBeenCalled();
+  };
+  const target = "https://app.example.test/documents?show=needs-you";
+  const focus = vi.fn(async () => {});
+  const navigate = vi.fn(async () => {});
+  self.clients.matchAll.mockResolvedValueOnce([{ url: "https://app.example.test/settings", focus, navigate }]);
+  await press();
+  expect(focus).toHaveBeenCalled();
+  expect(navigate).toHaveBeenCalledWith(target);
+  expect(focus.mock.invocationCallOrder[0]).toBeLessThan(navigate.mock.invocationCallOrder[0]);
+  expect(self.clients.openWindow).not.toHaveBeenCalled();
+  await press();
+  expect(self.clients.openWindow).toHaveBeenCalledWith(target);
+  // A path that leaves this origin lands on /documents instead.
+  for (const path of ["/\\evil.example.test/x", "https://evil.example.test/x", "javascript:alert(1)"]) {
+    await press(path);
+    expect(self.clients.openWindow).toHaveBeenLastCalledWith("https://app.example.test/documents");
+  }
 });
 
 it("offline, a navigation gets a script-free page with its own strict headers, in token colours; it takes over at once", async () => {
