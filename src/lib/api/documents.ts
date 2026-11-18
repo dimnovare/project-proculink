@@ -314,7 +314,8 @@ export const updateOutput = (flowId: string, id: string, body: OutputRequest) =>
   apiFetch<FlowOutput>(`/flows/${seg(flowId)}/outputs/${seg(id)}`, { method: "PUT", body: json(body) });
 export const deleteOutput = (flowId: string, id: string) =>
   apiFetch<void>(`/flows/${seg(flowId)}/outputs/${seg(id)}`, { method: "DELETE" });
-export const deleteFlow = (id: string) => apiFetch<void>(`/flows/${seg(id)}`, { method: "DELETE" });
+/** Upload timeout: it erases each document's stored files first, and a cut-off wait is not a refusal. */
+export const deleteFlow = (id: string) => apiFetch<void>(`/flows/${seg(id)}`, { method: "DELETE" }, UPLOAD_TIMEOUT_MS);
 export const previewOutput = (documentId: string, outputId: string, opts?: { published?: boolean; template?: OutputNodeTemplate }) =>
   apiFetch<OutputPreview>(`/documents/${seg(documentId)}/outputs/${seg(outputId)}/preview${opts?.published ? "?published=true" : ""}`, {
     method: "POST",

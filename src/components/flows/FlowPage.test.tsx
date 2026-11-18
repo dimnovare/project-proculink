@@ -186,8 +186,13 @@ describe("FlowPage", () => {
     api.deleteFlow.mockResolvedValue(undefined);
     renderPage();
     fireEvent.click(await screen.findByRole("button", { name: "Rename this flow" }));
+    const loads = api.getFlow.mock.calls.length;
     fireEvent.click(screen.getByRole("button", { name: "Delete this flow" }));
     expect(screen.getByText("Delete this flow? Its documents go too. This can't be undone.")).toBeTruthy();
+    // the confirm asks for a fresh count and waits for it before it can delete
+    expect(screen.getByRole("button", { name: "Delete flow" })).toBeDisabled();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Delete flow" })).not.toBeDisabled());
+    expect(api.getFlow.mock.calls.length).toBeGreaterThan(loads);
     fireEvent.click(screen.getByRole("button", { name: "Delete flow" }));
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/flows"));
     expect(api.deleteFlow).toHaveBeenCalledWith("flow-1");
@@ -201,6 +206,7 @@ describe("FlowPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete this flow" }));
     expect(screen.getByText("Delete this flow? This can't be undone.")).toBeTruthy();
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Keep it" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Delete flow" })).not.toBeDisabled());
     fireEvent.click(screen.getByRole("button", { name: "Delete flow" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("This flow can't be deleted: it has been put in use, or it has sent documents.");
     expect(replace).not.toHaveBeenCalled();
