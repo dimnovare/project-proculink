@@ -209,6 +209,20 @@ describe("UploadToFlow", () => {
     expect(screen.queryByText(/documents used/)).toBeNull();            // unknown: no number
   });
 
+  it("puts the first file of the visit above the drop zone, with focus on its list, and later files never take focus", async () => {
+    mount();
+    await screen.findByRole("region", { name: "Add files" });
+    drop([new File(["x"], "invoice-2310.pdf")]);
+    const heading = await screen.findByRole("heading", { name: "Just added" });
+    expect(heading.compareDocumentPosition(screen.getByTestId("upload-drop")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await waitFor(() => expect(heading).toHaveFocus());
+    const choose = screen.getByRole("button", { name: "Choose files" });
+    choose.focus();
+    drop([new File(["y"], "scan-7.pdf")]);
+    expect(await screen.findByText("2 documents")).toBeInTheDocument();
+    expect(choose).toHaveFocus();
+  });
+
   it("a held row says it is waiting and can be removed", async () => {
     api.listFlows.mockResolvedValue([flow("f1", "Supplier invoices", "review")]);
     const kept = new Map<string, HeldRecord>();

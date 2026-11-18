@@ -72,7 +72,8 @@ export function CookieConsentBanner() {
         bottom: "calc(16px + var(--plk-tabbar-h, 0px))",
         left: 16,
         right: 16,
-        zIndex: 60,
+        // The popover layer (tailwind.config.ts zIndex): below z-modal, so an open sheet or dialog is never covered.
+        zIndex: 40,
         maxWidth: 720,
         margin: "0 auto",
         background: "#FFFFFF",
