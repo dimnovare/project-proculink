@@ -24,6 +24,13 @@ export const metadata = pageMetadata({
 // those entries byte for byte.
 const ENTRIES = [
   {
+    version: "v2.6",
+    date: "18 November 2026",
+    items: [
+      "A flow that was never put in use can be deleted, with its documents. Press the pencil beside the flow's name.",
+    ],
+  },
+  {
     version: "v2.5",
     date: "17 November 2026",
     items: [

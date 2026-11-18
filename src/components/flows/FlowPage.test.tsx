@@ -17,7 +17,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 
 const api = vi.hoisted(() => ({
-  getFlow: vi.fn(), updateFlow: vi.fn(), listIntakes: vi.fn(), listOutputs: vi.fn(), listDestinations: vi.fn(),
+  getFlow: vi.fn(), updateFlow: vi.fn(), deleteFlow: vi.fn(), listIntakes: vi.fn(), listOutputs: vi.fn(), listDestinations: vi.fn(),
   listDocumentPage: vi.fn(), publishFlow: vi.fn(), restoreFlowVersion: vi.fn(), listFlowVersions: vi.fn(),
   flowApiEndpoint: (id: string) => `/api/v1/flows/${id}/documents`, listLookups: vi.fn(async () => []),
   listDocuments: vi.fn(), getDocument: vi.fn(), previewOutput: vi.fn(), testOutput: vi.fn(),
@@ -170,5 +170,38 @@ describe("FlowPage", () => {
     expect(api.updateFlow).toHaveBeenCalledTimes(1);
     expect(api.updateFlow).toHaveBeenCalledWith("flow-1", { name: "Supplier bills" });
     await waitFor(() => expect(screen.queryByRole("textbox", { name: "Flow name" })).toBeNull());
+  });
+
+  it("offers Delete this flow only when the flow can be deleted, and deletes after the confirm", async () => {
+    const plain = renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Rename this flow" }));
+    expect(screen.getByRole("textbox", { name: "Flow name" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Delete this flow" })).toBeNull();
+    plain.unmount();
+
+    api.getFlow.mockResolvedValue({ ...flow, publishedVersion: null, documentCount: 1, canDelete: true });
+    api.deleteFlow.mockResolvedValue(undefined);
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Rename this flow" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete this flow" }));
+    expect(screen.getByText("Delete this flow? Its documents go too. This can't be undone.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Delete flow" }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/flows"));
+    expect(api.deleteFlow).toHaveBeenCalledWith("flow-1");
+  });
+
+  it("a refused delete says why and keeps the person on the flow", async () => {
+    api.getFlow.mockResolvedValue({ ...flow, publishedVersion: null, documentCount: 0, canDelete: true });
+    api.deleteFlow.mockRejectedValue(new ApiHttpError("refused", 409, { error: "flow_in_use" }));
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Rename this flow" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete this flow" }));
+    expect(screen.getByText("Delete this flow? This can't be undone.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Delete flow" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("This flow can't be deleted: it has been put in use, or it has sent documents.");
+    expect(replace).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Keep it" }));
+    expect(screen.queryByRole("button", { name: "Delete flow" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Delete this flow" })).toBeTruthy();
   });
 });
