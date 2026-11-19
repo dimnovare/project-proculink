@@ -102,6 +102,7 @@ describe("SendStep", () => {
     fireEvent.click(within(finish).getByRole("button", { name: "Finish" }));
     await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/flows/${confirmed.id}`));
     expect(api.sendDocument).toHaveBeenCalledTimes(1);
+    expect(analytics.capture).toHaveBeenCalledWith("wizard_step_completed", { step: 3, step_name: "send", first: true, sent: true });
     expect(blob.saveBlob).not.toHaveBeenCalled();
   });
 
@@ -168,7 +169,7 @@ describe("SendStep", () => {
     fireEvent.click(within(finish).getByRole("button", { name: "Finish" }));
     await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/flows/${confirmed.id}`));
     expect(api.sendDocument).not.toHaveBeenCalled();
-    expect(analytics.capture).toHaveBeenCalledWith("wizard_step_completed", { step: 3, step_name: "send", first: true });
+    expect(analytics.capture).toHaveBeenCalledWith("wizard_step_completed", { step: 3, step_name: "send", first: true, sent: false });
   });
 
   it("says where later documents go, by the flow's delivery choice", async () => {

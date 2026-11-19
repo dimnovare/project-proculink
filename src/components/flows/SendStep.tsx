@@ -144,9 +144,9 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
     }
     await publishFlow(flow.id).catch((e: unknown) => { if (refusalToken(e) !== "nothing_to_publish") throw e; });
   };
-  const done = () => {
+  const done = (sent: boolean) => {
     for (const queryKey of [["documents"], ["flows"], ["flow", flow.id], ["outputs", flow.id]]) void qc.invalidateQueries({ queryKey });
-    capture("wizard_step_completed", { step: 3, step_name: "send", first });
+    capture("wizard_step_completed", { step: 3, step_name: "send", first, sent });
     router.push(`/flows/${flow.id}`);
   };
   // One press at a time: a second press before the next render does nothing; a refusal gives the buttons back.
@@ -163,11 +163,11 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
       if (state === "download" && !deliveries.some((d) => d.status === "stored"))
         throw new FileNotMade(deliveries.find((d) => d.lastError)?.lastError ?? documentRefusalMessage(null));
     },
-    onSuccess: done, onError: settle,
+    onSuccess: () => done(true), onError: settle,
     // A refused send may still have changed the document.
     onSettled: () => qc.invalidateQueries({ queryKey: ["documents"] }),
   });
-  const finish = useMutation({ mutationFn: prepare, onSuccess: done, onError: settle });
+  const finish = useMutation({ mutationFn: prepare, onSuccess: () => done(false), onError: settle });
   const sample = useMutation({
     mutationFn: async () => {
       const p = await previewOutput(id, output!.id);
