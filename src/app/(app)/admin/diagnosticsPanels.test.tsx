@@ -77,6 +77,9 @@ const ORG: AdminOrganisation = {
   aiCallsThisMonth: 4,
   aiTokensInThisMonth: 5400,
   aiTokensOutThisMonth: 3600,
+  documentsSent: 0,
+  failedLast7Days: 0,
+  lastDocumentAt: null,
 };
 
 async function renderAdmin(org: AdminOrganisation = ORG): Promise<void> {

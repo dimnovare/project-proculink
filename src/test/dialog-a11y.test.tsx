@@ -244,6 +244,9 @@ const ORG: AdminOrganisation = {
   aiCallsThisMonth: 0,
   aiTokensInThisMonth: 0,
   aiTokensOutThisMonth: 0,
+  documentsSent: 0,
+  failedLast7Days: 0,
+  lastDocumentAt: null,
 };
 
 /** One renderable dialog: `file` ties it back to the registry. */
