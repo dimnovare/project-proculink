@@ -51,7 +51,7 @@ export const COPY: Record<string, string> = {
   layout: "Keep the title to 120 characters, and the top and bottom text to 500 each.",
   unknown_target: "That field is no longer on this flow. Reload to see its current fields.",
   invalid_logo: "Use a PNG or JPG image of 256 KB or less.",
-  partner_ids: "An ID is too long or has a character this standard can't carry. Check the sender and receiver IDs.",
+  partner_ids: "Check the sender and receiver IDs. One is too long, uses a character this standard can't carry, or has a type but no ID.",
   moved_table_columns: "Columns that hold table values now come after the other columns.",
   docs_lead: "Upload the receiving system's import or API documentation: a PDF, a saved web page, OpenAPI or JSON Schema, XSD, or an example file.",
   docs_outputs_off: "Files from documentation aren't switched on for this workspace.",
