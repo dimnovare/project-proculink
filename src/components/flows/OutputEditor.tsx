@@ -177,6 +177,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
   const uid = useId();
   /** The element (by id) a fold hands focus to after this render, so a press that unmounts its button keeps the place. */
   const focusNext = useRef<string | null>(null);
+  const newSaved = useRef(false);
   const selectHadFocus = useRef(false);
 
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled });
@@ -361,7 +362,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
         onFocus={() => { selectHadFocus.current = true; }} onBlur={() => { selectHadFocus.current = false; }}
         onChange={(e) => {
           setSendOpen(true); // a choice made here stays open until Done, so a keyboard walk through the list is not cut short
-          setNewDestination(e.target.value === NEW_DESTINATION);
+          setNewDestination(e.target.value === NEW_DESTINATION); newSaved.current = false;
           if (e.target.value !== NEW_DESTINATION) setDestinationId(e.target.value || null);
         }}>
         <option value="">Download only</option>
@@ -374,11 +375,17 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
     </Field>
   );
   const destinationsFailed = destinations.isError && <StatusNotice tone="error">{documentRefusalMessage(destinations.error)}</StatusNotice>;
+  // A saved new destination closes to "Change where it goes", focused: straight after the save, or on Close after its test.
+  const closeSaved = () => { newSaved.current = false; setNewDestination(false); setSendOpen(false); focusNext.current = `${uid}-change`; };
   const newDestinationForm = newDestination && (
     <DestinationForm
       inline={!!draft} testAfterSave={!!draft}
-      onCancel={() => setNewDestination(false)}
-      onSaved={(d) => { setDestinationId(d.id); setNewDestination(false); setSendOpen(false); focusNext.current = `${uid}-change`; qc.invalidateQueries({ queryKey: ["destinations"] }); }}
+      onCancel={() => (newSaved.current ? closeSaved() : setNewDestination(false))}
+      onSaved={(d) => {
+        setDestinationId(d.id); qc.invalidateQueries({ queryKey: ["destinations"] });
+        // With a test after the save the form stays open, its result in view and a Close, as in Settings.
+        if (draft) newSaved.current = true; else closeSaved();
+      }}
     />
   );
   const sendWhenFields = (

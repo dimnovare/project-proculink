@@ -91,6 +91,7 @@
      and none at all when the banner never shows. */
   --plk-bottom-inset:  0px;
   --plk-tabbar-h:      0px;
+  --plk-tabbar-raise:  0px;
 
   /* Semantic */
   --amber:             #B36D14;
@@ -1012,9 +1013,24 @@ details[open] > summary [data-disclosure-chevron] {
 
 /* Phones: while the tab bar is on the page, this is its height (1px border + 4px padding + 50px targets + bottom inset). Fixed layers above it (cookie banner, action bar) add it to their bottom offset. */
 @media (max-width: 767.98px) {
-  :root:has(.plk-tabbar) { --plk-tabbar-h: calc(55px + max(8px, env(safe-area-inset-bottom))); }
+  /* --plk-tabbar-raise: how far the round Add rises above the bar (20px, its ring 4px more). Whatever ends just above the bar clears it. */
+  :root:has(.plk-tabbar) { --plk-tabbar-h: calc(55px + max(8px, env(safe-area-inset-bottom))); --plk-tabbar-raise: 24px; }
   /* No :has(): reserve the bar's height always (a full-screen step then shows a gap; accepted). */
-  @supports not selector(:has(*)) { :root { --plk-tabbar-h: calc(55px + max(8px, env(safe-area-inset-bottom))); } }
+  @supports not selector(:has(*)) { :root { --plk-tabbar-h: calc(55px + max(8px, env(safe-area-inset-bottom))); --plk-tabbar-raise: 24px; } }
+  /* The main-button bar (ActionBar.tsx): 10px, the raise, and whatever of the home-indicator inset the tab bar does not
+     cover (all of it; on a full-screen step, where the tab bar is absent, the bar adds it itself). Height: 1px border + 10px + 48px buttons + that. */
+  :root {
+    --plk-actionbar-pad: calc(10px + var(--plk-tabbar-raise) + max(0px, env(safe-area-inset-bottom) - var(--plk-tabbar-h)));
+    --plk-actionbar-h: calc(59px + var(--plk-actionbar-pad));
+  }
+  /* The app shell's main area (.plk-main) ends above the raised Add, so the page's end and anything sticky at bottom-0
+     inside PageShell's own scroller (.plk-scroll, e.g. PublishBar) clear it with no offset of their own. Whatever is
+     scrolled into view (a result, a focused control) stops clear of it and of an action bar. With an action bar its
+     spacer holds the page's end clear, and both scrollers stop above the bar. */
+  .plk-main { padding-bottom: var(--plk-tabbar-raise); scroll-padding-bottom: calc(var(--plk-tabbar-raise) + 8px); }
+  .plk-scroll { scroll-padding-bottom: 8px; }
+  :root:has(.plk-actionbar) .plk-main { padding-bottom: 0; }
+  :root:has(.plk-actionbar) :is(.plk-main, .plk-scroll) { scroll-padding-bottom: calc(var(--plk-actionbar-h) + 8px); }
 }
 
 /* The hidden attribute always hides. Without this a display utility on the same element (grid, flex) wins over

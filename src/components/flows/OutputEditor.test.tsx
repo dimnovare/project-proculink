@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: 
 
 const api = vi.hoisted(() => ({
   listDestinations: vi.fn(), listLookups: vi.fn(), updateOutput: vi.fn(), createOutput: vi.fn(), previewOutput: vi.fn(), saveFlowFields: vi.fn(), checkOutput: vi.fn(),
-  createDestination: vi.fn(), listDocuments: vi.fn(),
+  createDestination: vi.fn(), listDocuments: vi.fn(), testDestination: vi.fn(), listDocumentPage: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
 vi.mock("./UploadQueue", () => ({ useUploadQueue: () => ({ add: vi.fn() }) }));
@@ -232,6 +232,23 @@ describe("OutputEditor on the flow page (draft)", () => {
   beforeEach(() => {
     localStorage.clear();
     api.previewOutput.mockResolvedValue({ contentType: "text/csv", fileName: "a.csv", content: "Supplier", lookupMisses: [] });
+  });
+
+  it("Save and send a test keeps the new destination's form open with the test result and a Close", async () => {
+    const drop = { id: "D1", name: "Drop", protocol: "http", config: {}, hasCredentials: false };
+    api.createDestination.mockResolvedValue(drop);
+    api.listDestinations.mockResolvedValueOnce([]).mockResolvedValue([drop]);   // the saved one is listed after the save
+    api.testDestination.mockResolvedValue({ success: false, message: "Host not found" });
+    renderDraft(output);
+    fireEvent.click(screen.getByRole("button", { name: "Change where it goes" }));
+    fireEvent.change(screen.getByLabelText("Send to"), { target: { value: "\u0000new" } });
+    fireEvent.change(screen.getAllByLabelText("Name").at(-1)!, { target: { value: "Drop" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save and send a test" }));
+    await waitFor(() => expect(api.testDestination).toHaveBeenCalledWith("D1"));
+    expect(await screen.findByText(/The test didn.t arrive/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByText(/The test didn.t arrive/)).toBeNull();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Change where it goes" })).toHaveFocus());
   });
 
   it("a column problem opens the columns and is said outside them", async () => {

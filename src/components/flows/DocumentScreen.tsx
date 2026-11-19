@@ -98,7 +98,7 @@ const typeOf = (fileName: string) => {
 const PICK_HELP: Record<string, string> = {
   pdf: "Draw a box around {label} on the page, or click two corners.",
   image: "Draw a box around {label} on the page, or click two corners.",
-  sheet: "Click the cell that holds {label}.",
+  sheet: "Choose the cell that holds {label}.",
   text: "Select the words for {label}, then choose Use selected words.",
 };
 const KEYS_HELP = "No mouse? Tab to the page, move the box with the arrow keys, resize it with Shift and the arrows, then press Enter.";
@@ -327,6 +327,8 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
       const unpublished = req.newLabel && typeof qc.getQueryData<Flow>(["flow", d.summary.flowId])?.publishedVersion === "number";
       setTaught(unpublished ? `${saved} ${ADDED_TO_CHANGES}` : saved);
       setTeach(null);
+      // Below lg the notice is on "What we read": go back to it, and the notice scrolls into view as it mounts.
+      setTab("read");
     },
   });
   const cancelTeach = () => { setTeach(null); teachMutation.reset(); };

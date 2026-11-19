@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type ClipboardEvent, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { Crosshair, X } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useLgViewport } from "@/components/bridge/document/useSourceDocument";
+import { scrollTo } from "@/lib/scrollTo";
 import { saveFlowFields } from "@/lib/api/documents";
 import type { DocumentDetail, Flow, SourceLocation } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
@@ -412,7 +414,12 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
       {(hasMore || history) && (
         <div className="flex flex-wrap items-start justify-between gap-2">
           {hasMore && (
-            <Button size="sm" variant="ghost" aria-expanded={more} aria-controls="read-more" onClick={() => setMore((m) => !m)}>
+            <Button size="sm" variant="ghost" aria-expanded={more} aria-controls="read-more" onClick={() => {
+              // Opening: drawn now, so it can be scrolled clear of a phone's bottom bar and its first control focused.
+              flushSync(() => setMore((m) => !m));
+              const panel = !more && document.getElementById("read-more");
+              if (panel) { scrollTo(panel); panel.querySelector<HTMLElement>("select, input, textarea, button")?.focus(); }
+            }}>
               Something missing or in the wrong place?
             </Button>
           )}

@@ -24,6 +24,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
 describe("TestOutcome", () => {
@@ -118,5 +119,18 @@ describe("TestOutcome", () => {
     fireEvent.click(within(await screen.findByTestId("destination-waiting")).getByRole("button", { name: "Send it now" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("1 sent. Processing is paused on this workspace.");
     expect(api.sendDocument.mock.calls).toEqual([["doc-1"], ["doc-2"]]);
+  });
+
+  it("each test's result is scrolled into view once, as it appears", () => {
+    const scroll = vi.spyOn(Element.prototype, "scrollIntoView");
+    const fail = { success: false, message: null, responseCode: null };
+    const outcome = (when: number) => <QueryClientProvider client={new QueryClient()}><TestOutcome destinationId="dest-1" protocol="sftp" result={fail} error={null} at={when} place="row" /></QueryClientProvider>;
+    const { rerender } = render(outcome(at));
+    expect(scroll).toHaveBeenCalledTimes(1);
+    expect(scroll.mock.contexts[0]).toContainElement(screen.getByRole("alert"));
+    rerender(outcome(at));             // a later render of the same result does not move the page
+    expect(scroll).toHaveBeenCalledTimes(1);
+    rerender(outcome(at + 1));         // the next press does
+    expect(scroll).toHaveBeenCalledTimes(2);
   });
 });

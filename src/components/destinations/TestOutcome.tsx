@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { scrollTo } from "@/lib/scrollTo";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
@@ -52,12 +53,14 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place,
   });
 
   if (!result && !error) return null;
-  if (!result) return <StatusNotice tone="error">{documentRefusalMessage(error)}</StatusNotice>;
+  // A new element per press (key), scrolled into view as it mounts: clear of a phone's tab bar, and once per test.
+  const shown = (body: ReactNode) => <div key={at} ref={scrollTo} className="grid gap-2">{body}</div>;
+  if (!result) return shown(<StatusNotice tone="error">{documentRefusalMessage(error)}</StatusNotice>);
 
   const reason = serverReasonOrNull(result.message);
   const moment = sendMoment(new Date(at).toISOString(), new Date());
   if (!result.success)
-    return (
+    return shown(
       <StatusNotice tone="error">
         {reason ? <>The test didn&apos;t arrive: <span>{sentence(reason)}</span></> : "The test didn't arrive."} {GO_ON[place]}
       </StatusNotice>
@@ -69,8 +72,8 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place,
   const when = latest && sendMoment(latest, new Date());
   const done = send.data;
   const tried = done ? done.done.length + done.refused.length : 0;
-  return (
-    <div className="grid gap-2">
+  return shown(
+    <>
       <StatusNotice tone="success">
         {protocol === "google_sheets"
           ? `We could open the spreadsheet and the tab${moment ? ` ${moment}` : ""}. No rows were added.`
@@ -112,6 +115,6 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place,
           {done.done.length === 1 ? `${done.done[0].item.fileName} is on its way again.` : `${done.done.length} documents are on their way again.`}
         </StatusNotice>
       ))}
-    </div>
+    </>
   );
 }

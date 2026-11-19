@@ -176,7 +176,7 @@ test.describe("Review", () => {
     // pointing from the value switches to the original
     await page.getByRole("link", { name: "point to it on the original" }).click();
     await expect(tabs.getByRole("tab", { name: "Original" })).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByText("Click the cell that holds Supplier.")).toBeVisible();
+    await expect(page.getByText("Choose the cell that holds Supplier.")).toBeVisible();
   });
 
   test("from 768 to 1023 wide the panes are tabs and the header carries one Skip and one Send", async ({ page }) => {
@@ -277,7 +277,7 @@ test.describe("Review", () => {
       await expect(values.getByLabel("Date")).toBeFocused();
       // While a person points at the original to teach a value, a click there means "it is here": nothing leads away.
       await values.getByRole("button", { name: "Point to Date on the original" }).click();
-      await expect(page.getByText("Click the cell that holds Date.")).toBeVisible();
+      await expect(page.getByText("Choose the cell that holds Date.")).toBeVisible();
       await expect(page.locator("[data-spot]")).toHaveCount(0);
       await page.keyboard.press("Escape");
       await expect(page.locator("[data-spot]").first()).toBeVisible();
