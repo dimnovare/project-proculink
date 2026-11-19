@@ -133,6 +133,8 @@ type EditorProps = {
   onSaved(): void; onCancel(): void;
   /** Draft only: handed the file's heading when it is drawn. */
   headingRef?: React.Ref<HTMLHeadingElement>;
+  /** Draft only: buttons for the file, drawn on the row with its name. */
+  actions?: React.ReactNode;
 };
 type Draft = { part: ReturnType<typeof useDraftPart<OutputRequest>>; saves: number };
 
@@ -155,7 +157,7 @@ function DraftOutputEditor(props: EditorProps & { output: FlowOutput }) {
   return <Editor {...props} draft={{ part, saves }} />;
 }
 
-function Editor({ flow, output, previewDocumentId, previewFile, hideDestination, onCreated, onSaved, onCancel, headingRef, draft }: EditorProps & { draft?: Draft }) {
+function Editor({ flow, output, previewDocumentId, previewFile, hideDestination, onCreated, onSaved, onCancel, headingRef, actions, draft }: EditorProps & { draft?: Draft }) {
   const qc = useQueryClient();
   const enabled = useTenantQueriesEnabled();
   const onFlowPage = useOnFlowPage();
@@ -487,7 +489,10 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
               <Pencil size={18} aria-hidden />
             </button>
           </div>
-          <DraftState part={draft.part} />
+          <div className="flex flex-wrap items-center gap-2">
+            <DraftState part={draft.part} />
+            {actions}
+          </div>
         </div>
         {renameShown && nameField}
         {externalNote}
