@@ -34,7 +34,7 @@ function legalText(root: HTMLElement): string {
 const sha256 = (s: string) => createHash("sha256").update(s, "utf8").digest("hex");
 
 const PINNED: Record<"/privacy" | "/terms" | "/aup" | "/dpa" | "/subprocessors" | "/security#statements", string> = {
-  "/privacy": "599c7c792b9c8bc6f21f32beb27263751d6810979535a1baf30fe0119b027e7b",
+  "/privacy": "5ccde96ff3932cf5404b804346df20d194e03b27065511d593f9ef82a044d930",
   "/terms": "ae25fb8cb42c3fcc5d053c5b0c3f630bca58751810227182747d711cbb148478",
   "/aup": "917a1e45c7f3775aad05ae6d74275ee63f522e4a2db5012bdecca0702f4c0fbf",
   "/dpa": "a86971bb79039f2a9403ebef616bf194cd955d36d4fe3cd3b20a5fe903a72e39",

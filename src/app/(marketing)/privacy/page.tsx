@@ -16,7 +16,7 @@ export const metadata = pageMetadata({
 export default function PrivacyPage() {
   return (
     // FOUNDER DECISION: set this date to the day the page is published.
-    <LegalPage title="Privacy Policy" updated="Last updated: 18 November 2026" path="/privacy">
+    <LegalPage title="Privacy Policy" updated="Last updated: 19 November 2026" path="/privacy">
 
       <LegalH2>Who we are</LegalH2>
       <p>
@@ -58,7 +58,7 @@ export default function PrivacyPage() {
         <li><strong>Account data</strong> — name, work email, organisation name, collected via Clerk authentication on sign-up.</li>
         <li><strong>Document data</strong> — the documents you send us, such as invoices, purchase orders and delivery notes; the data we read from them; and the files we generate from them. When a document reaches us by email we also keep the address it was sent from, and the text of the message if it has no attachment we can read. These documents can carry personal data: contact names, email addresses, phone numbers and postal addresses, and bank account details such as IBAN and payment references.</li>
         <li><strong>Workspace records</strong> — the flows, destinations and lookup lists you set up, and a record of who checked, changed or sent each document.</li>
-        <li><strong>Usage data</strong> — page views, feature interactions, error events, collected via product analytics.</li>
+        <li><strong>Usage data</strong> — page views, feature interactions, error events, and the site or campaign that brought you here, collected via product analytics.</li>
         <li><strong>Billing data</strong> — subscription plan and status, handled by Stripe. We never store your card numbers or payment credentials.</li>
         <li><strong>Connection details</strong> — the addresses and credentials you give us for collecting documents from your systems and delivering files to them, such as a mailbox, a file server, a storage bucket or a web address. Credentials are encrypted at rest.</li>
       </ul>
@@ -86,7 +86,7 @@ export default function PrivacyPage() {
         <li><strong>Billing, invoicing and tax records</strong>. Basis: performance of our contract (Art. 6(1)(b)), and our legal obligation to keep accounting records (Art. 6(1)(c)).</li>
         <li><strong>Keeping the service secure and working</strong> — error monitoring, security and access logs, and preventing abuse. Basis: our legitimate interest in a secure, reliable service (Art. 6(1)(f)).</li>
         <li><strong>Product analytics in your browser</strong> — only if you accept analytics cookies in the cookie banner. Basis: your consent (Art. 6(1)(a)). You can withdraw it at any time: clear this site&apos;s cookies and stored data in your browser, and the banner asks again.</li>
-        <li><strong>Pseudonymous service events</strong> recorded by our servers — for example, that a workspace was created or changed plan. Basis: our legitimate interest in understanding how the product is used, so we can improve it (Art. 6(1)(f)).</li>
+        <li><strong>Pseudonymous service events</strong> recorded by our servers — for example, that a workspace was created, sent a document or changed plan. Basis: our legitimate interest in understanding how the product is used, so we can improve it (Art. 6(1)(f)).</li>
         <li><strong>Answering enquiries and demo requests</strong>. Basis: our legitimate interest in responding to you, or steps you asked for before entering a contract (Art. 6(1)(f) and 6(1)(b)).</li>
         <li><strong>Meeting legal obligations and handling legal claims</strong>. Basis: legal obligation (Art. 6(1)(c)) and our legitimate interest in establishing or defending legal claims (Art. 6(1)(f)).</li>
       </ul>
