@@ -31,9 +31,9 @@ export interface RowsSum {
   table: string;
   /** The sum, with the currency's decimals. */
   sum: string;
-  /** It equals the net total, within one of the currency's smallest unit. */
+  /** It equals the net total, or the gross total for lines priced with tax included, within one of the currency's smallest unit. */
   same: boolean;
-  /** The net total's label and value. */
+  /** The label and value of the total it matched: the gross one when only that matched, else the net one. */
   label: string;
   value: string;
 }
@@ -43,7 +43,7 @@ const DECIMALS: Record<string, number> = { JPY: 0, KRW: 0, CLP: 0, ISK: 0, VND: 
 
 /**
  * The backend's "The lines don't add up to the net total." check (`DocumentChecks.Arithmetic`), on what is on screen:
- * the line amounts added up beside the NET total, never the gross one. Meanings are the flow's once it lists fields
+ * the line amounts added up beside the net total, or beside the gross one when the lines include tax (receipts). Meanings are the flow's once it lists fields
  * (`FieldMeanings.Of`), the read's own before that. Says nothing when the flow is not known yet, when there is no
  * net total or amount column, or when a number has no single reading. What is being typed counts.
  */
@@ -72,5 +72,9 @@ export function rowsSum(read: DocumentDetail["read"], flow: Pick<Flow, "fields">
     sum += units(amount);
   }
   const show = (u: number) => (u / scale).toFixed(Math.log10(scale));
+  const grossField = find("total_gross");
+  const gross = numberOf(now(grossField));
+  if (Math.abs(sum - units(net)) > 1 && grossField && gross !== null && Math.abs(sum - units(gross)) <= 1)
+    return { table: table.key, sum: show(sum), same: true, label: grossField.label, value: show(units(gross)) };
   return { table: table.key, sum: show(sum), same: Math.abs(sum - units(net)) <= 1, label: netField.label, value: show(units(net)) };
 }

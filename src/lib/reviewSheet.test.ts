@@ -31,7 +31,7 @@ describe("reviewSheet", () => {
     expect(pasteGrid("one value")).toBeNull();
   });
 
-  it("adds the lines up beside the net total only, with the flow's meanings and the currency's decimals", () => {
+  it("adds the lines up beside the net total, or the gross one for tax-included lines, with the flow's meanings and the currency's decimals", () => {
     const net = header("net", "1303.40", "total_net");
     const lines = ["490.00", "673.40", "140.00"];
     expect(rowsSum(read(lines, [net]), unlisted, {})).toEqual({ table: "lines", sum: "1303.40", same: true, label: "net", value: "1303.40" });
@@ -39,6 +39,10 @@ describe("reviewSheet", () => {
     expect(rowsSum(read(lines, [net]), unlisted, { "cell:lines/2/amount": "150" })).toMatchObject({ sum: "1313.40", same: false, value: "1303.40" });
     // Never against the gross total: an invoice with VAT is not a mismatch.
     expect(rowsSum(read(["1000.00"], [header("total", "1240.00", "total_gross")]), unlisted, {})).toBeNull();
+    // A receipt prices its lines with tax included: they match the gross total, as the backend's check now accepts.
+    const totals = [header("net", "10.00", "total_net"), header("total", "12.40", "total_gross")];
+    expect(rowsSum(read(["12.40"], totals), unlisted, {})).toMatchObject({ same: true, label: "total", value: "12.40" });
+    expect(rowsSum(read(["12.00"], totals), unlisted, {})).toMatchObject({ same: false, label: "net", value: "10.00" });
     // Nothing is said about a number with two readings, a column with no meaning, or a flow that is not known yet.
     expect(rowsSum(read(["1.500", "250"], [header("net", "1.750", "total_net")]), unlisted, {})).toBeNull();
     expect(rowsSum(read(["490.00"], [net], null), unlisted, {})).toBeNull();
