@@ -29,6 +29,9 @@ describe("first-touch attribution", () => {
   it("registers the landing page and campaign tags once analytics is allowed, and nothing before", async () => {
     const analytics = await landOn("/invoice-data-extraction?utm_source=linkedin&utm_medium=organic&utm_campaign=company_launch&email=a@b.c", null);
     expect(sdk.register_once, "nothing is stored before consent").not.toHaveBeenCalled();
+    // The SDK sends the full address with every event: tokens in it must be masked.
+    expect(sdk.init.mock.calls[0][1]).toMatchObject({ mask_personal_data_properties: true });
+    expect(sdk.init.mock.calls[0][1].custom_personal_data_properties).toEqual(expect.arrayContaining(["__clerk_ticket", "code", "email"]));
 
     window.localStorage.setItem("proculink_cookie_consent_v1", "analytics-allowed");
     analytics.onConsentChanged("analytics-allowed");

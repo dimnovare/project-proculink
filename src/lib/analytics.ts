@@ -62,6 +62,10 @@ function loadPosthog(): Promise<PostHogClient | null> {
         autocapture:       false,
         disable_session_recording: true,
         mask_personal_data_properties: true,
+        // The SDK adds the full address to every event as $current_url. The option above masks only
+        // ad click ids; these carry sign-in tokens (Clerk invitation links), the Google sign-in code
+        // (/settings/google-callback) or an address.
+        custom_personal_data_properties: ["__clerk_ticket", "__clerk_handshake", "__clerk_db_jwt", "code", "state", "token", "email", "session_id"],
       });
 
       // If consent isn't given yet, opt out of capturing until it is.
