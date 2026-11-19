@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { HELP_ARTICLES } from "./help-articles";
 import { GUIDES } from "./guides";
+import { LEGAL_ENTITY } from "./legal-entity";
+import { PUBLIC_LADDER } from "./plans";
 
 /**
  * Per-page SEO metadata for the public marketing surface.
@@ -144,4 +146,49 @@ export function guideMetadata({ slug, ...rest }: GuideSeo): Metadata {
     type: "article",
     noindex: rest.noindex ?? guide.audience === "admin",
   });
+}
+
+// ── Structured data (schema.org JSON-LD) ─────────────────────────────────────
+// Only facts the page already shows. No rating, review or customer count: there is none to cite.
+
+const PUBLISHER = { "@type": "Organization", name: LEGAL_ENTITY.legalName, url: SITE_URL } as const;
+
+/** Names the site "ProcuLink" in search results; without it the Organization block offers the legal name. */
+export const WEBSITE_STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: LEGAL_ENTITY.productName,
+  url: SITE_URL,
+  publisher: PUBLISHER,
+} as const;
+
+const PAID_PRICES = PUBLIC_LADDER.map((p) => p.priceMonthly).filter((p): p is number => p != null && p > 0);
+
+/** The product and its public price range, read off the ladder `/pricing` renders. */
+export const SOFTWARE_STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: LEGAL_ENTITY.productName,
+  url: SITE_URL,
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  description: SITE_DESCRIPTION,
+  offers: {
+    "@type": "AggregateOffer",
+    priceCurrency: "EUR",
+    lowPrice: Math.min(...PAID_PRICES),
+    highPrice: Math.max(...PAID_PRICES),
+    offerCount: PAID_PRICES.length,
+    url: `${SITE_URL}/pricing`,
+  },
+  publisher: PUBLISHER,
+} as const;
+
+/** The visible breadcrumb trail as a BreadcrumbList. Paths are rooted: "/help". */
+export function breadcrumbStructuredData(trail: readonly { name: string; path: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: trail.map((t, i) => ({ "@type": "ListItem", position: i + 1, name: t.name, item: `${SITE_URL}${t.path}` })),
+  };
 }

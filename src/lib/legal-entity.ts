@@ -35,6 +35,9 @@ export const ORGANIZATION_STRUCTURED_DATA = {
   name: LEGAL_ENTITY.legalName,
   alternateName: LEGAL_ENTITY.productName,
   url: "https://proculink.eu",
+  logo: "https://proculink.eu/apple-touch-icon.png",
+  email: "support@proculink.eu",
+  sameAs: ["https://www.linkedin.com/company/proculink/"],
   identifier: LEGAL_ENTITY.registryCode,
   address: {
     "@type": "PostalAddress",

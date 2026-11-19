@@ -1,4 +1,5 @@
-import { pageMetadata } from "@/lib/seo";
+import { JsonLd } from "@/components/marketing/JsonLd";
+import { pageMetadata, SOFTWARE_STRUCTURED_DATA } from "@/lib/seo";
 import { DOCUMENT_PLANS, TRIAL_DAYS } from "@/lib/plans";
 
 // The two numbers this description quotes are DERIVED from the cheapest document plan, not
@@ -11,10 +12,15 @@ const [STARTER] = DOCUMENT_PLANS;
 // server-component layout supplies the page-level SEO metadata + self-canonical for /pricing.
 export const metadata = pageMetadata({
   path: "/pricing",
-  title: "Pricing — ProcuLink",
+  title: `Pricing: from €${STARTER.priceMonthly} a month, ${TRIAL_DAYS} days free — ProcuLink`,
   description: `Document processing from €${STARTER.priceMonthly} a month for ${STARTER.orderLimit!.toLocaleString("en-US")} documents. Every channel, output and check on every plan. Free for ${TRIAL_DAYS} days.`,
 });
 
 export default function PricingLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      <JsonLd data={SOFTWARE_STRUCTURED_DATA} />
+      {children}
+    </>
+  );
 }

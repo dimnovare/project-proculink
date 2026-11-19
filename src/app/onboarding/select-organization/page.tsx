@@ -14,6 +14,7 @@ import {
 import { Card } from "@/components/bridge/layout/Card";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { captureException } from "@/lib/sentry-context";
+import { capture } from "@/lib/analytics";
 import { isApiMockMode, isQaBypass } from "@/lib/api-client";
 import { decideOrgGate } from "@/components/onboarding/orgGate";
 import { deriveWorkspaceName } from "@/components/onboarding/workspaceName";
@@ -170,6 +171,8 @@ function SelectOrganizationInner() {
           return;
         }
         try { localStorage.setItem("ws-autonamed", org.id); } catch { /* storage may be blocked */ }
+        // The self-serve sign-up's last step: a brand-new account now has its own workspace.
+        capture("workspace_created", { auto: true });
         router.replace(appendOrgSetFlag(dest));
       })();
     }

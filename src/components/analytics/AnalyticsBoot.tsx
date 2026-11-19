@@ -4,7 +4,14 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useCookieConsent } from "@/lib/cookie-consent";
-import { capture, identifyUser, onConsentChanged, setGroup } from "@/lib/analytics";
+import { capture, identifyUser, onConsentChanged, rememberLanding, setGroup } from "@/lib/analytics";
+
+/** The calls to action whose clicks we count, by where the link goes. */
+const CTA_TARGETS: [prefix: string, cta: string][] = [
+  ["/sign-up", "start_trial"],
+  ["/book-demo", "book_call"],
+  ["mailto:sales@", "contact_sales"],
+];
 
 export function AnalyticsBoot() {
   const { user, isLoaded } = useUser();
@@ -14,6 +21,28 @@ export function AnalyticsBoot() {
   // against double-counting a view when consent flips (or is already granted)
   // for a path we've already captured.
   const capturedPath = useRef<string | null>(null);
+
+  // First, before any other effect can load the SDK: remember where this visit began.
+  useEffect(() => rememberLanding(), []);
+
+  // One listener for every call to action on every page. Records which one (our own words on the
+  // link) and where it sat; never anything a visitor typed.
+  useEffect(() => {
+    const onClick = (event: MouseEvent) => {
+      const link = (event.target as Element | null)?.closest?.("a[href]");
+      const href = link?.getAttribute("href") ?? "";
+      const cta = CTA_TARGETS.find(([prefix]) => href.startsWith(prefix))?.[1];
+      if (!link || !cta) return;
+      capture("marketing_cta_clicked", {
+        cta,
+        label: (link.textContent ?? "").trim().slice(0, 60),
+        placement: link.closest("header") ? "header" : link.closest("footer") ? "footer" : "page",
+        path: window.location.pathname,
+      });
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, []);
 
   // React to consent changes.
   useEffect(() => {

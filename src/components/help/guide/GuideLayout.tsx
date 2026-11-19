@@ -21,6 +21,8 @@ import { START_HERE, getGuideBySlug, type Guide } from "@/lib/guides";
 import { Card } from "@/components/bridge/layout/Card";
 import { SITE } from "@/components/marketing/sitePictures";
 import { SITE_PAGE } from "@/components/marketing/LegalPage";
+import { JsonLd } from "@/components/marketing/JsonLd";
+import { breadcrumbStructuredData } from "@/lib/seo";
 import { GuideProvider } from "./GuideContext";
 
 interface StepMeta {
@@ -171,6 +173,13 @@ function GuideHeader({ guide, stepCount }: { guide: Guide; stepCount: number }) 
         </span>
       ) : (
         <nav aria-label="Breadcrumb" className="text-[15px] text-ink-muted">
+          <JsonLd
+            data={breadcrumbStructuredData([
+              { name: "Help centre", path: "/help" },
+              { name: "Step-by-step guides", path: "/help/guides" },
+              { name: guide.title, path: guide.href },
+            ])}
+          />
           <ol className="m-0 flex list-none flex-wrap items-center gap-x-2 p-0">
             <li>
               <Link href="/help" className="inline-flex min-h-[44px] items-center text-brand-blue-deep underline underline-offset-4">

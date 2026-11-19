@@ -2,9 +2,10 @@ import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AnalyticsBoot } from "@/components/analytics/AnalyticsBoot";
 import { CookieConsentBanner } from "@/components/marketing/CookieConsentBanner";
+import { JsonLd } from "@/components/marketing/JsonLd";
 import { PwaBoot } from "@/components/pwa/PwaBoot";
 import { ORGANIZATION_STRUCTURED_DATA } from "@/lib/legal-entity";
-import { SITE_DESCRIPTION, SITE_TITLE, socialMetadata } from "@/lib/seo";
+import { SITE_DESCRIPTION, SITE_TITLE, WEBSITE_STRUCTURED_DATA, socialMetadata } from "@/lib/seo";
 // Self-hosted fonts (OFL, via @fontsource) — replaces the render-blocking
 // cross-origin Google Fonts stylesheet. Each package's @font-face registers
 // under the exact literal family name ('Inter', 'JetBrains Mono',
@@ -85,12 +86,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             file) — same families and weights, font-display: swap, served from
             same-origin /_next/static. No cross-origin Google Fonts round-trip
             on the critical FCP path. */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(ORGANIZATION_STRUCTURED_DATA).replace(/</g, "\\u003c"),
-          }}
-        />
+        <JsonLd data={ORGANIZATION_STRUCTURED_DATA} />
+        <JsonLd data={WEBSITE_STRUCTURED_DATA} />
         {/* The dev-server overlay is a fixed-position element, and there is no
             corner where it is harmless.
 
