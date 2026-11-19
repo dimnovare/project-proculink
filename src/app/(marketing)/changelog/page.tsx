@@ -24,6 +24,14 @@ export const metadata = pageMetadata({
 // those entries byte for byte.
 const ENTRIES = [
   {
+    version: "v2.8",
+    date: "19 November 2026",
+    items: [
+      "Phone alerts: turn them on in Settings, and your phone tells you when a document needs you or couldn't be sent, with a short summary each day. Send a test alert to check it reaches you.",
+      "On an iPhone, phone alerts work once ProcuLink is on your home screen.",
+    ],
+  },
+  {
     version: "v2.7",
     date: "18 November 2026",
     items: [
