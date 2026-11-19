@@ -1033,6 +1033,10 @@ details[open] > summary [data-disclosure-chevron] {
   :root:has(.plk-actionbar) :is(.plk-main, .plk-scroll) { scroll-padding-bottom: calc(var(--plk-actionbar-h) + 8px); }
 }
 
+/* While a destination form is open on the flow page, it is the task in hand: the changes bar (PublishBar) waits until
+   it is saved or closed. No :has(): the bar stays (accepted). */
+:root:has([data-plk-destform]) .plk-changesbar { display: none; }
+
 /* The hidden attribute always hides. Without this a display utility on the same element (grid, flex) wins over
    the browser's own rule, and a closed section stays open. */
 [hidden]:where(:not([hidden="until-found"])) { display: none !important; }

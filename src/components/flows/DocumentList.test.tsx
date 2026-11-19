@@ -109,6 +109,19 @@ describe("DocumentList", () => {
     expect(within(screen.getByRole("link", { name: /scan\.pdf/ })).getByText(/^From Example Supplier Ltd/)).toBeInTheDocument();
   });
 
+  it("selecting, a click on the row (not the box) ticks it and opens nothing, on both layouts", () => {
+    const toggle = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DocumentList label="Documents" showFlow documents={[row({ id: "a", fileName: "PO-48213.pdf" })]} selection={{ ids: new Set(), toggle, all: vi.fn() }} />
+      </QueryClientProvider>,
+    );
+    expect(screen.queryByRole("link", { name: /PO-48213\.pdf/ })).toBeNull();
+    fireEvent.click(within(screen.getByRole("table", { name: "Documents" })).getByText("PO-48213.pdf"));
+    fireEvent.click(within(screen.getByTestId("documents-phone-list")).getByText("Supplier invoices"));
+    expect(toggle.mock.calls).toEqual([["a"], ["a"]]);
+  });
+
   it("a refused send says why on the row and keeps Send", async () => {
     sendDocument.mockRejectedValue(new ApiHttpError("no", 409, { error: "not_ready" }));
     const { table } = renderList();

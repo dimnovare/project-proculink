@@ -198,6 +198,18 @@ describe("DocumentScreen", () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["documents"] });
   });
 
+  it("after Send and open next, the next document's screen says the sent one is on its way, politely", async () => {
+    api.sendDocument.mockResolvedValue([]);
+    const qc = new QueryClient();
+    const { rerender } = renderScreen(qc);
+    fireEvent.click(within(await screen.findByTestId("review-header-actions")).getByRole("button", { name: "Send and open next" }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/flows/f/documents/c"));
+    rerender(<QueryClientProvider client={qc}><DocumentScreen flowId="f" documentId="c" /></QueryClientProvider>);
+    const note = await screen.findByText("a.csv is on its way.");
+    expect(note.closest("[aria-live='polite']")).not.toBeNull();
+    expect(note).not.toHaveFocus();
+  });
+
   it("a refused send is said under the header and nothing moves; the last one goes back to Documents", async () => {
     api.sendDocument.mockRejectedValueOnce(new ApiHttpError("no", 409, { error: "no_outputs" }));
     renderScreen();

@@ -10,7 +10,6 @@ import { createDestination, testDestination, updateDestination } from "@/lib/api
 import type { Destination, DestinationRequest } from "@/lib/api/documents";
 import { MANAGED_CONFIG_KEYS } from "@/lib/deliveryConfigKeys";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { useOnFlowPage } from "./flowDraft";
 import { GoogleTargetFields, useLinkedAccounts } from "./GoogleTargetFields";
 
 type Kind = "text" | "number" | "check" | "method";
@@ -118,7 +117,8 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
   onSaved(d: Destination): void; onCancel(): void;
 }) {
   const qc = useQueryClient();
-  const filled = useOnFlowPage() ? "secondary" : "primary";
+  // Filled on the flow page too: the changes bar, the page's other filled button, hides while this form is open (globals.css).
+  const filled = "primary";
   const [current, setCurrent] = useState(destination);
   const [name, setName] = useState(destination?.name ?? chosen?.name ?? "");
   const first = (chosen?.protocols[0] ?? (preset ? "http" : "email")) as Protocol;
@@ -246,7 +246,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
   const body = (
     // Not a <form>: this sits inside the output and draft-review forms, and a nested form's Save
     // either submits the outer form too or, with a password manager installed, reloads the page.
-    <div className={inline ? "grid min-w-0 max-w-[840px] grid-cols-[repeat(auto-fit,minmax(min(240px,100%),1fr))] gap-3" : "grid gap-3"}
+    <div data-plk-destform className={inline ? "grid min-w-0 max-w-[840px] grid-cols-[repeat(auto-fit,minmax(min(240px,100%),1fr))] gap-3" : "grid gap-3"}
       onKeyDown={(e) => { if (e.key === "Enter" && e.target instanceof HTMLInputElement) { e.preventDefault(); submit(); } }}>
       {chosen ? <p className="col-span-full m-0 text-[14px] text-ink">We&apos;ll save this destination as {chosen.name}.</p> : (
         <Field label="Name">

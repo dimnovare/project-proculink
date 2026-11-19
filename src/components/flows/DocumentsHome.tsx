@@ -192,7 +192,7 @@ export function DocumentsHome() {
       <div className="flex min-w-0 flex-col gap-3">
         <StoppedAlert page={stopped.data} />
         <div className="flex items-center gap-2 border-b border-border">
-          <div role="tablist" aria-label="Show" className="flex min-w-0 flex-1 overflow-x-auto">
+          <div role="tablist" aria-label="Show" className="flex min-w-0 flex-1 flex-wrap sm:flex-nowrap sm:overflow-x-auto">
             {DOCUMENT_TABS.map((t, i) => {
               const n = pageTotal(counts[i].data);
               const selected = t.id === tab;

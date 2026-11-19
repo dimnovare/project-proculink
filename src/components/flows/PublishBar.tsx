@@ -102,7 +102,7 @@ export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(o
     // Card draws position: relative inline, so the sticky wrapper is its own element. On a phone its scroller (PageShell)
     // already ends above the tab bar's raised round Add, inside main's bottom padding (--plk-tabbar-raise), so bottom-0 clears it.
     // Named for what it says: a setup never saved, changes waiting, or (after a press) its result.
-    <section role="region" aria-label={live === null ? "Save this setup" : pending ? "Changes not in use yet" : "Your changes"} className="sticky bottom-0 z-sticky">
+    <section role="region" aria-label={live === null ? "Save this setup" : pending ? "Changes not in use yet" : "Your changes"} className="plk-changesbar sticky bottom-0 z-sticky">
       <Card dense className="flex flex-wrap items-center gap-3">
         <div aria-live="polite" className="grid min-w-0 flex-1 gap-1 text-[13px]">
           {pending && (
