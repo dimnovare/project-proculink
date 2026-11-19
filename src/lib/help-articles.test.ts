@@ -26,7 +26,7 @@ describe("HELP_ARTICLES registry shape", () => {
   it("every article has a category, a positive readMin, and keywords", () => {
     for (const a of HELP_ARTICLES) {
       expect(CATEGORY_ORDER, `category of ${a.slug}`).toContain(a.category);
-      // The article page prints this title and hides the body's own `# Title`; the in-app panel shows the body's.
+      // The article page prints this title and renders the body's own `# Title` as nothing; the in-app panel shows the body's.
       const mdx = readFileSync(join(process.cwd(), "src", "app", "(marketing)", "help", a.slug, "page.mdx"), "utf8");
       expect(mdx, `h1 of ${a.slug}`).toMatch(new RegExp(`^# ${a.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\r?$`, "m"));
       expect(a.readMin, `readMin of ${a.slug}`).toBeGreaterThan(0);
@@ -165,6 +165,17 @@ describe("help structure", () => {
     expect(slugsOnDisk(join(HELP_DIR, "guides"))).toEqual(
       publicGuides().filter((g) => g.status === "live").map((g) => g.slug).sort(),
     );
+  });
+
+  it("gives every article and guide a search-result description of 120 to 155 characters", () => {
+    const pages = [...articlePaths, ...publicGuides().filter((g) => g.status === "live").map((g) => g.href)];
+    expect(pages.length).toBeGreaterThan(30);
+    for (const href of pages) {
+      const mdx = readFileSync(join(HELP_DIR, href.slice("/help/".length), "page.mdx"), "utf8");
+      const description = mdx.match(/^\s*description: "([^"]*)"/m)?.[1] ?? "";
+      expect(description.length, `${href}: "${description}"`).toBeGreaterThanOrEqual(120);
+      expect(description.length, `${href}: "${description}"`).toBeLessThanOrEqual(155);
+    }
   });
 
   it("keeps every old slug alive: still registered, or a 308 to a registered page", () => {

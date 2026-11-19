@@ -92,10 +92,8 @@ export default function HelpArticleShell({ children }: { children: React.ReactNo
               <video controls preload="metadata" poster={article.videoPosterUrl} src={article.videoUrl} className="mb-6 w-full rounded-[10px] border border-border bg-navy" />
             )}
 
-            {/* The body's own h1 is the registry title, printed above; typography from src/mdx-components.tsx. */}
-            <article ref={articleRef} className={article ? "[&>h1:first-child]:hidden" : undefined}>
-              {children}
-            </article>
+            {/* The body's own `# Title` renders nothing (src/mdx-components.tsx): the h1 above is the page's only one. */}
+            <article ref={articleRef}>{children}</article>
 
             <footer className="mt-12 flex flex-col gap-8">
               <FeedbackPrompt slug={slug} title={article?.title} />

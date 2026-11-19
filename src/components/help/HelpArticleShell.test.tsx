@@ -8,6 +8,7 @@ vi.mock("next/navigation", () => ({ usePathname: () => path }));
 vi.mock("@/lib/analytics", () => ({ capture: () => {} }));
 
 import HelpArticleShell from "./HelpArticleShell";
+import { useMDXComponents } from "@/mdx-components";
 
 const hrefs = (el: HTMLElement) => within(el).getAllByRole("link").map((a) => a.getAttribute("href"));
 
@@ -38,6 +39,19 @@ describe("the article template", () => {
     expect(within(crumb).getByRole("link", { name: "Help centre" })).toHaveAttribute("href", "/help");
     expect(crumb.querySelector('[aria-current="page"]')).toHaveTextContent(a!.title);
     expect(screen.queryByText(/business day|every message/)).toBeNull();
+  });
+
+  it("prints one h1, the registry title, over a body that opens with its own `# Title`", () => {
+    const a = HELP_ARTICLES[0];
+    path = `/help/${a.slug}`;
+    const BodyH1 = useMDXComponents({}).h1 as React.ComponentType<{ children?: React.ReactNode }>;
+    const { container } = render(
+      <HelpArticleShell>
+        <BodyH1>{a.title}</BodyH1>
+        <p>x</p>
+      </HelpArticleShell>,
+    );
+    expect([...container.querySelectorAll("h1")].map((h) => h.textContent)).toEqual([a.title]);
   });
 
   it("shows no table of contents for one heading and no guides box for none", () => {

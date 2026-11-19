@@ -2,7 +2,14 @@ import Link from "next/link";
 import { SignUp } from "@clerk/nextjs";
 import { AuthShell, AuthHeading, AUTH_FOOT, AUTH_LINK, clerkAppearance } from "@/components/auth/AuthSurface";
 import { ClerkAvailabilityGate } from "@/components/bridge/ClerkAvailabilityGate";
-import { PLAN_BY_ID } from "@/lib/plans";
+import { PLAN_BY_ID, TRIAL_DAYS } from "@/lib/plans";
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata({
+  path: "/sign-up",
+  title: "Start your free trial — ProcuLink",
+  description: `Try ProcuLink free for ${TRIAL_DAYS} days, no credit card: upload a document, check what we read beside the original, and send the data on.`,
+});
 
 /* The trial allowance in the sub-heading is read off the ladder, not typed: it is the first
    promise a new buyer reads, on a screen no pricing change would ever bring anyone back to.
