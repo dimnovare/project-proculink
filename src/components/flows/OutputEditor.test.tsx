@@ -147,6 +147,23 @@ describe("OutputEditor", () => {
       .toEqual(["Which column is the line unit price?", "Which column is the line item code?"]);
   });
 
+  it("a standard output saves the sender and receiver IDs", async () => {
+    renderEditor(x12, { ...flow, fields: { fields: [], tables: [lines] } });
+    fireEvent.change(screen.getByLabelText("Sender's ID"), { target: { value: "TESTBUYER" } });
+    fireEvent.change(screen.getByLabelText("Receiver's ID"), { target: { value: "TESTSUPPLIER" } });
+    fireEvent.change(screen.getByLabelText("Receiver's ID type"), { target: { value: "01" } });
+    expect(screen.getByLabelText("Sender's ID")).toHaveAttribute("maxLength", "15");
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(api.updateOutput).toHaveBeenCalled());
+    expect(api.updateOutput.mock.calls[0][2].template.envelope)
+      .toEqual({ x12: { isaSenderId: "TESTBUYER", isaReceiverId: "TESTSUPPLIER", isaReceiverQualifier: "01" } });
+  });
+
+  it("a UBL order asks for no IDs", () => {
+    renderEditor({ ...x12, standard: "ubl-2-1-order", format: "xml" });
+    expect(screen.queryByLabelText("Sender's ID")).toBeNull();
+  });
+
   const peppol = { ...output, standard: "peppol-bis-billing-3", format: "xml", tableKey: "lines", template: {}, needs: [] };
   const checkFlow = { ...flow, peppolOn: true, fields: { fields: [], tables: [lines] } };
 

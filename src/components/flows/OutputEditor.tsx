@@ -20,6 +20,8 @@ import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { FLAGGED, RULE_SETS, standardName } from "@/lib/standardOutputs";
 import { StandardQuestions } from "@/components/flows/StandardQuestions";
+import { PartnerIds } from "@/components/flows/PartnerIds";
+import type { EnvelopeConfig } from "@/lib/api/types";
 import { Pencil } from "lucide-react";
 import { FirstDocumentDrop, useLatestRead } from "./FlowValues";
 
@@ -166,6 +168,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
   const [rows, setRows] = useState<SimpleOutput | null>(output && !output.standard ? toSimple(output.template) : null);
   const [sendWhen, setSendWhen] = useState<SendWhen | null>(output?.sendWhen ?? null);
   const [layout, setLayout] = useState<OutputLayout>(output?.layout ?? {});
+  const [envelope, setEnvelope] = useState<EnvelopeConfig | null>(output?.template?.envelope ?? null);
   const [problem, setProblem] = useState<string | null>(null);
   const [testAt, setTestAt] = useState(0);
   // Draft only: the rename box, the "Send to" select and the column editor, each folded behind one press.
@@ -225,7 +228,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
     const sent = rows && format === "fixed"
       ? { ...rows, fields: rows.fields.map(withWidth), table: rows.table && { ...rows.table, columns: rows.table.columns.map(withWidth) } }
       : rows;
-    return { ...body, template: sent ? fromSimple(sent, format) : current.template };
+    return { ...body, template: standard ? { ...current.template, envelope } : sent ? fromSimple(sent, format) : current.template };
   };
   const unnamed = [...(rows?.fields ?? []), ...(rows?.table?.columns ?? [])].some((r) => !r.name.trim());
   const problemNow = !name.trim() ? "Give this file a name."
@@ -420,6 +423,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
     </p>
   );
   const standardQuestions = standard && <StandardQuestions flow={flow} needs={current.needs ?? []} tableKey={tableKey} name={standardName(standard)} />;
+  const partnerIds = standard && <PartnerIds standard={standard} envelope={envelope} onChange={setEnvelope} />;
   const problemNotice = problem && <StatusNotice tone="error">{problem}</StatusNotice>;
   const checkButton = previewDocumentId && current && standard && FLAGGED.has(standard) && flow.peppolOn && (
     <Button type="button" variant="secondary" loading={check.isPending} onClick={() => check.mutate(previewDocumentId)}>Check against {RULE_SETS[standard]?.short} rules</Button>
@@ -594,6 +598,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
             {layoutFields}
             {logoField}
             {standardQuestions}
+            {partnerIds}
             {rows && [...rows.fields, ...(rows.table?.columns ?? [])].length > 0 && (
               <div className="grid gap-2">
                 <p className="m-0 text-[12.5px] font-medium text-ink-muted">Lookups</p>
@@ -646,6 +651,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
           </>
         )}
         {standardQuestions}
+        {partnerIds}
         {problemNotice}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" variant={onFlowPage ? "secondary" : "primary"} loading={save.isPending}>{current ? "Save" : "Create"}</Button>

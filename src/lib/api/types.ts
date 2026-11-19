@@ -143,9 +143,12 @@ export interface CxmlEnvelope {
   senderDomain?: string | null; senderIdentity?: string | null;
 }
 
+export interface EdifactEnvelope { senderId?: string | null; senderQualifier?: string | null; recipientId?: string | null; recipientQualifier?: string | null }
+
 export interface EnvelopeConfig {
   x12?: X12Envelope | null;
   cxml?: CxmlEnvelope | null;
+  edifact?: EdifactEnvelope | null;
 }
 
 export interface OutputNodeTemplate {
