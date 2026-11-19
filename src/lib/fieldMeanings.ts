@@ -34,6 +34,7 @@ export const FIELD_MEANINGS = {
   delivery_city: { label: "Delivery city", scope: "header" },
   delivery_postcode: { label: "Delivery postcode", scope: "header" },
   delivery_country: { label: "Delivery country", scope: "header" },
+  payment_terms: { label: "Payment terms", scope: "header" },
   line_description: { label: "Line description", scope: "line" },
   line_quantity: { label: "Line quantity", scope: "line" },
   line_unit: { label: "Line unit", scope: "line" },
@@ -41,5 +42,6 @@ export const FIELD_MEANINGS = {
   line_amount: { label: "Line amount", scope: "line" },
   line_tax_rate: { label: "Line tax rate", scope: "line" },
   line_item_code: { label: "Line item code", scope: "line" },
+  line_buyer_item_code: { label: "Line buyer item code", scope: "line" },
   line_number: { label: "Line number", scope: "line" },
 } as const satisfies Record<string, { label: string; scope: "header" | "line" }>;
