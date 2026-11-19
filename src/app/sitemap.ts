@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { HELP_ARTICLES } from "@/lib/help-articles";
 import { publicGuides } from "@/lib/guides";
+import { USE_CASES } from "@/components/marketing/useCases";
 
 const BASE_URL = "https://proculink.eu";
 
@@ -10,6 +11,7 @@ const routes = [
   "/formats",
   "/pricing",
   "/security",
+  ...USE_CASES.map((u) => u.path),
   "/help",
   // Help articles come straight from the registry — a hand list can't drift.
   ...HELP_ARTICLES.map((a) => `/help/${a.slug}`),

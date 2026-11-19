@@ -8,7 +8,7 @@ import { pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata({
   path: "/formats",
-  title: "Formats & methods — ProcuLink",
+  title: "Formats: PDF, Excel and scans in, CSV and XML out — ProcuLink",
   description:
     "Every format and method, in one place. ProcuLink reads the files you receive, shows what it read beside the original, and sends the data on in the format your system needs.",
   ogDescription:

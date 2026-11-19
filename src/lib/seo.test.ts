@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { metadata as homeMetadata } from "@/app/(home)/layout";
 import { metadata as rootMetadata } from "@/app/layout";
+import { PUBLIC_LADDER } from "./plans";
 import {
+  breadcrumbStructuredData,
+  SOFTWARE_STRUCTURED_DATA,
+  WEBSITE_STRUCTURED_DATA,
   pageMetadata,
   helpArticleMetadata,
   OG_IMAGE,
@@ -129,5 +133,25 @@ describe("helpArticleMetadata", () => {
     expect(() =>
       helpArticleMetadata({ slug: "not-an-article", title: "t", description: "d" }),
     ).toThrow(/not-an-article/);
+  });
+});
+
+describe("structured data", () => {
+  it("names the site ProcuLink, prices the product off the public ladder, and makes breadcrumb links absolute", () => {
+    expect(WEBSITE_STRUCTURED_DATA).toMatchObject({ "@type": "WebSite", name: "ProcuLink", url: "https://proculink.eu" });
+    const paid = PUBLIC_LADDER.map((p) => p.priceMonthly).filter((p): p is number => !!p);
+    expect(paid.length, "anti-vacuity: the ladder has paid tiers").toBeGreaterThan(2);
+    expect(SOFTWARE_STRUCTURED_DATA.offers).toMatchObject({
+      priceCurrency: "EUR",
+      lowPrice: Math.min(...paid),
+      highPrice: Math.max(...paid),
+      offerCount: paid.length,
+    });
+    // Nothing the site cannot show: no rating, no review count.
+    expect(JSON.stringify(SOFTWARE_STRUCTURED_DATA)).not.toMatch(/"(aggregateRating|review)"/);
+    expect(breadcrumbStructuredData([{ name: "Help centre", path: "/help" }, { name: "Checks", path: "/help/checks" }]).itemListElement).toEqual([
+      { "@type": "ListItem", position: 1, name: "Help centre", item: "https://proculink.eu/help" },
+      { "@type": "ListItem", position: 2, name: "Checks", item: "https://proculink.eu/help/checks" },
+    ]);
   });
 });

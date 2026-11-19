@@ -1,4 +1,5 @@
-import { pageMetadata, SITE_DESCRIPTION, SITE_TITLE } from "@/lib/seo";
+import { JsonLd } from "@/components/marketing/JsonLd";
+import { pageMetadata, SITE_DESCRIPTION, SITE_TITLE, SOFTWARE_STRUCTURED_DATA } from "@/lib/seo";
 
 // The landing page sits in this route group — which
 // adds no path segment, so the route stays "/" — purely so this server-side
@@ -7,5 +8,10 @@ import { pageMetadata, SITE_DESCRIPTION, SITE_TITLE } from "@/lib/seo";
 export const metadata = pageMetadata({ path: "/", title: SITE_TITLE, description: SITE_DESCRIPTION });
 
 export default function HomeLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      <JsonLd data={SOFTWARE_STRUCTURED_DATA} />
+      {children}
+    </>
+  );
 }

@@ -17,7 +17,7 @@ import { pageMetadata } from "@/lib/seo";
 const LEAD =
   "ProcuLink reads the files you receive, shows what it read beside the original, and sends the data on in the format your system needs. Scans and phone photos are read too.";
 
-export const metadata = pageMetadata({ path: "/how-it-works", title: "How it works — ProcuLink", description: LEAD });
+export const metadata = pageMetadata({ path: "/how-it-works", title: "How it works: read, check and send documents — ProcuLink", description: LEAD });
 
 const ICON = "mt-0.5 size-5 shrink-0 text-brand-blue";
 const ROW = "flex items-start gap-3 border-t border-border-faint px-5 py-4";

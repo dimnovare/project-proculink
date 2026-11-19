@@ -589,10 +589,12 @@ export function yearlyMonthlyEquivalent(plan: Plan): number | null {
 /** `ReadLimits.PagesPerUnit` and `ReadLimits.MaxUnits`, diffed by `backendMirror.test.ts`. */
 export const PAGES_PER_DOCUMENT = 10;
 export const MAX_DOCUMENTS_PER_FILE = 10;
-/** What one document is, said once for /pricing and /formats. */
-export const DOCUMENT_UNIT_SENTENCE =
-  `A document is one file of up to ${PAGES_PER_DOCUMENT} pages. Longer files count once for every ${PAGES_PER_DOCUMENT} pages, ` +
-  `and we read up to ${PAGES_PER_DOCUMENT * MAX_DOCUMENTS_PER_FILE} pages of a file.`;
+/** What one document is, said once for /pricing and /formats.
+ *  One template literal on purpose. Written as two joined with `+`, Next's SWC minifier folded the
+ *  constant in and dropped " pages, ", so production served "for every 10and we read" on /pricing
+ *  and /formats (seen live 2026-11-19). It only happens when a folded constant meets a `+` join of
+ *  two template literals; vitest does not minify, so no unit test sees it. */
+export const DOCUMENT_UNIT_SENTENCE = `A document is one file of up to ${PAGES_PER_DOCUMENT} pages. Longer files count once for every ${PAGES_PER_DOCUMENT} pages, and we read up to ${PAGES_PER_DOCUMENT * MAX_DOCUMENTS_PER_FILE} pages of a file.`;
 
 export type BillingPeriod = "monthly" | "yearly";
 

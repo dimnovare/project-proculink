@@ -7,7 +7,7 @@ describe("SiteFooter", () => {
     const { container } = render(<SiteFooter />);
     const footer = within(container).getByRole("contentinfo");
     const groups = {
-      Product: ["How it works", "Formats", "Pricing", "Security", "Changelog"],
+      Product: ["How it works", "Formats", "Pricing", "Security", "Invoice data extraction", "Purchase order data extraction", "Changelog"],
       Help: ["Help centre", "Step-by-step guides", "Support", "Talk to us"],
       Company: ["Privacy", "Terms", "Acceptable use", "Data processing addendum", "Subprocessors"],
     };

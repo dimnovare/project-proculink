@@ -17,6 +17,8 @@ import { capture } from "@/lib/analytics";
 import { Card } from "@/components/bridge/layout/Card";
 import { SITE } from "@/components/marketing/sitePictures";
 import { SITE_PAGE } from "@/components/marketing/LegalPage";
+import { JsonLd } from "@/components/marketing/JsonLd";
+import { breadcrumbStructuredData } from "@/lib/seo";
 
 const ASIDE_LINK = "flex min-h-[40px] items-center py-1.5 text-[15px] leading-[1.35] text-ink-muted no-underline hover:text-ink";
 const BUTTON = "inline-flex min-h-[44px] items-center rounded-[10px] border border-border-strong px-5 font-semibold text-ink hover:border-ink";
@@ -69,6 +71,10 @@ export default function HelpArticleShell({ children }: { children: React.ReactNo
             )}
           </ol>
         </nav>
+
+        {article && (
+          <JsonLd data={breadcrumbStructuredData([{ name: "Help centre", path: "/help" }, { name: article.title, path: `/help/${article.slug}` }])} />
+        )}
 
         {article && (
           <header className="mt-4 flex flex-col gap-2">
