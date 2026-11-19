@@ -48,9 +48,11 @@ function summary<R>(r: Each<ListedDocument, R>, w: Words, went: string): BarRepo
   };
 }
 
+/** One document sent: the bar's sentence, also said by the review screen after Send and open next. */
+export const onItsWay = (fileName: string) => `${fileName} is on its way.`;
 const sentWords = (r: Each<ListedDocument, unknown>) =>
   r.refused.length || r.stopped ? `${r.done.length} sent.`
-  : r.done.length === 1 ? `${r.done[0].item.fileName} is on its way.` : `${r.done.length} documents are on their way.`;
+  : r.done.length === 1 ? onItsWay(r.done[0].item.fileName) : `${r.done.length} documents are on their way.`;
 const downloadedWords = (n: number, first?: string) => (n === 1 ? `${first} downloaded.` : `${n} files downloaded in documents.zip.`);
 
 export function SelectionBar({ selected, sent, report, onReport, onSent, onClear }: {

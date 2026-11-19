@@ -37,6 +37,7 @@ import { INPUT } from "./DestinationForm";
 import { ADDED_TO_CHANGES, ReadValuesPanel, SAVE_WORDS, type Teach } from "./ReadValuesPanel";
 import { Checks, Failed, Gone, Quiet, ReadProblem } from "./states";
 import { rowNeed } from "./DocumentList";
+import { onItsWay } from "./SelectionBar";
 import { WaitingList } from "./WaitingList";
 import { Changed, InboxAnswers, SortNotice, saveFirst, UNSAVED, UNSAVED_TEXT, useAnswers } from "./InboxAnswers";
 
@@ -274,6 +275,9 @@ function sendRefusal(e: unknown, flowId: string): { text: string; wayOn: ReactNo
   return { text: documentRefusalMessage(e), wayOn: null };
 }
 
+/** Send and open next leaves its sentence here; the next document's screen, a new one, says it. */
+const SENT_KEY = ["review-sent"];
+
 /** The route's component: everything below is keyed by the document, so nothing carries over to the next one. */
 export function DocumentScreen(p: { flowId: string; documentId: string }) {
   return <Review key={p.documentId} {...p} />;
@@ -375,6 +379,12 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   const waiting = others || listed;
   const nextNow = pickNext(queue.data?.items, undefined, documentId);
   const saved = () => saveFirst(edits.flush);
+  // Drawn empty first and filled after, so it is spoken; it takes no focus.
+  const [sentNote, setSentNote] = useState<string | null>(null);
+  useEffect(() => {
+    const n = qc.getQueryData<string>(SENT_KEY);
+    if (n) { qc.removeQueries({ queryKey: SENT_KEY }); setSentNote(n); }
+  }, [qc]);
   const send = useMutation({
     mutationFn: async () => {
       const before = qc.getQueryData<DocumentPage>(reviewQueueQuery.queryKey)?.items;
@@ -392,6 +402,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
       // R2: a refresh that failed tells us nothing, so the person goes to Needs you rather than to a guess.
       const refreshFailed = qc.getQueryState(reviewQueueQuery.queryKey)?.status === "error";
       const next = refreshFailed ? null : pickNext(before, qc.getQueryData<DocumentPage>(reviewQueueQuery.queryKey)?.items, documentId);
+      if (next && summary) qc.setQueryData(SENT_KEY, onItsWay(summary.fileName));
       router.replace(next ? documentHref(next) : documentsAddress("needs-you"));
     },
     onError: (e) => {
@@ -469,6 +480,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
           </div>
         )}
       />
+      <div aria-live="polite" className="mb-4 empty:hidden">{sentNote && <StatusNotice tone="success">{sentNote}</StatusNotice>}</div>
       {refused && (
         <div ref={scrollTo} data-testid="review-refusal" className="mb-4">
           {refused === UNSAVED ? (

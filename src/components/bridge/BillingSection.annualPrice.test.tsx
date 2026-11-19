@@ -167,6 +167,13 @@ describe("the plan card prints the price the workspace is actually charged", () 
     expect(change.getByText(words(PLAN_BY_ID.operations.priceMonthly!, "month"))).toBeTruthy();
   });
 
+  it("the Monthly / Annual choice comes before the first plan's Upgrade button", async () => {
+    await renderBilling(billing({ plan: "growth", billingInterval: "monthly" }));
+    const period = screen.getByRole("radiogroup", { name: "Billing period" });
+    const upgrade = screen.getAllByRole("button", { name: /^Upgrade to / })[0];
+    expect(period.compareDocumentPosition(upgrade) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   for (const id of ["operations", "integration", "distributor"] as BillingPlan[]) {
     it("an annual " + id + " workspace shows its yearly total", async () => {
       const plan = PLAN_BY_ID[id];

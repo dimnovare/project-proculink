@@ -517,6 +517,30 @@ export function BillingSection() {
             flows={documentLadder && flows ? flowsUse(flows.length, PLAN_BY_ID[status.plan].flowLimit) : null}
           />
 
+          {showPeriod && (
+            // R12: the period for a plan change only; it feeds the upgrade buttons and the row prices.
+            // Switching the current subscription between monthly and annual is not offered here.
+            // Above the plans, so the prices are read in the period chosen.
+            <SettingsPanel id="b-period" title="Billing period">
+              <div role="radiogroup" aria-labelledby="b-period" className="inline-flex self-start rounded-[10px] bg-surface-2 p-[3px]">
+                {(["monthly", "yearly"] as const).map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="radio"
+                    aria-checked={checkoutInterval === id}
+                    disabled={checkoutMutation.isPending}
+                    onClick={() => setCheckoutInterval(id)}
+                    className={`h-10 rounded-lg px-4 text-[14px] disabled:cursor-not-allowed ${checkoutInterval === id ? "bg-surface font-semibold text-ink shadow-[var(--shadow-card)]" : "bg-transparent font-medium text-ink-muted"}`}
+                  >
+                    {id === "monthly" ? "Monthly" : "Annual"}
+                  </button>
+                ))}
+              </div>
+              {months != null && <p className="m-0 text-[13px] text-ink-muted">Annual gives you {months} months free, billed once a year.</p>}
+            </SettingsPanel>
+          )}
+
           {(rows.length > 0 || isTrial) && (
             <SettingsPanel
               id="b-change"
@@ -582,7 +606,7 @@ export function BillingSection() {
                     <p className="m-0 text-[13px] text-ink-muted">
                       {status.stripeSubscriptionId != null && "An upgrade starts straight away: a new billing period begins that day, and the unused part of your current plan is credited. "}
                       {isTrial ? "Need" : "Moving to a smaller plan, or need"} more than {top.toLocaleString(NUMBER_LOCALE)} documents a month?{" "}
-                      <a href="mailto:sales@proculink.eu" className="font-semibold">Contact us</a>.
+                      <a href="mailto:sales@proculink.eu" className="inline-flex min-h-[44px] items-center font-semibold sm:min-h-0">Contact us</a>.
                     </p>
                   )}
                 </>
@@ -591,9 +615,8 @@ export function BillingSection() {
           )}
         </div>
 
-        {(showPay || showPeriod) && (
+        {showPay && (
           <aside className="flex min-w-0 max-w-[420px] flex-[1_1_320px] flex-col gap-4">
-            {showPay && (
               <SettingsPanel id="b-pay" title="Payment and invoices" sub={hasStripePortal ? "Your card, billing email and invoices are kept in Stripe." : undefined}>
                 {isEnterprise && (
                   <p className="m-0 text-[14px] text-ink-muted">
@@ -619,29 +642,6 @@ export function BillingSection() {
                   </p>
                 )}
               </SettingsPanel>
-            )}
-            {showPeriod && (
-              // R12: the period for a plan change only; it feeds the upgrade buttons and the row prices.
-              // Switching the current subscription between monthly and annual is not offered here.
-              <SettingsPanel id="b-period" title="Billing period">
-                <div role="radiogroup" aria-labelledby="b-period" className="inline-flex self-start rounded-[10px] bg-surface-2 p-[3px]">
-                  {(["monthly", "yearly"] as const).map((id) => (
-                    <button
-                      key={id}
-                      type="button"
-                      role="radio"
-                      aria-checked={checkoutInterval === id}
-                      disabled={checkoutMutation.isPending}
-                      onClick={() => setCheckoutInterval(id)}
-                      className={`h-10 rounded-lg px-4 text-[14px] disabled:cursor-not-allowed ${checkoutInterval === id ? "bg-surface font-semibold text-ink shadow-[var(--shadow-card)]" : "bg-transparent font-medium text-ink-muted"}`}
-                    >
-                      {id === "monthly" ? "Monthly" : "Annual"}
-                    </button>
-                  ))}
-                </div>
-                {months != null && <p className="m-0 text-[13px] text-ink-muted">Annual gives you {months} months free, billed once a year.</p>}
-              </SettingsPanel>
-            )}
           </aside>
         )}
       </div>

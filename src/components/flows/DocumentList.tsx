@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { useIsMutating, useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import { StatusJourney } from "@/components/bridge/StatusJourney";
 import { Button, Pill, buttonClass } from "@/components/bridge/DSPrimitives";
@@ -62,10 +62,13 @@ export function useRowSend(id: string, onSent: () => void): UseMutationResult<un
   });
 }
 
-/** A row's tick: a real checkbox in a 44px label, above the row link's overlay. */
-const Tick = ({ d, selection, className }: { d: ListedDocument; selection: ListSelection; className: string }) => (
-  <label className={`relative z-[1] flex shrink-0 items-center justify-center ${className}`}>
-    <input type="checkbox" aria-label={`Select ${d.fileName}`} checked={selection.ids.has(d.id)} onChange={() => selection.toggle(d.id)} className="h-5 w-5" />
+/** A row's tick: a real checkbox in a 44px label, above the row's overlay. On a phone the label is the whole row
+ *  (`children`), so a tap anywhere on it ticks. Enter ticks too, as Space does. */
+const Tick = ({ d, selection, className, id, children }: { d: ListedDocument; selection: ListSelection; className: string; id?: string; children?: ReactNode }) => (
+  <label className={`relative z-[1] flex shrink-0 items-center ${children ? "" : "justify-center"} ${className}`}>
+    <input type="checkbox" id={id} aria-label={`Select ${d.fileName}`} checked={selection.ids.has(d.id)} onChange={() => selection.toggle(d.id)}
+      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); selection.toggle(d.id); } }} className="h-5 w-5 shrink-0" />
+    {children}
   </label>
 );
 
@@ -78,12 +81,16 @@ function Row({ d, showFlow, sendable, columns, onSent, selection }: {
   const need = rowNeed(d);
   const line = kindSentence(d.kind, d.sender);
   const ticked = !!selection?.ids.has(d.id);
+  const tickId = useId();
+  const name = "min-w-0 truncate text-[14.5px] font-semibold text-ink after:absolute after:inset-0";
   return (
     <div role="row" className={`relative grid min-h-[64px] items-center gap-3 border-t border-border px-3 py-2 ${ticked ? "bg-brand-blue-soft" : "hover:bg-surface-2"}`} style={{ gridTemplateColumns: columns }}>
-      {selection && <div role="cell">{!d.inInbox && <Tick d={d} selection={selection} className="h-11 w-11" />}</div>}
+      {selection && <div role="cell">{!d.inInbox && <Tick d={d} selection={selection} id={tickId} className="h-11 w-11" />}</div>}
       <div role="cell" className="min-w-0">
         <div className="flex min-w-0 items-center gap-2">
-          <Link href={href(d)} className="min-w-0 truncate text-[14.5px] font-semibold text-ink after:absolute after:inset-0">{d.fileName}</Link>
+          {/* Selecting, the name's overlay is the tick's label: a click anywhere on the row ticks it and opens nothing. */}
+          {selection && !d.inInbox ? <label htmlFor={tickId} className={`${name} cursor-pointer`}>{d.fileName}</label>
+            : <Link href={href(d)} className={name}>{d.fileName}</Link>}
           {d.isSample && <Pill>Sample</Pill>}
         </div>
         {line && <div title={line} className="truncate text-[12.5px] text-ink-muted">{line}</div>}
@@ -163,26 +170,38 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
           const need = rowNeed(d);
           // R17: one second line, what it is when known, otherwise where it is.
           const line = kindSentence(d.kind, d.sender) ?? (showFlow ? d.flowName : null);
-          return (
-            <li key={d.id} className={`border-t border-border first:border-t-0 ${selection ? "flex items-stretch" : ""} ${selection?.ids.has(d.id) ? "bg-brand-blue-soft" : ""}`}>
-              {selection && (d.inInbox ? <span className="w-11 shrink-0" /> : <Tick d={d} selection={selection} className="w-11 pl-2" />)}
-              {/* `!` beats the global phone rule, whose `min-height: 44px !important` would otherwise win. */}
-              <Link href={href(d)} className="flex !min-h-[92px] min-w-0 flex-1 items-center gap-3 px-4 py-3 text-ink">
-                <div className="grid min-w-0 flex-1 gap-1">
-                  <div className="flex min-w-0 items-baseline justify-between gap-3">
-                    <span data-testid="document-name" className="min-w-0 truncate text-[16px] font-semibold">{d.fileName}</span>
-                    <span className="shrink-0 text-[13px] text-ink-muted">{received(d)}</span>
-                  </div>
-                  {line && <span title={line} className="truncate text-[14px] text-ink-muted">{line}</span>}
-                  <div className="flex flex-wrap gap-2">
-                    <Pill tone={need.tone}>{need.text}</Pill>
-                    {d.isSample && <Pill>Sample</Pill>}
-                  </div>
+          // Selecting, a tap on a tickable row ticks it, so it carries no "opens" arrow.
+          const picks = selection && !d.inInbox;
+          const body = (
+            <>
+              <div className="grid min-w-0 flex-1 gap-1">
+                <div className="flex min-w-0 items-baseline justify-between gap-3">
+                  <span data-testid="document-name" className="min-w-0 truncate text-[16px] font-semibold">{d.fileName}</span>
+                  <span className="shrink-0 text-[13px] text-ink-muted">{received(d)}</span>
                 </div>
+                {line && <span title={line} className="truncate text-[14px] text-ink-muted">{line}</span>}
+                <div className="flex flex-wrap gap-2">
+                  <Pill tone={need.tone}>{need.text}</Pill>
+                  {d.isSample && <Pill>Sample</Pill>}
+                </div>
+              </div>
+              {!picks && (
                 <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 text-ink-muted">
                   <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-              </Link>
+              )}
+            </>
+          );
+          // `!` beats the global phone rule, whose `min-height: 44px !important` would otherwise win.
+          const card = "flex !min-h-[92px] min-w-0 flex-1 items-center gap-3 px-4 py-3 text-ink";
+          return (
+            <li key={d.id} className={`border-t border-border first:border-t-0 ${selection ? "flex items-stretch" : ""} ${selection?.ids.has(d.id) ? "bg-brand-blue-soft" : ""}`}>
+              {selection && picks ? <Tick d={d} selection={selection} className={`${card} cursor-pointer !pl-3`}>{body}</Tick> : (
+                <>
+                  {selection && <span className="w-11 shrink-0" />}
+                  <Link href={href(d)} className={card}>{body}</Link>
+                </>
+              )}
             </li>
           );
         })}
