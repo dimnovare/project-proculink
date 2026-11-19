@@ -221,7 +221,7 @@ export function UploadToFlow() {
               <h2 ref={listHeading} tabIndex={-1} className="m-0 scroll-mt-16 text-[16px] font-semibold text-ink outline-none focus-visible:outline-none">Just added</h2>
               <span className="text-[13px] text-ink-muted">{n === 1 ? "1 document" : `${n} documents`}</span>
             </div>
-            <ul className="m-0 list-none p-0 sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(124px,auto)_132px] sm:gap-x-3.5">
+            <ul className="m-0 list-none p-0 sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(124px,auto)_150px] sm:gap-x-3.5">
               {items.map((i) => (
                 <UploadedRow
                   key={i.key} item={i} listed={seen(i, uploaded.data)} inbox={inbox.data} sent={!!i.document && sent.has(i.document.id)}
