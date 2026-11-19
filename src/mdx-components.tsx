@@ -71,9 +71,9 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
 
     wrapper: HelpArticleShell,
 
-    h1: ({ children }) => (
-      <h1 className={`${HEADING} m-0 mb-4 text-[clamp(30px,4.5vw,40px)] leading-[1.1] tracking-[-0.02em]`}>{children}</h1>
-    ),
+    // A help article's body opens with `# Title`, the registry title. The page already prints that title as
+    // its one H1 (HelpArticleShell), so here it renders nothing; the in-app help panel shows it through its own `h1`.
+    h1: () => null,
 
     h2: ({ children }) => (
       <h2 id={slugify(children)} className={`${HEADING} mb-3 mt-10 text-[26px] leading-[1.2] tracking-[-0.02em]`}>
