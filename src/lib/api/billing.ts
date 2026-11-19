@@ -151,6 +151,12 @@ export interface AdminOrganisation {
   aiCallsThisMonth: number;
   aiTokensInThisMonth: number;
   aiTokensOutThisMonth: number;
+  /** All-time count of documents that reached Sent. */
+  documentsSent: number;
+  /** Documents in a failure status that changed in the last 7 days. */
+  failedLast7Days: number;
+  /** Latest document arrival, or null when the workspace has none. */
+  lastDocumentAt: string | null;
 }
 
 export interface CreateAdminInvoiceLineItem {
@@ -222,6 +228,9 @@ const MOCK_ADMIN = {
       aiCallsThisMonth: 12,
       aiTokensInThisMonth: 96000,
       aiTokensOutThisMonth: 31000,
+      documentsSent: 71,
+      failedLast7Days: 2,
+      lastDocumentAt: "2026-08-25T14:11:00Z",
     },
     {
       id: "org_example_2",
@@ -240,6 +249,9 @@ const MOCK_ADMIN = {
       aiCallsThisMonth: 1,
       aiTokensInThisMonth: 5400,
       aiTokensOutThisMonth: 3600,
+      documentsSent: 0,
+      failedLast7Days: 0,
+      lastDocumentAt: null,
     },
   ] as AdminOrganisation[],
 

@@ -100,6 +100,9 @@ function org(over: Partial<AdminOrganisation> = {}): AdminOrganisation {
     aiCallsThisMonth: 0,
     aiTokensInThisMonth: 0,
     aiTokensOutThisMonth: 0,
+    documentsSent: 0,
+    failedLast7Days: 0,
+    lastDocumentAt: null,
     ...over,
   };
 }

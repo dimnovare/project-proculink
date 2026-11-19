@@ -404,7 +404,7 @@ export default function AdminPage() {
               data-testid="admin-orgs-table"
               style={{ overflowX: "auto", overflow: "auto" }}
             >
-              <table style={{ width: "100%", minWidth: 920, borderCollapse: "collapse", fontSize: 13 }}>
+              <table style={{ width: "100%", minWidth: 1120, borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: "var(--bg)", color: "var(--ink-muted)", textAlign: "left" }}>
                     <SortableTh label="Organisation" col="name" {...{ sortKey, sortDir, toggleSort }} />
@@ -413,6 +413,9 @@ export default function AdminPage() {
                     <SortableTh label="MRR" col="mrrContribution" align="right" {...{ sortKey, sortDir, toggleSort }} />
                     <th style={{ ...th, textAlign: "right" }}>Read this month</th>
                     <th style={{ ...th, textAlign: "right" }}>AI tokens in / out</th>
+                    <th style={{ ...th, textAlign: "right" }}>Sent</th>
+                    <th style={{ ...th, textAlign: "right" }}>Failed (7 days)</th>
+                    <th style={th}>Last document</th>
                     <SortableTh label="Created" col="createdAt" {...{ sortKey, sortDir, toggleSort }} />
                     <SortableTh label="Last activity" col="lastOrderActivity" {...{ sortKey, sortDir, toggleSort }} />
                     <th style={{ ...th, textAlign: "right" }}>Stripe</th>
@@ -441,6 +444,13 @@ export default function AdminPage() {
                       >
                         {aiTokens(org)}
                       </td>
+                      <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums", color: "var(--ink-muted)" }}>
+                        {org.documentsSent ?? 0}
+                      </td>
+                      <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums", color: "var(--ink-muted)" }}>
+                        {org.failedLast7Days ?? 0}
+                      </td>
+                      <td style={{ ...td, color: "var(--ink-muted)", whiteSpace: "nowrap" }}>{shortDate(org.lastDocumentAt)}</td>
                       <td style={{ ...td, color: "var(--ink-muted)", whiteSpace: "nowrap" }}>{shortDate(org.createdAt)}</td>
                       <td style={{ ...td, color: "var(--ink-muted)", whiteSpace: "nowrap" }}>{relativeTime(org.lastOrderActivity)}</td>
                       <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
@@ -487,14 +497,14 @@ export default function AdminPage() {
                     </tr>
                     {eraseOrgId === org.id && (
                       <tr>
-                        <td colSpan={10}>
+                        <td colSpan={13}>
                           <EraseWorkspacePanel org={org} onClose={closeErase} />
                         </td>
                       </tr>
                     )}
                     {docsOrgId === org.id && (
                       <tr>
-                        <td colSpan={10}>
+                        <td colSpan={13}>
                           <EraseDocumentsPanel org={org} onClose={closeErase} />
                         </td>
                       </tr>
@@ -521,9 +531,11 @@ export default function AdminPage() {
                     <span><strong style={{ color: "var(--ink)" }}>{eurCents(org.mrrContribution)}</strong> MRR</span>
                     <span>{org.documentUnitsThisMonth ?? 0} read this month</span>
                     <span>{aiTokens(org)} AI tokens</span>
+                    <span>{org.documentsSent ?? 0} sent</span>
+                    <span>{org.failedLast7Days ?? 0} failed (7 days)</span>
                   </div>
                   <div style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>
-                    Created {shortDate(org.createdAt)} · last activity {relativeTime(org.lastOrderActivity)}
+                    Created {shortDate(org.createdAt)} · last document {shortDate(org.lastDocumentAt)} · last activity {relativeTime(org.lastOrderActivity)}
                   </div>
                   <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
                     <Button variant="secondary" size="sm" onClick={() => setLimitsOrg(org)}>
