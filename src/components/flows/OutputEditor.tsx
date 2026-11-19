@@ -559,7 +559,6 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
             </>
           ) : <AddDocument flow={flow} sends={flow.automation === "auto" && !!destinationId} />}
         </section>
-        {partnerIds}
         {problemNotice}
         {stale && <StatusNotice tone="warning">A column takes its value from something we no longer read. Choose another value for it.</StatusNotice>}
         {rows && (
@@ -599,6 +598,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
             {layoutFields}
             {logoField}
             {standardQuestions}
+            {partnerIds}
             {rows && [...rows.fields, ...(rows.table?.columns ?? [])].length > 0 && (
               <div className="grid gap-2">
                 <p className="m-0 text-[12.5px] font-medium text-ink-muted">Lookups</p>
