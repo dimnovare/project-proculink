@@ -10,7 +10,6 @@ import { createDestination, testDestination, updateDestination } from "@/lib/api
 import type { Destination, DestinationRequest } from "@/lib/api/documents";
 import { MANAGED_CONFIG_KEYS } from "@/lib/deliveryConfigKeys";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { useOnFlowPage } from "./flowDraft";
 import { GoogleTargetFields, useLinkedAccounts } from "./GoogleTargetFields";
 
 type Kind = "text" | "number" | "check" | "method";
@@ -118,7 +117,8 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
   onSaved(d: Destination): void; onCancel(): void;
 }) {
   const qc = useQueryClient();
-  const filled = useOnFlowPage() ? "secondary" : "primary";
+  // Filled on the flow page too: the changes bar, the page's other filled button, hides while this form is open (globals.css).
+  const filled = "primary";
   const [current, setCurrent] = useState(destination);
   const [name, setName] = useState(destination?.name ?? chosen?.name ?? "");
   const first = (chosen?.protocols[0] ?? (preset ? "http" : "email")) as Protocol;

@@ -531,7 +531,7 @@ export function BillingSection() {
                     aria-checked={checkoutInterval === id}
                     disabled={checkoutMutation.isPending}
                     onClick={() => setCheckoutInterval(id)}
-                    className={`h-10 rounded-lg px-4 text-[14px] disabled:cursor-not-allowed ${checkoutInterval === id ? "bg-surface font-semibold text-ink shadow-[var(--shadow-card)]" : "bg-transparent font-medium text-ink-muted"}`}
+                    className={`h-11 rounded-lg px-4 text-[14px] sm:h-10 disabled:cursor-not-allowed ${checkoutInterval === id ? "bg-surface font-semibold text-ink shadow-[var(--shadow-card)]" : "bg-transparent font-medium text-ink-muted"}`}
                   >
                     {id === "monthly" ? "Monthly" : "Annual"}
                   </button>
@@ -617,31 +617,31 @@ export function BillingSection() {
 
         {showPay && (
           <aside className="flex min-w-0 max-w-[420px] flex-[1_1_320px] flex-col gap-4">
-              <SettingsPanel id="b-pay" title="Payment and invoices" sub={hasStripePortal ? "Your card, billing email and invoices are kept in Stripe." : undefined}>
-                {isEnterprise && (
-                  <p className="m-0 text-[14px] text-ink-muted">
-                    Your plan is a manual agreement. <a href="mailto:sales@proculink.eu" className="font-semibold">Contact support</a> to change it.
-                  </p>
-                )}
-                {hasStripePortal ? (
-                  <>
-                    <Button variant="secondary" className="self-start" onClick={openPortal} disabled={portalMutation.isPending}>
-                      {portalMutation.isPending ? "Opening..." : "Manage in Stripe"}
-                    </Button>
-                    {portalMutation.isError && (
-                      <p role="status" className="m-0 text-[13px] text-danger-text">{portalErrorCopy(portalMutation.error)}</p>
-                    )}
-                  </>
-                ) : isPaid && !isEnterprise && (
-                  // A paid plan with no Stripe customer has no portal, so it is told where to go instead.
-                  <p className="m-0 text-[14px] text-ink-muted">
-                    Billing for this workspace isn&apos;t linked to a self-serve Stripe account, so card and
-                    invoice details are handled by us.{" "}
-                    <a href="mailto:sales@proculink.eu" className="font-semibold">Contact support</a>{" "}
-                    to change your plan or payment details.
-                  </p>
-                )}
-              </SettingsPanel>
+            <SettingsPanel id="b-pay" title="Payment and invoices" sub={hasStripePortal ? "Your card, billing email and invoices are kept in Stripe." : undefined}>
+              {isEnterprise && (
+                <p className="m-0 text-[14px] text-ink-muted">
+                  Your plan is a manual agreement. <a href="mailto:sales@proculink.eu" className="font-semibold">Contact support</a> to change it.
+                </p>
+              )}
+              {hasStripePortal ? (
+                <>
+                  <Button variant="secondary" className="self-start" onClick={openPortal} disabled={portalMutation.isPending}>
+                    {portalMutation.isPending ? "Opening..." : "Manage in Stripe"}
+                  </Button>
+                  {portalMutation.isError && (
+                    <p role="status" className="m-0 text-[13px] text-danger-text">{portalErrorCopy(portalMutation.error)}</p>
+                  )}
+                </>
+              ) : isPaid && !isEnterprise && (
+                // A paid plan with no Stripe customer has no portal, so it is told where to go instead.
+                <p className="m-0 text-[14px] text-ink-muted">
+                  Billing for this workspace isn&apos;t linked to a self-serve Stripe account, so card and
+                  invoice details are handled by us.{" "}
+                  <a href="mailto:sales@proculink.eu" className="font-semibold">Contact support</a>{" "}
+                  to change your plan or payment details.
+                </p>
+              )}
+            </SettingsPanel>
           </aside>
         )}
       </div>
