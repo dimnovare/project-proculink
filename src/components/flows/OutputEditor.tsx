@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { DestinationForm, Field, INPUT, INPUT_BASE } from "@/components/flows/DestinationForm";
 import { LookupMisses } from "@/components/flows/LookupMisses";
-import { PdfDocumentView } from "@/components/bridge/document/PdfDocumentView";
+import { FilePreview } from "@/components/flows/FilePreview";
 import { checkOutput, createOutput, deleteOutputLogo, listDestinations, listLookups, previewOutput, testOutput, updateOutput, uploadOutputLogo } from "@/lib/api/documents";
 import type { Flow, FlowOutput, LookupSummary, OutputCheck, OutputLayout, OutputRequest, SendWhen, SendWhenOp } from "@/lib/api/documents";
 import { TestOutcome } from "@/components/destinations/TestOutcome";
@@ -220,8 +220,6 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
     },
     onError: (e) => setProblem(e instanceof ApiHttpError && e.status === 413 ? COPY.invalid_logo : documentRefusalMessage(e)),
   });
-  const pdf = shown?.contentType === "application/pdf" && shown.base64 ? shown.base64 : null;
-  const pdfBlob = useMemo(() => pdf && new Blob([Uint8Array.from(atob(pdf), (c) => c.charCodeAt(0))], { type: "application/pdf" }), [pdf]);
 
   /** What a save sends. A new output has no template yet: the server makes the default one. */
   const bodyOf = (): OutputRequest => {
@@ -455,12 +453,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
         <LookupMisses documentId={previewDocumentId} outputId={current.id} misses={shown.lookupMisses}
           onChanged={() => (draft ? draftPreview.refetch() : preview.mutate())} />
       ) : null}
-      {pdfBlob && current ? <PdfDocumentView cacheKey={`output-preview-${current.id}-${draft ? draft.saves : preview.submittedAt}`} blob={pdfBlob} bounded regionLabel="Preview" />
-      : shown && (
-        <pre className="max-h-72 overflow-auto rounded border border-border bg-surface-2 p-2.5 font-mono text-[12.5px] text-ink">
-          {shown.content}
-        </pre>
-      )}
+      <FilePreview preview={shown} cacheKey={`output-preview-${current?.id}-${draft ? draft.saves : preview.submittedAt}`} />
     </>
   );
 

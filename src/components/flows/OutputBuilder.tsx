@@ -23,8 +23,10 @@ import { barPending } from "./PublishBar";
 
 type Way = "quick" | "sample" | "docs" | "standards";
 const OFFERED = STANDARDS.filter((s) => (STANDARD_OUTPUTS as readonly string[]).includes(s.id));
-const SAMPLE_BYTES = 2 * 1024 * 1024;
-const DOCS_BYTES = 10 * 1024 * 1024;
+export const SAMPLE_ACCEPT = ".csv,.xlsx,.json,.xml";
+export const SAMPLE_BYTES = 2 * 1024 * 1024;
+export const DOCS_ACCEPT = ".pdf,.html,.htm,.json,.yaml,.yml,.xsd,.xml,.txt,.csv";
+export const DOCS_BYTES = 10 * 1024 * 1024;
 const LINK = "inline-flex min-h-11 items-center text-[14px] font-semibold text-brand-blue-deep underline";
 const WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
 
@@ -43,6 +45,61 @@ function Fold({ label, line, children }: { label: string; line: string; children
       </div>
       {open && <div ref={body} className="grid gap-2">{children}</div>}
     </div>
+  );
+}
+
+/**
+ * The standards offered (R9, R10): one row per family, the group that fits this flow's documents first, the rest folded.
+ * `busyId` is the standard on its way (every Use waits); `pickedId`, when passed, marks the picked row's Use as pressed.
+ */
+export function StandardList({ flow, kind, onUse, busyId, pickedId }: {
+  flow: Flow; kind: string | null; onUse(s: StandardSupport): void; busyId: string | null; pickedId?: string | null;
+}) {
+  const fams = standardFamilies(flow.peppolOn);
+  const group = kindGroup(kind);
+  const fit = group && fams[group].length ? group : null;
+  const other = fit ? fams[fit === "invoices" ? "orders" : "invoices"] : [];
+  const twins = fams.invoices.flatMap((f) => (f.creditNote ? [f.creditNote] : []));
+  const row = (id: string, line: string | null, name?: string, invoice = false) => {
+    const s = OFFERED.find((x) => x.id === id)!;
+    name ??= s.name;
+    return (
+      <div key={id} className="flex items-center justify-between gap-3">
+        <div className="grid">
+          <span className="text-[14px] font-semibold text-ink">{name}{invoice && <span className="text-[13px] font-normal text-ink-muted"> invoice</span>}</span>
+          {line && <span className="text-[13px] text-ink-muted">{line}</span>}
+        </div>
+        <Button size="sm" variant="secondary" aria-label={`Use ${name}`} data-standard={id} disabled={busyId !== null}
+          aria-pressed={pickedId === undefined ? undefined : pickedId === id}
+          loading={busyId === id} onClick={() => onUse(s)}>Use</Button>
+      </div>
+    );
+  };
+  // The credit-note versions belong to the invoice families: in an orders flow they sit with them, inside "Other standards".
+  const credit = twins.length > 0 && (
+    <Fold label={`Credit note versions (${twins.length})`} line={twins.length === 1 ? "Its credit note version." : `The same ${WORDS[twins.length] ?? twins.length}, for credit notes.`}>
+      {twins.map((id) => row(id, OFFERED.find((s) => s.id === id)?.version ?? null))}
+    </Fold>
+  );
+  const famRows = (list: typeof fams.invoices) => list.map((f) => row(f.id, f.description ?? f.version, f.name, fams.invoices.includes(f)));
+  return (
+    <>
+      {fit ? (
+        <section className="grid gap-2">
+          <h3 className="m-0 text-[14px] font-semibold text-ink">
+            {fit === "invoices" ? "For invoices and credit notes" : "For orders"}, like the documents in this flow
+          </h3>
+          {famRows(fams[fit])}
+        </section>
+      ) : famRows([...fams.invoices, ...fams.orders])}
+      {fit !== "orders" && credit}
+      {other.length > 0 && (
+        <Fold label={`Other standards (${other.length})`} line={`For ${fit === "invoices" ? "orders" : "invoices"}: ${and(other.map((f) => f.name))}.`}>
+          {famRows(other)}
+          {fit === "orders" && credit}
+        </Fold>
+      )}
+    </>
   );
 }
 
@@ -218,34 +275,6 @@ export function OutputBuilder(props: Props) {
   );
   const panelTitle = (text: string) => <h2 ref={heading} tabIndex={-1} className="m-0 text-[16px] font-semibold text-ink">{text}</h2>;
 
-  // A standard format (R9, R10): one row per family, the group that fits this flow's documents first, the rest folded.
-  const fams = standardFamilies(flow.peppolOn);
-  const group = kindGroup(props.kind);
-  const fit = group && fams[group].length ? group : null;
-  const other = fit ? fams[fit === "invoices" ? "orders" : "invoices"] : [];
-  const twins = fams.invoices.flatMap((f) => (f.creditNote ? [f.creditNote] : []));
-  const row = (id: string, line: string | null, name?: string, invoice = false) => {
-    const s = OFFERED.find((x) => x.id === id)!;
-    name ??= s.name;
-    return (
-      <div key={id} className="flex items-center justify-between gap-3">
-        <div className="grid">
-          <span className="text-[14px] font-semibold text-ink">{name}{invoice && <span className="text-[13px] font-normal text-ink-muted"> invoice</span>}</span>
-          {line && <span className="text-[13px] text-ink-muted">{line}</span>}
-        </div>
-        <Button size="sm" variant="secondary" aria-label={`Use ${name}`} data-standard={id} disabled={standard.isPending}
-          loading={standard.isPending && standard.variables?.id === id} onClick={() => use(s)}>Use</Button>
-      </div>
-    );
-  };
-  // The credit-note versions belong to the invoice families: in an orders flow they sit with them, inside "Other standards".
-  const credit = twins.length > 0 && (
-    <Fold label={`Credit note versions (${twins.length})`} line={twins.length === 1 ? "Its credit note version." : `The same ${WORDS[twins.length] ?? twins.length}, for credit notes.`}>
-      {twins.map((id) => row(id, OFFERED.find((s) => s.id === id)?.version ?? null))}
-    </Fold>
-  );
-  const famRows = (list: typeof fams.invoices) => list.map((f) => row(f.id, f.description ?? f.version, f.name, fams.invoices.includes(f)));
-
   if (way === "quick")
     return (
       <div className="grid gap-3">
@@ -270,21 +299,7 @@ export function OutputBuilder(props: Props) {
             <p className="m-0 text-[14px] text-ink-muted">We fill it in from what we read. Choose the one your receiver asked for.</p>
           </div>
           {standard.isError && <StatusNotice tone="error">{documentRefusalMessage(standard.error)}</StatusNotice>}
-          {fit ? (
-            <section className="grid gap-2">
-              <h3 className="m-0 text-[14px] font-semibold text-ink">
-                {fit === "invoices" ? "For invoices and credit notes" : "For orders"}, like the documents in this flow
-              </h3>
-              {famRows(fams[fit])}
-            </section>
-          ) : famRows([...fams.invoices, ...fams.orders])}
-          {fit !== "orders" && credit}
-          {other.length > 0 && (
-            <Fold label={`Other standards (${other.length})`} line={`For ${fit === "invoices" ? "orders" : "invoices"}: ${and(other.map((f) => f.name))}.`}>
-              {famRows(other)}
-              {fit === "orders" && credit}
-            </Fold>
-          )}
+          <StandardList flow={flow} kind={props.kind} onUse={use} busyId={standard.isPending ? standard.variables?.id ?? null : null} />
         </div>
       ) : way === "docs" ? (
         docs.data ? (
@@ -297,7 +312,7 @@ export function OutputBuilder(props: Props) {
             {panelTitle("From documentation")}
             <p className="m-0 text-[14px] text-ink-muted">{COPY.docs_lead}</p>
             <FileDrop
-              accept=".pdf,.html,.htm,.json,.yaml,.yml,.xsd,.xml,.txt,.csv" maxBytes={DOCS_BYTES} prompt="Drop the documentation here, or choose a file."
+              accept={DOCS_ACCEPT} maxBytes={DOCS_BYTES} prompt="Drop the documentation here, or choose a file."
               busyLabel="Reading the documentation…" busy={docs.isPending} error={docs.isError ? documentRefusalMessage(docs.error) : null}
               onFile={docs.mutate}
             />
@@ -313,7 +328,7 @@ export function OutputBuilder(props: Props) {
           {panelTitle("Match a sample file")}
           <p className="m-0 text-[14px] text-ink-muted">Upload an example of the file the receiving system expects: CSV, Excel, JSON or XML.</p>
           <FileDrop
-            accept=".csv,.xlsx,.json,.xml" maxBytes={SAMPLE_BYTES} prompt="Drop a sample here, or choose a file."
+            accept={SAMPLE_ACCEPT} maxBytes={SAMPLE_BYTES} prompt="Drop a sample here, or choose a file."
             busyLabel="Reading the sample…" busy={sample.isPending} error={sample.isError ? documentRefusalMessage(sample.error) : null}
             onFile={sample.mutate}
           />

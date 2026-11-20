@@ -45,4 +45,18 @@ describe("DraftReview from documentation", () => {
     fireEvent.change(screen.getByLabelText("Value for OrderNumber"), { target: { value: "ship" } });
     await waitFor(() => expect(create.disabled).toBe(true));
   });
+
+  it("replacing a file with a destination: no choice until its test passes, then the tested template", async () => {
+    api.listDestinations.mockResolvedValue([{ id: "dest-1", name: "Accounting server", protocol: "sftp", config: {}, hasCredentials: true, createdAt: "" }]);
+    const onChange = vi.fn();
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{children}</QueryClientProvider>;
+    render(<DraftReview flow={flow as never} draft={draft as never} requireTest previewDocumentId="doc-1" onCreated={vi.fn()} onRestart={vi.fn()}
+      replacing={{ destinationId: "dest-1", onChange }} />, { wrapper });
+    expect(screen.queryByRole("button", { name: "Create" })).toBeNull();
+    expect(screen.queryByLabelText("Goes to")).toBeNull();
+    await waitFor(() => expect(onChange).toHaveBeenLastCalledWith(null));
+    fireEvent.click(screen.getByRole("button", { name: "Send a test" }));
+    await waitFor(() => expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ format: draft.format, standard: null, tableKey: draft.tableKey })));
+  });
 });
