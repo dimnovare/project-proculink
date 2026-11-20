@@ -24,7 +24,9 @@ import { documentHref, pickNext, positionText, queuePosition } from "@/lib/revie
 import { documentsAddress } from "@/lib/documentTabs";
 import { relativeTime } from "@/lib/relativeTime";
 import { nextTabIndex } from "@/lib/tabKeys";
-import { fetchDocumentSource, getDocument, getFlow, getDocumentHistory, retryDocumentRead, sendDocument, teachDocument } from "@/lib/api/documents";
+import { downloadDeliveryFile, fetchDocumentSource, getDocument, getFlow, getDocumentHistory, listDeliveries, retryDocumentRead, sendDocument, teachDocument } from "@/lib/api/documents";
+import { filesOf, finishedLabel, flowWords } from "@/lib/flowWords";
+import { saveBlob } from "@/lib/saveBlob";
 import { formatDateTime } from "@/lib/format-date";
 import { COPY, documentRefusalMessage, rateLimited, refusalToken } from "@/lib/documentRefusals";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
@@ -38,6 +40,7 @@ import { ADDED_TO_CHANGES, ReadValuesPanel, SAVE_WORDS, type Teach } from "./Rea
 import { Checks, Failed, Gone, Quiet, ReadProblem } from "./states";
 import { rowNeed } from "./DocumentList";
 import { onItsWay } from "./SelectionBar";
+import { removable, useRemove } from "./RowActions";
 import { WaitingList } from "./WaitingList";
 import { Changed, InboxAnswers, SortNotice, saveFirst, UNSAVED, UNSAVED_TEXT, useAnswers } from "./InboxAnswers";
 
@@ -389,10 +392,15 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
     mutationFn: async () => {
       const before = qc.getQueryData<DocumentPage>(reviewQueueQuery.queryKey)?.items;
       await saved();
-      await sendDocument(documentId);
-      return before;
+      return { before, went: await sendDocument(documentId) };
     },
-    onSuccess: async (before) => {
+    onSuccess: async ({ before, went }) => {
+      // Only made files to download, sent nowhere: stay, and the screen shows the file and the way on.
+      if (went.length > 0 && went.every((d) => d.status === "stored")) {
+        pressed.current = false;
+        await Promise.all([["document", documentId], ["deliveries", documentId], ["documents"]].map((queryKey) => qc.invalidateQueries({ queryKey })));
+        return;
+      }
       setLeaving(true);
       // The document itself is not refetched: the screen is leaving, and drawing it as sent first is what R4 rules out.
       await Promise.all([
@@ -425,6 +433,23 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
     m.mutate(undefined, { onError: () => { pressed.current = false; } });
   };
   const busy = send.isPending || skip.isPending || leaving || answering;
+  const words = flowWords(flow.data?.downloadOnly);
+  const remove = useRemove(() => { setLeaving(true); router.replace(nextNow ? documentHref(nextNow) : "/documents"); });
+  const canRemove = !!doc.data?.canRemove && !!summary && removable(summary.status);
+  const removeButton = canRemove && (
+    <Button variant="secondary" className="!text-danger-text" disabled={busy} loading={remove.pendingId === documentId} onClick={() => void remove.ask(summary)}>Remove</Button>
+  );
+  // A sent document whose files were all made to download: File ready, and Download is the way on.
+  const deliveries = useQuery({ queryKey: ["deliveries", documentId], queryFn: () => listDeliveries(documentId), enabled: enabled && here === false && summary?.status === "sent" });
+  const files = filesOf(deliveries.data);
+  const made = here === false && summary?.status === "sent" && files.length > 0 && files.every((f) => !f.delivered);
+  const download = useMutation({ mutationFn: async () => saveBlob(await downloadDeliveryFile(documentId, files[0].deliveryId), files[0].fileName) });
+  const madeActions = (cls: string) => made && (
+    <>
+      {nextNow && <Link replace href={documentHref(nextNow)} className={`${buttonClass("secondary", "md")} ${cls}`}>Open next</Link>}
+      {files.length === 1 && <Button variant="send" className={cls} loading={download.isPending} onClick={() => download.mutate()}>{`Download ${files[0].fileName}`}</Button>}
+    </>
+  );
   useShortcut("send-and-next", () => press(send), sends && !busy);
   const canSkip = sends && !!nextNow;
   // Review next is the way on wherever nothing is sent from here; beside the inbox answers it is never the filled button.
@@ -434,15 +459,16 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
     : <Link replace href={documentHref(next)} className={`${buttonClass(here ? "secondary" : "send", "md")} ${cls}`}>Review next</Link>);
   const located = !!marks?.places.length || !!doc.data?.read.fields.some((f) => f.location?.box || f.location?.address)
     || !!doc.data?.read.tables.some((t) => t.rows.some((r) => Object.values(r.cells).some((c) => c.location?.box || c.location?.address)));
-  const refused = send.error ?? skip.error;
+  const refused = send.error ?? skip.error ?? download.error;
   const failedCodes = doc.data?.checks.filter((c) => !c.passed).map((c) => c.code) ?? [];
-  const tag = marks && marks.count > 0
+  const tag = made ? { text: finishedLabel(files), tone: "green" as const }
+    : marks && marks.count > 0
     ? { text: marks.count === 1 ? "1 value to check" : `${marks.count} values to check`, tone: "amber" as const }
     : summary && rowNeed({ ...summary, inInbox: here, checks: failedCodes, failedChecks: 0 });
   const ago = relativeTime(summary?.createdAt);
   const by = summary?.source ? `by ${SOURCES.get(summary.source) ?? summary.source}` : "";
   const when = `${summary?.sourceRef ? ` from ${summary.sourceRef}` : ""}${ago ? ` ${ago}` : ""}`;
-  const panes = here === false ? PANES : PANES.filter((p) => p.id !== "send");
+  const panes = here === false ? PANES.map((p) => (p.id === "send" ? { ...p, title: words.pane } : p)) : PANES.filter((p) => p.id !== "send");
 
   return (
     <PageShell variant="full">
@@ -464,7 +490,8 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
           <div data-testid="review-header-actions" className="flex flex-wrap items-center gap-2">
             <Pill tone={tag.tone}>{tag.text}</Pill>
             {position && <span className="text-[12.5px] text-ink-muted">{position}</span>}
-            {sends ? (
+            {removeButton}
+            {made ? madeActions("") : sends ? (
               <>
                 {canSkip && <Button variant="secondary" className="hidden md:inline-flex" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
                 <Button id="review-send" variant="send" className="hidden md:inline-flex" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}
@@ -472,7 +499,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
                   onKeyDown={(e) => { noRepeat(e); if (walked.current && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) walked.current.focus(); }}
                   onBlur={() => { walked.current = null; }}
                 >
-                  Send and open next
+                  {words.primary}
                   <kbd aria-hidden className="hidden h-[22px] items-center rounded bg-brand-green-deep px-1.5 font-sans text-[12.5px] font-semibold lg:inline-flex">{keyWord("Mod", apple)} Enter</kbd>
                 </Button>
               </>
@@ -480,6 +507,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
           </div>
         )}
       />
+      {!!remove.error && <div className="mb-4"><StatusNotice tone="error">{documentRefusalMessage(remove.error)}</StatusNotice></div>}
       <div aria-live="polite" className="mb-4 empty:hidden">{sentNote && <StatusNotice tone="success">{sentNote}</StatusNotice>}</div>
       {refused && (
         <div ref={scrollTo} data-testid="review-refusal" className="mb-4">
@@ -558,7 +586,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
               )}
             </Pane>
             {here === false && (
-              <Pane id="send" title="What we'll send" dot="green" hidden={tab !== "send"}>
+              <Pane id="send" title={words.pane} dot="green" hidden={tab !== "send"}>
                 <DocumentOutputsPanel flowId={summary.flowId} document={doc.data} />
               </Pane>
             )}
@@ -566,12 +594,12 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
           </div>
         </div>
       )}
-      {(sends || next) && (
+      {(sends || next || made) && (
         <ActionBar>
-          {sends ? (
+          {made ? madeActions("") : sends ? (
             <>
               {canSkip && <Button variant="secondary" className="!flex-none" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
-              <Button variant="send" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}>Send and open next</Button>
+              <Button variant="send" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}>{words.primary}</Button>
             </>
           ) : reviewNext("inline-flex items-center")}
         </ActionBar>

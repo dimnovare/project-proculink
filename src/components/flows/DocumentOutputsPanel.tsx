@@ -14,6 +14,8 @@ import { describeSendWhen } from "@/lib/flowOutputModel";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { CHANNELS } from "@/lib/channels";
+import { filesOf } from "@/lib/flowWords";
+import { relativeTime } from "@/lib/relativeTime";
 import { saveBlob } from "@/lib/saveBlob";
 import { LookupMisses } from "./LookupMisses";
 import { outputTypeLabel } from "./OutputEditor";
@@ -56,10 +58,10 @@ function Deliveries({ documentId, deliveries }: { documentId: string; deliveries
   );
 }
 
-/** R19: "{type} to {destination}", "{type}, download only", or just the type while the destination is unknown. */
+/** R19: "{type} to {destination}", "{type}, you download it", or just the type while the destination is unknown. */
 const outputLine = (o: FlowOutput, destinations: readonly { id: string; name: string }[] | undefined) => {
   const type = outputTypeLabel(o);
-  if (!o.destinationId) return `${type}, download only`;
+  if (!o.destinationId) return `${type}, you download it`;
   const name = destinations?.find((d) => d.id === o.destinationId)?.name;
   return name ? `${type} to ${name}` : type;
 };
@@ -134,6 +136,11 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
   const list = outputs.data;
   const editable = documentStatus(doc.summary.status, doc.summary.statusReason).editable;
   const addLink = `/flows/${flowId}?tab=outputs`;
+  const downloadOnly = flow.data?.downloadOnly === true;
+  // Made and waiting to be downloaded: every made file was stored, none went anywhere.
+  const files = filesOf(deliveries.data);
+  const waiting = files.length > 0 && files.every((f) => !f.delivered);
+  const madeAt = relativeTime(deliveries.data?.map((d) => d.deliveredAt ?? "").sort().at(-1)) ?? "just now";
 
   return (
     <div className="grid gap-3">
@@ -151,7 +158,8 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
         : !deliveries.data ? <Quiet>Loading deliveries…</Quiet>
         : deliveries.data.length === 0 && (
           <p className="m-0 text-[12.5px] text-ink-muted">
-            Nothing has been sent yet.{list?.length && !list.some((o) => o.sendWhen) && editable ? ` ${goOut(list.length)}` : ""}
+            {downloadOnly ? `Nothing is made yet.${editable ? " When the values are right, press Make the file." : ""}`
+              : `Nothing has been sent yet.${list?.length && !list.some((o) => o.sendWhen) && editable ? ` ${goOut(list.length)}` : ""}`}
           </p>
         )}
       {list && (list.length > 0 ? (
@@ -159,6 +167,12 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
           Want another file from this document? <Link href={addLink} className="text-brand-blue underline">Make another file</Link>
         </p>
       ) : <Link href={addLink} className="inline-flex items-center text-[13px] text-brand-blue">Make a file for this flow</Link>)}
+      {waiting && (
+        <p className="m-0 text-[13px] text-ink">
+          {files.length === 1 ? `${files[0].fileName} was made ${madeAt}. It waits here and in Documents until you download it.`
+            : `${files.length} files were made ${madeAt}. They wait here and in Documents until you download them.`}
+        </p>
+      )}
       {!!deliveries.data?.length && <Deliveries documentId={documentId} deliveries={deliveries.data} />}
     </div>
   );

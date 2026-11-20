@@ -63,7 +63,7 @@ describe("DocumentOutputsPanel", () => {
     const { container } = renderPanel();
     const panel = within(container);
     expect(await panel.findByText("CSV to Accounting inbox")).toBeInTheDocument();
-    expect(panel.getByText("PDF, download only")).toBeInTheDocument();
+    expect(panel.getByText("PDF, you download it")).toBeInTheDocument();
     expect(panel.getByText("Nothing has been sent yet. Both go out when you send this document.")).toBeInTheDocument();
     expect(panel.getByRole("link", { name: "Make another file" })).toHaveAttribute("href", "/flows/f?tab=outputs");
     expect(panel.queryByRole("heading", { name: "Deliveries" })).toBeNull();
@@ -76,6 +76,16 @@ describe("DocumentOutputsPanel", () => {
     expect(panel.getByText("Download, Ready to download")).toBeInTheDocument();
     expect(panel.getByRole("button", { name: "Download" })).toBeInTheDocument();
     expect(panel.queryByText(/Nothing has been sent/)).toBeNull();
+  });
+
+  it("says nothing is made yet, then when it was made", async () => {
+    api.getFlow.mockResolvedValue({ id: "f", fields: { fields: [], tables: [] }, downloadOnly: true });
+    api.listDeliveries.mockResolvedValue([]);
+    const first = renderPanel();
+    expect(await within(first.container).findByText("Nothing is made yet. When the values are right, press Make the file.")).toBeInTheDocument();
+    first.unmount();
+    api.listDeliveries.mockResolvedValue([{ id: "x", outputName: "Totals", protocol: "", status: "stored", attempts: 0, lastError: null, fileName: "invoice-1043.csv", deliveredAt: new Date().toISOString() }]);
+    expect(await within(renderPanel().container).findByText("invoice-1043.csv was made just now. It waits here and in Documents until you download it.")).toBeInTheDocument();
   });
 
   it("does not promise a send on a document that can no longer be sent", async () => {

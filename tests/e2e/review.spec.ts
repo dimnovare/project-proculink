@@ -77,7 +77,7 @@ test.describe("Review", () => {
     await expect(page).toHaveURL(/\/flows\/flow-3\/documents\/doc-5$/);
     const header = page.getByTestId("review-header-actions");
     await expect(header).toContainText("1 of 3 that need you");
-    await header.getByRole("button", { name: "Send and open next" }).click();             // flow-3 has no file
+    await header.getByRole("button", { name: "Make the file" }).click();                  // flow-3 has no file, so nothing goes anywhere
     await expect(page.getByTestId("review-refusal").getByRole("alert")).toContainText(COPY.no_outputs);
     await expect(page.getByTestId("review-refusal").getByRole("link", { name: "Open the flow's files" }))
       .toHaveAttribute("href", "/flows/flow-3?tab=outputs");
