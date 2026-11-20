@@ -20,11 +20,13 @@ import { FilePreview } from "./FilePreview";
 import { useLatestRead } from "./FlowValues";
 import { DOCS_ACCEPT, DOCS_BYTES, SAMPLE_ACCEPT, SAMPLE_BYTES, StandardList } from "./OutputBuilder";
 import { FORMATS, outputTypeLabel } from "./OutputEditor";
-import { COMMON_TYPES, aFileOf, replaceOutput, standardChoice, typeChoice } from "./fileChoice";
+import { COMMON_TYPES, aFileOf, makeFileLabel, replaceOutput, standardChoice, typeChoice } from "./fileChoice";
 import { Failed, Quiet } from "./states";
 
 const H2 = "m-0 text-[17px] font-semibold text-ink";
 const LINE = "m-0 text-[14px] leading-normal text-ink-muted";
+/** A published flow with other changes waiting: a new file joins them instead of going into use. */
+export const WAITING_LINE = "This flow has changes that aren't in use yet. The new file joins them and goes into use when you press Use these changes on the flow page.";
 
 /** One of the four ways: a heading, its line, and either its button or what the button opened. */
 function Way({ title, line, children }: { title: string; line: string; children: ReactNode }) {
@@ -70,11 +72,12 @@ export function ChooseFile({ flowId }: { flowId: string }) {
   const back = address.from ?? flowAddress(flowId, "send", { output: output?.id });
   const use = useMutation({
     mutationFn: () => replaceOutput(flowId, output!, choice!),
-    onSuccess: () => {
+    // Settled, not success: a publish refused after the update saved must still refetch the flow (its waiting line).
+    onSettled: () => {
       for (const queryKey of [["outputs", flowId], ["flow", flowId], ["flows"], ["output-preview"]]) void qc.invalidateQueries({ queryKey });
       void qc.resetQueries({ queryKey: ["outputs", flowId, "published"] });
-      router.push(back);
     },
+    onSuccess: () => router.push(back),
   });
 
   const f = flow.data;
@@ -91,8 +94,9 @@ export function ChooseFile({ flowId }: { flowId: string }) {
   const opener = (way: FileWay, label: string) =>
     open !== way && <Button variant="secondary" size="md" onClick={() => setOpen(way)}>{label}</Button>;
   const drafted = (way: "sample" | "docs", m: typeof sample, accept: string, maxBytes: number, prompt: string, busyLabel: string) =>
-    open === way && (
-      <div className="grid w-full gap-3">
+    // Kept mounted while another way is open, so edits to a draft survive switching ways.
+    (open === way || !!m.data) && (
+      <div className={open === way ? "grid w-full gap-3" : "hidden"}>
         {m.data ? (
           <DraftReview flow={f} draft={m.data} requireTest={way === "docs"} previewDocumentId={docId ?? undefined}
             onCreated={() => {}} onRestart={() => { m.reset(); if (pick?.by === way) setPick(null); }}
@@ -152,15 +156,15 @@ export function ChooseFile({ flowId }: { flowId: string }) {
         </Card>
         {blocked && <StatusNotice tone="warning">Google Sheets takes only a CSV file. Choose CSV, or change where this file goes first.</StatusNotice>}
         {typeof f.publishedVersion === "number" && f.hasChanges && (
-          <p className={LINE}>This flow has changes that aren&apos;t in use yet. The new file joins them and goes into use when you press Use these changes on the flow page.</p>
+          <p className={LINE}>{WAITING_LINE}</p>
         )}
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
           <p className="m-0 min-w-0 flex-[1_1_320px] text-[13.5px] leading-normal text-ink-muted">
-            The new file replaces the {type}. To keep the {type} as well, go back and use “Make a second file”.
+            The new file replaces the {type}. To keep the {type} as well, go back and use “{makeFileLabel(outputs.data.length)}”.
           </p>
           <div className="flex flex-wrap gap-2">
             <Link href={back} className={buttonClass("secondary", "md")}>Cancel</Link>
-            <Button variant="primary" size="md" loading={use.isPending} disabled={!choice || blocked || use.isPending} onClick={() => use.mutate()}>
+            <Button variant="primary" size="md" loading={use.isPending} disabled={!choice || blocked || use.isPending || (!!output.destinationId && !destinations.data)} onClick={() => use.mutate()}>
               Use this file
             </Button>
           </div>

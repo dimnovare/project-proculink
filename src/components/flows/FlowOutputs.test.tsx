@@ -52,6 +52,7 @@ describe("FlowOutputs", () => {
     expect(editor.getByRole("link", { name: "Change the file type" })).toHaveAttribute("href", expect.stringContaining("/flows/flow-1/change-file?output=out-1"));
     expect(editor.getByRole("button", { name: "Change where the file goes" })).toBeInTheDocument();
     expect(editor.getByRole("button", { name: "Change the columns" })).toBeInTheDocument();
+    expect(editor.getByText("2 columns")).toBeInTheDocument();
     expect(editor.getByText("More options: when to send, separator, lookups")).toBeInTheDocument();
     expect(editor.queryByRole("combobox", { name: "File type" })).toBeNull();
   });

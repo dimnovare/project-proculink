@@ -546,7 +546,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
             </CardRow>
           )}
           {rows && (
-            <CardRow label="Columns" value={`${columnCount} columns`} line="Each column takes its value from one thing we read.">
+            <CardRow label="Columns" value={`${columnCount} ${columnCount === 1 ? "column" : "columns"}`} line="Each column takes its value from one thing we read.">
               {/* While a column has a problem the editor stays open, so there is no Done to press. */}
               {!(columnsOpen && columnProblem) && (
                 <Button type="button" variant="secondary" size="sm" id={`${uid}-columns-toggle`} aria-label={columnsOpen ? "Done with the columns" : undefined} aria-expanded={columnsOpen} onClick={toggleColumns}>

@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Flow, FlowOutput } from "@/lib/api/documents";
+import { ApiHttpError } from "@/lib/api/core";
+import { COPY } from "@/lib/documentRefusals";
+import { WAITING_LINE } from "./ChooseFile";
 import { FirstFile } from "./FirstFile";
 
 const api = vi.hoisted(() => ({
@@ -33,7 +36,7 @@ beforeEach(() => {
   api.updateOutput.mockImplementation(async (_f: string, id: string, b: object) => ({ ...csv, ...b, id }));
 });
 
-const mount = () => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><FirstFile flow={flow} docId="doc-1" /></QueryClientProvider>);
+const mount = (f: Flow = flow) => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><FirstFile flow={f} docId="doc-1" /></QueryClientProvider>);
 
 describe("FirstFile", () => {
   it("shows the made file, and Download saves it", async () => {
@@ -56,6 +59,17 @@ describe("FirstFile", () => {
     fireEvent.click(screen.getByRole("button", { name: "Download" }));
     await waitFor(() => expect(files.savePreview).toHaveBeenCalledWith(expect.objectContaining({ fileName: "invoice-1042.xml" })));
     expect(api.downloadDeliveryFile).not.toHaveBeenCalled();
+  });
+
+  it("a refused publish, then a retry that only joins the waiting change, says the change isn't in use", async () => {
+    mount({ ...flow, fields: { fields: flow.fields.fields, tables: [] } });
+    expect(await screen.findByText("A CSV spreadsheet file, with the 1 value we read")).toBeInTheDocument();
+    api.publishFlow.mockRejectedValueOnce(new ApiHttpError("x", 429, { error: "processing_paused" }));
+    fireEvent.click(screen.getByRole("button", { name: "XML" }));
+    expect(await screen.findByText(COPY.processing_paused)).toBeInTheDocument();
+    api.getFlow.mockResolvedValue({ ...flow, hasChanges: true });
+    fireEvent.click(screen.getByRole("button", { name: "XML" }));
+    expect(await screen.findByText(WAITING_LINE)).toBeInTheDocument();
   });
 
   it("its own format: sample and standard open the change screen; documentation only when switched on", async () => {

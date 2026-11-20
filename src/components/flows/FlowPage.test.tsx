@@ -78,8 +78,8 @@ describe("FlowPage", () => {
     renderPage();
     expect(await screen.findByText("Reads documents from email and upload. You download Invoices CSV.")).toBeInTheDocument();
     expect(strip().getAllByRole("listitem")).toHaveLength(4);
-    expect(screen.getAllByRole("link", { name: /^Documents in this flow/ }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: "History of changes" }).length).toBeGreaterThan(0);
+    expect(strip().getByRole("link", { name: /^Documents in this flow/ })).toBeInTheDocument();
+    expect(strip().getByRole("link", { name: "History of changes" })).toBeInTheDocument();
   });
 
   it("the header says In use only for a flow with a saved setup", async () => {

@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
-import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { downloadDeliveryFile, getDocument, listDeliveries, listOutputs, previewOutput, type Flow } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
@@ -13,10 +12,11 @@ import { firstRunAddress } from "@/lib/firstRun";
 import { changeFileAddress, flowAddress, type FileWay } from "@/lib/flowSteps";
 import { filesOf } from "@/lib/flowWords";
 import { saveBlob, savePreview } from "@/lib/saveBlob";
+import { WAITING_LINE } from "./ChooseFile";
 import { FilePreview } from "./FilePreview";
 import { FORMATS } from "./OutputEditor";
 import { COMMON_TYPES, replaceOutput, typeChoice } from "./fileChoice";
-import { Quiet } from "./states";
+import { Failed, Quiet } from "./states";
 
 const KINDS: Record<string, string> = { csv: "A CSV spreadsheet file", xlsx: "An Excel workbook", xml: "An XML file", json: "A JSON file", pdf: "A PDF" };
 const H2 = "m-0 text-[17px] font-semibold text-ink";
@@ -46,10 +46,13 @@ export function FirstFile({ flow, docId }: { flow: Flow; docId: string }) {
   });
   const change = useMutation({
     mutationFn: (format: string) => replaceOutput(flow.id, output!, typeChoice(output!, format)),
-    onSuccess: () => {
+    // Settled, not success: a publish refused after the update saved must still refetch the flow (its waiting line).
+    onSettled: () => {
       for (const queryKey of [["outputs", flow.id], ["flow", flow.id], ["flows"], ["output-preview", docId]]) void qc.invalidateQueries({ queryKey });
     },
   });
+  const waiting = change.data?.inUse === false || (typeof flow.publishedVersion === "number" && flow.hasChanges);
+  const failed = [outputs, standard ? deliveries : preview].find((q) => q.isError) ?? (standard && deliveries.isSuccess && !made ? deliveries : undefined);
   const here = firstRunAddress({ step: "ready", flow: flow.id, doc: docId });
   const way = (w: FileWay) => changeFileAddress(flow.id, { output: output?.id, document: docId, way: w, from: here });
   const columns = flowAddress(flow.id, "send", { output: output?.id });
@@ -57,22 +60,22 @@ export function FirstFile({ flow, docId }: { flow: Flow; docId: string }) {
   return (
     <div className="grid gap-5">
       <PageHeader title="Your first file is ready" sub={doc.data && `We read ${doc.data.summary.fileName} and made this file from it.`} />
-      <Card as="section" aria-label="Your file" pad={20} radius={12}>
+      <Card as="section" aria-labelledby="first-file-name" pad={20} radius={12}>
         {fileName ? (
           <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
             <div className="grid min-w-0 flex-[1_1_260px] gap-1">
-              <span className="break-all font-mono text-[15px] font-medium text-ink">{fileName}</span>
-              <span className={LINE}>{`${KINDS[fileName.split(".").pop()!.toLowerCase()] ?? "A file"}, with the ${values} values we read`}</span>
+              <span id="first-file-name" className="break-all font-mono text-[15px] font-medium text-ink">{fileName}</span>
+              <span className={LINE}>{`${KINDS[fileName.split(".").pop()!.toLowerCase()] ?? "A file"}, with the ${values} ${values === 1 ? "value" : "values"} we read`}</span>
             </div>
             <Button variant="primary" size="lg" loading={download.isPending} onClick={() => download.mutate()}>Download</Button>
             {download.isError && <p role="alert" className="m-0 basis-full text-[13px] text-danger-text">{documentRefusalMessage(download.error)}</p>}
           </div>
-        ) : preview.isError ? <StatusNotice tone="error">{documentRefusalMessage(preview.error)}</StatusNotice> : <Quiet>Loading…</Quiet>}
+        ) : failed ? <Failed error={failed.error} retry={() => failed.refetch()} /> : <Quiet>Loading…</Quiet>}
       </Card>
       {output && (
-        <Card as="section" aria-label="Change the file type" pad={20} radius={12}>
+        <Card as="section" aria-labelledby="first-file-change" pad={20} radius={12}>
           <div className="grid gap-3">
-            <h2 className={H2}>Need a different file?</h2>
+            <h2 id="first-file-change" className={H2}>Need a different file?</h2>
             <div role="group" aria-label="File type" className="flex flex-wrap gap-2">
               {COMMON_TYPES.filter((t) => t !== "txt").map((id) => {
                 const on = !output.standard && output.format === id;
@@ -85,7 +88,7 @@ export function FirstFile({ flow, docId }: { flow: Flow; docId: string }) {
               })}
             </div>
             {change.isError && <p role="alert" className="m-0 text-[13px] text-danger-text">{documentRefusalMessage(change.error)}</p>}
-            <p className={LINE}>One tap changes it. Every later document is made the same way, until you change it again.</p>
+            <p className={LINE}>{waiting ? WAITING_LINE : "One tap changes it. Every later document is made the same way, until you change it again."}</p>
             <div className="grid gap-1 border-t border-border pt-3">
               <h3 className="m-0 text-[15px] font-semibold text-ink">Does your system need its own format?</h3>
               <p className={LINE}>Show us a file it accepts, or its import guide, and we make that format for you.</p>
@@ -98,16 +101,16 @@ export function FirstFile({ flow, docId }: { flow: Flow; docId: string }) {
           </div>
         </Card>
       )}
-      <Card as="section" aria-label="What the file looks like" pad={20} radius={12}>
+      <Card as="section" aria-labelledby="first-file-looks" pad={20} radius={12}>
         <div className="grid gap-3">
-          <h2 className={H2}>What the file looks like</h2>
+          <h2 id="first-file-looks" className={H2}>What the file looks like</h2>
           <FilePreview preview={preview.data} cacheKey={`first-file-${docId}-${output?.format}-${output?.standard}`} />
           <p className={LINE}><Link href={columns} className={LINK}>Change the columns</Link></p>
         </div>
       </Card>
-      <Card as="section" aria-label="What happens next" pad={20} radius={12}>
+      <Card as="section" aria-labelledby="first-file-next" pad={20} radius={12}>
         <div className="grid gap-3">
-          <h2 className={H2}>What happens next</h2>
+          <h2 id="first-file-next" className={H2}>What happens next</h2>
           <ul className="m-0 grid list-disc gap-1.5 pl-5 text-[14px] leading-normal text-ink">
             <li>Add more documents by upload, or email them to your workspace address.</li>
             <li>We read each one the same way and make the same kind of file.</li>
