@@ -36,14 +36,14 @@ test.describe("upload", () => {
     await expect(row("invoice-2292.csv")).toContainText("An invoice from Example Supplier Ltd");
     await row("invoice-2292.csv").getByRole("button", { name: "Send invoice-2292.csv" }).click();
     await expect(row("invoice-2292.csv")).toContainText(/Sending|Sent/);   // the mock lands on sent at once
-    await expect(row("invoice-2292.csv").getByRole("button")).toHaveCount(0);
+    await expect(row("invoice-2292.csv").getByRole("button")).toHaveText([/^Download/]);   // its next step: the file it made
     await zone.evaluate((el) => {                                    // the same file dropped again
       const dt = new DataTransfer();
       dt.items.add(new File(["%PDF-1.4"], "invoice-2293.pdf", { type: "application/pdf" }));
       el.dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true }));
     });
     await expect(panel).toContainText("5 documents");
-    await expect(row("invoice-2293.pdf").first()).toContainText("Already in your workspace");
+    await expect(row("invoice-2293.pdf").first()).toContainText("Already added");
     await row("invoice-2293.pdf").last().getByRole("link", { name: "invoice-2293.pdf" }).click();
     await expect(page).toHaveURL(/\/flows\/flow-1\/documents\/[^/]+$/);                     // the first copy, sorted
     await page.goBack();

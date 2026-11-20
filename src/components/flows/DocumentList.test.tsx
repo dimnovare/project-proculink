@@ -39,8 +39,10 @@ describe("DocumentList", () => {
     expect(rowNeed(row({ failedChecks: 2, checks: ["low_confidence", "required_missing"] }))).toEqual({ text: "2 values to check", tone: "amber" });
     expect(rowNeed(row({ failedChecks: 1, checks: ["type_invalid"] })).text).toBe("1 value to check");
     expect(rowNeed(row({ failedChecks: 3, checks: ["low_confidence", "duplicate"] })).text).toBe("Same number as an earlier document");
-    expect(rowNeed(row({ statusReason: "duplicate_file", failedChecks: 1, checks: ["duplicate"], inInbox: false }))).toEqual({ text: "Already uploaded to this flow", tone: "amber" });
-    expect([true, undefined].map((inInbox) => rowNeed(row({ statusReason: "duplicate_file", inInbox })).text)).toEqual(["Already in your workspace", "Already uploaded"]);
+    expect(rowNeed(row({ statusReason: "duplicate_file", failedChecks: 1, checks: ["duplicate"], inInbox: false }))).toEqual({ text: "Already added", tone: "amber" });
+    expect([true, undefined].map((inInbox) => rowNeed(row({ statusReason: "duplicate_file", inInbox })).text)).toEqual(["Already added", "Already added"]);
+    expect(rowNeed(row({ status: "ready", downloadOnly: true })).text).toBe("Nothing to check");
+    expect(rowNeed(row({ status: "sent", files: [{ deliveryId: "v", fileName: "invoice-2291.csv", delivered: false, destination: null }] })).text).toBe("File ready");
     expect(rowNeed(row({ failedChecks: 1, checks: ["text_truncated"] })).text).toBe("Needs review");
     expect(rowNeed(row({ status: "read_failed" }))).toEqual({ text: "Not read", tone: "danger" });
     expect(rowNeed(row({ status: "reading" }))).toEqual({ text: "Reading", tone: "blue" });

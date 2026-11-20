@@ -2,15 +2,14 @@
 
 import Link from "next/link";
 import { useId, useState, type ReactNode } from "react";
-import { useIsMutating, useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import { StatusJourney } from "@/components/bridge/StatusJourney";
-import { Button, Pill, buttonClass } from "@/components/bridge/DSPrimitives";
+import { Pill } from "@/components/bridge/DSPrimitives";
 import { relativeTime } from "@/lib/relativeTime";
 import { DOCUMENT_STATUSES, documentStatus, WHOLE_DOCUMENT_CHECKS, type DocumentStatusRow } from "@/lib/documentStatusManifest";
-import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { kindSentence } from "@/lib/documentKind";
-import { sendDocument, type DocumentRow, type DocumentSummary } from "@/lib/api/documents";
-import { BULK_SEND_KEY } from "./SelectionBar";
+import { finishedLabel, flowWords } from "@/lib/flowWords";
+import type { DocumentRow, DocumentSummary } from "@/lib/api/documents";
+import { RowActions, rowSecondLine } from "./RowActions";
 
 /** A document as a list knows it: a row of the paged list, or a bare summary (the flow page). */
 export type ListedDocument = DocumentSummary & Partial<Omit<DocumentRow, keyof DocumentSummary>>;
@@ -29,12 +28,12 @@ const WHOLE: readonly string[] = WHOLE_DOCUMENT_CHECKS;
 
 /** What a row asks of a person, in a few words, and its colour. */
 export function rowNeed(d: ListedDocument): { text: string; tone: Tone } {
-  // Where the earlier copy is: the workspace, this flow, or (place not known) said without a place.
-  if (d.statusReason === "duplicate_file")
-    return { text: d.inInbox ? "Already in your workspace" : d.inInbox === false ? "Already uploaded to this flow" : "Already uploaded", tone: "amber" };
+  if (d.statusReason === "duplicate_file") return { text: "Already added", tone: "amber" };
   const s = documentStatus(d.status, d.statusReason);
   if (s.label !== DOCUMENT_STATUSES[d.status]?.label) return { text: s.label, tone: STATUS_TONE[s.tone] };
-  if (d.status === "ready") return { text: "Ready to send", tone: "green" };
+  // Finished: what its own files did ("File ready", "Sent to …"), whatever the flow says now.
+  if (d.status === "sent" && d.files?.length) return { text: finishedLabel(d.files), tone: "green" };
+  if (d.status === "ready") return { text: flowWords(d.downloadOnly).ready, tone: "green" };
   if (d.status === "needs_review" && d.checks) {
     if (d.checks.includes("duplicate")) return { text: "Same number as an earlier document", tone: "amber" };
     if (d.checks.includes("new_sender")) return { text: "First document from this email address", tone: "amber" };
@@ -47,21 +46,6 @@ export function rowNeed(d: ListedDocument): { text: string; tone: Tone } {
 const href = (d: ListedDocument) => `/flows/${d.flowId}/documents/${d.id}`;
 const received = (d: ListedDocument) => relativeTime(d.createdAt) ?? "—";
 
-/** Send a ready document from a list row. A second press while it is out does nothing (the button is busy);
- *  on success onSent runs, then every documents list and the document's own queries refresh (the button stays busy until they have). */
-export function useRowSend(id: string, onSent: () => void): UseMutationResult<unknown, unknown, void> {
-  const qc = useQueryClient();
-  return useMutation({
-    // Keyed by document, so the selection bar leaves out a row whose own send is still out.
-    mutationKey: ["document-send", id],
-    mutationFn: () => sendDocument(id),
-    onSuccess: () => {
-      onSent();
-      return Promise.all([["documents"], ["document", id], ["deliveries", id], ["document-history", id]].map((queryKey) => qc.invalidateQueries({ queryKey })));
-    },
-  });
-}
-
 /** A row's tick: a real checkbox in a 44px label, above the row's overlay. On a phone the label is the whole row
  *  (`children`), so a tap anywhere on it ticks. Enter ticks too, as Space does. */
 const Tick = ({ d, selection, className, id, children }: { d: ListedDocument; selection: ListSelection; className: string; id?: string; children?: ReactNode }) => (
@@ -72,14 +56,11 @@ const Tick = ({ d, selection, className, id, children }: { d: ListedDocument; se
   </label>
 );
 
-function Row({ d, showFlow, sendable, columns, onSent, selection }: {
-  d: ListedDocument; showFlow: boolean; sendable: boolean; columns: string; onSent: (d: ListedDocument) => void; selection?: ListSelection;
+function Row({ d, showFlow, sendable, columns, onSent, onRemoved, selection }: {
+  d: ListedDocument; showFlow: boolean; sendable: boolean; columns: string; onSent: (d: ListedDocument) => void; onRemoved(id: string): void; selection?: ListSelection;
 }) {
-  const send = useRowSend(d.id, () => onSent({ ...d, status: "sending", statusReason: null }));
-  // While the selection bar is sending or downloading, a row's own Send waits.
-  const bulk = useIsMutating({ mutationKey: BULK_SEND_KEY }) > 0;
   const need = rowNeed(d);
-  const line = kindSentence(d.kind, d.sender);
+  const line = rowSecondLine(d, kindSentence(d.kind, d.sender));
   const ticked = !!selection?.ids.has(d.id);
   const tickId = useId();
   const name = "min-w-0 truncate text-[14.5px] font-semibold text-ink after:absolute after:inset-0";
@@ -99,21 +80,11 @@ function Row({ d, showFlow, sendable, columns, onSent, selection }: {
       {showFlow && <div role="cell" className="min-w-0 truncate text-[13px] text-ink-muted">{d.flowName}</div>}
       <div role="cell" aria-live="polite" className="min-w-0">
         <Pill tone={need.tone}>{need.text}</Pill>
-        {send.isError && d.status === "ready" && <p role="alert" className="m-0 mt-1 text-[12.5px] text-danger-text">{documentRefusalMessage(send.error)}</p>}
       </div>
       <div role="cell"><StatusJourney stage={documentStatus(d.status, d.statusReason).stage} compact /></div>
       <div role="cell" className="text-[13px] text-ink-muted">{received(d)}</div>
-      <div role="cell" className="text-right">
-        {d.status === "ready" && sendable && !selection && d.inInbox === false && d.statusReason !== "check_sort" ? (
-          <Button variant="secondary" size="sm" aria-label={`Send ${d.fileName}`} loading={send.isPending || bulk} onClick={() => send.mutate()}
-            className="relative z-[1] !border-brand-green-deep !text-brand-green-deep">Send</Button>
-        ) : d.inInbox !== false && (d.status === "ready" || (d.inInbox && d.status === "needs_review")) ? (
-          // An inbox document is answered on its own screen, never sent from a row; one not known to be sorted is not sent either.
-          <span aria-hidden className={buttonClass("secondary", "sm")}>Open</span>
-        ) : d.status === "needs_review" || d.statusReason === "check_sort" ? (
-          // A sort we were not sure of is reviewed, never sent from a row: its notice is on the review screen.
-          <span aria-hidden className={buttonClass("secondary", "sm")}>Review</span>
-        ) : null}
+      <div role="cell">
+        <RowActions d={d} sendable={sendable && !selection} onSent={() => onSent({ ...d, status: "sending", statusReason: null })} onRemoved={onRemoved} />
       </div>
     </div>
   );
@@ -134,10 +105,13 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
   // What this list sent, drawn only while the incoming list still calls it ready; when the server stops listing it,
   // the row goes (R5). The caller resets it with a `key`.
   const [sent, setSent] = useState<Record<string, ListedDocument>>({});
-  const drawn = documents.map((d) => (sent[d.id] && d.status === "ready" ? sent[d.id] : d)).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
+  // A removed row is hidden here until the refetch stops listing it.
+  const [removed, setRemoved] = useState<ReadonlySet<string>>(new Set());
+  const onRemoved = (id: string) => setRemoved((r) => new Set(r).add(id));
+  const drawn = documents.filter((d) => !removed.has(d.id)).map((d) => (sent[d.id] && d.status === "ready" ? sent[d.id] : d)).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
   // An inbox document is answered on its own screen: it has no tick (its row's "Open" is the way on).
   const tickable = drawn.filter((d) => !d.inInbox);
-  const columns = `${selection ? "44px " : ""}minmax(0,2fr) ${showFlow ? "minmax(0,1fr) " : ""}minmax(0,1.4fr) 104px 96px 88px`;
+  const columns = `${selection ? "44px " : ""}minmax(0,2fr) ${showFlow ? "minmax(0,1fr) " : ""}minmax(0,1.4fr) 104px 96px minmax(132px,auto)`;
 
   return (
     <>
@@ -159,17 +133,17 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
           <div role="columnheader">{needHeading}</div>
           <div role="columnheader">Progress</div>
           <div role="columnheader">Received</div>
-          <div role="columnheader"><span className="sr-only">Action</span></div>
+          <div role="columnheader" className="text-right">Next step</div>
         </div>
         {drawn.map((d) => (
-          <Row key={d.id} d={d} showFlow={showFlow} sendable={sendable} columns={columns} selection={selection} onSent={(s) => setSent((m) => ({ ...m, [s.id]: s }))} />
+          <Row key={d.id} d={d} showFlow={showFlow} sendable={sendable} columns={columns} selection={selection} onRemoved={onRemoved} onSent={(s) => setSent((m) => ({ ...m, [s.id]: s }))} />
         ))}
       </div>
       <ul data-testid="documents-phone-list" aria-label={label} className="m-0 list-none p-0 lg:hidden">
         {drawn.map((d) => {
           const need = rowNeed(d);
           // R17: one second line, what it is when known, otherwise where it is.
-          const line = kindSentence(d.kind, d.sender) ?? (showFlow ? d.flowName : null);
+          const line = rowSecondLine(d, kindSentence(d.kind, d.sender)) ?? (showFlow ? d.flowName : null);
           // Selecting, a tap on a tickable row ticks it, so it carries no "opens" arrow.
           const picks = selection && !d.inInbox;
           const body = (
@@ -201,6 +175,11 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
                   {selection && <span className="w-11 shrink-0" />}
                   <Link href={href(d)} className={card}>{body}</Link>
                 </>
+              )}
+              {/* Outside the card's link, so a tap on a button never opens the document. */}
+              {!selection && (
+                <RowActions d={d} sendable={sendable} phone onRemoved={onRemoved} className="flex flex-wrap gap-2 px-4 pb-3"
+                  onSent={() => setSent((m) => ({ ...m, [d.id]: { ...d, status: "sending", statusReason: null } }))} />
               )}
             </li>
           );
