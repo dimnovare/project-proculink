@@ -88,6 +88,10 @@ const csvDialect = ({ delimiter, byteOrderMark }: SimpleOutput) =>
     ? { csvDialect: { ...(delimiter && delimiter !== "," ? { delimiter } : {}), ...(byteOrderMark ? { byteOrderMark } : {}) } }
     : {};
 
+/** Rows that become a CSV from another type open in the user's Excel, as a new CSV does; a separator already chosen is kept. */
+export const excelReady = (s: SimpleOutput): SimpleOutput =>
+  s.delimiter || s.byteOrderMark ? s : { ...s, delimiter: excelSeparator(), byteOrderMark: true };
+
 /** `format` is the output format; everything but json and xml renders from the csv template, as on the server. */
 export const fromSimple = (s: SimpleOutput, format: string): OutputNodeTemplate => ({
   format: format === "json" || format === "xml" ? format : "csv",

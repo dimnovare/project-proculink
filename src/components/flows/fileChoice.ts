@@ -1,16 +1,24 @@
 import { getFlow, publishFlow, updateOutput } from "@/lib/api/documents";
 import type { FileChoice, Flow, FlowOutput } from "@/lib/api/documents";
 import { refusalToken } from "@/lib/documentRefusals";
-import { fromSimple, toSimple } from "@/lib/flowOutputModel";
+import { excelReady, excelSeparator, fromSimple, toSimple } from "@/lib/flowOutputModel";
 import { outputTypeLabel } from "./OutputEditor";
 
 /** The one-tap types on the Change the file screen, in the board's order. */
 export const COMMON_TYPES = ["csv", "xlsx", "xml", "json", "pdf", "txt"] as const;
 
-/** The same file in another type: its columns kept when they are plain, else every value we read (the server's default). */
+/**
+ * The same file in another type: its columns kept when they are plain, else every value we read (the server's default).
+ * Becoming a CSV, it opens in the user's Excel, as a new CSV does.
+ */
 export function typeChoice(output: FlowOutput, format: string): FileChoice {
   const simple = output.standard ? null : toSimple(output.template);
-  return { format, standard: null, tableKey: output.tableKey, template: simple ? fromSimple(simple, format) : null };
+  const toCsv = format === "csv" && (!!output.standard || output.format !== "csv");
+  return {
+    format, standard: null, tableKey: output.tableKey,
+    template: simple ? fromSimple(toCsv ? excelReady(simple) : simple, format) : null,
+    ...(toCsv && !simple ? { csvSeparator: excelSeparator() } : {}),
+  };
 }
 
 /** A standard instead; the output's saved sender and receiver ids go along, so its preview shows them. */

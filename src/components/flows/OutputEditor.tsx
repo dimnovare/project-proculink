@@ -17,7 +17,7 @@ import { DraftState, FlowLink, useDraftPart, useOnFlowPage } from "./flowDraft";
 import { ApiHttpError } from "@/lib/api/core";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { sendsByItself } from "@/lib/deliveryMode";
-import { defaultWidth, fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputModel";
+import { defaultWidth, excelReady, fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputModel";
 import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { FLAGGED, RULE_SETS, standardName } from "@/lib/standardOutputs";
@@ -250,7 +250,8 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
     const sent = rows && format === "fixed"
       ? { ...rows, fields: rows.fields.map(withWidth), table: rows.table && { ...rows.table, columns: rows.table.columns.map(withWidth) } }
       : rows;
-    return { ...body, template: standard ? { ...current.template, envelope } : sent ? fromSimple(sent, format) : current.template };
+    const csv = sent && format === "csv" && current.format !== "csv" ? excelReady(sent) : sent; // becoming a CSV: the user's Excel
+    return { ...body, template: standard ? { ...current.template, envelope } : csv ? fromSimple(csv, format) : current.template };
   };
   const unnamed = [...(rows?.fields ?? []), ...(rows?.table?.columns ?? [])].some((r) => !r.name.trim());
   const problemNow = !name.trim() ? "Give this file a name."

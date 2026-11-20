@@ -174,11 +174,11 @@ export interface OutputRequest {
   standard?: string | null;
   /** Update only: the output becomes `standard` (null: a template output) instead of keeping its kind. */
   replace?: boolean;
-  /** Create with no template only: "," or ";" makes the CSV for the user's Excel (separator and byte-order mark). */
+  /** With no template (create or update): "," or ";" makes the CSV for the user's Excel (separator and byte-order mark). */
   csvSeparator?: "," | ";";
 }
 /** A file a flow could make instead, not saved: a type (`format`; a template, or null for every value) or a `standard`. */
-export interface FileChoice { format: string; standard: string | null; tableKey: string | null; template: OutputNodeTemplate | null }
+export interface FileChoice { format: string; standard: string | null; tableKey: string | null; template: OutputNodeTemplate | null; csvSeparator?: "," | ";" }
 export type DraftCite = { where: string; quote: string };
 export type DraftLeaf = {
   path: string; fieldKey: string | null; by: "name" | "ai" | "meaning" | "docs" | null; confidence: number | null; required?: boolean; cite?: DraftCite | null;
