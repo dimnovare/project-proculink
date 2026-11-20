@@ -37,7 +37,8 @@ import { DocumentOutputsPanel } from "./DocumentOutputsPanel";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { INPUT } from "./DestinationForm";
 import { ADDED_TO_CHANGES, ReadValuesPanel, SAVE_WORDS, type Teach } from "./ReadValuesPanel";
-import { Checks, Failed, Gone, Quiet, ReadProblem } from "./states";
+import { Checks, Failed, Gone, Quiet, ReadProblem, Loading } from "./states";
+import { LogoLoader } from "@/components/bridge/LogoLoader";
 import { rowNeed } from "./DocumentList";
 import { onItsWay } from "./SelectionBar";
 import { removable, useRemove } from "./RowActions";
@@ -84,7 +85,7 @@ function History({ documentId, version }: { documentId: string; version: number 
         {history.isError ? <p className="m-0 text-ink-muted">{documentRefusalMessage(history.error)}</p> : (
           <ul className="m-0 grid list-none gap-1 p-0 text-ink-muted">
             {typeof version === "number" && <li>Processed with version {version}</li>}
-            {!history.data ? <li>Loading…</li> : history.data.length === 0 ? <li>No changes yet.</li> : history.data.map((h, i) => (
+            {!history.data ? <li className="flex items-center gap-2"><LogoLoader />Loading…</li> :history.data.length === 0 ? <li>No changes yet.</li> : history.data.map((h, i) => (
               <li key={i}>{actionWords(h.action)}, {formatDateTime(h.at)}</li>
             ))}
           </ul>
@@ -136,7 +137,7 @@ export function Original({ documentId, fileName, highlight, marks, onPick, spots
   const enabled = useTenantQueriesEnabled();
   const source = useQuery({ queryKey: ["document-source", documentId], queryFn: () => fetchDocumentSource(documentId), enabled });
   const type = typeOf(fileName);
-  if (source.isPending) return <p className="px-4 pb-4 text-[12.5px] text-ink-muted">Opening the document…</p>;
+  if (source.isPending) return <Loading className="px-4 pb-4">Opening the document…</Loading>;
   if (source.isError || source.data.size === 0)
     return <p className="px-4 pb-4 text-[12.5px] text-ink-muted">The original isn&apos;t available right now.</p>;
   return <SourceDocumentBody cacheKey={documentId} document={{ blob: source.data, contentType: type, filename: fileName }} bounded={isLg} highlight={highlight} marks={marks} onPick={onPick} spots={spots} onSpot={onSpot} />;
@@ -530,7 +531,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
         </div>
       )}
       {!doc.data || !summary || !status ? (
-        doc.isError ? <Failed error={doc.error} retry={() => doc.refetch()} /> : <Quiet>Loading document…</Quiet>
+        doc.isError ? <Failed error={doc.error} retry={() => doc.refetch()} /> : <Loading>Loading document…</Loading>
       ) : (
         <div className="grid gap-4">
           {doc.isError && <Failed error={doc.error} retry={() => doc.refetch()} />}
@@ -582,9 +583,9 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
               {taught && <div ref={scrollTo} className="mb-3"><StatusNotice tone="success">{taught}</StatusNotice></div>}
               {nothingRead || !marks ? (
                 <div className="grid gap-3">
-                  <Quiet>
-                    {summary.status === "sending" ? "Sending…" : status.tone === "working" ? "Reading the document…" : "Nothing was read from this document."}
-                  </Quiet>
+                  {summary.status === "sending" ? <Loading>Sending…</Loading>
+                    : status.tone === "working" ? <Loading>Reading the document…</Loading>
+                    : <Quiet>Nothing was read from this document.</Quiet>}
                   {summary.statusReason !== "duplicate_file" && <Checks checks={doc.data.checks} inbox={here !== false} />}
                   <div className="mt-1">{history}</div>
                 </div>

@@ -21,6 +21,7 @@ import { scrollRegionProps } from "./scrollRegion";
 import { SourceHighlight, SpotButtons } from "./SourceHighlight";
 import { RegionPicker } from "./RegionPicker";
 import type { SourcePick } from "./SourceDocumentBody";
+import { Loading } from "@/components/bridge/LogoLoader";
 
 /** Rendered at this CSS width times the device pixel ratio, capped so a phone stays responsive. */
 const MAX_CANVAS_SCALE = 2;
@@ -82,7 +83,7 @@ export function PdfDocumentView({ cacheKey, blob, bounded, highlight, marks, onP
   const current = Math.min(Math.max(page, 1), Math.max(pageCount, 1));
 
   if (isLoading) {
-    return <DocumentMessage>Opening the document…</DocumentMessage>;
+    return <Loading className="px-4 py-4">Opening the document…</Loading>;
   }
   if (isError || !data) {
     return (

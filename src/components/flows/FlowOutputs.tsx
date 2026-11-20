@@ -17,7 +17,7 @@ import { draftReason, FlowLink, useFlowDraft } from "./flowDraft";
 import { OutputBuilder } from "./OutputBuilder";
 import { OutputEditor, outputTypeLabel } from "./OutputEditor";
 import { barPending } from "./PublishBar";
-import { Failed, Quiet } from "./states";
+import { Failed, Quiet, Loading } from "./states";
 
 /** "{type} to {destination}" / "{type}, you download it"; just the type while the destination is not known. */
 function outputLine(o: FlowOutput, destinations: { id: string; name: string }[] | undefined) {
@@ -86,7 +86,7 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
   if (made && outputId !== made.from) setMade(null);
   if (focusFor && !made && outputId !== focusFor) setFocusFor(null);
   if (outputs.isError && !outputs.data) return <Failed error={outputs.error} retry={() => outputs.refetch()} />;
-  if (!outputs.data) return <Quiet>Loading files…</Quiet>;
+  if (!outputs.data) return <Loading>Loading files…</Loading>;
   const wanted = made && made.from === outputId ? made.id : outputId;
   const chosen = outputs.data.find((o) => o.id === wanted) ?? outputs.data[0];
   // Both lists answered and neither is being fetched again: a count from an older answer is never drawn.

@@ -11,7 +11,7 @@ import { fetchDocumentSource, getDocument, getFlow, listDocuments, listOutputs }
 import type { FlowOutput } from "@/lib/api/documents";
 import type { IncomingView } from "@/lib/sourceDocument";
 import { Original } from "../DocumentScreen";
-import { Failed, Quiet } from "../states";
+import { Failed, Quiet, Loading } from "../states";
 import { flowMapperAdapter } from "./flowMapperAdapter";
 
 export function AdvancedView({ flowId, outputId, documentId }: { flowId: string; outputId: string; documentId?: string | null }) {
@@ -69,7 +69,7 @@ export function AdvancedView({ flowId, outputId, documentId }: { flowId: string;
         {failed ? <Failed error={failed.error} retry={() => failed.refetch()} />
           : missing ? <Quiet>This file no longer exists.</Quiet>
           : output?.standard ? <Quiet>This file follows a standard, so there is nothing to map.</Quiet>
-          : !adapter || !output ? <Quiet>Loading…</Quiet>
+          : !adapter || !output ? <Loading>Loading…</Loading>
           : (
             <div data-testid="advanced-workbench">
               <MapperWorkbench

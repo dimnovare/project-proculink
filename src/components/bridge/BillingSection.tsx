@@ -16,7 +16,7 @@ import { accountStatusLabel, pausedCauseCopy, namesSubscriptionCause } from "@/l
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { Button, Pill, buttonClass } from "@/components/bridge/DSPrimitives";
-import { Quiet } from "@/components/flows/states";
+import { Loading } from "@/components/flows/states";
 import { SettingsPanel } from "@/components/settings/SettingsPrimitives";
 import { isPlanGate, PlanGateNotice } from "@/components/bridge/PlanGateNotice";
 import { NUMBER_LOCALE } from "@/lib/format-number";
@@ -442,7 +442,7 @@ export function BillingSection() {
     onSuccess: (url) => { window.location.href = url; },
   });
 
-  if (isLoading) return <Quiet>Loading your plan…</Quiet>;
+  if (isLoading) return <Loading>Loading your plan…</Loading>;
 
   // A failed refresh keeps what is drawn: the failure is shown only when there is nothing to draw.
   if (!status) {
@@ -551,7 +551,7 @@ export function BillingSection() {
             >
               {rows.length === 0 ? (
                 // The legacy ladder is on sale only on an explicit "off"; until the engine answers, neither is.
-                <Quiet>Loading plans…</Quiet>
+                <Loading>Loading plans…</Loading>
               ) : (
                 <>
                   <div className="border-b border-border">

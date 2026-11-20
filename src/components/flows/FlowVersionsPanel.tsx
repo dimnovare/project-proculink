@@ -11,7 +11,7 @@ import { listFlowVersions, restoreFlowVersion } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { formatDate } from "@/lib/format-date";
 import { useFlowSaved } from "./PublishBar";
-import { Failed, Quiet } from "./states";
+import { Failed, Quiet, Loading } from "./states";
 
 /** `onRestored` runs after a restore has replaced the draft, so the page can reset its editors. */
 export function FlowVersionsPanel({ flowId, onRestored }: { flowId: string; onRestored?: () => void }) {
@@ -29,7 +29,7 @@ export function FlowVersionsPanel({ flowId, onRestored }: { flowId: string; onRe
     })) restore.mutate(n);
   };
   if (versions.isError) return <Failed error={versions.error} retry={() => versions.refetch()} />;
-  if (!versions.data) return <Quiet>Loading versions…</Quiet>;
+  if (!versions.data) return <Loading>Loading versions…</Loading>;
   if (versions.data.length === 0) return <Quiet>No versions yet. Save this setup to keep its first version.</Quiet>;
   return (
     <div className="grid gap-2">

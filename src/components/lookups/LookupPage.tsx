@@ -9,7 +9,7 @@ import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { INPUT } from "@/components/flows/DestinationForm";
-import { Quiet } from "@/components/flows/states";
+import { Loading } from "@/components/flows/states";
 import { useAutosave } from "@/hooks/useAutosave";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { flowsQuery } from "@/hooks/useDocumentEngine";
@@ -453,7 +453,7 @@ function LookupPanel({ lookupId, usedBy }: { lookupId: string; usedBy: string[] 
   if (!opened && query.isSuccess && query.isFetchedAfterMount) setOpened(true);
   if (opened && query.data) return <LookupEditor lookup={query.data} lookupId={lookupId} usedBy={usedBy} />;
   if (query.isError) return <StatusNotice tone="error">{documentRefusalMessage(query.error)}</StatusNotice>;
-  return <Quiet>Loading lookup…</Quiet>;
+  return <Loading>Loading lookup…</Loading>;
 }
 
 /** `usedBy`: the flow names from the list's summary; undefined while not known. */

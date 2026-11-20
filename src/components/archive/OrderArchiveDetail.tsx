@@ -7,7 +7,7 @@ import { Card } from "@/components/bridge/layout/Card";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { formatMoney } from "@/components/bridge/mapper/fieldBadgesModel";
-import { Failed, Quiet } from "@/components/flows/states";
+import { Failed, Loading } from "@/components/flows/states";
 import { downloadFailureMessage, mapStatus, STATUS_PRESENTATION } from "@/lib/orderArchiveStatus";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { apiClient } from "@/lib/api-client";
@@ -28,7 +28,7 @@ export function OrderArchiveDetail({ orderId }: { orderId: string }) {
   return (
     <PageShell variant="wide">
       <PageHeader title={o?.poNumber ?? "Old orders"} back={{ href: "/archive", label: "Old orders" }} />
-      {q.isError ? <Failed error={q.error} retry={() => q.refetch()} /> : !o ? <Quiet>Loading…</Quiet> : (
+      {q.isError ? <Failed error={q.error} retry={() => q.refetch()} /> : !o ? <Loading>Loading…</Loading> : (
         <>
           <Card>
             <dl className="m-0 grid gap-2 text-[13px]">

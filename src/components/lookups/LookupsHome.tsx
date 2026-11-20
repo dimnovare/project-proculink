@@ -11,7 +11,7 @@ import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { ActionBar } from "@/components/bridge/layout/ActionBar";
 import { Button, Pill } from "@/components/bridge/DSPrimitives";
-import { Failed, Quiet } from "@/components/flows/states";
+import { Failed, Loading } from "@/components/flows/states";
 import { flowsQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { createLookup, deleteLookup, getLookup, listLookups } from "@/lib/api/documents";
@@ -82,7 +82,7 @@ export function LookupsHome({ lookupId }: { lookupId?: string }) {
   if (lookups.isError && !lookups.data) {
     list = <div className={PAD}><Failed error={lookups.error} retry={() => lookups.refetch()} /></div>;
   } else if (!lookups.data) {
-    list = <div className={PAD}><Quiet>Loading lookups…</Quiet></div>;
+    list = <div className={PAD}><Loading>Loading lookups…</Loading></div>;
   } else {
     const n = lookups.data.length;
     list = (

@@ -13,7 +13,7 @@ import { isFirstFlow, readFirstRunAddress } from "@/lib/firstRun";
 import { CheckStep, notFound, useRunDocument } from "./CheckStep";
 import { FirstFile } from "./FirstFile";
 import { SendStep } from "./SendStep";
-import { Failed, Gone, Quiet } from "./states";
+import { Failed, Gone, Loading } from "./states";
 import { Welcome } from "./Welcome";
 
 const BACK = { href: "/flows", label: "Flows" };
@@ -41,7 +41,7 @@ const SetUp = ({ flowId }: { flowId: string }) => (
 );
 
 /** The Suspense fallback (R24): PageShell, the "Flows" back link, a title-height placeholder, "Loading…". */
-export const FirstRunLoading = () => <Bare><Quiet>Loading…</Quiet></Bare>;
+export const FirstRunLoading = () => <Bare><Loading>Loading…</Loading></Bare>;
 
 /** The frame both later steps share: PageShell, PageHeader (title per isFirstFlow, sub, back "Flows"), the pills. */
 export { useRunDocument };
@@ -72,15 +72,15 @@ export function FirstRun() {
   const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId), enabled: enabled && !!flowId });
   const run = useRunDocument(flowId, address.doc);
 
-  if (!flows.data) return <Bare>{flows.isError ? <Failed error={flows.error} retry={() => flows.refetch()} /> : <Quiet>Loading flows…</Quiet>}</Bare>;
+  if (!flows.data) return <Bare>{flows.isError ? <Failed error={flows.error} retry={() => flows.refetch()} /> : <Loading>Loading flows…</Loading>}</Bare>;
   // The first file is shown on the published flow the first run just finished.
   if (address.step === "ready" && flow.data) return <PageShell variant="narrow"><FirstFile flow={flow.data} docId={address.doc!} /></PageShell>;
   // A finished flow is set up: no step runs on it again, so Back after Finish cannot re-arm a send or rewrite its fields.
   if (flow.data && flow.data.publishedVersion != null) return <Bare><SetUp flowId={flow.data.id} /></Bare>;
-  if (address.step === "add") return flowId && flow.isLoading ? <Bare><Quiet>Loading…</Quiet></Bare> : <Welcome flows={flows.data} flowId={address.flow} />;
+  if (address.step === "add") return flowId && flow.isLoading ? <Bare><Loading>Loading…</Loading></Bare> : <Welcome flows={flows.data} flowId={address.flow} />;
   if (!flow.data) {
     if (notFound(flow.error)) return <Bare><Gone text={COPY.flow_not_found} /></Bare>;
-    return <Bare>{flow.isError ? <Failed error={flow.error} retry={() => flow.refetch()} /> : <Quiet>Loading…</Quiet>}</Bare>;
+    return <Bare>{flow.isError ? <Failed error={flow.error} retry={() => flow.refetch()} /> : <Loading>Loading…</Loading>}</Bare>;
   }
   const first = isFirstFlow(flows.data, flow.data.id);
   // R2: send opens only once the fields are saved; until then the address's send reads as check.

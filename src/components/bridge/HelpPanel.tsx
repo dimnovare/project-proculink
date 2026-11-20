@@ -10,7 +10,7 @@ import { X } from "lucide-react";
 
 import { Button } from "@/components/bridge/DSPrimitives";
 import { ErrorBoundary } from "@/components/bridge/ErrorBoundary";
-import { Quiet } from "@/components/flows/states";
+import { Loading } from "@/components/flows/states";
 import { loadHelpPage } from "@/components/help/helpPages";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { capture } from "@/lib/analytics";
@@ -144,7 +144,7 @@ function Body({ pathname, searchRef }: { pathname: string | null; searchRef: Rea
             </div>
           )}
         >
-          <Suspense fallback={<Quiet>Loading the article…</Quiet>}>
+          <Suspense fallback={<Loading>Loading the article…</Loading>}>
             <Page components={PANEL_MDX} />
           </Suspense>
           <a href={article} {...NEW_TAB} className={FOOT_LINK + " self-start"}>Open in the help centre</a>

@@ -19,7 +19,7 @@ import { streakText } from "./FlowCheck";
 import { FileDrop } from "./FileDrop";
 import { useFlowSaved } from "./PublishBar";
 import { useUploadQueue } from "./UploadQueue";
-import { Failed, Quiet } from "./states";
+import { Failed, Quiet, Loading } from "./states";
 
 const NEWEST = 10;
 
@@ -104,7 +104,7 @@ export function FlowDocuments({ flow }: { flow: Flow }) {
         {page.isError && !page.data ? (
           <div className="px-4 pb-4"><Failed error={page.error} retry={() => page.refetch()} /></div>
         ) : !page.data ? (
-          <div className="px-4 pb-4"><Quiet>Loading documents…</Quiet></div>
+          <div className="px-4 pb-4"><Loading>Loading documents…</Loading></div>
         ) : page.data.items.length === 0 ? (
           <div className="px-4 pb-4"><Quiet>No documents in this flow yet. Drop a file above, or send one to this flow&apos;s email address.</Quiet></div>
         ) : (

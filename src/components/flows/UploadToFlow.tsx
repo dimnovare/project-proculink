@@ -32,7 +32,7 @@ import { canRetryUpload, INBOX_TARGET, STOP_CODES, uploadRefusalMessage, useUplo
 import { firstRunOf } from "@/lib/firstRun";
 import { changeFileAddress } from "@/lib/flowSteps";
 import { aFileOf } from "./fileChoice";
-import { Failed, Quiet } from "./states";
+import { Failed, Loading } from "./states";
 import { Welcome } from "./Welcome";
 import { focusAfterRemove } from "@/components/pwa/HeldUploads";
 
@@ -199,7 +199,7 @@ export function UploadToFlow() {
   if (flows.isError && !flows.data) {
     body = <Failed error={flows.error} retry={() => void flows.refetch()} />;
   } else if (!flows.data) {
-    body = <Quiet>Loading flows…</Quiet>;
+    body = <Loading>Loading flows…</Loading>;
   } else {
     const paused = pausedBy(items, billing.data);
     const n = items.length;
@@ -329,4 +329,4 @@ export function UploadToFlow() {
 const HEADER = <PageHeader title="Add documents" sub="Drop in anything you receive. We read each one, work out what it is, and handle it like the ones before it." />;
 
 /** The page's Suspense fallback: exactly what UploadToFlow draws while the flows load. */
-export const UploadLoading = () => <PageShell variant="narrow">{HEADER}<Quiet>Loading flows…</Quiet></PageShell>;
+export const UploadLoading = () => <PageShell variant="narrow">{HEADER}<Loading>Loading flows…</Loading></PageShell>;

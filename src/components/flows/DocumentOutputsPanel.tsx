@@ -21,7 +21,7 @@ import { changeFileAddress } from "@/lib/flowSteps";
 import { makeFileLabel } from "./fileChoice";
 import { LookupMisses } from "./LookupMisses";
 import { outputTypeLabel } from "./OutputEditor";
-import { Failed, Quiet } from "./states";
+import { Failed, Loading } from "./states";
 
 const STATUSES = new Map([
   ["queued", "Waiting"], ["delivering", "Sending"], ["delivered", "Delivered"],
@@ -151,7 +151,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
     <div className="grid gap-3">
       {destinations.isError && <Failed error={destinations.error} retry={() => destinations.refetch()} />}
       {outputs.isError && !list ? <Failed error={outputs.error} retry={() => outputs.refetch()} />
-        : !list ? <Quiet>Loading files…</Quiet>
+        : !list ? <Loading>Loading files…</Loading>
         : list.length > 0 && (
           <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr))]">
             {list.map((o) => (
@@ -160,7 +160,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
           </div>
         )}
       {deliveries.isError && !deliveries.data ? <Failed error={deliveries.error} retry={() => deliveries.refetch()} />
-        : !deliveries.data ? <Quiet>Loading deliveries…</Quiet>
+        : !deliveries.data ? <Loading>Loading deliveries…</Loading>
         : deliveries.data.length === 0 && (
           <p className="m-0 text-[12.5px] text-ink-muted">
             {downloadOnly ? `Nothing is made yet.${editable ? " When the values are right, press Make the file." : ""}`
