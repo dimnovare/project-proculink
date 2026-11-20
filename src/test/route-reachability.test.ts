@@ -228,7 +228,12 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
  *      permanent cover. With the list empty that comparison is at its
  *      strongest: it now asserts that NOTHING is stranded.
  */
-export const STRANDED_PENDING_DECISION: Record<string, string> = {};
+export const STRANDED_PENDING_DECISION: Record<string, string> = {
+  "/flows/[flowId]/change-file":
+    "PENDING A DECISION only inside plan 25b's branch (2026-11-20): the screen ships first, and its doors on the flow page, " +
+    "the document screen and the upload list are Tasks 5 and 7 of docs/superpowers/plans/2026-11-20-plan-25b-the-file.md; " +
+    "the first of them must delete this entry.",
+};
 
 // ─── Route enumeration ────────────────────────────────────────────────────────
 
