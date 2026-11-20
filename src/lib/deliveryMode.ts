@@ -23,6 +23,30 @@ export const CHECK_MODES: readonly { id: CheckMode; title: string; short: string
   { id: "auto", title: "Check nothing", short: "Nothing" },
 ];
 
+/** An unknown mode reads as `review`: never claim a document goes by itself. */
+const modeOf = (mode: string) => CHECK_MODES.find((m) => m.id === mode) ?? CHECK_MODES[1];
+export const checkModeTitle = (mode: string): string => modeOf(mode).title;
+export const checkModeShort = (mode: string): string => modeOf(mode).short;
+
+const LINES: Record<CheckMode, [downloadOnly: string, withDestination: string]> = {
+  marked: [
+    "A document with a marked value waits for you. Every other document has its file made straight away.",
+    "A document with a marked value waits for you. Every other document is sent straight away.",
+  ],
+  review: [
+    "Every document waits in Needs you until someone presses Make the file.",
+    "Every document waits in Needs you until someone presses Send.",
+  ],
+  auto: [
+    "Every file is made as soon as the document is read, marked values included. You don't press anything.",
+    "Every document is sent as soon as it is read, marked values included. You don't press anything.",
+  ],
+};
+export const checkModeLine = (mode: CheckMode, downloadOnly: boolean): string => (LINES[mode] ?? LINES.review)[downloadOnly ? 0 : 1];
+
+/** As FlowAutomation.SendsByItself: some documents go without a person. */
+export const sendsByItself = (mode: string): boolean => mode === "auto" || mode === "marked";
+
 /** The switch on — orders go to the supplier without a further click once prepared. */
 export const AUTOMATIC_DELIVERY_LABEL = "Automatic delivery";
 

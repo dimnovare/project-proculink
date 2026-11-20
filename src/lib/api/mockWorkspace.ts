@@ -8,6 +8,7 @@
  */
 import { CHECK_MODES, type CheckMode } from "../deliveryMode";
 import { STATUS, documentStatus } from "../documentStatusManifest";
+import { filesOf } from "../flowWords";
 import { acceptFor, fileRefusal } from "../fileKinds";
 import { PLANS } from "../plans";
 import { ApiHttpError } from "./core";
@@ -100,8 +101,7 @@ const flowOut = ({ dirty, live, ...f }: WFlow, s: State): Flow =>
 /** As DocumentListRows: a sent row lists its stored or delivered files. The viewer is an admin, so nothing idle is refused. */
 const rowOut = ({ gets, read, ...r }: WDoc, s: State): DocumentRow => ({
   ...r,
-  files: r.status !== STATUS.sent ? [] : (s.deliveries[r.id] ?? []).filter((x) => x.fileName && (x.status === "stored" || x.status === "delivered"))
-    .map((x) => ({ deliveryId: x.id, fileName: x.fileName!, delivered: x.status === "delivered", destination: x.status === "delivered" ? x.destination ?? null : null })),
+  files: r.status !== STATUS.sent ? [] : filesOf(s.deliveries[r.id]),
   duplicateOfAt: null,
   downloadOnly: downloadOnly(find(s.flows, r.flowId, "flow"), s),
   canRemove: true,

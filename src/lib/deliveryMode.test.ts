@@ -4,8 +4,11 @@ import { describe, expect, it } from "vitest";
 import { stripComments, syntaxFor } from "@/test/sourceScan";
 import {
   AUTOMATIC_DELIVERY_LABEL,
+  CHECK_MODES,
   REVIEW_BEFORE_DELIVERY_LABEL,
   RETIRED_DELIVERY_MODE_NAMES,
+  checkModeLine,
+  checkModeTitle,
   deliveryModeLabel,
 } from "./deliveryMode";
 
@@ -92,5 +95,14 @@ describe("the automatic-sending switch has one name", () => {
   it("maps the saved flag to exactly one of the two names", () => {
     expect(deliveryModeLabel(true)).toBe(AUTOMATIC_DELIVERY_LABEL);
     expect(deliveryModeLabel(false)).toBe(REVIEW_BEFORE_DELIVERY_LABEL);
+  });
+});
+
+describe("check modes", () => {
+  it("names each check mode, and an unknown one as the careful choice", () => {
+    expect(CHECK_MODES.map((m) => m.title)).toEqual(["Check only what we marked", "Check every document", "Check nothing"]);
+    expect(checkModeLine("review", true)).toBe("Every document waits in Needs you until someone presses Make the file.");
+    expect(checkModeLine("marked", false)).toBe("A document with a marked value waits for you. Every other document is sent straight away.");
+    expect(checkModeTitle("later")).toBe("Check every document");
   });
 });

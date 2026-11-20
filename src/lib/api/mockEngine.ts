@@ -9,6 +9,7 @@
  * instead of an empty success. Only reachable when `isApiMockMode` (never true in production).
  */
 import { STATUS, documentStatus } from "../documentStatusManifest";
+import { filesOf } from "../flowWords";
 import { acceptFor, fileRefusal } from "../fileKinds";
 import { LOOKUP_LIMITS } from "../lookupLimits";
 import { ApiHttpError } from "./core";
@@ -320,8 +321,7 @@ const downloadOnlyOf = (flowId: string) => !outputs.some((o) => o.flowId === flo
 /** As DocumentListRows: a sent row lists its stored or delivered files; the flow's download-only answer; the viewer is an admin. */
 const rowFacts = (r: DocumentRow): DocumentRow => ({
   ...r,
-  files: r.status !== STATUS.sent ? [] : (now(r.id).deliveries ?? []).filter((x) => x.fileName && (x.status === "stored" || x.status === "delivered"))
-    .map((x) => ({ deliveryId: x.id, fileName: x.fileName!, delivered: x.status === "delivered", destination: x.status === "delivered" ? x.destination ?? null : null })),
+  files: r.status !== STATUS.sent ? [] : filesOf(now(r.id).deliveries ?? []),
   duplicateOfAt: r.duplicateOfAt ?? null,
   downloadOnly: downloadOnlyOf(r.flowId),
   canRemove: r.canRemove ?? true,

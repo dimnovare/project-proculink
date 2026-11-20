@@ -42,7 +42,7 @@ describe("DocumentList", () => {
     expect(rowNeed(row({ statusReason: "duplicate_file", failedChecks: 1, checks: ["duplicate"], inInbox: false }))).toEqual({ text: "Already uploaded to this flow", tone: "amber" });
     expect([true, undefined].map((inInbox) => rowNeed(row({ statusReason: "duplicate_file", inInbox })).text)).toEqual(["Already in your workspace", "Already uploaded"]);
     expect(rowNeed(row({ failedChecks: 1, checks: ["text_truncated"] })).text).toBe("Needs review");
-    expect(rowNeed(row({ status: "read_failed" }))).toEqual({ text: "Couldn't read", tone: "danger" });
+    expect(rowNeed(row({ status: "read_failed" }))).toEqual({ text: "Not read", tone: "danger" });
     expect(rowNeed(row({ status: "reading" }))).toEqual({ text: "Reading", tone: "blue" });
     expect(rowNeed(row({ status: "sent" }))).toEqual({ text: "Sent", tone: "green" });
     expect(rowNeed(row({ status: "on_hold" })).text).toBe("on_hold"); // a newer server's status is shown, never as sent
