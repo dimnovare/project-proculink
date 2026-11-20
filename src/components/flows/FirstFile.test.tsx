@@ -44,7 +44,7 @@ describe("FirstFile", () => {
     expect(await screen.findByRole("heading", { name: "Your first file is ready" })).toBeInTheDocument();
     expect(await screen.findByText("We read invoice-1042.pdf and made this file from it.")).toBeInTheDocument();
     expect(await screen.findByText("invoice-1042.csv")).toBeInTheDocument();
-    expect(screen.getByText("A CSV spreadsheet file, with the 2 values we read")).toBeInTheDocument();
+    expect(screen.getByText("A CSV spreadsheet file, with the 1 value we read")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Download" }));
     await waitFor(() => expect(files.savePreview).toHaveBeenCalledWith(expect.objectContaining({ fileName: "invoice-1042.csv" })));
     expect(api.downloadDeliveryFile).not.toHaveBeenCalled();

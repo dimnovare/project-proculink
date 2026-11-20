@@ -16,6 +16,7 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { getFlow, listDestinations, listIntakes, listOutputs, updateFlow } from "@/lib/api/documents";
 import type { Flow } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { foundSummary } from "@/lib/firstRun";
 import { checkModeShort } from "@/lib/deliveryMode";
 import { and, doesLine, waysInWords } from "@/lib/flowSentences";
 import { FLOW_STEPS, flowAddress, readFlowOutput, readFlowView, stepTitle, type FlowStep, type FlowView } from "@/lib/flowSteps";
@@ -36,8 +37,6 @@ import { Failed, Loading } from "./states";
 const STEP_IDS: readonly FlowView[] = FLOW_STEPS.map((s) => s.id);
 const isFlowStep = (v: FlowView): v is FlowStep => STEP_IDS.includes(v);
 
-const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-
 /** Each step's line, only from answers in hand: a list still loading or failed gives no line. */
 function useStepSummaries(flow: Flow): Record<FlowStep, string | null> {
   const enabled = useTenantQueriesEnabled();
@@ -46,8 +45,6 @@ function useStepSummaries(flow: Flow): Record<FlowStep, string | null> {
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled });
 
   const ways = intakes.data && waysInWords(intakes.data.filter((i) => i.isEnabled).map((i) => i.kind));
-  const values = flow.fields.fields.length + flow.fields.tables.reduce((n, t) => n + t.columns.length, 0);
-  const tables = flow.fields.tables.length;
   let send: string | null = null;
   if (outputs.data?.length === 0) send = "No file yet";
   else if (outputs.data && flow.downloadOnly) send = outputs.data.length === 1 ? `1 ${outputTypeLabel(outputs.data[0])} file, you download it` : `${outputs.data.length} files, you download them`;
@@ -58,7 +55,7 @@ function useStepSummaries(flow: Flow): Record<FlowStep, string | null> {
   }
   return {
     arrives: ways ? ways[0].toUpperCase() + ways.slice(1) : null,
-    read: values ? [count(values, "value", "values"), tables ? count(tables, "table", "tables") : ""].filter(Boolean).join(", ") : "No values yet",
+    read: foundSummary(flow.fields) || "No values yet",
     check: checkModeShort(flow.automation),
     send,
   };

@@ -97,7 +97,7 @@ describe("FlowPage", () => {
     renderPage();
     const read = (await findStrip()).getByRole("link", { name: "We read" });
     expect(read).toHaveAttribute("aria-current", "page");
-    expect(read).toHaveAccessibleDescription("9 values, 1 table");
+    expect(read).toHaveAccessibleDescription("6 values and 1 table");
     expect(within(strip().getByRole("link", { name: /^Documents/ })).getByText("3")).toBeTruthy();
     expect(strip().getAllByRole("link").filter((l) => l.getAttribute("aria-current") === "page")).toEqual([read]);
   });
