@@ -113,7 +113,8 @@ const seed = (n: number, f: Flow, fileName: string, status: string, kind: string
   doc(0, f, status, { id: `doc-in-${n}`, fileName, kind, sender, createdAt: `2026-06-01T08:0${9 - n}:00Z`, ...facts });
 /** Newest is `doc-7`. Three wait for review or sending (`doc-1`, `doc-2`, `doc-5`); two failed (`doc-4`, `doc-6`). */
 const ROWS: DocumentRow[] = [
-  doc(1, flow1, STATUS.needs_review, { failedChecks: 2, checks: ["low_confidence", "required_missing"], number: MOCK_DOCUMENT_NUMBER, sender: "Example Supplier Ltd" }),
+  // countsThisMonth: read this month, so its Remove says it still counts.
+  doc(1, flow1, STATUS.needs_review, { countsThisMonth: true, failedChecks: 2, checks: ["low_confidence", "required_missing"], number: MOCK_DOCUMENT_NUMBER, sender: "Example Supplier Ltd" }),
   doc(2, flow1, STATUS.ready, { fileName: "invoice-1002.pdf", sender: "Example Supplier Ltd" }), // the one PDF: pdf.js e2e (document-pdf.spec.ts)
   doc(3, flow1, STATUS.sent, { sentAt: DOC_3_SENT_AT }),
   // canRemove false: as a member sees a document something was sent from (DocumentRemoval.CanRemove).
@@ -135,7 +136,7 @@ if (INBOX_ON) ROWS.push(
   seed(7, flow4, "invoice-7781.pdf", STATUS.sent, "Invoice", "Sample Traders Ltd", { sentAt: "2026-06-01T08:03:00Z" }),
 );
 /** What the bare list and every other summary carry: a row without the facts only pages send. */
-const summaryOf = ({ number, sender, checks, sentAt, failedAt, stop, isSample, kind, inInbox, files, duplicateOfAt, downloadOnly, canRemove, ...s }: DocumentRow): DocumentSummary => s;
+const summaryOf = ({ number, sender, checks, sentAt, failedAt, stop, isSample, kind, inInbox, files, duplicateOfAt, downloadOnly, canRemove, countsThisMonth, ...s }: DocumentRow): DocumentSummary => s;
 const DOCS = ROWS.map(summaryOf);
 const hardToRead = (key: string, label: string): DocumentCheck =>
   ({ code: "low_confidence", passed: false, fieldKey: key, message: `${label} was hard to read. Please check it.` });
@@ -155,7 +156,7 @@ const detail = (id: string): DocumentDetail => {
   const s = summaryOf(row);
   const st = now(id);
   return {
-    summary: s, contentType: s.fileName.endsWith(".pdf") ? "application/pdf" : "text/csv", read: { ...st.read, kindLabel: row.kind ?? null }, senderLabel: row.sender ?? null, canRemove: row.canRemove ?? true,
+    summary: s, contentType: s.fileName.endsWith(".pdf") ? "application/pdf" : "text/csv", read: { ...st.read, kindLabel: row.kind ?? null }, senderLabel: row.sender ?? null, canRemove: row.canRemove ?? true, countsThisMonth: row.countsThisMonth ?? false,
     checks: st.failed.length ? st.failed : [{ code: "total_present", passed: true, fieldKey: "total", message: "Total found." }],
   };
 };
@@ -325,6 +326,7 @@ const rowFacts = (r: DocumentRow): DocumentRow => ({
   duplicateOfAt: r.duplicateOfAt ?? null,
   downloadOnly: downloadOnlyOf(r.flowId),
   canRemove: r.canRemove ?? true,
+  countsThisMonth: r.countsThisMonth ?? false,
 });
 /** What the list carries per flow, derived from the fixtures above, never typed. */
 const flowSummaryOf = (f: Flow): FlowSummary => {

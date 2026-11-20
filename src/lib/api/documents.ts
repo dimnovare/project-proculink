@@ -66,15 +66,16 @@ export interface DocumentSummary {
   source: string; sourceRef: string | null;
   /** The flow version this document was read with; null until read on a published flow. Absent on an older backend. */
   flowVersion?: number | null;
-  /** Read in the current UTC month, not a sample, and billed: removing it still counts this month. */
-  countsThisMonth?: boolean;
 }
+/** Read inside the plan's current usage window (since the trial start on a Pilot, else this UTC month), not a sample,
+ *  and billed: removing it still counts. Only on a list row and a document detail. */
+type CountsThisMonth = { countsThisMonth?: boolean };
 /** A made file of a sent document. `destination` is null when it was stored, or its destination is gone. */
 export interface DocumentFile { deliveryId: string; fileName: string; delivered: boolean; destination: string | null }
 /** Where sending stopped. `destination` is null when it has no name left to give. */
 export interface DocumentStop { destinationId: string | null; destination: string | null; error: string | null }
 /** A row of the paged documents list: the summary plus what only the app shows. Only pages carry these. */
-export interface DocumentRow extends DocumentSummary {
+export interface DocumentRow extends DocumentSummary, CountsThisMonth {
   number: string | null; sender: string | null; checks: string[];
   /** Set only when sent: when its last output landed. */
   sentAt: string | null;
@@ -104,7 +105,7 @@ export interface SortFlow { id: string; name: string }
 /** `sampleCount` is in the server's page envelope and is always 0 for documents. */
 export interface DocumentPage { items: DocumentRow[]; totalCount: number; page: number; pageSize: number; sampleCount: number }
 export interface DocumentCheck { code: string; passed: boolean; fieldKey: string | null; message: string }
-export interface DocumentDetail {
+export interface DocumentDetail extends CountsThisMonth {
   summary: DocumentSummary; contentType: string; read: ReadResult; checks: DocumentCheck[];
   /** Who this document is from, as read off it (VAT number, then name, then email domain), or null. */
   senderLabel?: string | null;
