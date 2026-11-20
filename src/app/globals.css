@@ -1044,6 +1044,8 @@ details[open] > summary [data-disclosure-chevron] {
 /* The loader (LogoLoader): the mark's dash runs blue dot → green dot while the dots pulse in turn. Under reduced
    motion the global reset would stop the dash at a fragment, so it holds still as the whole mark instead. */
 .logo-loader .ll-rail { stroke: #DCE2EC; }
+.logo-loader .ll-in { stop-color: var(--brand-blue); fill: var(--brand-blue); }
+.logo-loader .ll-out { stop-color: var(--brand-green); fill: var(--brand-green); }
 .logo-loader .ll-wire { stroke-dasharray: 26 74; animation: ll-wire 1.9s cubic-bezier(.5, 0, .5, 1) infinite; }
 .logo-loader .ll-node { transform-box: fill-box; transform-origin: center; animation: ll-node 1.9s ease-in-out infinite; }
 .logo-loader .ll-node-out { animation-delay: .95s; }

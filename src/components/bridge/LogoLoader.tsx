@@ -18,14 +18,14 @@ export function LogoLoader({ size = 18 }: { size?: number }) {
     <svg aria-hidden="true" focusable="false" className="logo-loader shrink-0" width={size} height={size} viewBox="0 0 40 40" fill="none">
       <defs>
         <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#1E66C9" />
-          <stop offset="100%" stopColor="#2E8E3A" />
+          <stop offset="0%" className="ll-in" />
+          <stop offset="100%" className="ll-out" />
         </linearGradient>
       </defs>
       <path className="ll-rail" d={LINK} strokeWidth={3.6} strokeLinecap="round" />
       <path className="ll-wire" d={LINK} pathLength={100} stroke={`url(#${id})`} strokeWidth={3.6} strokeLinecap="round" />
-      <circle className="ll-node" cx="8" cy="10" r="3" fill="#1E66C9" />
-      <circle className="ll-node ll-node-out" cx="8" cy="30" r="3" fill="#2E8E3A" />
+      <circle className="ll-node ll-in" cx="8" cy="10" r="3" />
+      <circle className="ll-node ll-out ll-node-out" cx="8" cy="30" r="3" />
     </svg>
   );
 }
