@@ -46,6 +46,22 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.clearAllMocks(); });
 
 describe("FlowOutputs", () => {
+  it("the file's card has File type, Goes to and Columns, and the type is no longer under More options", async () => {
+    mount();
+    const editor = within(await screen.findByRole("region", { name: "Edit the file Invoice CSV" }));
+    expect(editor.getByRole("link", { name: "Change the file type" })).toHaveAttribute("href", expect.stringContaining("/flows/flow-1/change-file?output=out-1"));
+    expect(editor.getByRole("button", { name: "Change where the file goes" })).toBeInTheDocument();
+    expect(editor.getByRole("button", { name: "Change the columns" })).toBeInTheDocument();
+    expect(editor.getByText("More options: when to send, separator, lookups")).toBeInTheDocument();
+    expect(editor.queryByRole("combobox", { name: "File type" })).toBeNull();
+  });
+
+  it("Make a second file, with its line, only while the flow has one file", async () => {
+    mount();
+    expect(await screen.findByRole("button", { name: "Make a second file" })).toBeInTheDocument();
+    expect(screen.getByText("Each document then gives two files. To change this file instead, press Change next to File type.")).toBeInTheDocument();
+  });
+
   it("editing an output saves a draft, no Save button", async () => {
     mount();
     const editor = within(await screen.findByRole("region", { name: "Edit the file Invoice CSV" }));
@@ -128,7 +144,7 @@ describe("FlowOutputs", () => {
     mount();
     await screen.findByRole("region", { name: "Edit the file Invoice CSV" });
     api.listOutputs.mockImplementation(() => new Promise(() => {}));
-    fireEvent.click(screen.getByRole("button", { name: "Make another file" }));
+    fireEvent.click(screen.getByRole("button", { name: "Make a second file" }));
     fireEvent.click(await screen.findByRole("button", { name: "Create" }));
     const region = await screen.findByRole("region", { name: "Edit the file Supplier invoices CSV" });
     expect(document.activeElement).toBe(within(region).getByRole("heading", { name: "Supplier invoices CSV" }));
@@ -151,7 +167,7 @@ describe("FlowOutputs", () => {
     api.listOutputs.mockImplementation(() => new Promise((r) => { answer = r; }));
     // The new file is not in the list yet: its heading is drawn only once the held list answers.
     vi.spyOn(client, "setQueryData").mockImplementationOnce(() => undefined);
-    fireEvent.click(screen.getByRole("button", { name: "Make another file" }));
+    fireEvent.click(screen.getByRole("button", { name: "Make a second file" }));
     fireEvent.click(await screen.findByRole("button", { name: "Create" }));
     await screen.findByRole("region", { name: "Edit the file Invoice CSV" });
     await act(async () => { answer([invoiceCsv, made]); });
@@ -177,7 +193,7 @@ describe("FlowOutputs", () => {
     const { rerender } = render(at("out-1"));
     await screen.findByRole("region", { name: "Edit the file Invoice CSV" });
     api.listOutputs.mockResolvedValue([invoiceCsv, made]);
-    fireEvent.click(screen.getByRole("button", { name: "Make another file" }));
+    fireEvent.click(screen.getByRole("button", { name: "Make a second file" }));
     fireEvent.click(await screen.findByRole("button", { name: "Create" }));
     await screen.findByRole("region", { name: "Edit the file Supplier invoices CSV" });
     rerender(at("out-2"));

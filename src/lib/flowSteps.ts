@@ -47,7 +47,9 @@ const WAYS: readonly string[] = ["sample", "docs", "standard"];
 /** `/flows/{id}/change-file`, naming the file, the document to preview, the way to open and where to go back to. */
 export function changeFileAddress(flowId: string, o: { output?: string; document?: string; way?: FileWay; from?: string } = {}): string {
   const q = `${new URLSearchParams((["output", "document", "way", "from"] as const).flatMap((k) => (o[k] ? [[k, o[k]!]] : [])))}`;
-  return `/flows/${encodeURIComponent(flowId)}/change-file${q && `?${q}`}`;
+  // Named `href` so the route-reachability guard, which reads literal hrefs, sees this screen's one way in.
+  const href = `/flows/${encodeURIComponent(flowId)}/change-file`;
+  return q ? `${href}?${q}` : href;
 }
 
 /** The change-file address; `from` only when it stays in the app (`isAppPath`). */

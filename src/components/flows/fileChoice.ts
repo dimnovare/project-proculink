@@ -21,6 +21,9 @@ export const standardChoice = (id: string, output: FlowOutput, flow: Flow): File
 
 export const choiceType = (c: FileChoice) => outputTypeLabel(c);
 
+/** The button that adds a file: a second one names what it does to each document. */
+export const makeFileLabel = (n: number) => (n === 0 ? "Make a file" : n === 1 ? "Make a second file" : "Make another file");
+
 /** "a CSV file", "an Excel file", "a text file": mid-sentence an ordinary word is lower-case, a name or an acronym is not. */
 export function aFileOf(o: { format: string; standard?: string | null }): string {
   const type = outputTypeLabel(o);
