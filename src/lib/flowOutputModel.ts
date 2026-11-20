@@ -16,13 +16,15 @@ const COMMA_ZONES = new Set(["London", "Dublin", "Malta", "Isle_of_Man", "Jersey
  * The separator the user's Excel splits a CSV on: ";" where numbers take a decimal comma. Read from the first browser
  * language and, because many people run an English browser on a European-region Windows, the time zone.
  */
-export function excelSeparator(
-  languages: readonly string[] = typeof navigator === "undefined" ? [] : navigator.languages,
-  timeZone: string = Intl.DateTimeFormat().resolvedOptions().timeZone,
-): ";" | "," {
-  const [first] = languages;
-  const comma = !!first && new Intl.NumberFormat(first).formatToParts(1.5).some((p) => p.type === "decimal" && p.value === ",");
-  return comma || (timeZone?.startsWith("Europe/") && !COMMA_ZONES.has(timeZone)) ? ";" : ",";
+export function excelSeparator(languages?: readonly string[], timeZone?: string): ";" | "," {
+  try {
+    const first = (languages ?? (typeof navigator === "undefined" ? undefined : navigator.languages))?.[0];
+    const zone = timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const comma = !!first && new Intl.NumberFormat(first).formatToParts(1.5).some((p) => p.type === "decimal" && p.value === ",");
+    return comma || (zone?.startsWith("Europe/") && !COMMA_ZONES.has(zone)) ? ";" : ",";
+  } catch {
+    return ","; // A browser without Intl or with a malformed language tag: today's comma file.
+  }
 }
 
 /** Same rule as the backend's DefaultOutputTemplate: the name's length, from 40 to 1000. */
