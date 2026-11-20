@@ -93,7 +93,8 @@ describe("SendStep", () => {
     api.listDestinations.mockResolvedValue([]);
     api.publishFlow.mockResolvedValue(confirmed);
     api.sendDocument.mockResolvedValue([{ id: "dl-1", outputName: "CSV file", protocol: "download", status: "stored", attempts: 0, lastError: null, fileName: "invoice.csv", deliveredAt: null }]);
-    const { container } = render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { container } = render(<QueryClientProvider client={client}><SendStep flow={confirmed} docId="d-1" first /></QueryClientProvider>);
     const finish = await screen.findByRole("region", { name: "Finish" });
     expect(screen.getByText("Nothing to set up. Each file waits in Documents, ready to download.")).toBeInTheDocument();
     expect(await within(finish).findByText("Press Finish and we make your first file. You will find it in Documents, ready to download.")).toBeInTheDocument();
@@ -103,6 +104,7 @@ describe("SendStep", () => {
     fireEvent.click(within(finish).getByRole("button", { name: "Finish" }));
     await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/flows/new?step=ready&flow=${confirmed.id}&doc=d-1`));
     expect(api.sendDocument).toHaveBeenCalledTimes(1);
+    expect(client.getQueryState(["document", "d-1"])?.isInvalidated).toBe(true);
     expect(analytics.capture).toHaveBeenCalledWith("wizard_step_completed", { step: 3, step_name: "send", first: true, sent: true });
     expect(blob.saveBlob).not.toHaveBeenCalled();
   });
