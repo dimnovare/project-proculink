@@ -6,7 +6,8 @@ import { Card } from "@/components/bridge/layout/Card";
 import { updateFlow } from "@/lib/api/documents";
 import type { Flow } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
+import { CHECK_MODES, checkModeLine, type CheckMode } from "@/lib/deliveryMode";
+import { Pill } from "@/components/bridge/DSPrimitives";
 import { Field, INPUT } from "./DestinationForm";
 import { useFlowSaved } from "./PublishBar";
 
@@ -16,17 +17,11 @@ export function streakText(n: number) {
   return `The last ${n > 200 ? "200+" : n} documents were sent without a correction.`;
 }
 
-type Mode = Flow["automation"];
-const MODES: { id: Mode; title: string; line: string }[] = [
-  { id: "review", title: REVIEW_BEFORE_DELIVERY_LABEL, line: "Every document waits in Needs you until someone presses Send." },
-  { id: "auto", title: AUTOMATIC_DELIVERY_LABEL, line: "A document is sent as soon as it is read. You don't press anything." },
-];
-
 /** The You check step. The mode is not part of a draft: a change is saved at once, and a refusal puts the radios back. */
 export function FlowCheck({ flow }: { flow: Flow }) {
   const id = useId();
   const saved = useFlowSaved(flow.id);
-  const save = useMutation({ mutationFn: (automation: Mode) => updateFlow(flow.id, { automation }), onSuccess: saved });
+  const save = useMutation({ mutationFn: (automation: CheckMode) => updateFlow(flow.id, { automation }), onSuccess: saved });
   const value = save.isPending ? save.variables : flow.automation;
   const streak = flow.noCorrectionStreak;
 
@@ -35,11 +30,11 @@ export function FlowCheck({ flow }: { flow: Flow }) {
       <Card>
         <div className="grid gap-3">
           <div className="grid gap-0.5">
-            <h2 id={`${id}-mode`} className="m-0 text-[16px] font-semibold text-ink">When a document is ready</h2>
-            <p className="m-0 text-[13px] text-ink-muted">Choose who sends it: you, or ProcuLink.</p>
+            <h2 id={`${id}-mode`} className="m-0 text-[16px] font-semibold text-ink">Which documents wait for you</h2>
+            <p className="m-0 text-[13px] text-ink-muted">We mark a value that is missing, in the wrong shape or hard to read. Choose what happens then.</p>
           </div>
-          <div role="radiogroup" aria-labelledby={`${id}-mode`} className="grid gap-2 min-[720px]:grid-cols-2">
-            {MODES.map((m) => (
+          <div role="radiogroup" aria-labelledby={`${id}-mode`} className="grid gap-2 min-[720px]:grid-cols-3">
+            {CHECK_MODES.map((m) => (
               <label
                 key={m.id}
                 className={`flex min-h-11 cursor-pointer items-start gap-3 rounded-md border p-3 ${value === m.id ? "border-navy bg-surface-2" : "border-border"}`}
@@ -51,7 +46,8 @@ export function FlowCheck({ flow }: { flow: Flow }) {
                 />
                 <span className="grid gap-0.5">
                   <span id={`${id}-${m.id}`} className="text-[14px] font-semibold text-ink">{m.title}</span>
-                  <span id={`${id}-${m.id}-line`} className="text-[13px] text-ink-muted">{m.line}</span>
+                  {m.id === "marked" && <Pill tone="blue" className="justify-self-start">New flows start here</Pill>}
+                  <span id={`${id}-${m.id}-line`} className="text-[13px] text-ink-muted">{checkModeLine(m.id, !!flow.downloadOnly)}</span>
                 </span>
               </label>
             ))}
@@ -64,7 +60,7 @@ export function FlowCheck({ flow }: { flow: Flow }) {
         </div>
       </Card>
 
-      <Card title="What always waits for a person" sub="Even on automatic delivery, these are never sent by themselves.">
+      <Card title="What always waits for a person" sub="Whatever you choose, these never go through by themselves.">
         <ul className="m-0 grid gap-1 pl-5 text-[13px] text-ink">
           <li>A document number we have already received, so nothing goes out twice.</li>
           <li>The first document from a new email address.</li>
@@ -75,19 +71,15 @@ export function FlowCheck({ flow }: { flow: Flow }) {
       {typeof streak === "number" && (
         <Card as="aside" dense>
           <p className="m-0 text-[13.5px] text-ink">{streakText(streak)}</p>
-          {streak >= 5 && <p className="m-0 mt-1 text-[13px] text-ink-muted">A good sign this flow is ready for automatic delivery.</p>}
+          {streak >= 5 && flow.automation === "review" && <p className="m-0 mt-1 text-[13px] text-ink-muted">A good sign this flow can check only what we marked.</p>}
         </Card>
       )}
 
-      <Card title="Checks" sub="We mark a value that is missing, in the wrong shape or hard to read.">
+      <Card title="What a marked value looks like">
         <div className="grid gap-3">
-          <p className="m-0 text-[13px] text-ink">
-            A mark never stops a document being sent. On automatic delivery, a document with a marked value still goes out.
-          </p>
-          <p className="m-0 text-[13px] text-ink-muted">A marked value looks like this when you open a document:</p>
           <div className="grid max-w-[480px] gap-3">
             <Field label="Date" look="Check this one. It is written as 21.11.26, and we are 72% sure of the year.">
-              <input className={INPUT} readOnly value="21.11.26" />
+              <input className={INPUT} readOnly value="2026-11-21" />
             </Field>
             <Field label="Supplier" look="Not found on the page. Type it, or point to it on the original.">
               <input className={INPUT} readOnly value="" />

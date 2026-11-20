@@ -34,12 +34,12 @@ const readDismissed = (flowId: string) => {
   try { return localStorage.getItem(dismissedKey(flowId)) !== null; } catch { return false; }   // blocked storage: the band may show again
 };
 
-/** Five or more documents in a row sent with no correction, on review: a hint that automatic delivery would do. */
+/** Five or more documents in a row sent with no correction, on review: a hint that checking only what we marked would do. */
 export function StreakBand({ flow }: { flow: Flow }) {
   // The flow hidden in this visit, for when storage is blocked; storage is read again on every render.
   const [hidden, setHidden] = useState<string | null>(null);
   const saved = useFlowSaved(flow.id);
-  const update = useMutation({ mutationFn: () => updateFlow(flow.id, { automation: "auto" }), onSuccess: saved });
+  const update = useMutation({ mutationFn: () => updateFlow(flow.id, { automation: "marked" }), onSuccess: saved });
   const streak = flow.noCorrectionStreak;
   if (flow.automation !== "review" || typeof streak !== "number" || streak < 5 || hidden === flow.id || readDismissed(flow.id)) return null;
   const hide = () => {
@@ -49,14 +49,14 @@ export function StreakBand({ flow }: { flow: Flow }) {
   return (
     <Card dense className="flex flex-wrap items-center gap-3">
       <p className="m-0 min-w-0 flex-[1_1_320px] text-[13.5px] text-ink">
-        {`${streakText(streak)} On automatic delivery, a document is sent as soon as it is read.`}
+        {`${streakText(streak)} With “Check only what we marked”, only a document with a marked value waits for you.`}
       </p>
       <span className="flex flex-wrap gap-2">
         <Button
           variant="secondary" className="border-brand-green text-brand-green-deep" loading={update.isPending}
           onClick={() => { if (!update.isPending) update.mutate(); }}
         >
-          Switch to automatic delivery
+          Check only what we marked
         </Button>
         <Button variant="ghost" onClick={hide}>Not now</Button>
       </span>

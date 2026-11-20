@@ -13,7 +13,7 @@ import {
   getDocument, listDestinations, listOutputs, previewOutput, publishFlow, sendDocument, updateFlow, updateOutput,
   type Destination, type Flow,
 } from "@/lib/api/documents";
-import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
+import { CHECK_MODES, checkModeLine, type CheckMode } from "@/lib/deliveryMode";
 import { COPY, documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
@@ -68,11 +68,6 @@ function Refusal({ error }: { error: unknown }) {
     </StatusNotice>
   );
 }
-
-const MODES = [
-  ["review", REVIEW_BEFORE_DELIVERY_LABEL, "It waits in Documents, under Needs you, until you press Send."],
-  ["auto", AUTOMATIC_DELIVERY_LABEL, "It is sent as soon as it is read. A document we couldn't read, one with a number we've already received, or the first from a new email address still waits for you."],
-] as const;
 
 /** One radio of the group: only the checked one is a tab stop, and the arrow keys move and pick (the radiogroup pattern). */
 function Tile({ id, title, sub, checked, stop, onPick, onKeyDown }: {
@@ -131,7 +126,7 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
   const target: string | null | undefined = choice.kind === "download" ? null : going?.id;
 
   const mode = useMutation({
-    mutationFn: (automation: "review" | "auto") => updateFlow(flow.id, { automation }),
+    mutationFn: (automation: CheckMode) => updateFlow(flow.id, { automation }),
     onSuccess: (f) => { qc.setQueryData(["flow", flow.id], f); void qc.invalidateQueries({ queryKey: ["flows"] }); },
   });
   const automation = mode.isPending ? mode.variables : flow.automation;
@@ -183,7 +178,7 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
     m.mutate();
   };
   const busy = send.isPending || finish.isPending || sample.isPending || !output;
-  const later = going && `From now on, documents in this flow go to ${going.name}.${automation === "auto" ? " They are sent as soon as they are read." : " Each one waits for you to check it first."}`;
+  const later = going && `From now on, documents in this flow go to ${going.name}. ${checkModeLine(automation, false)}`;
   const unused = choice.kind === "new" && saved && !passed
     ? `${saved.name} did not pass its test, so it is saved but not used yet. You can fix it on the flow page.` : null;
   const group = useRef<HTMLDivElement>(null);
@@ -275,11 +270,11 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
       </section>
 
       <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" disabled={mode.isPending}>
-        <legend className="mb-1 text-[14px] font-semibold text-ink">When a new document is read</legend>
-        {MODES.map(([value, label, line]) => (
+        <legend className="mb-1 text-[14px] font-semibold text-ink">Which documents wait for you</legend>
+        {CHECK_MODES.map(({ id: value, title }) => (
           <label key={value} className="flex min-h-[44px] items-start gap-2 text-[14px] text-ink">
             <input type="radio" name="first-run-mode" className="mt-1 h-4 w-4" checked={automation === value} onChange={() => mode.mutate(value)} />
-            <span className="grid gap-0.5"><span className="font-semibold">{label}</span><span className="text-[13px] text-ink-muted">{line}</span></span>
+            <span className="grid gap-0.5"><span className="font-semibold">{title}</span><span className="text-[13px] text-ink-muted">{checkModeLine(value, choice.kind === "download")}</span></span>
           </label>
         ))}
         <p className="m-0 text-[13px] text-ink-muted">You can change this later.</p>

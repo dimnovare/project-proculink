@@ -15,6 +15,7 @@ import { destinationsAddress, destinationWhere } from "@/lib/destinations";
 import { DraftState, FlowLink, useDraftPart, useOnFlowPage } from "./flowDraft";
 import { ApiHttpError } from "@/lib/api/core";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
+import { sendsByItself } from "@/lib/deliveryMode";
 import { defaultWidth, fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputModel";
 import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
@@ -562,7 +563,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
               {checkButton && <div>{checkButton}</div>}
               {checkResult}
             </>
-          ) : <AddDocument flow={flow} sends={flow.automation === "auto" && !!destinationId} />}
+          ) : <AddDocument flow={flow} sends={sendsByItself(flow.automation) && !!destinationId} />}
         </section>
         {problemNotice}
         {stale && <StatusNotice tone="warning">A column takes its value from something we no longer read. Choose another value for it.</StatusNotice>}

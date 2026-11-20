@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import type { Destination, DocumentRow, Flow, FlowOutput } from "@/lib/api/documents";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
+import { CHECK_MODES, checkModeLine } from "@/lib/deliveryMode";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { readiness, SendStep } from "./SendStep";
 
@@ -172,15 +173,22 @@ describe("SendStep", () => {
     expect(analytics.capture).toHaveBeenCalledWith("wizard_step_completed", { step: 3, step_name: "send", first: true, sent: false });
   });
 
-  it("says where later documents go, by the flow's delivery choice", async () => {
-    api.listOutputs.mockResolvedValue([{ ...csvOutput, destinationId: "dest-1" }]);
+  it("asks which documents wait, with words for the destination chosen", async () => {
+    api.listOutputs.mockResolvedValue([csvOutput]);
     api.listDestinations.mockResolvedValue([savedSftp]);
     api.updateFlow.mockReturnValue(new Promise(() => {}));
     render(<SendStep flow={confirmed} docId="d-1" first />, { wrapper: freshWrapper() });
-    const finish = await screen.findByRole("region", { name: "Finish" });
-    expect(await within(finish).findByText("From now on, documents in this flow go to Books server. Each one waits for you to check it first.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("radio", { name: /^Automatic delivery/ }));
-    expect(await within(finish).findByText("From now on, documents in this flow go to Books server. They are sent as soon as they are read.")).toBeInTheDocument();
+    const modes = await screen.findByRole("group", { name: "Which documents wait for you" });
+    const lines = () => within(modes).getAllByRole("radio").map((r) => r.closest("label")!.textContent);
+    // Download is chosen: nothing is sent, so the words say the file is made.
+    expect(lines()).toEqual(CHECK_MODES.map((m) => m.title + checkModeLine(m.id, true)));
+    expect(lines()[1]).toContain("presses Make the file");
+    fireEvent.click(await screen.findByRole("radio", { name: /^Already set up/ }));
+    expect(lines()).toEqual(CHECK_MODES.map((m) => m.title + checkModeLine(m.id, false)));
+    const finish = screen.getByRole("region", { name: "Finish" });
+    expect(await within(finish).findByText("From now on, documents in this flow go to Books server. Every document waits in Needs you until someone presses Send.")).toBeInTheDocument();
+    fireEvent.click(within(modes).getByRole("radio", { name: /^Check nothing/ }));
+    expect(await within(finish).findByText("From now on, documents in this flow go to Books server. Every document is sent as soon as it is read, marked values included. You don't press anything.")).toBeInTheDocument();
   });
 
   it("never attaches a new destination that did not pass its test", async () => {

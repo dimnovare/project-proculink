@@ -13,8 +13,8 @@ const flow = {
   createdAt: "", automation: "review", publishedVersion: 1, hasChanges: false, noCorrectionStreak: 8,
 } as Flow;
 
-const mount = () =>
-  render(<QueryClientProvider client={new QueryClient()}><FlowCheck flow={flow} /></QueryClientProvider>);
+const mount = (f: Flow = flow) =>
+  render(<QueryClientProvider client={new QueryClient()}><FlowCheck flow={f} /></QueryClientProvider>);
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -22,8 +22,8 @@ describe("FlowCheck", () => {
   it("the mode applies at once", async () => {
     api.updateFlow.mockResolvedValueOnce({ ...flow, automation: "auto" });
     const { unmount } = mount();
-    expect(screen.getByRole("radiogroup", { name: "When a document is ready" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("radio", { name: "Automatic delivery" }));
+    expect(screen.getByRole("radiogroup", { name: "Which documents wait for you" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("radio", { name: "Check nothing" }));
     expect(await screen.findByText("Saved")).toBeTruthy();
     expect(api.updateFlow).toHaveBeenCalledTimes(1);
     expect(api.updateFlow).toHaveBeenCalledWith("flow-1", { automation: "auto" });
@@ -31,16 +31,20 @@ describe("FlowCheck", () => {
 
     api.updateFlow.mockRejectedValueOnce(new ApiHttpError("forbidden", 403, { error: "requires_org_admin" }));
     mount();
-    fireEvent.click(screen.getByRole("radio", { name: "Automatic delivery" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Check nothing" }));
     expect(await screen.findByText("Only a workspace admin can change this.")).toBeTruthy();
-    await waitFor(() => expect(screen.getByRole("radio", { name: "Review before delivery" })).toBeChecked());
-    expect(screen.getByRole("radio", { name: "Automatic delivery" })).not.toBeChecked();
+    await waitFor(() => expect(screen.getByRole("radio", { name: "Check every document" })).toBeChecked());
+    expect(screen.getByRole("radio", { name: "Check nothing" })).not.toBeChecked();
   });
 
-  it("never says a marked value waits", () => {
-    const { container } = mount();
-    const text = container.textContent ?? "";
-    expect(text).toContain("A mark never stops a document being sent.");
-    expect(text).not.toMatch(/marked value.*wait|uncertain.*wait/i);
+  it("offers the three modes in order, with download-only words", () => {
+    mount({ ...flow, automation: "marked", downloadOnly: true });
+    const radios = screen.getAllByRole("radio");
+    expect(radios.map((r) => r.getAttribute("aria-labelledby") && document.getElementById(r.getAttribute("aria-labelledby")!)!.textContent))
+      .toEqual(["Check only what we marked", "Check every document", "Check nothing"]);
+    expect(screen.getByText("New flows start here")).toBeTruthy();
+    expect(screen.getByText("Every document waits in Needs you until someone presses Make the file.")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Which documents wait for you" })).toBeTruthy();
+    expect(screen.queryByText(/A mark never stops/)).toBeNull();
   });
 });
