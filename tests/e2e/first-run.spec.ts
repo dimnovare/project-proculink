@@ -171,7 +171,7 @@ test.describe("First run", () => {
     await expect(page.getByRole("heading", { level: 1, name: /^Welcome/ })).toBeVisible();
     await page.getByRole("button", { name: "Use our sample invoice" }).click();
     await expect(page).toHaveURL(/\/flows\/new\?step=check&flow=[^&]+&doc=[^&]+$/, { timeout: 30_000 });
-    await expect(page.getByText(`Reading ${MOCK_SAMPLE_FILE}… This takes a few seconds.`)).toBeVisible();
+    await expect(page.getByText(`Reading ${MOCK_SAMPLE_FILE}… This usually takes under a minute.`)).toBeVisible();
     const read = page.locator("#review-pane-read");
     const doc = (await mockState(page))!.docs[0];
     await expect.poll(async () => (await mockState(page))!.docs[0].read?.fields.length ?? 0, { timeout: 15_000 }).toBeGreaterThan(0);

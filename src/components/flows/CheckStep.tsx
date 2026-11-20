@@ -95,7 +95,7 @@ export function CheckStep({ flow, docId, first }: { flow: Flow; docId: string | 
   }
   const { summary } = doc.data;
   if (summary.status === "received" || summary.status === "reading")
-    return <Loading>{`Reading ${summary.fileName}… This takes a few seconds.`}</Loading>;
+    return <Loading>{`Reading ${summary.fileName}… This usually takes under a minute.`}</Loading>;
   const nothingRead = !read || read.fields.length + read.tables.length === 0;
   if (summary.status === "read_failed" || (summary.statusReason === "duplicate_file" && nothingRead))
     return <div className="grid justify-items-start gap-3"><ReadProblem summary={summary} retry={retry} scansOn={flow.scansOn} uploadHref={firstRunAddress({ step: "add", flow: flow.id })} />{another}</div>;

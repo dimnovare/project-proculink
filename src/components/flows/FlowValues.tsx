@@ -340,7 +340,7 @@ function FirstDocument({ flow, newest }: { flow: Flow; newest?: DocumentSummary 
   );
   return (
     <Frame>
-      <FirstDocumentDrop flow={flow} newest={newest} prompt={prompt} reading="Its values appear here in a moment." filled dropOnFail
+      <FirstDocumentDrop flow={flow} newest={newest} prompt={prompt} reading="Its values appear here, usually within a minute." filled dropOnFail
         sends={auto && !!files.data?.some((o) => o.destinationId)} />
     </Frame>
   );

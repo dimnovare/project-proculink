@@ -63,7 +63,7 @@ const COLUMNS_KEY = "plk:columns-open";
 /** No document read yet: one is added to this flow right here, through the app's upload queue, as on We read. */
 function AddDocument({ flow, sends }: { flow: Flow; sends: boolean }) {
   const { newest } = useLatestRead(flow.id);
-  return <FirstDocumentDrop flow={flow} newest={newest} prompt="Add a document to this flow to see the file and send a test." reading="The file appears here in a moment." sends={sends} />;
+  return <FirstDocumentDrop flow={flow} newest={newest} prompt="Add a document to this flow to see the file and send a test." reading="The file appears here, usually within a minute." sends={sends} />;
 }
 
 /** A row's lookup swap. `of` names the row in the labels, for a list of them away from the row itself. */

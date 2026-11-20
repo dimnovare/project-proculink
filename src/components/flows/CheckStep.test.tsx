@@ -123,4 +123,12 @@ describe("CheckStep", () => {
     expect(api.updateFlow).not.toHaveBeenCalled();
     expect(api.createOutput).not.toHaveBeenCalled();
   });
+
+  it("a document still being read says it usually takes under a minute", async () => {
+    api.getDocument.mockResolvedValue({ ...detail, summary: { ...row, fileName: "invoice-1042.pdf", status: "reading" } });
+    api.listDocumentPage.mockResolvedValue({ items: [row], totalCount: 1, page: 1, pageSize: 20, sampleCount: 0 });
+    api.listOutputs.mockResolvedValue([]);
+    render(<CheckStep flow={unconfirmed} docId="d-1" first />, { wrapper: freshWrapper() });
+    expect(await screen.findByText("Reading invoice-1042.pdf… This usually takes under a minute.")).toBeInTheDocument();
+  });
 });
