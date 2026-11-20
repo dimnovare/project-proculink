@@ -334,13 +334,18 @@ describe("OutputEditor on the flow page (draft)", () => {
   });
   it("with no document yet, an automatic flow with a destination says a dropped document is also sent", async () => {
     api.listDocuments.mockResolvedValue([]);
-    render(
+    const editor = (automation: string) => (
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <FlowDraftProvider flowId="f">
-          <OutputEditor mode="draft" flow={{ ...flow, automation: "auto" } as never} output={{ ...output, destinationId: "D1" } as never} onSaved={() => {}} onCancel={() => {}} />
+          <OutputEditor mode="draft" flow={{ ...flow, automation } as never} output={{ ...output, destinationId: "D1" } as never} onSaved={() => {}} onCancel={() => {}} />
         </FlowDraftProvider>
-      </QueryClientProvider>,
+      </QueryClientProvider>
     );
+    const { unmount } = render(editor("auto"));
     expect(await screen.findByText("This flow sends automatically, so this document is also sent.")).toBeInTheDocument();
+    unmount();
+    // A marked flow holds a document with a marked value.
+    render(editor("marked"));
+    expect(await screen.findByText("This flow sends automatically, so this document is also sent unless we mark a value.")).toBeInTheDocument();
   });
 });
