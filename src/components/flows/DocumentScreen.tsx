@@ -471,7 +471,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   const failedCodes = doc.data?.checks.filter((c) => !c.passed).map((c) => c.code) ?? [];
   // A sent document says what its own files did once they are known; until then only that it is finished, never "Sent".
   const finished = summary?.status === "sent" && status?.label === DOCUMENT_STATUSES.sent.label;
-  const tag = finished ? { text: deliveries.data ? finishedLabel(files) : "Finished", tone: "green" as const }
+  const tag = finished ? { text: deliveries.data && files.length ? finishedLabel(files) : "Finished", tone: "green" as const }
     : marks && marks.count > 0
     ? { text: marks.count === 1 ? "1 value to check" : `${marks.count} values to check`, tone: "amber" as const }
     : summary && rowNeed({ ...summary, inInbox: here, checks: failedCodes, failedChecks: 0 });
