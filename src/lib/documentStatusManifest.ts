@@ -13,7 +13,7 @@ export interface DocumentStatusRow {
 const ROWS = {
   received: { label: "Received", tone: "working", stage: 0, needsYou: false, editable: false },
   reading: { label: "Reading", tone: "working", stage: 1, needsYou: false, editable: false },
-  read_failed: { label: "Couldn't read", tone: "error", stage: { failed: 1 }, needsYou: true, editable: false },
+  read_failed: { label: "Not read", tone: "error", stage: { failed: 1 }, needsYou: true, editable: false },
   needs_review: { label: "Needs review", tone: "warning", stage: 2, needsYou: true, editable: true },
   ready: { label: "Ready to send", tone: "warning", stage: 3, needsYou: true, editable: true },
   sending: { label: "Sending", tone: "working", stage: 4, needsYou: false, editable: false },

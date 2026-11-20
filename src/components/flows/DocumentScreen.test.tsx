@@ -15,7 +15,7 @@ const api = vi.hoisted(() => ({
   retryDocumentRead: vi.fn(), fetchDocumentSource: vi.fn(),
   getFlow: vi.fn(), saveFlowFields: vi.fn(),
   listOutputs: vi.fn(), listDestinations: vi.fn(), listDeliveries: vi.fn(),
-  sendDocument: vi.fn(), listDocumentPage: vi.fn(), getInbox: vi.fn(),
+  sendDocument: vi.fn(), listDocumentPage: vi.fn(), getInbox: vi.fn(), deleteDocument: vi.fn(), downloadDeliveryFile: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
 
@@ -179,6 +179,37 @@ describe("DocumentScreen", () => {
     expect(read.getByText("Edited")).toBeInTheDocument();
     expect(read.queryByText(/%/)).toBeNull();                                                 // no percentage on a value read clearly
   });
+  describe("on a download-only flow", () => {
+    const made = (status: string) => ({ id: "v1", outputName: "invoices CSV", protocol: "", status, attempts: 0, lastError: null, fileName: "invoice-1043.csv", deliveredAt: null });
+    const arrange = (answer: string) => {
+      let sent = false;
+      const base = detail("INV-1");
+      const doc = () => ({ ...base, canRemove: true, summary: { ...base.summary, fileName: "invoice-1043.pdf", status: sent ? "sent" : "ready" } });
+      api.getDocument.mockImplementation(async () => doc());
+      api.getFlow.mockResolvedValue({ id: "f", fieldsConfirmed: false, downloadOnly: true });
+      api.sendDocument.mockImplementation(async () => { sent = true; api.listDeliveries.mockResolvedValue([made(answer)]); return [made(answer)]; });
+    };
+
+    it("makes the file on a download-only flow and stays, with Download as the way on", async () => {
+      arrange("stored");
+      renderScreen();
+      fireEvent.click(within(await screen.findByTestId("review-header-actions")).getByRole("button", { name: "Make the file" }));
+      await waitFor(() => expect(within(screen.getByTestId("review-header-actions")).getByText("File ready")).toBeInTheDocument());
+      const header = within(screen.getByTestId("review-header-actions"));
+      expect(header.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+      expect(header.getByRole("link", { name: "Open next" })).toHaveAttribute("href", "/flows/f/documents/c");
+      expect(header.getByRole("button", { name: "Download invoice-1043.csv" })).toBeInTheDocument();
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it("a send that went to a destination leaves the screen even on a download-only flow", async () => {
+      arrange("delivered");
+      renderScreen();
+      fireEvent.click(within(await screen.findByTestId("review-header-actions")).getByRole("button", { name: "Make the file" }));
+      await waitFor(() => expect(replace).toHaveBeenCalledWith("/flows/f/documents/c"));
+    });
+  });
+
   it("Send and open next saves first, sends once, and opens the next document", async () => {
     const order: string[] = [];
     api.editDocumentValues.mockImplementation(async () => { order.push("save"); return detail("INV-2"); });

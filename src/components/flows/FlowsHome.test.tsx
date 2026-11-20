@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { buttonClass } from "@/components/bridge/DSPrimitives";
 import { ApiHttpError } from "@/lib/api/core";
 import type { Flow, FlowSummary } from "@/lib/api/documents";
-import { deliveryModeLabel } from "@/lib/deliveryMode";
+import { checkModeTitle } from "@/lib/deliveryMode";
 import { PLAN_BY_ID, planName } from "@/lib/plans";
 import { FlowsHome } from "./FlowsHome";
 import { UploadQueueProvider } from "./UploadQueue";
@@ -67,7 +67,7 @@ describe("FlowsHome", () => {
   });
 
   it("a row without a summary says nothing it does not know", async () => {
-    listFlows.mockResolvedValue([invoices, flow("flow-2", "Delivery notes", 4, null), flow("flow-3", "Quiet flow", 0, summary())]);
+    listFlows.mockResolvedValue([invoices, { ...flow("flow-2", "Delivery notes", 4, null), automation: "marked" }, flow("flow-3", "Quiet flow", 0, summary())]);
     getBillingStatus.mockRejectedValue(new Error("down"));
     show();
     for (const row of await rows("Supplier invoices")) {
@@ -83,7 +83,7 @@ describe("FlowsHome", () => {
       for (const unknown of [/Reads documents/, /needs? you/, /couldn't be/, /Nothing waiting/, /Last one/, /No documents yet/]) {
         expect(row.queryByText(unknown)).toBeNull();
       }
-      expect(row.getByText(deliveryModeLabel(false))).toBeTruthy();
+      expect(row.getByText(checkModeTitle("marked"))).toBeTruthy();
     }
     expect(desk.getByText("4")).toBeTruthy();
     expect(phone.getByText("4 documents")).toBeTruthy();

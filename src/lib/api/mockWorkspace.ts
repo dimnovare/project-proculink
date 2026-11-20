@@ -6,7 +6,9 @@
  * fixtures. Each route answers as its controller does; a route or parameter it does not implement
  * throws. Only reachable in mock mode (never in production). Holds invented data only.
  */
+import { CHECK_MODES, type CheckMode } from "../deliveryMode";
 import { STATUS, documentStatus } from "../documentStatusManifest";
+import { filesOf } from "../flowWords";
 import { acceptFor, fileRefusal } from "../fileKinds";
 import { PLANS } from "../plans";
 import { ApiHttpError } from "./core";
@@ -90,13 +92,21 @@ const TYPES: Record<string, string> = {
 };
 const typeOf = (name: string) => TYPES[name.split(".").pop()!.toLowerCase()] ?? "application/octet-stream";
 
+/** As FlowSummaries.DownloadOnly: no output in use (the live ones once published) has a destination that exists. */
+const downloadOnly = (f: WFlow, s: State) =>
+  !(f.publishedVersion == null ? s.outputs.filter((o) => o.flowId === f.id) : f.live)
+    .some((o) => s.destinations.some((d) => d.id === o.destinationId));
 const flowOut = ({ dirty, live, ...f }: WFlow, s: State): Flow =>
-  ({ ...f, hasChanges: dirty, documentCount: s.docs.filter((d) => d.flowId === f.id).length });
-const rowOut = ({ gets, read, ...r }: WDoc): DocumentRow => r;
-const summaryOut = (d: WDoc): DocumentSummary => {
-  const { number, sender, checks, sentAt, failedAt, stop, isSample, kind, inInbox, ...s } = rowOut(d);
-  return s;
-};
+  ({ ...f, hasChanges: dirty, documentCount: s.docs.filter((d) => d.flowId === f.id).length, downloadOnly: downloadOnly({ ...f, dirty, live }, s) });
+/** As DocumentListRows: a sent row lists its stored or delivered files. The viewer is an admin, so nothing idle is refused. */
+const rowOut = ({ gets, read, ...r }: WDoc, s: State): DocumentRow => ({
+  ...r,
+  files: r.status !== STATUS.sent ? [] : filesOf(s.deliveries[r.id]),
+  duplicateOfAt: null,
+  downloadOnly: downloadOnly(find(s.flows, r.flowId, "flow"), s),
+  canRemove: true,
+});
+const summaryOut = ({ gets, read, number, sender, checks, sentAt, failedAt, stop, isSample, kind, inInbox, ...s }: WDoc): DocumentSummary => s;
 /** As FlowSummaries: what the list carries per flow. */
 const flowSummary = (f: WFlow, s: State): FlowSummary => {
   const rows = s.docs.filter((d) => d.flowId === f.id);
@@ -139,7 +149,7 @@ function look(d: WDoc) {
   else Object.assign(d, { status: STATUS.needs_review, pageCount: 1, read: name.includes("blank") ? NOTHING : readOf(d.isSample ? "Invoice" : "Delivery note") });
 }
 
-const detail = (d: WDoc): DocumentDetail => ({ summary: summaryOut(d), contentType: typeOf(d.fileName), read: d.read ?? NOTHING, checks: [], senderLabel: null });
+const detail = (d: WDoc): DocumentDetail => ({ summary: summaryOut(d), contentType: typeOf(d.fileName), read: d.read ?? NOTHING, checks: [], senderLabel: null, canRemove: true });
 
 /** As DefaultOutputTemplate.For: every flow field, then one table's columns; csv and xlsx head a column with its label. */
 function defaultTemplate(fields: FlowFieldList, format: string, tableKey: string | null): OutputNodeTemplate {
@@ -193,7 +203,7 @@ function send(s: State, d: WDoc): DocumentDelivery[] {
     return {
       id: `dlv-w${++s.n}`, outputName: o.name, protocol: dest?.protocol ?? "",
       status: fails ? "dead_letter" : dest ? "queued" : "stored", attempts: fails ? 1 : 0, lastError: fails ? MOCK_DELIVERY_ERROR : null,
-      fileName: `${stem(d.fileName)}.${o.format}`, deliveredAt: dest || fails ? null : new Date().toISOString(),
+      fileName: `${stem(d.fileName)}.${o.format}`, deliveredAt: dest || fails ? null : new Date().toISOString(), destination: dest?.name ?? null,
     };
   });
   s.deliveries[d.id] = deliveries;
@@ -227,7 +237,7 @@ function documentList(s: State, q: URLSearchParams): DocumentSummary[] | Documen
   const size = clamp("pageSize");
   const p = Math.max(page, 1);
   // sampleCount is always 0 for documents on the server (only orders fill it).
-  return { items: rows.slice((p - 1) * size, p * size).map(rowOut), totalCount: rows.length, page: p, pageSize: size, sampleCount: 0 };
+  return { items: rows.slice((p - 1) * size, p * size).map((d) => rowOut(d, s)), totalCount: rows.length, page: p, pageSize: size, sampleCount: 0 };
 }
 
 type Body = Record<string, unknown>;
@@ -246,7 +256,8 @@ const ROUTES: Route[] = [
     if (TRIAL.flowLimit !== null && s.flows.length >= TRIAL.flowLimit) refuse(429, { error: "flow_limit_reached", plan: TRIAL.id, limit: TRIAL.flowLimit, upgradeUrl: "/settings" });
     const f: WFlow = {
       id: `flow-w${++s.n}`, name: flowName(b.name), fieldsConfirmed: false, fields: { fields: [], tables: [] }, documentCount: 0, createdAt: new Date().toISOString(),
-      automation: "review", scansOn: true, formatsOn: false, docsOutputsOn: false, peppolOn: false, publishedVersion: null, hasChanges: false,
+      // As FlowsController.Create for an admin, which this mock's viewer is.
+      automation: "marked", scansOn: true, formatsOn: false, docsOutputsOn: false, peppolOn: false, publishedVersion: null, hasChanges: false,
       noCorrectionStreak: null, summary: null, dirty: false, live: [],
     };
     s.flows.push(f);
@@ -257,7 +268,7 @@ const ROUTES: Route[] = [
     const f = find(s.flows, m[1], "flow");
     if (b.name == null && b.automation == null) refuse(400, { error: "invalid_name" });
     if (b.name != null) f.name = flowName(b.name);
-    if (b.automation != null) f.automation = b.automation === "auto" || b.automation === "review" ? b.automation : refuse(422, { error: "invalid_automation" });
+    if (b.automation != null) f.automation = CHECK_MODES.some((x) => x.id === b.automation) ? b.automation as CheckMode : refuse(422, { error: "invalid_automation" });
     return flowOut(f, s);
   }],
   ["PUT", re`/flows/${S}/fields`, (m, s, _q, b) => {
@@ -320,6 +331,13 @@ const ROUTES: Route[] = [
     }
     if (d.status === STATUS.needs_review) d.status = STATUS.ready;
     return detail(d);
+  }],
+  // As DocumentRemoval: busy while received, read or sent; else the document and its files are gone.
+  ["DELETE", re`/documents/${S}`, (m, s) => {
+    const d = find(s.docs, m[1], "document");
+    if (d.status === STATUS.received || d.status === STATUS.reading || d.status === STATUS.sending) refuse(409, { error: "document_busy" });
+    s.docs = s.docs.filter((x) => x.id !== d.id);
+    delete s.deliveries[d.id];
   }],
   ["POST", re`/documents/${S}/send`, (m, s) => send(s, find(s.docs, m[1], "document"))],
   ["GET", re`/documents/${S}/deliveries`, (m, s) => (find(s.docs, m[1], "document"), s.deliveries[m[1]] ?? [])],

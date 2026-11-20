@@ -920,6 +920,15 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     reasonKeys: [],
     note: "A flow that was never put in use was deleted (entity type Flow; payload { flow, by }). The flow is gone, so the row has only its name.",
   },
+  {
+    action: "document.removed",
+    kind: "edited",
+    label: "Document removed",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Services/Documents/DocumentRemoval.cs:21",
+    reasonKeys: [],
+    note: "A person removed one document (entity type Flow, the flow's id; payload { flow, by }). Written in the erase's own transaction; no file name, since the document leaves nothing behind.",
+  },
 
   // ── Linked accounts (entity type LinkedAccount; payload {provider, by}, never the email) ─
   {

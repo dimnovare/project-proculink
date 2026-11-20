@@ -9,6 +9,7 @@
  * instead of an empty success. Only reachable when `isApiMockMode` (never true in production).
  */
 import { STATUS, documentStatus } from "../documentStatusManifest";
+import { filesOf } from "../flowWords";
 import { acceptFor, fileRefusal } from "../fileKinds";
 import { LOOKUP_LIMITS } from "../lookupLimits";
 import { ApiHttpError } from "./core";
@@ -112,11 +113,13 @@ const seed = (n: number, f: Flow, fileName: string, status: string, kind: string
   doc(0, f, status, { id: `doc-in-${n}`, fileName, kind, sender, createdAt: `2026-06-01T08:0${9 - n}:00Z`, ...facts });
 /** Newest is `doc-7`. Three wait for review or sending (`doc-1`, `doc-2`, `doc-5`); two failed (`doc-4`, `doc-6`). */
 const ROWS: DocumentRow[] = [
-  doc(1, flow1, STATUS.needs_review, { failedChecks: 2, checks: ["low_confidence", "required_missing"], number: MOCK_DOCUMENT_NUMBER, sender: "Example Supplier Ltd" }),
+  // countsThisMonth: read this month, so its Remove says it still counts.
+  doc(1, flow1, STATUS.needs_review, { countsThisMonth: true, failedChecks: 2, checks: ["low_confidence", "required_missing"], number: MOCK_DOCUMENT_NUMBER, sender: "Example Supplier Ltd" }),
   doc(2, flow1, STATUS.ready, { fileName: "invoice-1002.pdf", sender: "Example Supplier Ltd" }), // the one PDF: pdf.js e2e (document-pdf.spec.ts)
   doc(3, flow1, STATUS.sent, { sentAt: DOC_3_SENT_AT }),
+  // canRemove false: as a member sees a document something was sent from (DocumentRemoval.CanRemove).
   doc(4, flow2, STATUS.send_failed, {
-    failedAt: "2026-05-24T09:10:00Z", stop: { destinationId: "dest-1", destination: "Accounting inbox", error: REFUSED },
+    canRemove: false, failedAt: "2026-05-24T09:10:00Z", stop: { destinationId: "dest-1", destination: "Accounting inbox", error: REFUSED },
   }),
   doc(5, flow3, STATUS.needs_review, { failedChecks: 1, checks: ["duplicate"] }),
   doc(6, flow4, STATUS.read_failed, { statusReason: "unreadable_file", failedAt: "2026-05-26T09:02:00Z" }),
@@ -128,12 +131,12 @@ if (INBOX_ON) ROWS.push(
   seed(3, flow2, "delivery-note-5521.pdf", STATUS.needs_review, "Delivery note", "Example Freight Ltd", { statusReason: "check_sort" }),
   seed(4, INBOX, "price-list.xlsx", STATUS.sent, "Price list", "Example Supplier Ltd", { statusReason: "downloaded" }),
   seed(5, INBOX, "scan-0003.jpg", STATUS.read_failed, null, null, { statusReason: "unreadable_file", failedAt: "2026-06-01T08:04:00Z" }),
-  seed(6, INBOX, "invoice-1002.pdf", STATUS.needs_review, null, null, { statusReason: "duplicate_file", checks: ["in_workspace"], failedChecks: 1 }),
+  seed(6, INBOX, "invoice-1002.pdf", STATUS.needs_review, null, null, { statusReason: "duplicate_file", checks: ["in_workspace"], failedChecks: 1, duplicateOfAt: "2026-05-22T09:00:00Z" }),
   // flow-4 also holds an invoice (so doc-in-2 has two flows to choose from), with doc-in-2's file: moving it there holds it.
   seed(7, flow4, "invoice-7781.pdf", STATUS.sent, "Invoice", "Sample Traders Ltd", { sentAt: "2026-06-01T08:03:00Z" }),
 );
 /** What the bare list and every other summary carry: a row without the facts only pages send. */
-const summaryOf = ({ number, sender, checks, sentAt, failedAt, stop, isSample, kind, inInbox, ...s }: DocumentRow): DocumentSummary => s;
+const summaryOf = ({ number, sender, checks, sentAt, failedAt, stop, isSample, kind, inInbox, files, duplicateOfAt, downloadOnly, canRemove, countsThisMonth, ...s }: DocumentRow): DocumentSummary => s;
 const DOCS = ROWS.map(summaryOf);
 const hardToRead = (key: string, label: string): DocumentCheck =>
   ({ code: "low_confidence", passed: false, fieldKey: key, message: `${label} was hard to read. Please check it.` });
@@ -153,13 +156,13 @@ const detail = (id: string): DocumentDetail => {
   const s = summaryOf(row);
   const st = now(id);
   return {
-    summary: s, contentType: s.fileName.endsWith(".pdf") ? "application/pdf" : "text/csv", read: { ...st.read, kindLabel: row.kind ?? null }, senderLabel: row.sender ?? null,
+    summary: s, contentType: s.fileName.endsWith(".pdf") ? "application/pdf" : "text/csv", read: { ...st.read, kindLabel: row.kind ?? null }, senderLabel: row.sender ?? null, canRemove: row.canRemove ?? true, countsThisMonth: row.countsThisMonth ?? false,
     checks: st.failed.length ? st.failed : [{ code: "total_present", passed: true, fieldKey: "total", message: "Total found." }],
   };
 };
 
 const delivery = (status: string, attempts: number, lastError: string | null, deliveredAt: string | null): DocumentDelivery => ({
-  id: "dlv-1", outputName: "Invoice CSV", protocol: "email", status, attempts, lastError, fileName: "invoice.csv", deliveredAt,
+  id: "dlv-1", outputName: "Invoice CSV", protocol: "email", status, attempts, lastError, fileName: "invoice.csv", deliveredAt, destination: "Accounting inbox",
 });
 const DELIVERIES: Record<string, DocumentDelivery[]> = {
   "doc-3": [delivery("delivered", 1, null, DOC_3_SENT_AT)],
@@ -261,7 +264,7 @@ function send(id: string): DocumentDelivery[] {
   const own = outputs.filter((o) => o.flowId === row.flowId);
   const deliveries = own.length ? own.map((o): DocumentDelivery => {
     const dest = destinations.find((d) => d.id === o.destinationId);
-    return { ...delivery(dest ? "delivered" : "stored", dest ? 1 : 0, null, sentAt), outputName: o.name, protocol: dest?.protocol ?? "" };
+    return { ...delivery(dest ? "delivered" : "stored", dest ? 1 : 0, null, sentAt), outputName: o.name, protocol: dest?.protocol ?? "", destination: dest?.name ?? null };
   }) : [delivery("delivered", 1, null, sentAt)];
   remembered.set(id, { ...was, status: STATUS.sent, sentAt, deliveries });
   resent.add(id);
@@ -314,6 +317,17 @@ const outputsOf = (flowId: string) => (flowId === INBOX.id ? missing("flow", flo
 /** The live setup's copy: out-1 has one column fewer and another title, so We send counts "2 changes not in use yet". */
 const liveCopy = (o: FlowOutput): FlowOutput => o.id !== MOCK_ENGINE_IDS.output ? o
   : { ...o, layout: { title: "Invoices" }, template: { ...o.template, root: { ...o.template.root, children: o.template.root.children!.slice(0, -1) } } };
+/** As FlowSummaries.DownloadOnly: none of the flow's outputs has a destination that exists. */
+const downloadOnlyOf = (flowId: string) => !outputs.some((o) => o.flowId === flowId && destinations.some((d) => d.id === o.destinationId));
+/** As DocumentListRows: a sent row lists its stored or delivered files; the flow's download-only answer; the viewer is an admin. */
+const rowFacts = (r: DocumentRow): DocumentRow => ({
+  ...r,
+  files: r.status !== STATUS.sent ? [] : filesOf(now(r.id).deliveries ?? []),
+  duplicateOfAt: r.duplicateOfAt ?? null,
+  downloadOnly: downloadOnlyOf(r.flowId),
+  canRemove: r.canRemove ?? true,
+  countsThisMonth: r.countsThisMonth ?? false,
+});
 /** What the list carries per flow, derived from the fixtures above, never typed. */
 const flowSummaryOf = (f: Flow): FlowSummary => {
   const rows = ROWS.filter((d) => d.flowId === f.id);
@@ -607,16 +621,17 @@ const deletable = (f: Flow) => f.publishedVersion == null;
 
 const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
   // Like the server's list: a summary per flow, and none of the single response's draft facts.
-  ["GET", re`/flows`, () => FLOWS.map((f) => ({ ...f, hasChanges: false, noCorrectionStreak: null, summary: flowSummaryOf(f) }))],
-  ["POST", re`/flows`, (_m, _q, b) => echo({ ...flow2, id: "flow-new" }, b)],
-  ["GET", re`/flows/${S}`, (m) => { const f = pick(FLOWS, m[1], "flow"); return { ...f, summary: null, canDelete: deletable(f) }; }],
+  ["GET", re`/flows`, () => FLOWS.map((f) => ({ ...f, hasChanges: false, noCorrectionStreak: null, summary: flowSummaryOf(f), downloadOnly: downloadOnlyOf(f.id) }))],
+  // As FlowsController.Create for an admin, which this mock's viewer is.
+  ["POST", re`/flows`, (_m, _q, b) => echo({ ...flow2, id: "flow-new", automation: "marked", downloadOnly: true }, b)],
+  ["GET", re`/flows/${S}`, (m) => { const f = pick(FLOWS, m[1], "flow"); return { ...f, summary: null, canDelete: deletable(f), downloadOnly: downloadOnlyOf(f.id) }; }],
   ["DELETE", re`/flows/${S}`, (m) => {
     const f = pick(FLOWS, m[1], "flow");
     if (!deletable(f)) refuse(409, "flow_in_use");   // as FlowDeletion
     FLOWS.splice(FLOWS.indexOf(f), 1);
     for (let i = ROWS.length - 1; i >= 0; i--) if (ROWS[i].flowId === f.id) ROWS.splice(i, 1);   // its documents go too
   }],
-  ["PATCH", re`/flows/${S}`, (m, _q, b) => echo(pick(FLOWS, m[1], "flow"), b)],
+  ["PATCH", re`/flows/${S}`, (m, _q, b) => echo({ ...pick(FLOWS, m[1], "flow"), downloadOnly: downloadOnlyOf(m[1]) }, b)],
   ["POST", re`/flows/${S}/publish`, (m) => {
     const flow = pick(FLOWS, m[1], "flow");
     if (flow.publishedVersion != null && !flow.hasChanges) refuse(409, "nothing_to_publish");   // as FlowVersions.PublishAsync
@@ -665,9 +680,17 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
     if (page === null) return rows.slice(0, clamp("take")).map(summaryOf);
     if (page < 1) throw new ApiHttpError(`mock engine: page ${page}`, 400, null);
     const pageSize = clamp("pageSize");
-    return { items: rows.slice((page - 1) * pageSize, page * pageSize), totalCount: rows.length, page, pageSize, sampleCount: 0 };
+    return { items: rows.slice((page - 1) * pageSize, page * pageSize).map(rowFacts), totalCount: rows.length, page, pageSize, sampleCount: 0 };
   }],
   ["GET", re`/documents/${S}`, (m) => (settleReads(), detail(m[1]))],
+  // As DocumentRemoval: refused while received, read or sent, or when the viewer may not; else gone from every list.
+  ["DELETE", re`/documents/${S}`, (m) => {
+    const r = live(pick(ROWS, m[1], "document"));
+    if (r.canRemove === false) refuse(403, "requires_org_admin");
+    if (r.status === STATUS.received || r.status === STATUS.reading || r.status === STATUS.sending) refuse(409, "document_busy");
+    ROWS.splice(ROWS.findIndex((x) => x.id === r.id), 1);
+    DOCS.splice(DOCS.findIndex((x) => x.id === r.id), 1);
+  }],
   ["PATCH", re`/documents/${S}/values`, (m, _q, b) => editValues(m[1], b)],
   ["POST", re`/documents/${S}/teach`, (m) => (pick(ROWS, m[1], "document").flowId === INBOX.id ? refuse(409, "not_in_flow") : detail(m[1]))],
   ["GET", re`/documents/${S}/history`, (m) => {

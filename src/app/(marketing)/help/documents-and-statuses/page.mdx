@@ -12,9 +12,9 @@ What each status on a document means, and what you can do from it.
 
 ## Where to find your documents
 
-Open **Documents** to see everything that has arrived. Each row shows its progress through In, Read, Check, Transform and Send, and its status. The filters at the top are **Needs you**, **Sent**, **Couldn't send or read** and **All**. The line under the title says how many are being read. A flow's own page lists only that flow's documents.
+Open **Documents** to see everything that has arrived. Each row shows its progress through In, Read, Check, Transform and Send, and its status. The filters at the top are **Needs you**, **Finished**, **Couldn't be read or sent** and **All**. Each row ends with its next step, for example **Review**, **Download**, **Download a copy**, **Read it anyway**, **Try again**, **Remove**, or **Make the file** (**Send** on a flow with a destination). The line under the title says how many are being read. A flow's own page lists only that flow's documents.
 
-Select a file name to open the document. It shows **Original**, **What we read**, and **What we'll send**: the files we make and what has been sent.
+Select a file name to open the document. It shows **Original**, **What we read**, and **What we'll send** (**The file we make** on a flow whose file you download): the files we make and what has been sent.
 
 ## Find a document
 
@@ -22,21 +22,21 @@ Press Ctrl K (Cmd K on a Mac), or the search button in the top bar, and type par
 
 ## Send or download several at once
 
-Press **Select** above the list and tick the documents. The bar at the bottom sends the ticked documents that are ready, one at a time, and tells you which went and which did not and why. A ticked document that still needs you is not sent. **Download files** saves the original files, several together in one zip file. Changing tab or page, or pressing **Clear** or **Done**, unticks everything.
+Press **Select** above the list and tick the documents. The bar at the bottom sends the ticked documents that are ready, one at a time, and tells you which went and which did not and why. A ticked document that still needs you is not sent. **Download files** saves the original files, several together in one zip file. **Remove** removes the ticked documents you may remove, after asking first. Changing tab or page, or pressing **Clear** or **Done**, unticks everything.
 
 ## Keyboard shortcuts
 
-Ctrl K: search. Ctrl Enter: send the document you are checking and open the next one. Tab: go to the next value to check. ?: show these shortcuts. On a Mac, use Cmd instead of Ctrl. Shortcuts never fire while you type in a box, except Ctrl K and Ctrl Enter (Ctrl Enter saves what you typed first). You can turn off the ? key in the list it opens.
+Ctrl K: search. Ctrl Enter: send the document you are checking and open the next one. On a flow whose file you download, Ctrl Enter makes the file and the document stays open. Tab: go to the next value to check. ?: show these shortcuts. On a Mac, use Cmd instead of Ctrl. Shortcuts never fire while you type in a box, except Ctrl K and Ctrl Enter (Ctrl Enter saves what you typed first). You can turn off the ? key in the list it opens.
 
 ## The statuses
 
 - **Received** — the file is in and we are about to read it. You do not need to do anything.
 - **Reading** — we are reading the values and tables. This usually takes a short while, and the screen updates by itself.
-- **Couldn't read** — we could not read the file. The document says why and, when trying again can help, offers **Try again**.
+- **Not read** — we could not read the file. The document says why and, when trying again can help, offers **Try again**.
 - **Needs review** — we read it, and a check flagged something. Look at the flagged values, correct them if needed, then send. A document can also wait because it is the first from a new email address on a flow that sends automatically.
-- **Ready to send** — we read it and no check flagged anything. It waits for you to send it, unless the flow sends automatically.
+- **Ready to send** — we read it and no check flagged anything. It waits for you to send it, unless the flow sends by itself. On a flow whose file you download, its row says **Nothing to check**.
 - **Sending** — the files are being made and delivered. A failed delivery is tried again on its own before we give up.
-- **Sent** — every file was delivered, or is ready to download.
+- **Sent** — every file was delivered, or is ready to download. Its row says **File ready** when the file waits for you to download it, or names where it went.
 - **Downloaded** — you downloaded what we read. Nothing was set up or sent.
 - **Couldn't send** — at least one file could not be delivered. Fix the cause, then press **Send and open next** again. Files that were already delivered are not sent twice.
 
@@ -47,7 +47,7 @@ Some documents stop in **Needs review** for a reason that is not a failed check:
 - It is the first document of its kind. Its row says **New kind**. Open it and choose: **Set it up**, download it as **Excel** or **CSV**, or **Move it** to a flow you have.
 - More than one flow takes documents like it. Its row says **Choose a flow**. Open it, choose the flow and press **Move it**.
 - We put it with a flow but were not sure. Its row says **Check the flow**. Open it, check the flow, then send it, or move it.
-- You already uploaded the same file to this flow. We do not read it. If you want it anyway, press **Read it anyway**.
+- You already added the same file. Its row says **Already added**. We do not read it. If you want it anyway, press **Read it anyway**, or **Remove** it.
 - No file is set to send this document. Check the **Send when** condition on the flow's files.
 - A file could not be made from this document. The message names the file.
 

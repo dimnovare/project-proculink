@@ -24,6 +24,16 @@ export const metadata = pageMetadata({
 // those entries byte for byte.
 const ENTRIES = [
   {
+    version: "v2.9",
+    date: "20 November 2026",
+    items: [
+      "A new flow that an admin creates starts on “Check only what we marked”: a document with a marked value waits for you, and every other one has its file made or is sent straight away. Flows you already have keep their setting.",
+      "Every document in a list now shows its next step: Download, Download a copy, Review, Read it anyway or Try again.",
+      "You can remove a document you don't need, from its row, from its own screen, or several at once with Select. Once a file has been made or sent from a document, only an admin can remove it. A document we already read still counts toward your plan. A removed document whose file was already made or sent is still recognised if it arrives again.",
+      "On a flow whose file you download, the words say so: Make the file and File ready. The Documents tab Sent is now Finished.",
+    ],
+  },
+  {
     version: "v2.8",
     date: "19 November 2026",
     items: [

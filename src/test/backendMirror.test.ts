@@ -22,6 +22,7 @@ import { FILE_KINDS, MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
 import { REVIEW_CONFIDENCE } from "@/lib/reviewMarks";
 import { LOOKUP_LIMITS } from "@/lib/lookupCsv";
 import { SEARCH_TERM_MAX } from "@/lib/api/mockEngine";
+import { CHECK_MODES } from "@/lib/deliveryMode";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The cross-repo mirror check.
@@ -1328,6 +1329,13 @@ describe("document statuses mirror the backend", () => {
     const backend = Object.values(parseStatusConstants(cs));
     expect(backend.length, "IntakeKind.cs parsed to no constants, so this would prove nothing").toBeGreaterThan(0);
     expect([...backend].sort()).toEqual(Object.keys(WAY_IN_WORDS).sort());
+  });
+
+  test.skipIf(!BACKEND)("CHECK_MODES ids equal FlowAutomation's constants", () => {
+    const cs = readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/FlowAutomation.cs"), "utf8");
+    const backend = Object.values(parseStatusConstants(cs));
+    expect(backend.length).toBeGreaterThan(0);
+    expect(CHECK_MODES.map((m) => m.id).sort()).toEqual([...backend].sort());
   });
 
   test.skipIf(!BACKEND)("the check codes the documents list reads exist in DocumentChecks", () => {

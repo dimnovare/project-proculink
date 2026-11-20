@@ -6,8 +6,10 @@ import type { DocumentRow } from "@/lib/api/documents";
 import { DocumentList, rowNeed } from "./DocumentList";
 import { WaitingList } from "./WaitingList";
 
-const { sendDocument } = vi.hoisted(() => ({ sendDocument: vi.fn() }));
-vi.mock("@/lib/api/documents", () => ({ sendDocument }));
+const { sendDocument, deleteDocument } = vi.hoisted(() => ({ sendDocument: vi.fn(), deleteDocument: vi.fn() }));
+vi.mock("@/lib/api/documents", () => ({ sendDocument, deleteDocument }));
+const confirm = vi.hoisted(() => vi.fn());
+vi.mock("@/components/ui/confirm", () => ({ useConfirm: () => confirm }));
 
 const row = (over: Partial<DocumentRow> = {}): DocumentRow => ({
   id: "d1", flowId: "f1", flowName: "Supplier invoices", fileName: "invoice-2291.pdf", status: "needs_review", statusReason: null,
@@ -39,10 +41,12 @@ describe("DocumentList", () => {
     expect(rowNeed(row({ failedChecks: 2, checks: ["low_confidence", "required_missing"] }))).toEqual({ text: "2 values to check", tone: "amber" });
     expect(rowNeed(row({ failedChecks: 1, checks: ["type_invalid"] })).text).toBe("1 value to check");
     expect(rowNeed(row({ failedChecks: 3, checks: ["low_confidence", "duplicate"] })).text).toBe("Same number as an earlier document");
-    expect(rowNeed(row({ statusReason: "duplicate_file", failedChecks: 1, checks: ["duplicate"], inInbox: false }))).toEqual({ text: "Already uploaded to this flow", tone: "amber" });
-    expect([true, undefined].map((inInbox) => rowNeed(row({ statusReason: "duplicate_file", inInbox })).text)).toEqual(["Already in your workspace", "Already uploaded"]);
+    expect(rowNeed(row({ statusReason: "duplicate_file", failedChecks: 1, checks: ["duplicate"], inInbox: false }))).toEqual({ text: "Already added", tone: "amber" });
+    expect([true, undefined].map((inInbox) => rowNeed(row({ statusReason: "duplicate_file", inInbox })).text)).toEqual(["Already added", "Already added"]);
+    expect(rowNeed(row({ status: "ready", downloadOnly: true })).text).toBe("Nothing to check");
+    expect(rowNeed(row({ status: "sent", files: [{ deliveryId: "v", fileName: "invoice-2291.csv", delivered: false, destination: null }] })).text).toBe("File ready");
     expect(rowNeed(row({ failedChecks: 1, checks: ["text_truncated"] })).text).toBe("Needs review");
-    expect(rowNeed(row({ status: "read_failed" }))).toEqual({ text: "Couldn't read", tone: "danger" });
+    expect(rowNeed(row({ status: "read_failed" }))).toEqual({ text: "Not read", tone: "danger" });
     expect(rowNeed(row({ status: "reading" }))).toEqual({ text: "Reading", tone: "blue" });
     expect(rowNeed(row({ status: "sent" }))).toEqual({ text: "Sent", tone: "green" });
     expect(rowNeed(row({ status: "on_hold" })).text).toBe("on_hold"); // a newer server's status is shown, never as sent
@@ -113,13 +117,31 @@ describe("DocumentList", () => {
     const toggle = vi.fn();
     render(
       <QueryClientProvider client={new QueryClient()}>
-        <DocumentList label="Documents" showFlow documents={[row({ id: "a", fileName: "PO-48213.pdf" })]} selection={{ ids: new Set(), toggle, all: vi.fn() }} />
+        <DocumentList label="Documents" showFlow documents={[row({ id: "a", fileName: "PO-48213.pdf", statusReason: "duplicate_file", canRemove: true })]} selection={{ ids: new Set(), toggle, all: vi.fn() }} />
       </QueryClientProvider>,
     );
     expect(screen.queryByRole("link", { name: /PO-48213\.pdf/ })).toBeNull();
     fireEvent.click(within(screen.getByRole("table", { name: "Documents" })).getByText("PO-48213.pdf"));
-    fireEvent.click(within(screen.getByTestId("documents-phone-list")).getByText("Supplier invoices"));
+    fireEvent.click(within(screen.getByTestId("documents-phone-list")).getByTestId("document-name"));
     expect(toggle.mock.calls).toEqual([["a"], ["a"]]);
+    // The bar acts on the ticked rows: a row draws no button of its own while selecting.
+    expect(within(screen.getByRole("table", { name: "Documents" })).queryByRole("button")).toBeNull();
+  });
+
+  it("after a removal the list keeps focus and says what was removed", async () => {
+    deleteDocument.mockResolvedValue(undefined);
+    confirm.mockResolvedValue(true);
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DocumentList label="Documents" showFlow documents={[row({ id: "a", fileName: "PO-48213.pdf", statusReason: "duplicate_file", canRemove: true }), row({ id: "b" })]} />
+      </QueryClientProvider>,
+    );
+    const table = screen.getByRole("table", { name: "Documents" });
+    within(table).getByRole("button", { name: "Remove PO-48213.pdf" }).focus();
+    fireEvent.click(within(table).getByRole("button", { name: "Remove PO-48213.pdf" }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("PO-48213.pdf removed."));
+    await waitFor(() => expect(document.activeElement).toBe(table));
+    expect(within(table).queryByText("PO-48213.pdf")).toBeNull();
   });
 
   it("a refused send says why on the row and keeps Send", async () => {

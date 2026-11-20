@@ -15,6 +15,7 @@ import { destinationsAddress, destinationWhere } from "@/lib/destinations";
 import { DraftState, FlowLink, useDraftPart, useOnFlowPage } from "./flowDraft";
 import { ApiHttpError } from "@/lib/api/core";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
+import { sendsByItself } from "@/lib/deliveryMode";
 import { defaultWidth, fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputModel";
 import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
@@ -173,7 +174,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
   const [envelope, setEnvelope] = useState<EnvelopeConfig | null>(output?.template?.envelope ?? null);
   const [problem, setProblem] = useState<string | null>(null);
   const [testAt, setTestAt] = useState(0);
-  // Draft only: the rename box, the "Send to" select and the column editor, each folded behind one press.
+  // Draft only: the rename box, the "Goes to" select and the column editor, each folded behind one press.
   const [renaming, setRenaming] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
   const [columnsOpen, setColumnsOpen] = useState(() => { try { return localStorage.getItem(COLUMNS_KEY) === "1"; } catch { return false; } });
@@ -362,7 +363,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
     </Field>
   );
   const sendToField = (
-    <Field label="Send to">
+    <Field label="Goes to">
       <select id={`${uid}-send`} className={INPUT} value={newDestination ? NEW_DESTINATION : (destinationId ?? "")}
         onFocus={() => { selectHadFocus.current = true; }} onBlur={() => { selectHadFocus.current = false; }}
         onChange={(e) => {
@@ -514,7 +515,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
             </>
           ) : (
             <>
-              <h3 className={sectionTitle}>Send to</h3>
+              <h3 className={sectionTitle}>Goes to</h3>
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2">
                 <div className="grid min-w-0 gap-0.5">
                   <span className="break-words text-[14px] font-semibold text-ink">{destination ? destination.name : "Download only"}</span>
@@ -562,7 +563,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
               {checkButton && <div>{checkButton}</div>}
               {checkResult}
             </>
-          ) : <AddDocument flow={flow} sends={flow.automation === "auto" && !!destinationId} />}
+          ) : <AddDocument flow={flow} sends={sendsByItself(flow.automation) && !!destinationId} />}
         </section>
         {problemNotice}
         {stale && <StatusNotice tone="warning">A column takes its value from something we no longer read. Choose another value for it.</StatusNotice>}

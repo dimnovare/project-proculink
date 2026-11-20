@@ -11,15 +11,15 @@ test.describe("documents", () => {
     const tab = (name: RegExp) => page.getByRole("tab", { name });
     await expect(tab(/^Needs you/)).toHaveAttribute("aria-selected", "true");
     await expect(page.getByRole("table").getByRole("row")).toHaveCount(4);                 // the headings and three documents
-    await tab(/^Sent/).click();
+    await tab(/^Finished/).click();
     await expect(page).toHaveURL(/\/documents\?show=sent$/);
     await page.reload();
-    await expect(tab(/^Sent/)).toHaveAttribute("aria-selected", "true");
+    await expect(tab(/^Finished/)).toHaveAttribute("aria-selected", "true");
     await page.getByRole("table").getByRole("link").first().click();
     await expect(page).toHaveURL(/\/flows\/[^/]+\/documents\/[^/]+$/);
     await page.goBack();
     await expect(page).toHaveURL(/\/documents\?show=sent$/);
-    await expect(tab(/^Sent/)).toHaveAttribute("aria-selected", "true");
+    await expect(tab(/^Finished/)).toHaveAttribute("aria-selected", "true");
     await page.goto("/documents?show=bogus&page=-3");
     await expect(tab(/^Needs you/)).toHaveAttribute("aria-selected", "true");
     // The In progress tab is gone: its old address opens on the default tab.
@@ -65,6 +65,22 @@ test.describe("documents", () => {
     await expect(table.getByRole("button", { name: /^Send / })).toHaveCount(0);
     await page.getByTestId("review-next").click();
     await expect(page).toHaveURL(new RegExp("/flows/flow-3/documents/doc-5$"));
+  });
+
+  test("phone rows keep two buttons on screen", async ({ page }) => {
+    await preparePage(page, { dismissCookieBanner: true });
+    // The held duplicate (doc-in-6) is one of the mock's inbox states, seeded only with this switch.
+    await page.addInitScript(() => sessionStorage.setItem("proculink.mock.inbox", "on"));
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto("/documents?show=all");
+    const row = page.getByTestId("documents-phone-list").locator("li").filter({ hasText: "Already added" }).first();
+    for (const name of ["Remove", "Read it anyway"]) {
+      const box = (await row.getByRole("button", { name: new RegExp(`^${name}`) }).boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(375);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
   });
 
   test("on a phone, Review next sits in a bar above the tab bar and hides nothing", async ({ page }) => {

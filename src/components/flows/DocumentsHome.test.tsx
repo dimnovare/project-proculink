@@ -93,13 +93,13 @@ describe("DocumentsHome", () => {
     expect(listDocumentPage).toHaveBeenCalledWith(expect.objectContaining({ status: ["needs_review", "ready"], page: 1, pageSize: 50 }));
     // getAll: jsdom has no Tailwind, so the table and the phone list both render each row.
     expect((await within(screen.getByRole("tabpanel")).findAllByText("doc-0.pdf")).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("tab", { name: /^Sent/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /^Finished/ }));
     expect(replace).toHaveBeenLastCalledWith("/documents?show=sent");
     // The address changes under the screen (Back, Forward, a link): the tab follows it, not the latch,
     // and while its page is out the panel holds none of the previous tab's rows.
     search.q = "show=failed";
     first.again();
-    expect(screen.getByRole("tab", { name: "Couldn't send or read" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Couldn't be read or sent" })).toHaveAttribute("aria-selected", "true");
     const panel = within(screen.getByRole("tabpanel"));
     expect(panel.getByText("Loading documents…")).toBeInTheDocument();
     expect(panel.queryAllByText("doc-0.pdf")).toHaveLength(0);
@@ -114,8 +114,8 @@ describe("DocumentsHome", () => {
     search.q = "show=sent";
     answers({ sent: 120, needs: new Error("down") });
     const first = mount();
-    expect(await screen.findByRole("tab", { name: "Sent 120" })).toHaveAttribute("aria-selected", "true");
-    expect(await screen.findByRole("tab", { name: "Couldn't send or read 0" })).toBeInTheDocument(); // a known zero
+    expect(await screen.findByRole("tab", { name: "Finished 120" })).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByRole("tab", { name: "Couldn't be read or sent 0" })).toBeInTheDocument(); // a known zero
     expect(screen.getByRole("tab", { name: "Needs you" })).toBeInTheDocument(); // unknown: no number, not 0
     expect(await screen.findByText("Documents 1 to 50 of 120")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Next" })).toHaveAttribute("href", "/documents?show=sent&page=2");
@@ -125,14 +125,14 @@ describe("DocumentsHome", () => {
     answers({ sent: 120, rows: [], failed: "pending" });
     mount();
     expect(await screen.findByText("There is nothing on this page.")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Couldn't send or read" })).toBeInTheDocument(); // still out: no number, not 0
+    expect(screen.getByRole("tab", { name: "Couldn't be read or sent" })).toBeInTheDocument(); // still out: no number, not 0
     expect(screen.getByRole("link", { name: "First page" })).toHaveAttribute("href", "/documents?show=sent");
   });
 
   it("says what is known under the title, and Review next opens the newest document that needs you", async () => {
     answers({ needs: 3, week: 24, rows: [{ ...row(0), id: "d-new", flowId: "f1" }] });
     const first = mount();
-    expect(await screen.findByText("3 need you. 24 were sent this week.")).toBeInTheDocument();
+    expect(await screen.findByText("3 need you. 24 finished this week.")).toBeInTheDocument();
     expect(screen.getByTestId("review-next")).toHaveAttribute("href", "/flows/f1/documents/d-new");
     expect(screen.getByTestId("review-next")).toHaveTextContent(/^Review next\s*3$/);
     expect(screen.getByTestId("review-next")).toHaveAccessibleName("Review next, 3 need you");
@@ -157,15 +157,15 @@ describe("DocumentsHome", () => {
   it("says how many are being read only from an answered count, and drops it when a refresh fails", { timeout: 20_000 }, async () => {
     answers({ needs: 3, week: 24, reading: "pending" });
     const first = mount();
-    expect(await screen.findByText("3 need you. 24 were sent this week.")).toBeInTheDocument();
+    expect(await screen.findByText("3 need you. 24 finished this week.")).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: /In progress/ })).toBeNull();
     first.unmount();
     answers({ needs: 3, week: 24, reading: 2 });
     const { client } = mount();
-    expect(await screen.findByText("3 need you. 2 being read. 24 were sent this week.")).toBeInTheDocument();
+    expect(await screen.findByText("3 need you. 2 being read. 24 finished this week.")).toBeInTheDocument();
     answers({ needs: 3, week: 24, reading: new Error("down") });
     await act(() => client.refetchQueries({ queryKey: ["documents", "count", "received,reading"] }));
-    expect(await screen.findByText("3 need you. 24 were sent this week.")).toBeInTheDocument();
+    expect(await screen.findByText("3 need you. 24 finished this week.")).toBeInTheDocument();
     expect(screen.queryByText(/being read/)).toBeNull();
   });
 
@@ -302,7 +302,7 @@ describe("DocumentsHome", () => {
     const first = mount();
     // The Ctrl K part is hidden under 768px (a span); jsdom has no widths, so textContent includes it.
     const line = (await screen.findByRole("link", { name: "History" })).closest("p")!;
-    expect(line.textContent).toBe("Older documents are under Sent and All, or press Ctrl K to find any document. What happened to each document, and when, is in History.");
+    expect(line.textContent).toBe("To download or remove several at once, press Select and tick them. Open any document to remove it from there. Older documents are under Finished and All, or press Ctrl K to find any document. What happened to each document, and when, is in History.");
     expect(within(line).getByRole("link", { name: "History" })).toHaveAttribute("href", "/operations/log");
     fireEvent.click(within(line).getByRole("button", { name: /^Search all documents, Ctrl K$/ }));
     expect(spy.mock.calls.map(([e]) => e.type)).toContain(OPEN_SEARCH_EVENT);
@@ -313,7 +313,7 @@ describe("DocumentsHome", () => {
     const old = await screen.findByRole("link", { name: "Old orders" });
     expect(old).toHaveAttribute("href", "/archive");
     expect(old.closest("p")!.textContent).toBe(
-      "Older documents are under Sent and All, and older orders under Old orders, or press Ctrl K to find any document. What happened to each document, and when, is in History.",
+      "To download or remove several at once, press Select and tick them. Open any document to remove it from there. Older documents are under Finished and All, and older orders under Old orders, or press Ctrl K to find any document. What happened to each document, and when, is in History.",
     );
   });
 

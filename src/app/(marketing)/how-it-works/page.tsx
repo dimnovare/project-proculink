@@ -11,7 +11,7 @@ import {
   SITE,
   Ticks,
 } from "@/components/marketing/sitePictures";
-import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
+import { checkModeTitle } from "@/lib/deliveryMode";
 import { pageMetadata } from "@/lib/seo";
 
 const LEAD =
@@ -242,9 +242,9 @@ export default function HowItWorksPage() {
             </p>
             <Ticks
               items={[
-                `Every flow starts in ${REVIEW_BEFORE_DELIVERY_LABEL}. Each document waits for you, and nothing goes out until you press Send.`,
+                `A new flow starts on ${checkModeTitle("marked")} when an admin creates it. A document with a marked value waits for you; every other one goes straight through.`,
                 "The flow tells you how many documents in a row went out without a correction.",
-                `When you trust it, switch that flow to ${AUTOMATIC_DELIVERY_LABEL}. You can switch back at any time.`,
+                "You can set a flow to check every document, or nothing at all, and change it at any time.",
                 "A document with a number we have already received always waits for you, so nothing is sent twice.",
                 "The first document from a new email address waits for you too. Send it once and later documents from that address go by themselves.",
               ]}

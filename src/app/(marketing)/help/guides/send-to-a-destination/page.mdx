@@ -16,7 +16,7 @@ import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 
 <Step n={1} title="Open the destination form">
 
-Open the file's form: on the flow's **We send** step, select **Make another file**, then **Create**, or choose a file you already have. Under **Send to**, press **Change**, then choose **New destination…** in the list.
+Open the file's form: on the flow's **We send** step, select **Make another file**, then **Create**, or choose a file you already have. Under **Goes to**, press **Change**, then choose **New destination…** in the list.
 
 <Outcome>
 The **New destination** form opens under the list.
@@ -45,7 +45,7 @@ The form shows the boxes for the way you chose.
 
 <Step n={3} title="Add the sign-in and save">
 
-Fill in the sign-in the place asks for. What each kind accepts is in [Destination sign-in, keys and signing](/help/destination-sign-in). Email needs none. Select **Save and send a test** (on **We send**) or **Save**: the form closes and the destination is chosen in **Send to**.
+Fill in the sign-in the place asks for. What each kind accepts is in [Destination sign-in, keys and signing](/help/destination-sign-in). Email needs none. Select **Save and send a test** (on **We send**) or **Save**: the form closes and the destination is chosen in **Goes to**.
 
 <Outcome>
 The destination exists. Its login is encrypted and never shown again.
@@ -59,7 +59,7 @@ The message says why. A web address must start with `https://` and must not have
 
 <Step n={4} title="Use it in a file and test it">
 
-Back in the file's form, the new destination is already chosen in **Send to**, and the file keeps it: there is nothing more to press there. To check it with a real document, select **Send a test**. Once the setup is saved, new sends use the destination after you select **Use these changes** at the bottom of the flow; before the first save, they use it straight away. See [Use changes and restore earlier versions](/help/guides/publish-a-flow-version).
+Back in the file's form, the new destination is already chosen in **Goes to**, and the file keeps it: there is nothing more to press there. To check it with a real document, select **Send a test**. Once the setup is saved, new sends use the destination after you select **Use these changes** at the bottom of the flow; before the first save, they use it straight away. See [Use changes and restore earlier versions](/help/guides/publish-a-flow-version).
 
 You can test a destination at any time under **Settings**, then **Destinations**. A test is also sent when you press **Save and send a test** while you set up a new flow, and offered when you make a file from documentation. The new-flow test sends a small file marked `TEST_` that holds no document data. A Google Sheets test adds no rows: it checks that we can open the spreadsheet and the tab you chose. The documentation test sends the file made from a real document in the flow, so it holds that document's values. See [Destinations](/help/destinations).
 

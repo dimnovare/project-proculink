@@ -65,6 +65,8 @@ const WRITER_FILES = [
   "ProcuLink.Api/Controllers/InboxController.cs",
   // 2026-11-18, plan 21: the flow delete writer.
   "ProcuLink.Api/Services/Documents/FlowDeletion.cs",
+  // 2026-11-20, plan 25a: removing one document.
+  "ProcuLink.Api/Services/Documents/DocumentRemoval.cs",
 ] as const;
 
 const PROBE_REL = "ProcuLink.Api/Controllers/AuditController.cs";

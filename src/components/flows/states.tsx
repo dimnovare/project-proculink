@@ -74,7 +74,7 @@ export const CaughtUp = () => (
 );
 
 const EMPTY: Record<Exclude<DocumentTab, "needs-you">, { title: string; line: string }> = {
-  sent: { title: "Nothing has been sent yet.", line: "Documents show here once they have been sent." },
+  sent: { title: "Nothing has finished yet.", line: "Documents show here once their file is made or sent." },
   failed: { title: "Nothing has failed.", line: "Documents we couldn't read or couldn't send show here." },
   all: { title: "No documents yet.", line: "Upload one, or send one to a flow's email address." },
 };

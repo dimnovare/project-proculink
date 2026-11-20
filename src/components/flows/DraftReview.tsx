@@ -112,7 +112,7 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
           );
         })}
         {[...noteKeys].filter((n) => Object.hasOwn(COPY, n)).map((n) => <p key={n} className="text-[12.5px] text-ink-muted">{COPY[n]}</p>)}
-        <Field label="Send to">
+        <Field label="Goes to">
           <select className={INPUT} value={adding === "new" ? NEW_DESTINATION : (destinationId ?? "")}
             onChange={(e) => {
               setAdding(e.target.value === NEW_DESTINATION ? "new" : null);

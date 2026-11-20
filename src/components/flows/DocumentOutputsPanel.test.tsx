@@ -63,7 +63,7 @@ describe("DocumentOutputsPanel", () => {
     const { container } = renderPanel();
     const panel = within(container);
     expect(await panel.findByText("CSV to Accounting inbox")).toBeInTheDocument();
-    expect(panel.getByText("PDF, download only")).toBeInTheDocument();
+    expect(panel.getByText("PDF, you download it")).toBeInTheDocument();
     expect(panel.getByText("Nothing has been sent yet. Both go out when you send this document.")).toBeInTheDocument();
     expect(panel.getByRole("link", { name: "Make another file" })).toHaveAttribute("href", "/flows/f?tab=outputs");
     expect(panel.queryByRole("heading", { name: "Deliveries" })).toBeNull();
@@ -76,6 +76,30 @@ describe("DocumentOutputsPanel", () => {
     expect(panel.getByText("Download, Ready to download")).toBeInTheDocument();
     expect(panel.getByRole("button", { name: "Download" })).toBeInTheDocument();
     expect(panel.queryByText(/Nothing has been sent/)).toBeNull();
+  });
+
+  it("says nothing is made yet, then when it was made", async () => {
+    api.getFlow.mockResolvedValue({ id: "f", fields: { fields: [], tables: [] }, downloadOnly: true });
+    api.listDeliveries.mockResolvedValue([]);
+    const first = renderPanel();
+    expect(await within(first.container).findByText("Nothing is made yet. When the values are right, press Make the file.")).toBeInTheDocument();
+    first.unmount();
+    const stored = (deliveredAt: string | null) => [{ id: "x", outputName: "Totals", protocol: "", status: "stored", attempts: 0, lastError: null, fileName: "invoice-1043.csv", deliveredAt }];
+    const sent = (status: string) => render(<QueryClientProvider client={new QueryClient()}>
+      <DocumentOutputsPanel flowId="f" document={{ ...detail, summary: { ...detail.summary, status } } as never} />
+    </QueryClientProvider>);
+    api.listDeliveries.mockResolvedValue(stored(new Date().toISOString()));
+    const made = sent("sent");
+    expect(await within(made.container).findByText("invoice-1043.csv was made just now. It waits here and in Documents until you download it.")).toBeInTheDocument();
+    made.unmount();
+    // No time known: no time said. A document that did not finish has no made line.
+    api.listDeliveries.mockResolvedValue(stored(null));
+    const untimed = sent("sent");
+    expect(await within(untimed.container).findByText("invoice-1043.csv was made. It waits here and in Documents until you download it.")).toBeInTheDocument();
+    untimed.unmount();
+    const failed = within(sent("send_failed").container);
+    expect(await failed.findByRole("heading", { name: "Deliveries" })).toBeInTheDocument();
+    expect(failed.queryByText(/was made/)).toBeNull();
   });
 
   it("does not promise a send on a document that can no longer be sent", async () => {

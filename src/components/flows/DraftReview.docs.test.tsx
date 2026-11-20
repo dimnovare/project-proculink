@@ -36,7 +36,7 @@ describe("DraftReview from documentation", () => {
     const create = screen.getByRole("button", { name: "Create" }) as HTMLButtonElement;
     expect(create.disabled).toBe(false);
     await screen.findByRole("option", { name: "Their API" });
-    fireEvent.change(screen.getByLabelText("Send to"), { target: { value: "d1" } });
+    fireEvent.change(screen.getByLabelText("Goes to"), { target: { value: "d1" } });
     expect(create.disabled).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Send a test" }));
     await screen.findByText("Test sent. You can create the file now.");

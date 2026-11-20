@@ -10,6 +10,7 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { getDocument, listDocuments, listOutputs, saveFlowFields } from "@/lib/api/documents";
 import type { DocumentSummary, Flow, FlowField, FlowFieldList, ReadResult } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { sendsByItself } from "@/lib/deliveryMode";
 import { DOCUMENT_STATUSES, STATUS, documentStatus } from "@/lib/documentStatusManifest";
 import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
 import { addReadExtra, FIELD_TYPES, fieldListFromRead, replaceField, withReadExtras } from "@/lib/flowFieldModel";
@@ -329,7 +330,7 @@ function FirstValues({ flow, read, fileName }: { flow: Flow; read: ReadResult; f
  *  While the newest one is still being read, that is said instead; a failed read links to it, where it is read again. */
 function FirstDocument({ flow, newest }: { flow: Flow; newest?: DocumentSummary }) {
   const enabled = useTenantQueriesEnabled();
-  const auto = flow.automation === "auto";
+  const auto = sendsByItself(flow.automation);
   const files = useQuery({ queryKey: ["outputs", flow.id], queryFn: () => listOutputs(flow.id), enabled: enabled && auto });
   const prompt = (
     <>
@@ -369,7 +370,7 @@ export function FirstDocumentDrop({ flow, newest, prompt, reading, sends, filled
         </StatusNotice>
       )}
       {(dropOnFail || newest?.status !== STATUS.read_failed) && <FileDrop accept={acceptFor(flow)} maxBytes={MAX_UPLOAD_BYTES} variant={filled ? "blue" : "secondary"} onFile={(f) => queue.add([f], flow)}
-        prompt={<>{prompt}{sends && <span className="block">This flow sends automatically, so this document is also sent.</span>}</>} />}
+        prompt={<>{prompt}{sends && <span className="block">{flow.automation === "marked" ? "This flow sends automatically, so this document is also sent unless we mark a value." : "This flow sends automatically, so this document is also sent."}</span>}</>} />}
     </div>
   );
 }

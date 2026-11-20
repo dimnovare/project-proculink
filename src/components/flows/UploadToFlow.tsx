@@ -25,7 +25,8 @@ import { knownPlanId, LIMIT_CODES, limitRefusalCopy, readLimitRefusal } from "@/
 import { PLAN_BY_ID } from "@/lib/plans";
 import { HELD_MAX_BYTES, HELD_MAX_FILES } from "@/lib/pwa/heldUploads";
 import type { BillingStatus } from "@/types/procurement";
-import { rowNeed, useRowSend, type ListedDocument } from "./DocumentList";
+import { rowNeed, type ListedDocument } from "./DocumentList";
+import { RowActions, rowSecondLine } from "./RowActions";
 import { PhotoCheck, useCamera } from "./PhotoCheck";
 import { canRetryUpload, INBOX_TARGET, STOP_CODES, uploadRefusalMessage, useUploadQueue, type UploadItem } from "./UploadQueue";
 import { firstRunOf } from "@/lib/firstRun";
@@ -86,14 +87,14 @@ function UsageLine({ billing }: { billing: BillingStatus | undefined }) {
 }
 
 const NAME = "min-w-0 truncate text-[14.5px] font-semibold text-ink";
+const ACTIONS = "col-span-full flex flex-wrap gap-2 justify-self-start sm:col-span-1 sm:justify-end sm:justify-self-end";
 
 /** A row's second line (R22): reading, else what it is, and a new kind says so; null draws none. */
 function rowLine(d: ListedDocument): string | null {
   if (d.status === "received" || d.status === "reading") return "We are reading it";
   const said = kindSentence(d.kind, d.sender);
-  if (d.statusReason !== "new_kind") return said;
   // A sender may end in its own full stop ("Example Bank Ltd."): one stop between the two sentences.
-  return `${(said ?? "A document").replace(/\.$/, "")}. The first of its kind here.`;
+  return rowSecondLine(d, d.statusReason !== "new_kind" ? said : `${(said ?? "A document").replace(/\.$/, "")}. The first of its kind here.`);
 }
 
 function UploadedRow({ item, listed, inbox, sent, onSent, retry, remove }: {
@@ -102,11 +103,8 @@ function UploadedRow({ item, listed, inbox, sent, onSent, retry, remove }: {
   const name = item.file.name;
   // A row this screen sent says Sending while the list still calls it ready, as DocumentList does.
   const doc: ListedDocument | undefined = listed && sent && listed.status === "ready" ? { ...listed, status: "sending", statusReason: null } : listed;
-  const send = useRowSend(item.document?.id ?? "", onSent);
   const need = doc && rowNeed(doc);
   const line = doc && rowLine(doc);
-  // Only a row known to be in a flow is treated as sorted: Review and Send. In the inbox, or not known: Open.
-  const sorted = doc && inInbox(doc, inbox) === false;
   return (
     <li aria-live="polite" className="relative grid min-h-[56px] grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3.5 gap-y-1 border-t border-border px-4 py-2.5 sm:col-span-full sm:grid-cols-subgrid sm:px-[18px]">
       <span className="grid min-w-0 gap-0.5">
@@ -122,23 +120,22 @@ function UploadedRow({ item, listed, inbox, sent, onSent, retry, remove }: {
           : item.state === "refused" ? <Pill tone="danger">Not uploaded</Pill>
           : need && <Pill tone={need.tone}>{need.text}</Pill>}
       </span>
-      <span className="col-span-full flex flex-wrap gap-2 justify-self-start sm:col-span-1 sm:justify-end sm:justify-self-end">
-        {doc?.status === "ready" && sorted && doc.statusReason !== "check_sort" ? (
-          <Button variant="secondary" size="sm" aria-label={`Send ${name}`} loading={send.isPending} onClick={() => send.mutate()}
-            className="relative z-[1] !border-brand-green-deep !text-brand-green-deep">Send</Button>
-        ) : doc?.status === "needs_review" || doc?.status === "ready" ? (
-          // A ready row not known to be in a flow has nothing to send from here: it opens.
-          <span aria-hidden className={buttonClass("secondary", "sm")}>{sorted ? "Review" : "Open"}</span>
-        ) : item.state === "refused" && canRetryUpload(item.error) ? (
-          <Button variant="secondary" size="sm" aria-label={`Try ${name} again`} onClick={retry} className="relative z-[1]">Try again</Button>
-        ) : null}
-        {(item.state === "held" || item.state === "refused") && (
-          <Button variant="secondary" size="sm" aria-label={`Remove ${name}`} onClick={remove} className="relative z-[1]">Remove</Button>
-        )}
-      </span>
+      {doc ? (
+        // Only a row known to be in a flow is treated as sorted: Review and Send. In the inbox, or not known: Open.
+        <RowActions d={{ ...doc, inInbox: inInbox(doc, inbox) }} sendable onSent={onSent} onRemoved={remove} className={ACTIONS} />
+      ) : (
+        <span className={ACTIONS}>
+          {item.state === "refused" && canRetryUpload(item.error) && (
+            <Button variant="secondary" size="sm" aria-label={`Try ${name} again`} onClick={retry} className="relative z-[1]">Try again</Button>
+          )}
+          {(item.state === "held" || item.state === "refused") && (
+            <Button variant="secondary" size="sm" aria-label={`Remove ${name}`} onClick={remove} className="relative z-[1]">Remove</Button>
+          )}
+        </span>
+      )}
       {item.state === "held" && <p className="col-span-full m-0 text-[13px] text-ink-muted">It uploads when you&apos;re back online.</p>}
       {item.state === "refused" && <p className="col-span-full m-0 text-[13px] text-danger-text">{uploadRefusalMessage(item.error)}</p>}
-      {send.isError && doc?.status === "ready" && <p role="alert" className="col-span-full m-0 text-[13px] text-danger-text">{documentRefusalMessage(send.error)}</p>}
+
     </li>
   );
 }
@@ -221,7 +218,7 @@ export function UploadToFlow() {
               <h2 ref={listHeading} tabIndex={-1} className="m-0 scroll-mt-16 text-[16px] font-semibold text-ink outline-none focus-visible:outline-none">Just added</h2>
               <span className="text-[13px] text-ink-muted">{n === 1 ? "1 document" : `${n} documents`}</span>
             </div>
-            <ul className="m-0 list-none p-0 sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(124px,auto)_150px] sm:gap-x-3.5">
+            <ul className="m-0 list-none p-0 sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(124px,auto)_minmax(150px,auto)] sm:gap-x-3.5">
               {items.map((i) => (
                 <UploadedRow
                   key={i.key} item={i} listed={seen(i, uploaded.data)} inbox={inbox.data} sent={!!i.document && sent.has(i.document.id)}

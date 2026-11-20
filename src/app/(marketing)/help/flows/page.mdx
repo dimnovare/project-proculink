@@ -29,12 +29,15 @@ Every later document is read into these values. Once the setup is saved, changes
 
 ## Automation
 
-Each flow is set to one of two modes, on its **You check** step. A change applies to new documents straight away:
+Each flow is set to one of three modes, on its **You check** step. A change applies to new documents straight away:
 
-- **Review before delivery.** Every document waits for you. This is the default.
-- **Automatic delivery.** A document is sent as soon as it has been read. Failed checks do not stop it, with two exceptions that always wait: a repeated document number, and the first document from a new email address. See [Checks](/help/checks).
+- **Check only what we marked.** A document with a marked value waits for you. Every other document has its file made, or is sent, straight away. A new flow that an admin creates starts here.
+- **Check every document.** Every document waits in **Needs you** until someone presses **Make the file**, or **Send** on a flow with a destination. A flow that a member creates starts here.
+- **Check nothing.** Every document has its file made, or is sent, as soon as it is read, marked values included.
 
-The flow shows how many recent documents were sent without a correction. Use it to decide when to switch to automatic. Only a workspace admin can change the mode.
+Whatever you choose, two kinds of document always wait for a person: a repeated document number, and the first document from a new email address. So does a document we couldn't read. See [Checks](/help/checks).
+
+The flow shows how many recent documents were sent without a correction. Use it to decide when a flow can check only what we marked. Only a workspace admin can change the mode.
 
 ## Versions
 

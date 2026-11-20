@@ -286,12 +286,13 @@ jobs:
 
       # A change that spans both repositories uses the same branch name in each. On a pull
       # request, check out that partner branch when it exists, so the two halves are tested
-      # together instead of each failing against the other's main until both merge. Pushes to
-      # main, and pull requests with no partner, still follow the default branch.
+      # together instead of each failing against the other's main until both merge. A manual
+      # run on a branch (the visual-baseline regeneration) pairs the same way, by the branch it
+      # runs on. Pushes to main, and branches with no partner, still follow the default branch.
       - name: Find a paired backend branch
         id: pair
         env:
-          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REF: ${{ github.head_ref || github.ref_name }}
           TOKEN: ${{ secrets.CROSS_REPO_READ_TOKEN }}
         run: |
           url="https://github.com/dimnovare/ProcuLink.git"

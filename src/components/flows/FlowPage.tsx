@@ -15,9 +15,9 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { getFlow, listDestinations, listIntakes, listOutputs, updateFlow } from "@/lib/api/documents";
 import type { Flow } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
+import { checkModeShort } from "@/lib/deliveryMode";
 import { and, waysInWords } from "@/lib/flowSentences";
-import { FLOW_STEPS, flowAddress, readFlowOutput, readFlowView, type FlowStep, type FlowView } from "@/lib/flowSteps";
+import { FLOW_STEPS, flowAddress, readFlowOutput, readFlowView, stepTitle, type FlowStep, type FlowView } from "@/lib/flowSteps";
 import { pageTotal } from "@/lib/pageTotal";
 import { INPUT } from "./DestinationForm";
 import { DeleteFlow } from "./DeleteFlow";
@@ -25,6 +25,7 @@ import { FlowCheck } from "./FlowCheck";
 import { flowNeedsYouQuery, FlowDocuments, needsYouWords, StreakBand } from "./FlowDocuments";
 import { FlowIntakePanel } from "./FlowIntakePanel";
 import { FlowOutputs } from "./FlowOutputs";
+import { outputTypeLabel } from "./OutputEditor";
 import { FlowValues, useLatestRead } from "./FlowValues";
 import { FlowDraftProvider, FlowLink, GoContext, leaveClick, useFlowDraft } from "./flowDraft";
 import { FlowVersionsPanel } from "./FlowVersionsPanel";
@@ -48,6 +49,7 @@ function useStepSummaries(flow: Flow): Record<FlowStep, string | null> {
   const tables = flow.fields.tables.length;
   let send: string | null = null;
   if (outputs.data?.length === 0) send = "No file yet";
+  else if (outputs.data && flow.downloadOnly) send = outputs.data.length === 1 ? `1 ${outputTypeLabel(outputs.data[0])} file, you download it` : `${outputs.data.length} files, you download them`;
   else if (outputs.data?.length === 1) send = "1 file";
   else if (outputs.data && destinations.data) {
     const names = [...new Set(outputs.data.flatMap((o) => destinations.data.find((d) => d.id === o.destinationId)?.name ?? []))];
@@ -56,7 +58,7 @@ function useStepSummaries(flow: Flow): Record<FlowStep, string | null> {
   return {
     arrives: ways ? ways[0].toUpperCase() + ways.slice(1) : null,
     read: values ? [count(values, "value", "values"), tables ? count(tables, "table", "tables") : ""].filter(Boolean).join(", ") : "No values yet",
-    check: flow.automation === "auto" ? AUTOMATIC_DELIVERY_LABEL : REVIEW_BEFORE_DELIVERY_LABEL,
+    check: checkModeShort(flow.automation),
     send,
   };
 }
@@ -89,10 +91,10 @@ function StepStrip({ flow, view, summaries }: { flow: Flow; view: FlowView; summ
           {FLOW_STEPS.map((s) => (
             <li key={s.id} className="flex min-w-0 flex-1 border-l border-border-faint first:border-l-0">
               <FlowLink
-                href={flowAddress(flow.id, s.id)} current={view === s.id} label={s.title} describedBy={summaries[s.id] ? `${id}-${s.id}` : undefined}
+                href={flowAddress(flow.id, s.id)} current={view === s.id} label={stepTitle(s.id, flow.downloadOnly)} describedBy={summaries[s.id] ? `${id}-${s.id}` : undefined}
                 className={`flex w-full flex-col gap-0.5 border-b-[3px] px-5 pb-[11px] pt-3.5 text-ink no-underline ${view === s.id ? "border-navy bg-surface-2" : "border-transparent hover:bg-surface-2"}`}
               >
-                <span className="flex items-center gap-2 text-[15px] font-semibold"><Badge n={s.number} />{s.title}</span>
+                <span className="flex items-center gap-2 text-[15px] font-semibold"><Badge n={s.number} />{stepTitle(s.id, flow.downloadOnly)}</span>
                 {summaries[s.id] && <span id={`${id}-${s.id}`} className="pl-8 text-[13px] text-ink-muted">{summaries[s.id]}</span>}
               </FlowLink>
             </li>
@@ -130,7 +132,7 @@ function PhoneOverview({ flow, summaries }: { flow: Flow; summaries: Record<Flow
       <nav aria-label="The four steps of this flow">
         <Card flush>
           <ul className="m-0 list-none p-0">
-            {FLOW_STEPS.map((s) => <Row key={s.id} href={flowAddress(flow.id, s.id)} title={s.title} line={summaries[s.id]} lead={<Badge n={s.number} big />} />)}
+            {FLOW_STEPS.map((s) => <Row key={s.id} href={flowAddress(flow.id, s.id)} title={stepTitle(s.id, flow.downloadOnly)} line={summaries[s.id]} lead={<Badge n={s.number} big />} />)}
           </ul>
         </Card>
       </nav>

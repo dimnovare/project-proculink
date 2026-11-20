@@ -3,10 +3,13 @@
 import { useEffect, useRef } from "react";
 import { useIsMutating, useMutation, useMutationState, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
+import { useConfirm } from "@/components/ui/confirm";
 import { noticeAria } from "@/components/bridge/layout/StatusNotice";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { eachDocument, fetchOriginal, saveOriginals, sendOne, type Each } from "@/lib/eachDocument";
+import { eachDocument, fetchOriginal, removeOne, saveOriginals, sendOne, type Each } from "@/lib/eachDocument";
 import type { ListedDocument } from "./DocumentList";
+import { forgetRemoved, removable, removalDialog } from "./RowActions";
+import { useUploadQueueIfMounted } from "./UploadQueue";
 
 /** The key every run of the bar (send or download) goes under; a row's own Send is busy while one is out. */
 export const BULK_SEND_KEY = ["document-send", "bulk"] as const;
@@ -18,7 +21,7 @@ export function sendLabel(selected: number, ready: number): string | null {
   return selected === 1 ? "Send" : selected === 2 ? "Send both" : `Send all ${selected}`;
 }
 
-type Words = { verb: "sent" | "downloaded"; unit: "document" | "file" };
+type Words = { verb: "sent" | "downloaded" | "removed"; unit: "document" | "file" };
 /** What the last run did. Held by the screen, so it outlives the bar (Done, Clear or a tab change during a run). */
 export type BarReport = { lines: React.ReactNode; ok: boolean };
 
@@ -68,6 +71,8 @@ export function SelectionBar({ selected, sent, report, onReport, onSent, onClear
   onClear: () => void;
 }) {
   const qc = useQueryClient();
+  const queue = useUploadQueueIfMounted();
+  const confirm = useConfirm();
   // Held from the press itself, so a second press before the next render starts nothing.
   const busy = useRef(false);
   const live = useRef<HTMLDivElement>(null);
@@ -102,6 +107,8 @@ export function SelectionBar({ selected, sent, report, onReport, onSent, onClear
   // As the row: only a document known to be with a flow is sent from here (an inbox one is answered on its own screen).
   const ready = selected.filter((d) => d.status === "ready" && d.inInbox === false && d.statusReason !== "check_sort" && !sent.has(d.id) && !rowSending.includes(d.id));
   const label = sendLabel(selected.length, ready.length);
+  // Only what the server says this person may remove, and nothing being read or sent.
+  const removing = selected.filter((d) => d.canRemove === true && removable(d.status));
   const n = selected.length;
   if (n === 0 && !report && !running) return null;
 
@@ -118,6 +125,17 @@ export function SelectionBar({ selected, sent, report, onReport, onSent, onClear
     }
     return summary(r, { verb: "downloaded", unit: "file" }, downloadedWords(r.done.length, r.done[0]?.item.fileName));
   });
+
+  const pressRemove = async () => {
+    if (busy.current || running || !(await confirm(removalDialog(removing, selected.filter((d) => d.canRemove === false).length)))) return;
+    const items = removing;
+    start(async () => {
+      const r = await eachDocument(items, removeOne);
+      onClear();
+      forgetRemoved(qc, queue, r.done.map((x) => x.item));
+      return summary(r, { verb: "removed", unit: "document" }, r.done.length === 1 ? "1 document removed." : `${r.done.length} documents removed.`);
+    });
+  };
 
   const outlined = "!border-navy-muted !text-white hover:!bg-navy-surface";
   return (
@@ -139,6 +157,11 @@ export function SelectionBar({ selected, sent, report, onReport, onSent, onClear
           <Button type="button" variant="ghost" loading={running} onClick={pressDownload} className={`${outlined} max-sm:order-3 max-sm:flex-1 max-sm:basis-[40%]`}>
             {n === 1 ? "Download file" : "Download files"}
           </Button>
+          {removing.length > 0 && (
+            <Button type="button" variant="ghost" loading={running} onClick={() => void pressRemove()} className={`${outlined} max-sm:order-4 max-sm:flex-1 max-sm:basis-[40%]`}>
+              Remove
+            </Button>
+          )}
           <Button type="button" variant="ghost" onClick={onClear} className={`${outlined} max-sm:order-1`}>Clear</Button>
         </>
       )}

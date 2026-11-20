@@ -3,7 +3,7 @@ import { preparePage, settle } from "./a11yHarness";
 import { MOCK_ENGINE_IDS, mockEngineFetch } from "../../src/lib/api/mockEngine";
 import type { Flow } from "../../src/lib/api/documents";
 import { FLOW_STEPS, flowAddress, type FlowStep, type FlowView } from "../../src/lib/flowSteps";
-import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "../../src/lib/deliveryMode";
+import { checkModeTitle } from "../../src/lib/deliveryMode";
 import { fromSimple } from "../../src/lib/flowOutputModel";
 import type { FlowOutput } from "../../src/lib/api/documents";
 
@@ -269,7 +269,7 @@ test.describe("flow page", () => {
 
   test("the delivery choice on You check saves at once, survives a reload, and a refusal puts it back", async ({ page }) => {
     await open(page, 1440, at("check"));
-    const auto = page.getByRole("radio", { name: AUTOMATIC_DELIVERY_LABEL });
+    const auto = page.getByRole("radio", { name: checkModeTitle("auto") });
     await auto.click();
     await expect(auto).toBeChecked();
     await expect(page.getByRole("status").filter({ hasText: /^Saved$/ })).toBeVisible();
@@ -277,21 +277,21 @@ test.describe("flow page", () => {
     expect(patch).toEqual([`PATCH /flows/${ID} {"automation":"auto"}`]);
     await stepLink(page, "arrives").click();
     await stepLink(page, "check").click();
-    await expect(page.getByRole("radio", { name: AUTOMATIC_DELIVERY_LABEL })).toBeChecked();
+    await expect(page.getByRole("radio", { name: checkModeTitle("auto") })).toBeChecked();
     // The mock forgets on reload; the server would not. Give the reloaded page what the server holds after that PATCH.
     const held = { ...(await fixture()), ...JSON.parse(patch[0].slice(patch[0].indexOf(" {") + 1)) };
     await page.evaluate((a) => sessionStorage.setItem("flow-spec-answer", JSON.stringify(a)), { [`GET /flows/${ID}`]: held });
     await page.reload();
-    await expect(page.getByRole("radio", { name: AUTOMATIC_DELIVERY_LABEL })).toBeChecked();
+    await expect(page.getByRole("radio", { name: checkModeTitle("auto") })).toBeChecked();
     await expect(page.getByRole("link", { name: new RegExp(`^${title("check")}`) }).first()).toBeVisible();
     await page.evaluate(() => sessionStorage.removeItem("flow-spec-answer"));
 
     // A refusal (403) says why under the radios and shows the choice the server still holds.
     const p2 = await page.context().newPage();
     await open(p2, 1440, at("check"), { [`PATCH /flows/${ID}`]: { refuse: [403, "forbidden"] } });
-    await p2.getByRole("radio", { name: AUTOMATIC_DELIVERY_LABEL }).click();   // click, not check(): the refusal puts it back
+    await p2.getByRole("radio", { name: checkModeTitle("auto") }).click();   // click, not check(): the refusal puts it back
     await expect(p2.getByRole("alert").first()).toBeVisible();
-    await expect(p2.getByRole("radio", { name: REVIEW_BEFORE_DELIVERY_LABEL })).toBeChecked();
+    await expect(p2.getByRole("radio", { name: checkModeTitle("review") })).toBeChecked();
     expect(await sends(p2)).toEqual([]);
   });
 
@@ -449,9 +449,9 @@ test.describe("flow page", () => {
   test("We send: with a new destination open, the changes bar waits until it is closed, the form's Save is the one filled button, and Disconnect is outlined", async ({ page }) => {
     const google = { available: true, accounts: [{ id: "account-1", provider: "google", email: "sheets@example.test", status: "reconnect", createdAt: "2026-05-20T09:00:00Z" }] };
     await open(page, 1440, at("send"), { "GET /linked-accounts": google });
-    await expect(page.getByRole("combobox", { name: "Send to" })).toHaveCount(0);
+    await expect(page.getByRole("combobox", { name: "Goes to" })).toHaveCount(0);
     await page.getByRole("button", { name: "Change where it goes" }).click();
-    await page.getByRole("combobox", { name: "Send to" }).selectOption({ label: "New destination…" });
+    await page.getByRole("combobox", { name: "Goes to" }).selectOption({ label: "New destination…" });
     await page.getByRole("combobox", { name: "Send by" }).selectOption({ label: "Google Sheets" });
     await expect(page.getByRole("button", { name: "Reconnect" })).toBeVisible();
     await page.getByRole("button", { name: "Disconnect" }).click();
@@ -462,10 +462,10 @@ test.describe("flow page", () => {
     expect(await sends(page)).toEqual([]);
   });
 
-  test("We send at 1440: Send to and Send a test are in the first screenful, the columns wait behind Change the columns, and the list counts the changes", async ({ page }) => {
+  test("We send at 1440: Goes to and Send a test are in the first screenful, the columns wait behind Change the columns, and the list counts the changes", async ({ page }) => {
     await open(page, 1440, at("send", MOCK_ENGINE_IDS.output), await simpleOutputs(), 900);
     const editor = page.getByRole("region", { name: "Edit the file Invoice CSV" });
-    const sendTo = editor.getByRole("heading", { name: "Send to", exact: true });
+    const sendTo = editor.getByRole("heading", { name: "Goes to", exact: true });
     const test1 = editor.getByRole("button", { name: "Send a test" });
     for (const l of [sendTo, test1]) {
       const b = await box(l);
@@ -528,7 +528,7 @@ test.describe("flow page on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   test.describe.configure({ timeout: 120_000 });
 
-  test("We send at 390: Send to and Send a test come before the preview, and no control is under 44px", async ({ page }) => {
+  test("We send at 390: Goes to and Send a test come before the preview, and no control is under 44px", async ({ page }) => {
     await open(page, 390, at("send", MOCK_ENGINE_IDS.output), await simpleOutputs(), 844);
     const editor = page.getByRole("region", { name: "Edit the file Invoice CSV" });
     await expect(editor.getByRole("button", { name: "Send a test" })).toBeVisible();
@@ -536,9 +536,9 @@ test.describe("flow page on a phone", () => {
       const find = (sel: string, text: string) => [...el.querySelectorAll<HTMLElement>(sel)].find((n) => n.textContent?.trim() === text)!;
       const before = (a: Node, b: Node) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
       const preview = find("h3", "What the file looks like");
-      return { sendTo: before(find("h3", "Send to"), preview), test: before(find("button", "Send a test"), preview) };
+      return { sendTo: before(find("h3", "Goes to"), preview), test: before(find("button", "Send a test"), preview) };
     });
-    expect(order, "Send to and Send a test come before the preview").toEqual({ sendTo: true, test: true });
+    expect(order, "Goes to and Send a test come before the preview").toEqual({ sendTo: true, test: true });
     const small = await editor.evaluate((el) =>
       [...el.querySelectorAll<HTMLElement>("a, button, input, select, textarea, summary")]
         .filter((n) => n.getClientRects().length && !(n instanceof HTMLInputElement && n.type === "hidden"))

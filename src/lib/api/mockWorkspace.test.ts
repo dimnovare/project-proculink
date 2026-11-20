@@ -49,6 +49,17 @@ describe("empty-workspace mock", () => {
     await expect(mockEngineFetch(`/flows/${flow.id}/publish`, { method: "POST" })).rejects.toMatchObject({ status: 409, body: { error: "nothing_to_publish" } });
   });
 
+  it("starts a new flow on marked, and a removed document leaves the list", async () => {
+    const flow = await mockEngineFetch<Flow>("/flows", { method: "POST", body: JSON.stringify({ name: "New flow" }) });
+    expect(flow.automation).toBe("marked");
+    const doc = await mockEngineFetch<DocumentSummary>(`/flows/${flow.id}/documents/sample`, { method: "POST" });
+    await mockEngineFetch(`/documents/${doc.id}`);
+    await mockEngineFetch(`/documents/${doc.id}`);
+    await mockEngineFetch(`/documents/${doc.id}`, { method: "DELETE" });
+    expect((await mockEngineFetch<DocumentPage>(`/documents?flowId=${flow.id}&page=1&pageSize=20`)).items).toEqual([]);
+    await expect(mockEngineFetch(`/documents/${doc.id}`, { method: "DELETE" })).rejects.toMatchObject({ status: 404 });
+  });
+
   it("answers an empty inbox and fails loudly on the rest", async () => {
     expect(await mockEngineFetch("/inbox")).toMatchObject({ flowId: "ws-inbox", address: null });
     const body = new FormData();

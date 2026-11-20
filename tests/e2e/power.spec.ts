@@ -64,11 +64,11 @@ test.describe("power tools", () => {
     await expect(page.getByTestId("review-header-actions")).toContainText("1 of 2 that need you");
     // The mock remembers for the life of the page: open doc-1 again without a reload, through the list.
     await page.getByRole("link", { name: "Documents" }).first().click();
-    await page.getByRole("tab", { name: /^Sent/ }).click();
+    await page.getByRole("tab", { name: /^Finished/ }).click();
     await page.getByRole("table").getByRole("link", { name: "invoice-1001.csv" }).click();
     await expect(page).toHaveURL(/\/documents\/doc-1$/);
     await expect(page.getByRole("region", { name: "What we read" }).getByLabel("Supplier")).toHaveValue("Example Supplier Ltd");
-    await expect(page.getByTestId("review-header-actions").getByText(/^(Sent|Sending)$/)).toBeVisible();
+    await expect(page.getByTestId("review-header-actions").getByText(/^(Sent( to .+)?|Sending)$/)).toBeVisible(); // a sent document names where its files went
     // ? on the page (not in a box) opens the list; its rows are the registry's.
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await page.keyboard.press("?");
