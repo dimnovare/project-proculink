@@ -71,6 +71,7 @@ describe("OutputBuilder", () => {
     expect(api.createOutput.mock.calls[0][1]).toMatchObject({ name: "Supplier invoices CSV", format: "csv", destinationId: null, tableKey: "lines" });
     const names = leafNames(api.createOutput.mock.calls[0][1].template);
     expect(names).toEqual(["Invoice number", "Item", "Quantity"]);
+    expect(api.createOutput.mock.calls[0][1].template.csvDialect.byteOrderMark).toBe(true); // opens in the user's Excel
   });
 
   it("a set layout is one press away, with a way back that keeps what was chosen", () => {

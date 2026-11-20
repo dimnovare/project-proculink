@@ -49,6 +49,7 @@ const MANIPULATOR_LABELS: Record<string, string> = {
   Trim: "Remove extra spaces",
   Replace: "Find & replace text",
   DateFormat: "Reformat the date",
+  NumberFormat: "Reformat the number",
   Concat: "Add text to the end",
   Fallback: "Use a default when empty",
   Split: "Split & take one part",

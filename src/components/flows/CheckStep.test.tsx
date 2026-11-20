@@ -89,7 +89,7 @@ describe("CheckStep", () => {
     await waitFor(() => expect(router.push).toHaveBeenCalledWith("/flows/new?step=send&flow=f-1&doc=d-1"));
     expect(api.saveFlowFields).toHaveBeenCalledTimes(1);
     expect(api.saveFlowFields.mock.calls[0][1].fields.map((f: FlowField) => f.key)).not.toContain("bill_to");
-    expect(api.createOutput).toHaveBeenCalledWith("f-1", { name: "CSV file", format: "csv" });
+    expect(api.createOutput).toHaveBeenCalledWith("f-1", expect.objectContaining({ name: "CSV file", format: "csv", csvSeparator: expect.stringMatching(/^[,;]$/) }));
     expect(api.updateFlow).toHaveBeenCalledWith("f-1", { name: "Invoices" });
   });
 
@@ -122,5 +122,13 @@ describe("CheckStep", () => {
     expect(api.saveFlowFields.mock.calls[0][1].fields.map((f: FlowField) => f.key)).not.toContain("bill_to");
     expect(api.updateFlow).not.toHaveBeenCalled();
     expect(api.createOutput).not.toHaveBeenCalled();
+  });
+
+  it("a document still being read says it usually takes under a minute", async () => {
+    api.getDocument.mockResolvedValue({ ...detail, summary: { ...row, fileName: "invoice-1042.pdf", status: "reading" } });
+    api.listDocumentPage.mockResolvedValue({ items: [row], totalCount: 1, page: 1, pageSize: 20, sampleCount: 0 });
+    api.listOutputs.mockResolvedValue([]);
+    render(<CheckStep flow={unconfirmed} docId="d-1" first />, { wrapper: freshWrapper() });
+    expect(await screen.findByText("Reading invoice-1042.pdf… This usually takes under a minute.")).toBeInTheDocument();
   });
 });

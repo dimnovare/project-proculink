@@ -59,10 +59,12 @@ export function suggestFlowName(kindLabel: string | null | undefined): string | 
 }
 
 const count = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+/** "1 value", "18 values": a value is a field outside a table; a table's columns are not values. */
+export const valuesCount = (n: number) => count(n, "value");
 
 /** "9 values and 1 table", "1 value", "2 tables", "" for nothing. */
-export function foundSummary(read: Pick<ReadResult, "fields" | "tables">): string {
-  return [read.fields.length && count(read.fields.length, "value"), read.tables.length && count(read.tables.length, "table")]
+export function foundSummary(read: { fields: readonly unknown[]; tables: readonly unknown[] }): string {
+  return [read.fields.length && valuesCount(read.fields.length), read.tables.length && count(read.tables.length, "table")]
     .filter(Boolean).join(" and ");
 }
 

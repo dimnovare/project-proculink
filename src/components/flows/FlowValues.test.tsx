@@ -121,7 +121,7 @@ describe("FlowValues", () => {
     const pending = { ...detail.summary, id: "doc-2", fileName: "invoice-2292.pdf", status: "reading" };
     api.listDocuments.mockResolvedValue([pending]);
     const { unmount } = mount(first);
-    expect(await screen.findByText("We are reading invoice-2292.pdf. Its values appear here in a moment.")).toBeTruthy();
+    expect(await screen.findByText("We are reading invoice-2292.pdf. Its values appear here, usually within a minute.")).toBeTruthy();
     expect(screen.queryByText("Drop one document like the ones this flow will get.")).toBeNull();
     unmount();
     api.listDocuments.mockResolvedValue([{ ...pending, status: "read_failed" }]);

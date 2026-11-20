@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { downloadDeliveryFile, getDocument, listDeliveries, listOutputs, previewOutput, type Flow } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { firstRunAddress } from "@/lib/firstRun";
+import { firstRunAddress, valuesCount } from "@/lib/firstRun";
 import { changeFileAddress, flowAddress, type FileWay } from "@/lib/flowSteps";
 import { filesOf } from "@/lib/flowWords";
 import { saveBlob, savePreview } from "@/lib/saveBlob";
@@ -39,7 +39,6 @@ export function FirstFile({ flow, docId }: { flow: Flow; docId: string }) {
   const deliveries = useQuery({ queryKey: ["deliveries", docId], queryFn: () => listDeliveries(docId), enabled: enabled && standard });
   const made = filesOf(deliveries.data)[0];
   const fileName = standard ? made?.fileName : preview.data?.fileName;
-  const values = flow.fields.fields.length + flow.fields.tables.reduce((n, t) => n + t.columns.length, 0);
 
   const download = useMutation({
     mutationFn: async () => (standard ? saveBlob(await downloadDeliveryFile(docId, made!.deliveryId), made!.fileName) : savePreview(preview.data!)),
@@ -65,7 +64,7 @@ export function FirstFile({ flow, docId }: { flow: Flow; docId: string }) {
           <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
             <div className="grid min-w-0 flex-[1_1_260px] gap-1">
               <span id="first-file-name" className="break-all font-mono text-[15px] font-medium text-ink">{fileName}</span>
-              <span className={LINE}>{`${KINDS[fileName.split(".").pop()!.toLowerCase()] ?? "A file"}, with the ${values} ${values === 1 ? "value" : "values"} we read`}</span>
+              <span className={LINE}>{`${KINDS[fileName.split(".").pop()!.toLowerCase()] ?? "A file"}${flow.fields.fields.length ? `, with the ${valuesCount(flow.fields.fields.length)} we read` : ""}`}</span>
             </div>
             <Button variant="primary" size="lg" loading={download.isPending} onClick={() => download.mutate()}>Download</Button>
             {download.isError && <p role="alert" className="m-0 basis-full text-[13px] text-danger-text">{documentRefusalMessage(download.error)}</p>}

@@ -10,6 +10,7 @@
 
 import { API_BASE_URL, authHeader, fetchWithTimeout, isApiMockMode } from "./core";
 import { mockEngineFetch } from "./mockEngine";
+import { excelSeparator } from "@/lib/flowOutputModel";
 import { readRefusal } from "./refusal";
 import type { OutputNodeTemplate } from "./types";
 import type { CheckMode } from "../deliveryMode";
@@ -173,9 +174,11 @@ export interface OutputRequest {
   standard?: string | null;
   /** Update only: the output becomes `standard` (null: a template output) instead of keeping its kind. */
   replace?: boolean;
+  /** With no template (create or update): "," or ";" makes the CSV for the user's Excel (separator and byte-order mark). */
+  csvSeparator?: "," | ";";
 }
 /** A file a flow could make instead, not saved: a type (`format`; a template, or null for every value) or a `standard`. */
-export interface FileChoice { format: string; standard: string | null; tableKey: string | null; template: OutputNodeTemplate | null }
+export interface FileChoice { format: string; standard: string | null; tableKey: string | null; template: OutputNodeTemplate | null; csvSeparator?: "," | ";" }
 export type DraftCite = { where: string; quote: string };
 export type DraftLeaf = {
   path: string; fieldKey: string | null; by: "name" | "ai" | "meaning" | "docs" | null; confidence: number | null; required?: boolean; cite?: DraftCite | null;
@@ -184,7 +187,10 @@ export type OutputDraft = {
   name: string; format: string; tableKey: string | null; template: OutputNodeTemplate; leaves: DraftLeaf[]; notes: string[];
   formatCite?: DraftCite | null; destination?: { url: string; method: string; authType: string; cite?: DraftCite | null } | null; truncated?: boolean;
 };
-export interface OutputPreview { contentType: string; fileName: string; content: string; base64?: string; lookupMisses: LookupMiss[] }
+export interface OutputPreview { contentType: string; fileName: string; content: string; base64?: string; lookupMisses: LookupMiss[];
+  /** The file starts with a UTF-8 byte-order mark, which `content` leaves out. */
+  byteOrderMark?: boolean;
+}
 export interface DocumentDelivery {
   id: string; outputName: string; protocol: string; status: string; attempts: number;
   lastError: string | null; fileName: string | null; deliveredAt: string | null;
@@ -256,11 +262,11 @@ export async function addDocument(file: File): Promise<DocumentSummary> {
 export const moveDocument = (id: string, flowId: string) =>
   apiFetch<DocumentSummary>(`/documents/${seg(id)}/move`, { method: "POST", body: json({ flowId }) });
 /** "Do the same every time": a flow made from this inbox document's read. */
-export const setUpDocument = (id: string, name?: string) =>
-  apiFetch<SetUpResult>(`/documents/${seg(id)}/set-up`, { method: "POST", body: json(name ? { name } : {}) });
+export const setUpDocument = (id: string, name?: string, csvSeparator = excelSeparator()) =>
+  apiFetch<SetUpResult>(`/documents/${seg(id)}/set-up`, { method: "POST", body: json({ ...(name ? { name } : {}), csvSeparator }) });
 /** "Just this one": what was read from an inbox document, as a file. */
-export const downloadDocument = (id: string, format: "xlsx" | "csv") =>
-  apiFetch<Blob>(`/documents/${seg(id)}/download`, { method: "POST", body: json({ format }) }, UPLOAD_TIMEOUT_MS, "blob");
+export const downloadDocument = (id: string, format: "xlsx" | "csv", csvSeparator = excelSeparator()) =>
+  apiFetch<Blob>(`/documents/${seg(id)}/download`, { method: "POST", body: json({ format, csvSeparator }) }, UPLOAD_TIMEOUT_MS, "blob");
 /** The flows that hold documents of this document's kind (empty when none do). */
 export const getSortFlows = (id: string) => apiFetch<SortFlow[]>(`/documents/${seg(id)}/sort-flows`);
 

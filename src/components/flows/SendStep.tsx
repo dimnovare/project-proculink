@@ -142,7 +142,8 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
   };
   /** A Download lands on Your first file is ready; anything else on the flow. */
   const done = (sent: boolean, made = false) => {
-    for (const queryKey of [["documents"], ["flows"], ["flow", flow.id], ["outputs", flow.id]]) void qc.invalidateQueries({ queryKey });
+    // The document and its files too: Your first file is ready and the document screen must not mount on the pre-send copy.
+    for (const queryKey of [["documents"], ["flows"], ["flow", flow.id], ["outputs", flow.id], ["document", id], ["deliveries", id]]) void qc.invalidateQueries({ queryKey });
     capture("wizard_step_completed", { step: 3, step_name: "send", first, sent });
     router.push(made ? firstRunAddress({ step: "ready", flow: flow.id, doc: id }) : `/flows/${flow.id}`);
   };

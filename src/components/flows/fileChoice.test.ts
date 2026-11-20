@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Flow, FlowOutput } from "@/lib/api/documents";
+import { excelSeparator, toSimple } from "@/lib/flowOutputModel";
 import { aFileOf, renamed, replaceOutput, typeChoice } from "./fileChoice";
 
 const api = vi.hoisted(() => ({ getFlow: vi.fn(), updateOutput: vi.fn(), publishFlow: vi.fn() }));
@@ -35,6 +36,16 @@ describe("fileChoice", () => {
     }));
     expect(api.publishFlow).toHaveBeenCalledWith("flow-1");
     expect(r.inUse).toBe(true);
+  });
+
+  it("a file that becomes a CSV again opens in the user's Excel: separator and byte-order mark", () => {
+    const xml = typeChoice(csvOut, "xml");
+    const back = toSimple(typeChoice({ ...csvOut, format: "xml", template: xml.template! }, "csv").template!)!;
+    expect(back).toMatchObject({ byteOrderMark: true });
+    expect(back.delimiter ?? ",").toBe(excelSeparator());
+    expect(toSimple(typeChoice(csvOut, "csv").template!)!.byteOrderMark).toBeUndefined(); // a CSV staying a CSV is left alone
+    expect(typeChoice({ ...csvOut, standard: "ubl-order", template: null } as unknown as FlowOutput, "csv"))
+      .toMatchObject({ template: null, csvSeparator: excelSeparator() });
   });
 
   it("leaves other waiting changes alone: no publish", async () => {
