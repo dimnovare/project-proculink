@@ -5,11 +5,11 @@
 import type { Flow, ReadResult } from "./api/documents";
 import { MAX_UPLOAD_BYTES } from "./fileKinds";
 
-export type FirstRunStep = "add" | "check" | "send";
+export type FirstRunStep = "add" | "check" | "send" | "ready";
 export interface FirstRunAddress { step: FirstRunStep; flow: string | null; doc: string | null }
 export const PROVISIONAL_FLOW_NAME = "New flow";
 
-const STEPS: readonly FirstRunStep[] = ["add", "check", "send"];
+const STEPS: readonly FirstRunStep[] = ["add", "check", "send", "ready"];
 /** A parameter given exactly once and not empty, else null. */
 const one = (params: URLSearchParams, key: string): string | null => {
   const all = params.getAll(key);

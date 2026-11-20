@@ -16,7 +16,7 @@ const api = vi.hoisted(() => ({
 const linked = vi.hoisted(() => vi.fn());
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 const analytics = vi.hoisted(() => ({ capture: vi.fn() }));
-const blob = vi.hoisted(() => ({ saveBlob: vi.fn() }));
+const blob = vi.hoisted(() => ({ saveBlob: vi.fn(), savePreview: vi.fn() }));
 vi.mock("@/lib/api/documents", () => api);
 vi.mock("./GoogleTargetFields", () => ({ useLinkedAccounts: linked, GoogleTargetFields: () => null }));
 vi.mock("@/lib/analytics", () => analytics);
@@ -101,7 +101,7 @@ describe("SendStep", () => {
     expect(filled(container).map((b) => b.textContent)).toEqual(["Finish"]);
     fireEvent.click(within(finish).getByRole("button", { name: "Finish" }));
     fireEvent.click(within(finish).getByRole("button", { name: "Finish" }));
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/flows/${confirmed.id}`));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/flows/new?step=ready&flow=${confirmed.id}&doc=d-1`));
     expect(api.sendDocument).toHaveBeenCalledTimes(1);
     expect(analytics.capture).toHaveBeenCalledWith("wizard_step_completed", { step: 3, step_name: "send", first: true, sent: true });
     expect(blob.saveBlob).not.toHaveBeenCalled();
@@ -162,7 +162,7 @@ describe("SendStep", () => {
     const finish = await screen.findByRole("region", { name: "Finish" });
     expect(await within(finish).findByText(/^This is our sample invoice, so we never send it\./)).toBeInTheDocument();
     fireEvent.click(within(finish).getByRole("button", { name: "Download the sample's CSV file" }));
-    await waitFor(() => expect(blob.saveBlob).toHaveBeenCalledWith(expect.any(Blob), "invoice-2250.csv"));
+    await waitFor(() => expect(blob.savePreview).toHaveBeenCalledWith(expect.objectContaining({ fileName: "invoice-2250.csv" })));
     expect(router.push).not.toHaveBeenCalled();
     fireEvent.click(within(finish).getByRole("button", { name: "Finish" }));
     expect(await within(finish).findByText(COPY.processing_paused)).toBeInTheDocument();
