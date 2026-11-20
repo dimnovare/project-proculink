@@ -536,7 +536,7 @@ test.describe("flow page on a phone", () => {
       const find = (sel: string, text: string) => [...el.querySelectorAll<HTMLElement>(sel)].find((n) => n.textContent?.trim() === text)!;
       const before = (a: Node, b: Node) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
       const preview = find("h3", "What the file looks like");
-      return { sendTo: before(find("h3", "Goes to"), preview), test: before(find("button", "Send a test"), preview) };
+      return { sendTo: before(find("span", "Goes to"), preview), test: before(find("button", "Send a test"), preview) };
     });
     expect(order, "Goes to and Send a test come before the preview").toEqual({ sendTo: true, test: true });
     const small = await editor.evaluate((el) =>
