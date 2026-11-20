@@ -68,7 +68,7 @@ test.describe("power tools", () => {
     await page.getByRole("table").getByRole("link", { name: "invoice-1001.csv" }).click();
     await expect(page).toHaveURL(/\/documents\/doc-1$/);
     await expect(page.getByRole("region", { name: "What we read" }).getByLabel("Supplier")).toHaveValue("Example Supplier Ltd");
-    await expect(page.getByTestId("review-header-actions").getByText(/^(Sent|Sending)$/)).toBeVisible();
+    await expect(page.getByTestId("review-header-actions").getByText(/^(Sent( to .+)?|Sending)$/)).toBeVisible(); // a sent document names where its files went
     // ? on the page (not in a box) opens the list; its rows are the registry's.
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await page.keyboard.press("?");
