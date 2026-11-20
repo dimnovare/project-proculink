@@ -2,15 +2,7 @@ import { readdirSync, readFileSync, statSync } from "fs";
 import { join, relative } from "path";
 import { describe, expect, it } from "vitest";
 import { stripComments, syntaxFor } from "@/test/sourceScan";
-import {
-  AUTOMATIC_DELIVERY_LABEL,
-  CHECK_MODES,
-  REVIEW_BEFORE_DELIVERY_LABEL,
-  RETIRED_DELIVERY_MODE_NAMES,
-  checkModeLine,
-  checkModeTitle,
-  deliveryModeLabel,
-} from "./deliveryMode";
+import { CHECK_MODES, RETIRED_DELIVERY_MODE_NAMES, checkModeLine, checkModeTitle } from "./deliveryMode";
 
 // One switch, one name.
 //
@@ -70,7 +62,7 @@ describe("the automatic-sending switch has one name", () => {
   it("no shipped copy uses a retired name for it", () => {
     expect(
       offendersIn(CORPUS),
-      `say "${AUTOMATIC_DELIVERY_LABEL}" (on) or "${REVIEW_BEFORE_DELIVERY_LABEL}" (off) instead`,
+      `name a flow's mode by its CHECK_MODES title instead: ${CHECK_MODES.map((m) => `"${m.title}"`).join(", ")}`,
     ).toEqual([]);
   });
 
@@ -82,6 +74,9 @@ describe("the automatic-sending switch has one name", () => {
       `    ["Send automatically", data.autoDeliver ? "On" : "Off", false],`,
       '? `${deliveryLabel}${props.deliveryAutoDeliver ? " · auto-send" : ""}`',
       "and whether **auto-process** is on.",
+      // The two flow-mode names that shipped until the three check modes replaced them (plan 25a).
+      `  { id: "review", title: "Review before delivery", line: "Every document waits in Needs you until someone presses Send." },`,
+      `    check: flow.automation === "auto" ? "Automatic delivery" : x,`,
     ];
     for (const line of shipped) {
       expect(offendersIn([{ file: join(SRC, "x.tsx"), text: line }]), line).toHaveLength(1);
@@ -90,11 +85,6 @@ describe("the automatic-sending switch has one name", () => {
     expect(offendersIn([{ file: join(SRC, "x.tsx"), text: "auto-processed · 3 of 4 completed" }])).toEqual([]);
     // A comment naming the old label is history, not copy.
     expect(offendersIn([{ file: join(SRC, "x.tsx"), text: stripComments("// was \"Auto-process\"") }])).toEqual([]);
-  });
-
-  it("maps the saved flag to exactly one of the two names", () => {
-    expect(deliveryModeLabel(true)).toBe(AUTOMATIC_DELIVERY_LABEL);
-    expect(deliveryModeLabel(false)).toBe(REVIEW_BEFORE_DELIVERY_LABEL);
   });
 });
 

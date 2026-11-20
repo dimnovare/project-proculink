@@ -174,7 +174,7 @@ test.describe("one way in", () => {
     expect(await sends(page)).toEqual([]);
   });
 
-  test("a sort that is not certain: Send is the filled button, and sending confirms it", async ({ page }) => {
+  test("a sort that is not certain: Make the file is the filled button, and making it confirms it", async ({ page }) => {
     await open(page, 1440, "/flows/flow-2/documents/doc-in-3");
     await expect(page.getByText("We put this with Delivery notes. Check that is right.")).toBeVisible();
     const header = page.getByTestId("review-header-actions");
@@ -183,17 +183,19 @@ test.describe("one way in", () => {
     // Another flow starts with nothing chosen, so Move it waits for a choice.
     await expect(page.getByRole("combobox", { name: "Another flow" })).toHaveValue("");
     await expect(page.getByRole("button", { name: "Move it" })).toBeDisabled();
-    const send = header.getByRole("button", { name: "Send and open next" });
+    // Delivery notes has no destination, so its way on is Make the file, and the made file waits on this screen.
+    const send = header.getByRole("button", { name: "Make the file" });
     await expect(send).toBeEnabled();
-    expect((await audit(page.locator("main"))).filled, "Send is the one filled button").toBe(1);
+    expect((await audit(page.locator("main"))).filled, "Make the file is the one filled button").toBe(1);
     await send.click();
-    await expect(page).not.toHaveURL(/doc-in-3$/);
+    await expect(header.getByRole("button", { name: /^Download / })).toBeVisible();
+    await expect(page).toHaveURL(/doc-in-3$/);
     expect(await sends(page)).toEqual(["POST /documents/doc-in-3/send"]);
 
     await page.getByTestId("topbar-nav").getByRole("link", { name: "Documents" }).click();
     await page.getByRole("tab", { name: /^All/ }).click();
     const sent = page.getByRole("table").getByRole("row", { name: /delivery-note-5521\.pdf/ });
-    await expect(sent).toContainText("Sent");
+    await expect(sent).toContainText("File ready");
     await expect(sent).not.toContainText("Check the flow");
   });
 

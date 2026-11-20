@@ -5,7 +5,7 @@ import { destinationNameFor, foundSummary, suggestFlowName } from "../../src/lib
 import { documentStatus } from "../../src/lib/documentStatusManifest";
 import { limitRefusalCopy, readLimitRefusal } from "../../src/lib/limitRefusal";
 import { PLAN_BY_ID } from "../../src/lib/plans";
-import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "../../src/lib/deliveryMode";
+import { checkModeLine, checkModeTitle } from "../../src/lib/deliveryMode";
 
 /**
  * The first run in a browser (plan 14.5): Welcome on Documents, then /flows/new as three steps, on a desk and on a
@@ -127,7 +127,7 @@ async function atEveryWidth(page: Page, where: string, filled: string[]) {
 async function finishBar(page: Page) {
   return page.getByRole("region", { name: "Finish", exact: true }).evaluate((el) => {
     const r = el.getBoundingClientRect();
-    const mode = [...document.querySelectorAll("legend")].find((l) => l.textContent === "When a new document is read");
+    const mode = [...document.querySelectorAll("legend")].find((l) => l.textContent === "Which documents wait for you");
     const done = document.querySelector("section[aria-label='Finished steps']");
     return {
       loading: (el.textContent ?? "").includes("Loading…"), top: Math.round(r.top), bottom: Math.round(r.bottom), height: Math.round(r.height),
@@ -260,11 +260,11 @@ test.describe("First run", () => {
     expect(await sends(page), "a destination test is not a send").toBe(0);
     // The sentence follows the delivery choice; changing it sends nothing.
     const later = (when: string) => finish.getByText(`From now on, documents in this flow go to ${server}. ${when}`);
-    await expect(later("Each one waits for you to check it first.")).toBeVisible();
-    await page.getByRole("radio", { name: new RegExp(`^${AUTOMATIC_DELIVERY_LABEL}`) }).click();
-    await expect(later("They are sent as soon as they are read.")).toBeVisible();
-    await page.getByRole("radio", { name: new RegExp(`^${REVIEW_BEFORE_DELIVERY_LABEL}`) }).click();
-    await expect(later("Each one waits for you to check it first.")).toBeVisible();
+    await expect(later(checkModeLine("marked", false))).toBeVisible();   // an admin's new flow starts here
+    await page.getByRole("radio", { name: new RegExp(`^${checkModeTitle("auto")}`) }).click();
+    await expect(later(checkModeLine("auto", false))).toBeVisible();
+    await page.getByRole("radio", { name: new RegExp(`^${checkModeTitle("review")}`) }).click();
+    await expect(later(checkModeLine("review", false))).toBeVisible();
     expect(await sends(page), "nothing is sent without a press").toBe(0);
 
     const flowId = flowIdOf(page);

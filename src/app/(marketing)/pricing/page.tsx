@@ -5,7 +5,6 @@ import { Card } from "@/components/bridge/layout/Card";
 import { PriceHelper } from "@/components/marketing/PriceHelper";
 import { ClosingCta, SITE, Ticks } from "@/components/marketing/sitePictures";
 import { euro } from "@/lib/billingWords";
-import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
 import {
   DOCUMENT_PLAN_FEATURES,
   DOCUMENT_PLAN_IDS,
@@ -54,7 +53,7 @@ const FAQ: Array<[string, ReactNode]> = [
   ],
   [
     "Will anything be sent automatically during the trial?",
-    `Not unless you choose to. Every flow starts in ${REVIEW_BEFORE_DELIVERY_LABEL}, so each document waits for you. You can download the result and send it yourself, or switch a flow to ${AUTOMATIC_DELIVERY_LABEL} once you trust it.`,
+    "Only where you choose. A file goes somewhere only once you give its flow a destination; until then you download it. A new flow an admin creates holds any document with a marked value for you, and you can set a flow to check every document.",
   ],
   [
     "What happens when the trial ends?",

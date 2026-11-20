@@ -3,7 +3,7 @@ import { preparePage, settle } from "./a11yHarness";
 import { MOCK_ENGINE_IDS, mockEngineFetch } from "../../src/lib/api/mockEngine";
 import type { Flow } from "../../src/lib/api/documents";
 import { FLOW_STEPS, flowAddress, type FlowStep, type FlowView } from "../../src/lib/flowSteps";
-import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "../../src/lib/deliveryMode";
+import { checkModeTitle } from "../../src/lib/deliveryMode";
 import { fromSimple } from "../../src/lib/flowOutputModel";
 import type { FlowOutput } from "../../src/lib/api/documents";
 
@@ -269,7 +269,7 @@ test.describe("flow page", () => {
 
   test("the delivery choice on You check saves at once, survives a reload, and a refusal puts it back", async ({ page }) => {
     await open(page, 1440, at("check"));
-    const auto = page.getByRole("radio", { name: AUTOMATIC_DELIVERY_LABEL });
+    const auto = page.getByRole("radio", { name: checkModeTitle("auto") });
     await auto.click();
     await expect(auto).toBeChecked();
     await expect(page.getByRole("status").filter({ hasText: /^Saved$/ })).toBeVisible();
@@ -277,21 +277,21 @@ test.describe("flow page", () => {
     expect(patch).toEqual([`PATCH /flows/${ID} {"automation":"auto"}`]);
     await stepLink(page, "arrives").click();
     await stepLink(page, "check").click();
-    await expect(page.getByRole("radio", { name: AUTOMATIC_DELIVERY_LABEL })).toBeChecked();
+    await expect(page.getByRole("radio", { name: checkModeTitle("auto") })).toBeChecked();
     // The mock forgets on reload; the server would not. Give the reloaded page what the server holds after that PATCH.
     const held = { ...(await fixture()), ...JSON.parse(patch[0].slice(patch[0].indexOf(" {") + 1)) };
     await page.evaluate((a) => sessionStorage.setItem("flow-spec-answer", JSON.stringify(a)), { [`GET /flows/${ID}`]: held });
     await page.reload();
-    await expect(page.getByRole("radio", { name: AUTOMATIC_DELIVERY_LABEL })).toBeChecked();
+    await expect(page.getByRole("radio", { name: checkModeTitle("auto") })).toBeChecked();
     await expect(page.getByRole("link", { name: new RegExp(`^${title("check")}`) }).first()).toBeVisible();
     await page.evaluate(() => sessionStorage.removeItem("flow-spec-answer"));
 
     // A refusal (403) says why under the radios and shows the choice the server still holds.
     const p2 = await page.context().newPage();
     await open(p2, 1440, at("check"), { [`PATCH /flows/${ID}`]: { refuse: [403, "forbidden"] } });
-    await p2.getByRole("radio", { name: AUTOMATIC_DELIVERY_LABEL }).click();   // click, not check(): the refusal puts it back
+    await p2.getByRole("radio", { name: checkModeTitle("auto") }).click();   // click, not check(): the refusal puts it back
     await expect(p2.getByRole("alert").first()).toBeVisible();
-    await expect(p2.getByRole("radio", { name: REVIEW_BEFORE_DELIVERY_LABEL })).toBeChecked();
+    await expect(p2.getByRole("radio", { name: checkModeTitle("review") })).toBeChecked();
     expect(await sends(p2)).toEqual([]);
   });
 

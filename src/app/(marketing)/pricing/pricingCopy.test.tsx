@@ -3,7 +3,6 @@ import { join } from "node:path";
 import { render, within } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
 import { DOCUMENT_UNIT_SENTENCE, ENTERPRISE_FLOOR_EUR, PLAN_BY_ID, PUBLIC_LADDER } from "@/lib/plans";
 import PricingPage from "./page";
 
@@ -40,8 +39,7 @@ describe("/pricing", () => {
     expect(items.map((d) => d.open)).toEqual([true, false, false, false, false, false, false, false, false]);
     expect(items[2].textContent).toContain(`it counts towards your ${PLAN_BY_ID.pilot.orderLimit} trial documents.`);
     expect(items[2].textContent).not.toMatch(/\bone of your\b/);
-    expect(items[3].textContent).toContain(REVIEW_BEFORE_DELIVERY_LABEL);
-    expect(items[3].textContent).toContain(AUTOMATIC_DELIVERY_LABEL);
+    expect(items[3].textContent).toContain("A new flow an admin creates holds any document with a marked value for you");
     expect(items[5].textContent).toContain("we prorate the difference");
     expect(within(items[6] as HTMLElement).getByRole("link", { name: "Privacy Policy" })).toHaveAttribute("href", "/privacy");
     expect(within(items[7] as HTMLElement).getByRole("link", { name: "Security page" })).toHaveAttribute("href", "/security");

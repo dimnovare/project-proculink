@@ -1,7 +1,7 @@
 import { render, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { STAGES } from "@/components/bridge/StatusJourney";
-import { AUTOMATIC_DELIVERY_LABEL, REVIEW_BEFORE_DELIVERY_LABEL } from "@/lib/deliveryMode";
+import { checkModeTitle } from "@/lib/deliveryMode";
 import HowItWorksPage from "./page";
 
 describe("How it works", () => {
@@ -19,8 +19,8 @@ describe("How it works", () => {
     expect(pipeline.id).toBe("pipeline");
     expect(within(pipeline).getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual([...STAGES]);
     const second = page.getByRole("region", { name: "What happens with the second document" });
-    expect(second.textContent).toContain(`Every flow starts in ${REVIEW_BEFORE_DELIVERY_LABEL}.`);
-    expect(second.textContent).toContain(`switch that flow to ${AUTOMATIC_DELIVERY_LABEL}.`);
+    expect(second.textContent).toContain(`A new flow starts on ${checkModeTitle("marked")} when an admin creates it.`);
+    expect(second.textContent).toContain("You can set a flow to check every document, or nothing at all, and change it at any time.");
     expect(container.textContent).toContain("the destination's answer where it gives one");
     expect(container.textContent).toContain("the flow's own address, shown on the flow");
     expect(container.textContent).not.toMatch(/response code|inbound\.proculink|cXML|UBL|Peppol|X12/);
