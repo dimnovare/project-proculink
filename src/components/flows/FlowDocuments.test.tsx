@@ -44,6 +44,12 @@ describe("FlowDocuments", () => {
     expect(screen.queryByRole("link", { name: /Review next/ })).toBeNull();
   });
 
+  it("a ready document in this flow has its Make the file button", async () => {
+    api.listDocumentPage.mockResolvedValue({ items: [{ ...row(1042), status: "ready", inInbox: false, downloadOnly: true }], totalCount: 1, page: 1, pageSize: 10, sampleCount: 0 });
+    mount(<FlowDocuments flow={flow} />);
+    expect((await screen.findAllByRole("button", { name: "Make the file invoice-1042.pdf" })).length).toBeGreaterThan(0);
+  });
+
   it("the streak band", async () => {
     api.updateFlow.mockResolvedValue({ ...flow, automation: "auto" });
     const { rerender } = mount(<StreakBand flow={flow} />);

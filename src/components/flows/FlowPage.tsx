@@ -8,15 +8,16 @@ import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
-import { Button } from "@/components/bridge/DSPrimitives";
+import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { AppNotFound } from "@/components/bridge/AppNotFound";
+import { flowsQuery } from "@/hooks/useDocumentEngine";
 import { isNotFoundFailure } from "@/lib/apiFailure";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { getFlow, listDestinations, listIntakes, listOutputs, updateFlow } from "@/lib/api/documents";
 import type { Flow } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { checkModeShort } from "@/lib/deliveryMode";
-import { and, waysInWords } from "@/lib/flowSentences";
+import { and, doesLine, waysInWords } from "@/lib/flowSentences";
 import { FLOW_STEPS, flowAddress, readFlowOutput, readFlowView, stepTitle, type FlowStep, type FlowView } from "@/lib/flowSteps";
 import { pageTotal } from "@/lib/pageTotal";
 import { INPUT } from "./DestinationForm";
@@ -75,19 +76,16 @@ const documentsSoFar = (n: number) => (n ? `${n} so far` : "None yet");
 
 function StepStrip({ flow, view, summaries }: { flow: Flow; view: FlowView; summaries: Record<FlowStep, string | null> }) {
   const id = useId();
-  const side = (to: "documents" | "history", text: string, extra?: string) => (
-    <FlowLink
-      href={flowAddress(flow.id, to)} current={view === to}
-      className={`flex min-h-10 flex-1 items-center justify-between gap-2 rounded-md px-3 text-[14px] no-underline ${view === to ? "bg-surface-2 font-semibold text-ink" : "font-medium text-ink-muted hover:bg-surface-2"}`}
-    >
+  const side = (to: "documents" | "history", text: string, extra?: number) => (
+    <FlowLink href={flowAddress(flow.id, to)} current={view === to} className={`${buttonClass("secondary", "md")} ${view === to ? "bg-surface-2" : ""}`}>
       {text}
-      {extra && <span className="text-[12.5px] font-semibold text-ink-muted">{extra}</span>}
+      {!!extra && <span className="font-medium text-ink-muted">{extra}</span>}
     </FlowLink>
   );
   return (
-    <nav aria-label="Flow sections" className="hidden lg:block">
-      <Card flush className="flex flex-wrap min-[1040px]:flex-nowrap">
-        <ol className="m-0 flex min-w-0 flex-[1_1_100%] list-none p-0 min-[1040px]:flex-1">
+    <nav aria-label="Flow sections" className="hidden gap-2 lg:grid">
+      <Card flush>
+        <ol className="m-0 flex min-w-0 list-none p-0">
           {FLOW_STEPS.map((s) => (
             <li key={s.id} className="flex min-w-0 flex-1 border-l border-border-faint first:border-l-0">
               <FlowLink
@@ -100,11 +98,11 @@ function StepStrip({ flow, view, summaries }: { flow: Flow; view: FlowView; summ
             </li>
           ))}
         </ol>
-        <div className="flex w-full gap-0.5 border-t border-border-faint p-2 min-[1040px]:w-[196px] min-[1040px]:flex-none min-[1040px]:flex-col min-[1040px]:justify-center min-[1040px]:border-l min-[1040px]:border-t-0">
-          {side("documents", "Documents", flow.documentCount ? String(flow.documentCount) : "None yet")}
-          {flow.publishedVersion !== undefined && side("history", "History")}
-        </div>
       </Card>
+      <div className="flex flex-wrap gap-2">
+        {side("documents", "Documents in this flow", flow.documentCount)}
+        {flow.publishedVersion !== undefined && side("history", "History of changes")}
+      </div>
     </nav>
   );
 }
@@ -140,10 +138,10 @@ function PhoneOverview({ flow, summaries }: { flow: Flow; summaries: Record<Flow
         <Card flush>
           <ul className="m-0 list-none p-0">
             <Row
-              href={flowAddress(flow.id, "documents")} title="Documents" line={documentsSoFar(flow.documentCount)}
+              href={flowAddress(flow.id, "documents")} title="Documents in this flow" line={documentsSoFar(flow.documentCount)}
               tag={need ? <span className="flex-none rounded-full bg-amber-soft px-2.5 py-0.5 text-[12.5px] font-semibold text-amber-text">{needsYouWords(need)}</span> : undefined}
             />
-            {flow.publishedVersion !== undefined && <Row href={flowAddress(flow.id, "history")} title="History" line="Earlier versions of this flow" />}
+            {flow.publishedVersion !== undefined && <Row href={flowAddress(flow.id, "history")} title="History of changes" line="Earlier versions of this flow" />}
           </ul>
         </Card>
       </nav>
@@ -255,8 +253,11 @@ function FlowFrame({ flowId }: { flowId: string }) {
 
 function FlowBody({ flow, view, output, renaming, onRenamed, blocked }: { flow: Flow; view: FlowView | null; output: string | null; renaming: boolean; onRenamed: () => void; blocked: string | null }) {
   const summaries = useStepSummaries(flow);
+  // Single-flow answers carry no summary; the flows list does.
+  const line = doesLine(useQuery({ ...flowsQuery, enabled: useTenantQueriesEnabled() }).data?.find((x) => x.id === flow.id) ?? { summary: null });
   return (
     <div className="grid gap-4">
+      {line && <p className="m-0 text-[14.5px] text-ink">{line}</p>}
       {renaming && <RenameForm flow={flow} onDone={onRenamed} />}
       {renaming && flow.canDelete && <DeleteFlow flow={flow} />}
       <StepStrip flow={flow} view={view ?? "documents"} summaries={summaries} />

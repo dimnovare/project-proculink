@@ -108,7 +108,7 @@ export function FlowDocuments({ flow }: { flow: Flow }) {
         ) : page.data.items.length === 0 ? (
           <div className="px-4 pb-4"><Quiet>No documents in this flow yet. Drop a file above, or send one to this flow&apos;s email address.</Quiet></div>
         ) : (
-          <DocumentList documents={page.data.items} showFlow={false} label="Documents in this flow" />
+          <DocumentList documents={page.data.items} showFlow={false} sendable label="Documents in this flow" />
         )}
         {total !== undefined && total > NEWEST && (
           <p className="m-0 flex flex-wrap items-center gap-x-2 border-t border-border-faint px-4 py-3 text-[13px] text-ink-muted">
