@@ -37,3 +37,24 @@ export function flowAddress(flowId: string, view: FlowView | null, extra?: { out
   if (extra?.output) q.set("output", extra.output);
   return `${base}?${q}`;
 }
+
+/** The four ways the Change the file screen can open on. */
+export type FileWay = "sample" | "docs" | "standard";
+const WAYS: readonly string[] = ["sample", "docs", "standard"];
+
+/** `/flows/{id}/change-file`, naming the file, the document to preview, the way to open and where to go back to. */
+export function changeFileAddress(flowId: string, o: { output?: string; document?: string; way?: FileWay; from?: string } = {}): string {
+  const q = `${new URLSearchParams((["output", "document", "way", "from"] as const).flatMap((k) => (o[k] ? [[k, o[k]!]] : [])))}`;
+  return `/flows/${encodeURIComponent(flowId)}/change-file${q && `?${q}`}`;
+}
+
+/** The change-file address; `from` only when it stays in the app (a path, never `//host` or `/\host`). */
+export function readChangeFile(params: Pick<URLSearchParams, "get">) {
+  const way = params.get("way");
+  const from = params.get("from");
+  return {
+    output: params.get("output"), document: params.get("document"),
+    way: way && WAYS.includes(way) ? (way as FileWay) : null,
+    from: from?.startsWith("/") && from[1] !== "/" && from[1] !== "\\" ? from : null,
+  };
+}

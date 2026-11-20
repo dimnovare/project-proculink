@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { flowAddress, readFlowView, stepTitle } from "./flowSteps";
+import { changeFileAddress, flowAddress, readChangeFile, readFlowView, stepTitle } from "./flowSteps";
 
 const view = (q: string) => readFlowView(new URLSearchParams(q));
 
@@ -27,5 +27,10 @@ describe("flowSteps", () => {
     expect(stepTitle("send", true)).toBe("We make the file");
     expect(stepTitle("send", false)).toBe("We send");
     expect(stepTitle("send", undefined)).toBe("We send");
+  });
+
+  it("writes and reads the change-file address, and ignores a from that leaves the app", () => {
+    expect(changeFileAddress("flow-1", { output: "out-1", way: "sample", from: "/flows/flow-1" })).toBe("/flows/flow-1/change-file?output=out-1&way=sample&from=%2Fflows%2Fflow-1");
+    expect(readChangeFile(new URLSearchParams("from=//evil.example&way=nope"))).toEqual({ output: null, document: null, way: null, from: null });
   });
 });
