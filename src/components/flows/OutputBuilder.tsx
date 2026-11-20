@@ -13,7 +13,7 @@ import { FORMATS } from "@/components/flows/OutputEditor";
 import { createOutput, outputFromDocumentation, outputFromSample } from "@/lib/api/documents";
 import type { Flow, FlowOutput } from "@/lib/api/documents";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
-import { defaultWidth, fromSimple } from "@/lib/flowOutputModel";
+import { defaultWidth, excelSeparator, fromSimple } from "@/lib/flowOutputModel";
 import { STANDARDS, type StandardSupport } from "@/lib/standards/catalog";
 import { STANDARD_OUTPUTS, kindGroup, standardFamilies } from "@/lib/standardOutputs";
 import { and } from "@/lib/flowSentences";
@@ -154,7 +154,10 @@ function QuickFile({ flow, title, onDone, made, names, pick, setPick }: Props & 
       const tableKey = columns.length ? table.key : null;
       return createOutput(flow.id, {
         name: name.trim(), format, tableKey, destinationId: null,
-        template: fromSimple({ fields, table: tableKey ? { key: tableKey, columns } : null }, format),
+        template: fromSimple({
+          fields, table: tableKey ? { key: tableKey, columns } : null,
+          ...(format === "csv" ? { delimiter: excelSeparator(), byteOrderMark: true } : {}),
+        }, format),
       });
     },
     onSuccess: made,

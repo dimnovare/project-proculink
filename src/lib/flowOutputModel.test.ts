@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OutputNode, OutputNodeTemplate } from "@/lib/api/types";
-import { describeSendWhen, fromSimple, leafPaths, toSimple } from "@/lib/flowOutputModel";
+import { describeSendWhen, excelSeparator, fromSimple, leafPaths, toSimple } from "@/lib/flowOutputModel";
 
 // Shaped like DefaultOutputTemplate.For(...) for csv: leaves named by label, one table "lines" of two columns.
 const leaf = (name: string, canonicalField: string): OutputNode => ({
@@ -31,11 +31,28 @@ describe("flowOutputModel", () => {
   it("round-trips widths and the separator", () => {
     const simple = { fields: [{ name: "po", source: { field: "po" }, width: 6 }], table: null, delimiter: ";" };
     expect(toSimple(fromSimple(simple, "fixed"))!.fields[0].width).toBe(6);
-    expect(toSimple(fromSimple(simple, "fixed"))!.delimiter).toBeUndefined();
+    expect(toSimple(fromSimple(simple, "fixed"))!.delimiter).toBe(";");
     expect(toSimple(fromSimple(simple, "csv"))).toEqual({ ...simple, fields: [{ name: "po", source: { field: "po" } }] });
     const quoted = fromSimple(simple, "csv");
     quoted.csvDialect = { delimiter: ";", quotePolicy: "always" };
     expect(toSimple(quoted)).toBeNull();
+  });
+
+  it("keeps the separator and byte-order mark through an edit and a change of type", () => {
+    const simple = toSimple({ ...template, csvDialect: { delimiter: ";", byteOrderMark: true } });
+    expect(simple).not.toBeNull();
+    expect(simple!.byteOrderMark).toBe(true);
+    expect(fromSimple(simple!, "csv").csvDialect).toEqual({ delimiter: ";", byteOrderMark: true });
+    expect(fromSimple(simple!, "xlsx").csvDialect).toEqual({ delimiter: ";", byteOrderMark: true });
+    expect(fromSimple(simple!, "json").csvDialect).toBeUndefined();
+  });
+
+  it("picks the separator Excel expects from the first browser language and the time zone", () => {
+    expect(excelSeparator(["et-EE"], "Europe/Tallinn")).toBe(";");
+    expect(excelSeparator(["en-US"], "Europe/Tallinn")).toBe(";");
+    expect(excelSeparator(["en-GB"], "Europe/London")).toBe(",");
+    expect(excelSeparator(["en-US"], "America/New_York")).toBe(",");
+    expect(excelSeparator(["de-DE"], "UTC")).toBe(";");
   });
 
   it("reads a field with no rule as a blank fixed value", () => {

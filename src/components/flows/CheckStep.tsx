@@ -16,6 +16,7 @@ import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { firstRunAddress, foundSummary, PROVISIONAL_FLOW_NAME, suggestFlowName, tableSummary } from "@/lib/firstRun";
 import { fieldListFromRead } from "@/lib/flowFieldModel";
+import { excelSeparator } from "@/lib/flowOutputModel";
 import { editKey, reviewMarks } from "@/lib/reviewMarks";
 import { Field, INPUT } from "./DestinationForm";
 import { Original, Pane, PaneTabs } from "./DocumentScreen";
@@ -76,7 +77,7 @@ export function CheckStep({ flow, docId, first }: { flow: Flow; docId: string | 
       const all = fieldListFromRead(read!);
       const kept = { fields: all.fields.filter((f) => !dropped.has(f.key)), tables: all.tables.filter((t) => !dropped.has(t.key)) };
       qc.setQueryData(["flow", flow.id], await saveFlowFields(flow.id, kept));
-      if ((await listOutputs(flow.id)).length === 0) await createOutput(flow.id, { name: "CSV file", format: "csv" });
+      if ((await listOutputs(flow.id)).length === 0) await createOutput(flow.id, { name: "CSV file", format: "csv", csvSeparator: excelSeparator() });
     },
     onSuccess: () => {
       for (const queryKey of [["flows"], ["outputs", flow.id]]) void qc.invalidateQueries({ queryKey });

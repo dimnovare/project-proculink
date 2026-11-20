@@ -187,6 +187,8 @@ export interface CsvDialect {
   lineEnding?: string | null;
   /** Output encoding by name, e.g. "windows-1252". Absent → UTF-8, no BOM. */
   encoding?: string | null;
+  /** True writes a UTF-8 byte-order mark so Excel reads the text as UTF-8. Absent: none. */
+  byteOrderMark?: boolean | null;
   /** Absent/true writes the header row; false omits it for data-only feeds. */
   writeHeaderRow?: boolean | null;
 }

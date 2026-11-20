@@ -38,16 +38,16 @@ describe("documents api", () => {
     await newInboxAddress();
     await addDocument(new File(["x"], "invoice-2292.pdf"));
     await moveDocument("doc-1", "flow-1");
-    await setUpDocument("doc-1");
-    await downloadDocument("doc-1", "csv");
+    await setUpDocument("doc-1", undefined, ";");
+    await downloadDocument("doc-1", "csv", ",");
     await getSortFlows("doc-1");
     const calls = fetchMock.mock.calls.map(([url, init]) => [
       init?.method ?? "GET", new URL(String(url)).pathname, init?.body instanceof FormData ? "FormData" : init?.body,
     ]);
     expect(calls).toEqual([
       ["GET", "/api/inbox", undefined], ["POST", "/api/inbox/new-address", undefined], ["POST", "/api/documents", "FormData"],
-      ["POST", "/api/documents/doc-1/move", '{"flowId":"flow-1"}'], ["POST", "/api/documents/doc-1/set-up", "{}"],
-      ["POST", "/api/documents/doc-1/download", '{"format":"csv"}'], ["GET", "/api/documents/doc-1/sort-flows", undefined],
+      ["POST", "/api/documents/doc-1/move", '{"flowId":"flow-1"}'], ["POST", "/api/documents/doc-1/set-up", '{"csvSeparator":";"}'],
+      ["POST", "/api/documents/doc-1/download", '{"format":"csv","csvSeparator":","}'], ["GET", "/api/documents/doc-1/sort-flows", undefined],
     ]);
   });
 

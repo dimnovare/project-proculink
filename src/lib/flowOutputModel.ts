@@ -7,7 +7,23 @@ export type SimpleRow = {
   lookup?: { id: string; ifMissing: "keep" | "blank" };
   width?: number;
 };
-export type SimpleOutput = { fields: SimpleRow[]; table: { key: string; columns: SimpleRow[] } | null; delimiter?: string };
+export type SimpleOutput = { fields: SimpleRow[]; table: { key: string; columns: SimpleRow[] } | null; delimiter?: string; byteOrderMark?: boolean };
+
+// Countries in Europe/ whose Excel still splits CSV on a comma.
+const COMMA_ZONES = new Set(["London", "Dublin", "Malta", "Isle_of_Man", "Jersey", "Guernsey"].map((z) => `Europe/${z}`));
+
+/**
+ * The separator the user's Excel splits a CSV on: ";" where numbers take a decimal comma. Read from the first browser
+ * language and, because many people run an English browser on a European-region Windows, the time zone.
+ */
+export function excelSeparator(
+  languages: readonly string[] = typeof navigator === "undefined" ? [] : navigator.languages,
+  timeZone: string = Intl.DateTimeFormat().resolvedOptions().timeZone,
+): ";" | "," {
+  const [first] = languages;
+  const comma = !!first && new Intl.NumberFormat(first).formatToParts(1.5).some((p) => p.type === "decimal" && p.value === ",");
+  return comma || (timeZone?.startsWith("Europe/") && !COMMA_ZONES.has(timeZone)) ? ";" : ",";
+}
 
 /** Same rule as the backend's DefaultOutputTemplate: the name's length, from 40 to 1000. */
 export const defaultWidth = (name: string) => Math.min(Math.max(name.length, 40), 1000);
@@ -36,13 +52,13 @@ const leaves = (nodes: OutputNode[]) => {
 
 export function toSimple(t: OutputNodeTemplate): SimpleOutput | null {
   const { root } = t;
-  const { delimiter, ...otherDialect } = t.csvDialect ?? {};
+  const { delimiter, byteOrderMark, ...otherDialect } = t.csvDialect ?? {};
   if (t.namespaces || t.envelope || Object.values(otherDialect).some((v) => v != null) || root.name !== "document" || root.nodeType !== "object") return null;
   const kids = root.children ?? [];
   const arrays = kids.filter((k) => k.nodeType === "array");
   const fields = leaves(kids.filter((k) => k.nodeType !== "array"));
   if (!fields || arrays.length > 1) return null;
-  const dialect = delimiter ? { delimiter } : {};
+  const dialect = { ...(delimiter ? { delimiter } : {}), ...(byteOrderMark ? { byteOrderMark } : {}) };
   if (!arrays.length) return { fields, table: null, ...dialect };
   const [a] = arrays;
   const item = a.children?.length === 1 ? a.children[0] : null;
@@ -64,10 +80,16 @@ const toNode = (fixed: boolean) => ({ name, source, lookup, width }: SimpleRow):
   },
 });
 
+// The separator and byte-order mark ride on every csv template, so CSV → Excel → CSV loses neither.
+const csvDialect = ({ delimiter, byteOrderMark }: SimpleOutput) =>
+  (delimiter && delimiter !== ",") || byteOrderMark
+    ? { csvDialect: { ...(delimiter && delimiter !== "," ? { delimiter } : {}), ...(byteOrderMark ? { byteOrderMark } : {}) } }
+    : {};
+
 /** `format` is the output format; everything but json and xml renders from the csv template, as on the server. */
 export const fromSimple = (s: SimpleOutput, format: string): OutputNodeTemplate => ({
   format: format === "json" || format === "xml" ? format : "csv",
-  ...(format === "csv" && s.delimiter && s.delimiter !== "," ? { csvDialect: { delimiter: s.delimiter } } : {}),
+  ...(format === "json" || format === "xml" ? {} : csvDialect(s)),
   root: {
     name: "document",
     nodeType: "object",

@@ -89,7 +89,7 @@ describe("CheckStep", () => {
     await waitFor(() => expect(router.push).toHaveBeenCalledWith("/flows/new?step=send&flow=f-1&doc=d-1"));
     expect(api.saveFlowFields).toHaveBeenCalledTimes(1);
     expect(api.saveFlowFields.mock.calls[0][1].fields.map((f: FlowField) => f.key)).not.toContain("bill_to");
-    expect(api.createOutput).toHaveBeenCalledWith("f-1", { name: "CSV file", format: "csv" });
+    expect(api.createOutput).toHaveBeenCalledWith("f-1", expect.objectContaining({ name: "CSV file", format: "csv", csvSeparator: expect.stringMatching(/^[,;]$/) }));
     expect(api.updateFlow).toHaveBeenCalledWith("f-1", { name: "Invoices" });
   });
 
