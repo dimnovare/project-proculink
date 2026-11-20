@@ -12,6 +12,7 @@ import { API_BASE_URL, authHeader, fetchWithTimeout, isApiMockMode } from "./cor
 import { mockEngineFetch } from "./mockEngine";
 import { readRefusal } from "./refusal";
 import type { OutputNodeTemplate } from "./types";
+import type { CheckMode } from "../deliveryMode";
 
 export interface Box { x: number; y: number; width: number; height: number }
 export interface SourceLocation { page: number | null; box: Box | null; address: string | null }
@@ -32,7 +33,9 @@ export interface FlowTable { key: string; label: string; columns: FlowField[] }
 export interface FlowFieldList { fields: FlowField[]; tables: FlowTable[] }
 export interface Flow {
   id: string; name: string; fieldsConfirmed: boolean; fields: FlowFieldList; documentCount: number; createdAt: string;
-  automation: "review" | "auto";
+  automation: CheckMode;
+  /** No output in use has a live destination, so a person downloads the file. Absent on an older backend: the destination words. */
+  downloadOnly?: boolean;
   /** Scanned PDFs and photos are readable. Absent on an older backend, which means off. */
   scansOn?: boolean;
   /** Word, text, XML, JSON and EDI files are readable. Absent on an older backend, which means off. */
@@ -63,7 +66,11 @@ export interface DocumentSummary {
   source: string; sourceRef: string | null;
   /** The flow version this document was read with; null until read on a published flow. Absent on an older backend. */
   flowVersion?: number | null;
+  /** Read in the current UTC month, not a sample, and billed: removing it still counts this month. */
+  countsThisMonth?: boolean;
 }
+/** A made file of a sent document. `destination` is null when it was stored, or its destination is gone. */
+export interface DocumentFile { deliveryId: string; fileName: string; delivered: boolean; destination: string | null }
 /** Where sending stopped. `destination` is null when it has no name left to give. */
 export interface DocumentStop { destinationId: string | null; destination: string | null; error: string | null }
 /** A row of the paged documents list: the summary plus what only the app shows. Only pages carry these. */
@@ -80,6 +87,14 @@ export interface DocumentRow extends DocumentSummary {
   kind?: string | null;
   /** Still in the workspace's inbox ("New documents"): not yet with a flow. Absent on an older backend. */
   inInbox?: boolean;
+  /** Only on `sent`: its made files. */
+  files?: DocumentFile[];
+  /** Only on a `duplicate_file`: when the earlier copy was added. */
+  duplicateOfAt?: string | null;
+  /** The flow's current download-only answer. */
+  downloadOnly?: boolean;
+  /** The caller may remove this document. */
+  canRemove?: boolean;
 }
 /** The workspace's inbox: where a document added without a flow lands, and the one email address that leads there. */
 export interface Inbox { flowId: string; address: string | null; intakeId: string | null; scansOn?: boolean; formatsOn?: boolean }
@@ -93,6 +108,8 @@ export interface DocumentDetail {
   summary: DocumentSummary; contentType: string; read: ReadResult; checks: DocumentCheck[];
   /** Who this document is from, as read off it (VAT number, then name, then email domain), or null. */
   senderLabel?: string | null;
+  /** The caller may remove this document. */
+  canRemove?: boolean;
 }
 /** Where a value sits on the original: a box on a page, or a sheet cell / text line with the value read there. */
 export interface TeachRequest { key?: string; newLabel?: string; page?: number; box?: Box; address?: string; value?: string }
@@ -166,6 +183,8 @@ export interface OutputPreview { contentType: string; fileName: string; content:
 export interface DocumentDelivery {
   id: string; outputName: string; protocol: string; status: string; attempts: number;
   lastError: string | null; fileName: string | null; deliveredAt: string | null;
+  /** The destination's name when delivered; null when stored or gone. */
+  destination?: string | null;
 }
 
 const UPLOAD_TIMEOUT_MS = 60_000;
@@ -202,7 +221,7 @@ export const restoreFlowVersion = (id: string, versionNo: number) =>
   apiFetch<Flow>(`/flows/${seg(id)}/versions/${versionNo}/restore`, { method: "POST" });
 export const renameFlow = (id: string, name: string) =>
   apiFetch<Flow>(`/flows/${seg(id)}`, { method: "PATCH", body: json({ name }) });
-export const updateFlow = (id: string, patch: { name?: string; automation?: "review" | "auto" }) =>
+export const updateFlow = (id: string, patch: { name?: string; automation?: CheckMode }) =>
   apiFetch<Flow>(`/flows/${seg(id)}`, { method: "PATCH", body: json(patch) });
 export const saveFlowFields = (id: string, fields: FlowFieldList) =>
   apiFetch<Flow>(`/flows/${seg(id)}/fields`, { method: "PUT", body: json(fields) });
@@ -326,6 +345,8 @@ export const updateOutput = (flowId: string, id: string, body: OutputRequest) =>
 export const deleteOutput = (flowId: string, id: string) =>
   apiFetch<void>(`/flows/${seg(flowId)}/outputs/${seg(id)}`, { method: "DELETE" });
 /** Upload timeout: it erases each document's stored files first, and a cut-off wait is not a refusal. */
+export const deleteDocument = (id: string) =>
+  apiFetch<void>(`/documents/${seg(id)}`, { method: "DELETE" }, UPLOAD_TIMEOUT_MS);
 export const deleteFlow = (id: string) => apiFetch<void>(`/flows/${seg(id)}`, { method: "DELETE" }, UPLOAD_TIMEOUT_MS);
 export const previewOutput = (documentId: string, outputId: string, opts?: { published?: boolean; template?: OutputNodeTemplate }) =>
   apiFetch<OutputPreview>(`/documents/${seg(documentId)}/outputs/${seg(outputId)}/preview${opts?.published ? "?published=true" : ""}`, {

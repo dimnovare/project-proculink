@@ -13,6 +13,16 @@
  * Code identifiers (`autoDeliver`, `AutoProcessPill`, …) are deliberately unchanged.
  */
 
+/** A flow's check mode: which documents wait for a person. Mirrors `FlowAutomation` (backend). */
+export type CheckMode = "marked" | "review" | "auto";
+
+/** The three check modes, in the order they are offered. */
+export const CHECK_MODES: readonly { id: CheckMode; title: string; short: string }[] = [
+  { id: "marked", title: "Check only what we marked", short: "Only what we marked" },
+  { id: "review", title: "Check every document", short: "Every document" },
+  { id: "auto", title: "Check nothing", short: "Nothing" },
+];
+
 /** The switch on — orders go to the supplier without a further click once prepared. */
 export const AUTOMATIC_DELIVERY_LABEL = "Automatic delivery";
 
