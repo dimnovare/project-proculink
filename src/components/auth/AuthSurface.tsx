@@ -239,7 +239,10 @@ export const clerkAppearance = {
   },
   elements: {
     rootBox: "w-full",
-    cardBox: "w-full shadow-none",
+    // Clerk clips the card box (overflow: hidden). With the header hidden and no card
+    // padding, that cut the focus ring off whatever touches its edge: the top of the
+    // code boxes, the sides of every full-width field. The box draws nothing of its own.
+    cardBox: "w-full shadow-none overflow-visible",
     card: "w-full bg-transparent shadow-none p-0 gap-0",
     header: "hidden",
     headerTitle: "hidden",
