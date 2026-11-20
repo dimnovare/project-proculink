@@ -64,7 +64,7 @@ test.describe("power tools", () => {
     await expect(page.getByTestId("review-header-actions")).toContainText("1 of 2 that need you");
     // The mock remembers for the life of the page: open doc-1 again without a reload, through the list.
     await page.getByRole("link", { name: "Documents" }).first().click();
-    await page.getByRole("tab", { name: /^Sent/ }).click();
+    await page.getByRole("tab", { name: /^Finished/ }).click();
     await page.getByRole("table").getByRole("link", { name: "invoice-1001.csv" }).click();
     await expect(page).toHaveURL(/\/documents\/doc-1$/);
     await expect(page.getByRole("region", { name: "What we read" }).getByLabel("Supplier")).toHaveValue("Example Supplier Ltd");

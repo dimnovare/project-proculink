@@ -12,8 +12,8 @@ export const BEING_READ_STATUSES: readonly string[] = where((s) => s.tone === "w
 /** In the board's order. Statuses are derived from DOCUMENT_STATUSES, never typed. */
 export const DOCUMENT_TABS: readonly DocumentTabDef[] = [
   { id: "needs-you", label: "Needs you", statuses: NEEDS_YOU_STATUSES },
-  { id: "sent", label: "Sent", statuses: where((s) => s.tone === "success") },
-  { id: "failed", label: "Couldn't send or read", statuses: where((s) => s.tone === "error") },
+  { id: "sent", label: "Finished", statuses: where((s) => s.tone === "success") },
+  { id: "failed", label: "Couldn't be read or sent", statuses: where((s) => s.tone === "error") },
   { id: "all", label: "All", statuses: null },
 ];
 
@@ -50,5 +50,5 @@ export function documentsHelper(needsYou: number | undefined, sentThisWeek: numb
   if (needsYou === undefined) return null;
   const needs = needsYou === 0 ? "Nothing needs you." : `${needsYou} ${needsYou === 1 ? "needs" : "need"} you.`;
   const reading = beingRead ? ` ${beingRead} being read.` : "";
-  return `${needs}${reading}${sentThisWeek ? ` ${sentThisWeek} ${sentThisWeek === 1 ? "was" : "were"} sent this week.` : ""}`;
+  return `${needs}${reading}${sentThisWeek ? ` ${sentThisWeek} finished this week.` : ""}`;
 }

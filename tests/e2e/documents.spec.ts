@@ -11,15 +11,15 @@ test.describe("documents", () => {
     const tab = (name: RegExp) => page.getByRole("tab", { name });
     await expect(tab(/^Needs you/)).toHaveAttribute("aria-selected", "true");
     await expect(page.getByRole("table").getByRole("row")).toHaveCount(4);                 // the headings and three documents
-    await tab(/^Sent/).click();
+    await tab(/^Finished/).click();
     await expect(page).toHaveURL(/\/documents\?show=sent$/);
     await page.reload();
-    await expect(tab(/^Sent/)).toHaveAttribute("aria-selected", "true");
+    await expect(tab(/^Finished/)).toHaveAttribute("aria-selected", "true");
     await page.getByRole("table").getByRole("link").first().click();
     await expect(page).toHaveURL(/\/flows\/[^/]+\/documents\/[^/]+$/);
     await page.goBack();
     await expect(page).toHaveURL(/\/documents\?show=sent$/);
-    await expect(tab(/^Sent/)).toHaveAttribute("aria-selected", "true");
+    await expect(tab(/^Finished/)).toHaveAttribute("aria-selected", "true");
     await page.goto("/documents?show=bogus&page=-3");
     await expect(tab(/^Needs you/)).toHaveAttribute("aria-selected", "true");
     // The In progress tab is gone: its old address opens on the default tab.

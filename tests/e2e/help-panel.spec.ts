@@ -152,7 +152,7 @@ test.describe("help panel", () => {
     expect(await page.locator(`${PANEL} :is(iframe, frame, object, embed)`).count()).toBe(0);
 
     // Press something on the page while the panel is open: it works and the panel stays.
-    const sent = page.getByRole("tab", { name: /^Sent/ });
+    const sent = page.getByRole("tab", { name: /^Finished/ });
     await sent.click();
     await expect(sent).toHaveAttribute("aria-selected", "true");
     await expect(page.locator(PANEL)).toBeVisible();
@@ -229,7 +229,7 @@ test.describe("help panel", () => {
   const NAMED_CONTROLS: Record<string, { role: "link" | "button" | "tab" | "radio" | "summary"; name: RegExp }[]> = {
     "/documents": [
       { role: "tab", name: /^Needs you/ }, { role: "link", name: /^Review next/ },
-      { role: "tab", name: /^Sent/ }, { role: "tab", name: /^All/ },
+      { role: "tab", name: /^Finished/ }, { role: "tab", name: /^All/ },
     ],
     "/flows": [{ role: "link", name: /^Supplier invoices$/ }, { role: "button", name: /^New flow$/ }],
     "/settings": [

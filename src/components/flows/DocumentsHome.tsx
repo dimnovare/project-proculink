@@ -154,7 +154,7 @@ export function DocumentsHome() {
       <div className="flex flex-col gap-3">
         <Card flush>
           <DocumentList key={`${tabDef.id}:${page}`} documents={items} showFlow sendable label={`Documents: ${tabDef.label}`}
-            needHeading={tabDef.id === "needs-you" ? "What's needed" : "Status"} selection={selecting ? selection : undefined} />
+            needHeading="What happened" selection={selecting ? selection : undefined} />
         </Card>
         {/* Edge-aligned, with room below: on phones the round Add button rises over the page's centre. */}
         {totalCount > DOCUMENTS_PAGE_SIZE && (
@@ -211,7 +211,7 @@ export function DocumentsHome() {
           </div>
           {(rows.length > 0 || selecting) && (
             <Button type="button" variant="ghost" size="sm" className="shrink-0"
-              title={selecting ? "Stop ticking documents" : "Tick several documents to send or download them together"}
+              title={selecting ? "Stop ticking documents" : "Tick several documents to send, download or remove them together"}
               onClick={() => { setSelecting(!selecting); clear(); }}>
               {selecting ? "Done" : "Select"}
             </Button>
@@ -227,7 +227,8 @@ export function DocumentsHome() {
         ) : report && <StatusNotice tone={report.ok ? "success" : "error"}>{report.lines}</StatusNotice>}
         {/* One line for everything older. History is not in the top bar; it is reached from here. A phone has no Ctrl key. */}
         <p className="m-0 text-[13px] text-ink-muted">
-          Older documents are under Sent and All
+          To download or remove several at once, press Select and tick them. Open any document to remove it from there.{" "}
+          Older documents are under Finished and All
           {pagePopulation(anyOldOrders.data).rows > 0 && <>, and older orders under <Link href="/archive" className="inline-flex items-center font-medium text-brand-blue-deep underline">Old orders</Link></>}
           <span className="hidden md:inline">
             , or press{" "}

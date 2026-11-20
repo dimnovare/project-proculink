@@ -9,7 +9,9 @@ import { documentRefusalMessage } from "@/lib/documentRefusals";
 import type { ListedDocument } from "./DocumentList";
 import { SelectionBar, sendLabel, type BarReport } from "./SelectionBar";
 
-const api = vi.hoisted(() => ({ sendDocument: vi.fn(), fetchDocumentSource: vi.fn() }));
+const api = vi.hoisted(() => ({ sendDocument: vi.fn(), fetchDocumentSource: vi.fn(), deleteDocument: vi.fn() }));
+const confirm = vi.hoisted(() => vi.fn());
+vi.mock("@/components/ui/confirm", () => ({ useConfirm: () => confirm }));
 vi.mock("@/lib/api/documents", () => api);
 const save = vi.hoisted(() => ({ saveBlob: vi.fn() }));
 vi.mock("@/lib/saveBlob", () => save);
@@ -18,20 +20,20 @@ vi.stubGlobal("Blob", NodeBlob);
 
 const doc = (n: number): ListedDocument => ({
   id: `doc-${n}`, flowId: "f1", flowName: "Invoices", fileName: `invoice-100${n}.pdf`, status: "ready", statusReason: null,
-  pageCount: 1, billingUnits: 1, failedChecks: 0, createdAt: "2026-11-01T00:00:00Z", source: "upload", sourceRef: null, inInbox: false,
+  pageCount: 1, billingUnits: 1, failedChecks: 0, createdAt: "2026-11-01T00:00:00Z", source: "upload", sourceRef: null, inInbox: false, canRemove: true,
 });
 
 /** The bar as the screen holds it: a document that went is unticked at once, and the result is kept outside the bar. */
-function mount() {
+function mount(n = 3) {
   const onSent = vi.fn();
   function Harness() {
-    const [selected, setSelected] = useState([doc(1), doc(2), doc(3)]);
+    const [selected, setSelected] = useState([doc(1), doc(2), doc(3)].slice(0, n));
     const [report, setReport] = useState<BarReport | null>(null);
     return <SelectionBar selected={selected} sent={new Set()} report={report} onReport={setReport} onClear={() => {}}
       onSent={(id) => { onSent(id); setSelected((s) => s.filter((d) => d.id !== id)); }} />;
   }
   const r = render(<QueryClientProvider client={new QueryClient()}><Harness /></QueryClientProvider>);
-  const bar = within(screen.getByRole("region", { name: "3 documents selected" }));
+  const bar = within(screen.getByRole("region", { name: `${n} documents selected` }));
   const press = (name: string) => act(async () => { fireEvent.click(bar.getByRole("button", { name })); });
   return { r, bar, onSent, press };
 }
@@ -84,6 +86,22 @@ describe("SelectionBar", () => {
       <SelectionBar selected={[doc(1), { ...doc(2), inInbox: undefined }]} sent={new Set()} report={null} onReport={() => {}} onClear={() => {}} onSent={() => {}} />
     </QueryClientProvider>);
     expect(within(screen.getByRole("region", { name: "2 documents selected" })).getByRole("button", { name: "Send the ready one" })).toBeEnabled();
+  });
+
+  it("removes the ticked documents after asking, and reports what happened", async () => {
+    confirm.mockResolvedValue(false);
+    const no = mount(2);
+    await no.press("Remove");
+    expect(api.deleteDocument).not.toHaveBeenCalled();
+    no.r.unmount();
+
+    confirm.mockResolvedValue(true);
+    api.deleteDocument.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new ApiHttpError("busy", 409, { error: "document_busy" }));
+    const m = mount(2);
+    await m.press("Remove");
+    await waitFor(() => expect(m.bar.getByRole("alert")).toHaveTextContent("1 document removed."));
+    expect(m.bar.getByRole("alert")).toHaveTextContent("invoice-1002.pdf couldn't be removed: This document is being read or sent. Try again in a moment.");
+    expect(confirm.mock.calls[0][0].title).toBe("Remove 2 documents?");
   });
 
   it("downloads the ticked originals in documents.zip", async () => {

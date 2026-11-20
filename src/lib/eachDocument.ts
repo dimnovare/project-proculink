@@ -1,6 +1,6 @@
 import { zipSync } from "fflate";
 import { ApiHttpError } from "@/lib/api/core";
-import { fetchDocumentSource, sendDocument } from "@/lib/api/documents";
+import { deleteDocument, fetchDocumentSource, sendDocument } from "@/lib/api/documents";
 import { refusalToken } from "@/lib/documentRefusals";
 import { saveBlob } from "@/lib/saveBlob";
 
@@ -39,6 +39,10 @@ export async function eachDocument<T extends { id: string; fileName: string }, R
 
 /** Sends one document. */
 export const sendOne = (d: { id: string }) => sendDocument(d.id);
+
+/** Removes one document; a 404 is done (it was already gone). */
+export const removeOne = (d: { id: string }): Promise<void> =>
+  deleteDocument(d.id).catch((e) => { if (!(e instanceof ApiHttpError && e.status === 404)) throw e; });
 
 /** The server answered 204: storage could not read this original. Worded by `documentRefusalMessage` (`missing_original`). */
 export class MissingOriginal extends ApiHttpError {
