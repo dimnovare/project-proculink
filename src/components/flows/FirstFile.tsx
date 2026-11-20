@@ -64,7 +64,7 @@ export function FirstFile({ flow, docId }: { flow: Flow; docId: string }) {
           <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
             <div className="grid min-w-0 flex-[1_1_260px] gap-1">
               <span id="first-file-name" className="break-all font-mono text-[15px] font-medium text-ink">{fileName}</span>
-              <span className={LINE}>{`${KINDS[fileName.split(".").pop()!.toLowerCase()] ?? "A file"}, with the ${valuesCount(flow.fields.fields.length)} we read`}</span>
+              <span className={LINE}>{`${KINDS[fileName.split(".").pop()!.toLowerCase()] ?? "A file"}${flow.fields.fields.length ? `, with the ${valuesCount(flow.fields.fields.length)} we read` : ""}`}</span>
             </div>
             <Button variant="primary" size="lg" loading={download.isPending} onClick={() => download.mutate()}>Download</Button>
             {download.isError && <p role="alert" className="m-0 basis-full text-[13px] text-danger-text">{documentRefusalMessage(download.error)}</p>}

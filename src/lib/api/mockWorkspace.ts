@@ -170,7 +170,7 @@ function applyOutput(s: State, flow: WFlow, o: FlowOutput, b: Body): FlowOutput 
   if (name.length < 1 || name.length > 120) refuse(400, { error: "invalid_name" });
   if (!flow.fieldsConfirmed) refuse(409, { error: "fields_unconfirmed" });
   const destinationId = (b.destinationId as string | null | undefined) ?? null;
-  if (destinationId && !s.destinations.some((d) => d.id === destinationId)) refuse(422, { error: "output_invalid", detail: "The destination does not exist." });
+  if (destinationId && !s.destinations.some((d) => d.id === destinationId)) refuse(422, { error: "output_invalid", detail: "That destination no longer exists. Choose another place to send it." });
   const format = String(b.format ?? "csv");
   const tableKey = (b.tableKey as string | null | undefined) ?? null;
   flow.dirty = true;
