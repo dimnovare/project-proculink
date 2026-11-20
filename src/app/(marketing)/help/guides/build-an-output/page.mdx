@@ -17,7 +17,7 @@ import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 
 <Step n={1} title="Start a new file">
 
-Open the flow, go to the **We send** step, and select **Make another file** (or **Make a file** when the flow has none yet). It opens ready: a CSV file with every value we read.
+Open the flow, go to the **We send** step, and select **Make a second file** (**Make another file** when the flow already has two or more, **Make a file** when it has none yet). It opens ready: a CSV file with every value we read.
 
 <Outcome>
 The **Make another file** panel opens, with a **Name**, a **File type** and every value we read, ticked.
@@ -55,7 +55,7 @@ If the panel says "Give this file a name." or "Tick at least one value.", do tha
 
 Under **Goes to**, press **Change** to choose a destination you made before, or **New destination…** to make one now. See [Send files to a destination](/help/guides/send-to-a-destination).
 
-Under **More options: file type, when to send, separator, lookups**:
+To change the file type later, press **Change** next to **File type**. Under **More options: when to send, separator, lookups** (on a flow you download from, **More options: when to make it, separator, lookups**):
 
 - **CSV** has a **Separator**: comma, semicolon or tab.
 - **PDF** and **Text** have a **Title**, **Text at the top** and **Text at the bottom**. For PDF you can add a logo.
@@ -73,7 +73,7 @@ On **We send**, press **Change the columns** to open the column editor, and **Do
 
 - **Column name.** The column heading or the name the receiving system expects.
 - **Value.** A field of the document, or **Fixed value** with the text you type.
-- **Lookups**, under **More options: file type, when to send, separator, lookups**. Optional. Replaces the value through a lookup. Then choose whether to keep the value or leave it blank if it is not in the lookup. See [Lookups](/help/lookups).
+- **Lookups**, under **More options**. Optional. Replaces the value through a lookup. Then choose whether to keep the value or leave it blank if it is not in the lookup. See [Lookups](/help/lookups).
 - **Width.** Only for fixed-width text.
 
 Use **Up** and **Down** to change the order, **Remove** to drop a row and **Add a column** for a new one. Changes save as you make them; select **Use these changes** to put them in use.

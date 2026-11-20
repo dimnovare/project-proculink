@@ -24,6 +24,16 @@ export const metadata = pageMetadata({
 // those entries byte for byte.
 const ENTRIES = [
   {
+    version: "v2.10",
+    date: "20 November 2026",
+    items: [
+      "Change the file a flow makes without adding a second one: pick a common type, copy a sample, build it from your system's documentation, or choose a standard. You see the new file first, and nothing changes until you press Use this file. Where it goes stays the same.",
+      "At the end of your first flow's setup, Your first file is ready shows the file, lets you change its type in one tap, and says what happens next.",
+      "A flow's page now says in one sentence what the flow does. Documents and History are buttons under the four steps, and a file's card shows its type, where it goes and its columns.",
+      "A ready document on a flow's own Documents tab now has its Make the file or Send button.",
+    ],
+  },
+  {
     version: "v2.9",
     date: "20 November 2026",
     items: [

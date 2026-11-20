@@ -607,7 +607,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
         </section>
         <details className="rounded-md border border-border px-3 py-2">
           <summary className="flex min-h-11 cursor-pointer items-center text-[14px] font-semibold text-ink">
-            {`More options: ${flow.downloadOnly === true ? "when to make it" : "when to send"}, separator, lookups`}
+            {flow.downloadOnly === true ? "More options: when to make it, separator, lookups" : "More options: when to send, separator, lookups"}
           </summary>
           <div className="grid gap-3 pb-2 pt-2">
             {!rows && tableField}
