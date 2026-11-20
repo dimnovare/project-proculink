@@ -69,6 +69,14 @@ describe("DocumentOutputsPanel", () => {
     expect(panel.queryByRole("heading", { name: "Deliveries" })).toBeNull();
     expect(panel.queryByRole("button", { name: /^Send/ })).toBeNull();
   });
+  it("each file has Change the file, back to this document", async () => {
+    api.listDeliveries.mockResolvedValue([]);
+    const panel = within(renderPanel().container);
+    expect(await panel.findByRole("link", { name: "Change the file" })).toHaveAttribute("href",
+      "/flows/f/change-file?output=o&document=d&from=%2Fflows%2Ff%2Fdocuments%2Fd");
+    expect(panel.getByRole("link", { name: "Make a second file" })).toBeInTheDocument();
+  });
+
   it("lists a stored delivery with its line and Download", async () => {
     api.listDeliveries.mockResolvedValue([{ id: "x", outputName: "Totals", protocol: "", status: "stored", attempts: 0, lastError: null, fileName: "totals.csv", deliveredAt: null }]);
     const panel = within(renderPanel().container);

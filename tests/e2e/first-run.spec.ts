@@ -295,7 +295,8 @@ test.describe("First run", () => {
       const docId = docIdOf(p);
       await finish.getByRole("button", { name: "Finish", exact: true }).click();
       if (!fails) {
-        await expect(p).toHaveURL(new RegExp(`/flows/${flowId}$`), { timeout: 30_000 });
+        await expect(p).toHaveURL(new RegExp(`/flows/new\\?step=ready&flow=${flowId}&doc=${docId}$`), { timeout: 30_000 });
+        await expect(p.getByRole("heading", { level: 1, name: "Your first file is ready" })).toBeVisible();
         const after = (await mockState(p))!;
         expect(after.deliveries[docId], "one file, stored to download").toEqual([expect.objectContaining({ status: "stored" })]);
         expect(after.docs.find((d) => d.id === docId)!.status).toBe("sent");

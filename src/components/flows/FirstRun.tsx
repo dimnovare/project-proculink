@@ -11,6 +11,7 @@ import { getFlow, listFlows } from "@/lib/api/documents";
 import { COPY } from "@/lib/documentRefusals";
 import { isFirstFlow, readFirstRunAddress } from "@/lib/firstRun";
 import { CheckStep, notFound, useRunDocument } from "./CheckStep";
+import { FirstFile } from "./FirstFile";
 import { SendStep } from "./SendStep";
 import { Failed, Gone, Quiet } from "./states";
 import { Welcome } from "./Welcome";
@@ -62,7 +63,7 @@ export function StepFrame({ step, sub, first, children }: { step: 2 | 3; sub: st
   );
 }
 
-/** /flows/new: reads the address (Task 2), loads the flows, and renders Welcome, CheckStep or SendStep. */
+/** /flows/new: reads the address (Task 2), loads the flows, and renders Welcome, CheckStep, SendStep or FirstFile. */
 export function FirstRun() {
   const address = readFirstRunAddress(useSearchParams());
   const enabled = useTenantQueriesEnabled();
@@ -72,6 +73,8 @@ export function FirstRun() {
   const run = useRunDocument(flowId, address.doc);
 
   if (!flows.data) return <Bare>{flows.isError ? <Failed error={flows.error} retry={() => flows.refetch()} /> : <Quiet>Loading flows…</Quiet>}</Bare>;
+  // The first file is shown on the published flow the first run just finished.
+  if (address.step === "ready" && flow.data) return <PageShell variant="narrow"><FirstFile flow={flow.data} docId={address.doc!} /></PageShell>;
   // A finished flow is set up: no step runs on it again, so Back after Finish cannot re-arm a send or rewrite its fields.
   if (flow.data && flow.data.publishedVersion != null) return <Bare><SetUp flowId={flow.data.id} /></Bare>;
   if (address.step === "add") return flowId && flow.isLoading ? <Bare><Quiet>Loading…</Quiet></Bare> : <Welcome flows={flows.data} flowId={address.flow} />;

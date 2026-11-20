@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
@@ -8,7 +8,7 @@ import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { DestinationForm, Field, INPUT } from "@/components/flows/DestinationForm";
 import { outputTypeLabel } from "@/components/flows/OutputEditor";
 import { createOutput, listDestinations, testOutput } from "@/lib/api/documents";
-import type { DraftCite, Flow, FlowOutput, OutputDraft } from "@/lib/api/documents";
+import type { DraftCite, FileChoice, Flow, FlowOutput, OutputDraft } from "@/lib/api/documents";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { bindLeaf, defaultWidth, leafPaths, setLeafWidth } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
@@ -23,17 +23,22 @@ const Cite = ({ cite, show }: { cite?: DraftCite | null; show: boolean }) =>
     </p>
   ) : null;
 
-/** The person checks what each value of a proposed output is fed from, then presses Create: the visible accept step. */
-export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCreated, onRestart }: {
+/**
+ * The person checks what each value of a proposed output is fed from, then presses Create: the visible accept step.
+ * `replacing`: the draft replaces a file that goes to `destinationId`. No name, destination or Create; `onChange` gets
+ * the choice once it may be used (after a passing test where one is needed), else null.
+ */
+export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCreated, onRestart, replacing }: {
   flow: Flow; draft: OutputDraft; requireTest?: boolean; previewDocumentId?: string;
   onCreated(saved: FlowOutput): void; onRestart(): void;
+  replacing?: { destinationId: string | null; onChange(choice: FileChoice | null): void };
 }) {
   const qc = useQueryClient();
   const filled = useOnFlowPage() ? "secondary" : "primary";
   const [name, setName] = useState(draft.name);
   const [template, setTemplate] = useState(draft.template);
   const [problem, setProblem] = useState<string | null>(null);
-  const [destinationId, setDestinationId] = useState<string | null>(null);
+  const [destinationId, setDestinationId] = useState<string | null>(replacing?.destinationId ?? null);
   const [adding, setAdding] = useState<"new" | "proposed" | null>(null);
   const [outcome, setOutcome] = useState<{ key: string; ok: boolean; message: string | null } | null>(null);
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled: useTenantQueriesEnabled() });
@@ -55,6 +60,12 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
   });
   const current = outcome?.key === testKey ? outcome : null;
   const tested = !!current?.ok;
+  const ready = draft.leaves.length > 0 && (!gated || tested);
+  useEffect(() => {
+    replacing?.onChange(ready ? { format: draft.format, standard: null, tableKey: draft.tableKey, template: sent } : null);
+    // testKey stands for `sent`; the caller's `replacing` is a new object on each of its renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, testKey]);
   const noteKeys = new Set(draft.notes);
   if (draft.truncated) noteKeys.add("truncated");
 
@@ -69,6 +80,7 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (replacing) return; // Enter in a width box: the screen's Use this file saves, not this form
     if (!name.trim()) return setProblem("Give this file a name.");
     setProblem(null);
     create.mutate();
@@ -77,9 +89,11 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
   return (
     <Card edge="green" title="Check the values">
       <form onSubmit={submit} className="grid gap-3">
-        <Field label="Name">
-          <input className={INPUT} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
-        </Field>
+        {!replacing && (
+          <Field label="Name">
+            <input className={INPUT} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
+          </Field>
+        )}
         <p className="text-[13px] text-ink-muted">{outputTypeLabel(draft)}</p>
         <Cite cite={draft.formatCite} show={!!requireTest} />
         {leaves.map(({ path, node, inTable }) => {
@@ -112,6 +126,7 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
           );
         })}
         {[...noteKeys].filter((n) => Object.hasOwn(COPY, n)).map((n) => <p key={n} className="text-[12.5px] text-ink-muted">{COPY[n]}</p>)}
+        {!replacing && <>
         <Field label="Goes to">
           <select className={INPUT} value={adding === "new" ? NEW_DESTINATION : (destinationId ?? "")}
             onChange={(e) => {
@@ -140,6 +155,7 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
             }}
           />
         )}
+        </>}
         {gated && (
           <div className="grid gap-2 text-[12.5px] text-ink-muted">
             <p>{COPY.test_gate.replace("{destination}", destinations.data?.find((d) => d.id === destinationId)?.name ?? "")}</p>
@@ -156,7 +172,7 @@ export function DraftReview({ flow, draft, requireTest, previewDocumentId, onCre
         )}
         {problem && <StatusNotice tone="error">{problem}</StatusNotice>}
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" variant={filled} loading={create.isPending} disabled={!!adding || draft.leaves.length === 0 || (gated && (!previewDocumentId || !tested || test.isPending))}>Create</Button>
+          {!replacing && <Button type="submit" variant={filled} loading={create.isPending} disabled={!!adding || draft.leaves.length === 0 || (gated && (!previewDocumentId || !tested || test.isPending))}>Create</Button>}
           <Button type="button" variant="ghost" onClick={onRestart}>Choose a different file</Button>
         </div>
       </form>

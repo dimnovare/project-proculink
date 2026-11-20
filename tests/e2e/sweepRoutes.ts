@@ -50,6 +50,7 @@ const DYNAMIC_FILL: Record<string, string | null> = {
   "/flows/[flowId]": `/flows/${MOCK_ENGINE_IDS.flow}`,
   "/flows/[flowId]/documents/[documentId]": `/flows/${MOCK_ENGINE_IDS.flow}/documents/${MOCK_ENGINE_IDS.document}`,
   "/flows/[flowId]/outputs/[outputId]/advanced": `/flows/${MOCK_ENGINE_IDS.flow}/outputs/${MOCK_ENGINE_IDS.output}/advanced`,
+  "/flows/[flowId]/change-file": `/flows/${MOCK_ENGINE_IDS.flow}/change-file`,
   "/lookups/[lookupId]": `/lookups/${MOCK_ENGINE_IDS.lookup}`,
   "/documents/[id]": `/documents/${MOCK_ENGINE_IDS.document}`,
   // The read-only archive of old orders. The id is an old mock-client order id.

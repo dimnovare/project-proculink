@@ -20,7 +20,7 @@ const api = vi.hoisted(() => ({
   getFlow: vi.fn(), updateFlow: vi.fn(), deleteFlow: vi.fn(), listIntakes: vi.fn(), listOutputs: vi.fn(), listDestinations: vi.fn(),
   listDocumentPage: vi.fn(), publishFlow: vi.fn(), restoreFlowVersion: vi.fn(), listFlowVersions: vi.fn(),
   flowApiEndpoint: (id: string) => `/api/v1/flows/${id}/documents`, listLookups: vi.fn(async () => []),
-  listDocuments: vi.fn(), getDocument: vi.fn(), previewOutput: vi.fn(), testOutput: vi.fn(),
+  listDocuments: vi.fn(), getDocument: vi.fn(), previewOutput: vi.fn(), testOutput: vi.fn(), listFlows: vi.fn(async () => []),
 }));
 vi.mock("@/lib/api/documents", () => api);
 vi.mock("./UploadQueue", () => ({ useUploadQueue: () => ({ items: [], add: vi.fn(), retry: vi.fn() }), useUploadQueueIfMounted: () => null }));
@@ -51,6 +51,7 @@ beforeEach(() => {
   api.listDocumentPage.mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 10, sampleCount: 0 });
   api.listFlowVersions.mockResolvedValue([]);
   api.listDocuments.mockResolvedValue([]);
+  api.listFlows.mockResolvedValue([]);
 });
 
 const renderPage = () => render(<QueryClientProvider client={new QueryClient()}><FlowPage flowId="flow-1" /></QueryClientProvider>);
@@ -70,6 +71,15 @@ describe("FlowPage", () => {
     const down = render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><FlowPage flowId="f" /></QueryClientProvider>);
     expect(await within(down.container).findByRole("button", { name: "Try again" })).toBeTruthy();
     expect(within(down.container).queryByText("We can't find that page")).toBeNull();
+  });
+
+  it("says what the flow does, and puts Documents and History under the four steps", async () => {
+    api.listFlows.mockResolvedValue([{ ...flow, summary: { needsYou: 0, couldNotSend: 0, couldNotRead: 0, lastDocumentAt: null, waysIn: ["email"], outputs: [{ name: "Invoices CSV", format: "csv", standard: null, destination: null }] } }]);
+    renderPage();
+    expect(await screen.findByText("Reads documents from email and upload. You download Invoices CSV.")).toBeInTheDocument();
+    expect(strip().getAllByRole("listitem")).toHaveLength(4);
+    expect(strip().getByRole("link", { name: /^Documents in this flow/ })).toBeInTheDocument();
+    expect(strip().getByRole("link", { name: "History of changes" })).toBeInTheDocument();
   });
 
   it("the header says In use only for a flow with a saved setup", async () => {

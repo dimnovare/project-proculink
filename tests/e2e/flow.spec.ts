@@ -144,7 +144,7 @@ test.describe("flow page", () => {
     await page.getByRole("checkbox", { name: "Read Invoice number" }).check();
     await expect(stay(page)).toHaveCount(0);
 
-    // We send: a column with no name, then "Make another file".
+    // We send: a column with no name, then "Make a second file".
     await stepLink(page, "send").click();
     await expect(page).toHaveURL(/\?tab=send$/);
     await page.getByRole("button", { name: "Change the columns" }).click();
@@ -153,10 +153,10 @@ test.describe("flow page", () => {
     await expect(page.getByText("Give every column a name.").first()).toBeVisible();
     // The problem holds the column editor open, so there is no Done to press.
     await expect(page.getByRole("button", { name: "Done with the columns" })).toHaveCount(0);
-    await page.getByRole("button", { name: "Make another file" }).click();
+    await page.getByRole("button", { name: "Make a second file" }).click();
     await expect(stay(page)).toContainText("Give every column a name.");
     await expect(page).toHaveURL(/\?tab=send$/);
-    await expect(page.getByRole("button", { name: "Make another file" })).toHaveAttribute("aria-expanded", "false");
+    await expect(page.getByRole("button", { name: "Make a second file" })).toHaveAttribute("aria-expanded", "false");
     await bar(page).getByRole("button", { name: USE }).click();
     await expect(bar(page)).toContainText(`A change on ${title("send")} couldn't be saved, so nothing was put in use. Give every column a name.`);
     await page.getByLabel(/^Column name, /).first().fill("Invoice");
@@ -360,7 +360,7 @@ test.describe("flow page", () => {
         await settle(page, 400);
         if (view === "send") await expect(page.getByRole("button", { name: "Send a test" })).toBeVisible();
         if (view === "arrives") await page.getByText("For developers").click();
-        if (view === "send") await page.getByText("More options: file type, when to send, separator, lookups").click();
+        if (view === "send") await page.getByText("More options: when to send, separator, lookups").click();
         const where = `${view} at ${width}`;
         const m = await page.evaluate(() => {
           const main = document.querySelector("#main-content")!;
@@ -450,7 +450,7 @@ test.describe("flow page", () => {
     const google = { available: true, accounts: [{ id: "account-1", provider: "google", email: "sheets@example.test", status: "reconnect", createdAt: "2026-05-20T09:00:00Z" }] };
     await open(page, 1440, at("send"), { "GET /linked-accounts": google });
     await expect(page.getByRole("combobox", { name: "Goes to" })).toHaveCount(0);
-    await page.getByRole("button", { name: "Change where it goes" }).click();
+    await page.getByRole("button", { name: "Change where the file goes" }).click();
     await page.getByRole("combobox", { name: "Goes to" }).selectOption({ label: "New destination…" });
     await page.getByRole("combobox", { name: "Send by" }).selectOption({ label: "Google Sheets" });
     await expect(page.getByRole("button", { name: "Reconnect" })).toBeVisible();
@@ -465,7 +465,7 @@ test.describe("flow page", () => {
   test("We send at 1440: Goes to and Send a test are in the first screenful, the columns wait behind Change the columns, and the list counts the changes", async ({ page }) => {
     await open(page, 1440, at("send", MOCK_ENGINE_IDS.output), await simpleOutputs(), 900);
     const editor = page.getByRole("region", { name: "Edit the file Invoice CSV" });
-    const sendTo = editor.getByRole("heading", { name: "Goes to", exact: true });
+    const sendTo = editor.getByRole("button", { name: "Change where the file goes" });
     const test1 = editor.getByRole("button", { name: "Send a test" });
     for (const l of [sendTo, test1]) {
       const b = await box(l);
@@ -478,7 +478,7 @@ test.describe("flow page", () => {
     await expect(page.getByRole("textbox", { name: "Column name, Invoice" })).toBeVisible();
     await editor.getByRole("button", { name: "Done with the columns" }).click();
     await expect(page.getByRole("textbox", { name: /^Column name, / })).toHaveCount(0);
-    await expect(editor.getByText("More options: file type, when to send, separator, lookups")).toBeVisible();
+    await expect(editor.getByText("More options: when to send, separator, lookups")).toBeVisible();
     expect(await sends(page)).toEqual([]);
   });
 
@@ -487,9 +487,9 @@ test.describe("flow page", () => {
     await expect(page.getByRole("link", { name: /^Invoice CSV/ })).toContainText("2 changes not in use yet");
   });
 
-  test("Make another file opens a ready panel, and Create shows the new file with its heading focused and the list marking it", async ({ page }) => {
+  test("Make a second file opens a ready panel, and Create shows the new file with its heading focused and the list marking it", async ({ page }) => {
     await open(page, 1440, at("send"));
-    await page.getByRole("button", { name: "Make another file" }).click();
+    await page.getByRole("button", { name: "Make a second file" }).click();
     await expect(page.getByRole("heading", { name: "Make another file", level: 2 })).toBeVisible();
     await expect(page.getByRole("tab")).toHaveCount(0);
     for (const way of ["Match a sample file", "A standard format"]) await expect(page.getByRole("button", { name: way, exact: true })).toBeVisible();
@@ -518,7 +518,7 @@ test.describe("flow page", () => {
     const inUse = { ...(await fixture()), hasChanges: false };
     await open(page, 1440, at("send"), { [`GET /flows/${ID}`]: inUse });
     await expect(bar(page)).toHaveCount(0);
-    await page.getByRole("button", { name: "Make another file" }).click();
+    await page.getByRole("button", { name: "Make a second file" }).click();
     await expect(page.getByRole("button", { name: "Create", exact: true })).toBeVisible();
     expect(await filledOtherThanAi(page)).toEqual(["Create"]);
   });
@@ -536,7 +536,7 @@ test.describe("flow page on a phone", () => {
       const find = (sel: string, text: string) => [...el.querySelectorAll<HTMLElement>(sel)].find((n) => n.textContent?.trim() === text)!;
       const before = (a: Node, b: Node) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
       const preview = find("h3", "What the file looks like");
-      return { sendTo: before(find("h3", "Goes to"), preview), test: before(find("button", "Send a test"), preview) };
+      return { sendTo: before(find("span", "Goes to"), preview), test: before(find("button", "Send a test"), preview) };
     });
     expect(order, "Goes to and Send a test come before the preview").toEqual({ sendTo: true, test: true });
     const small = await editor.evaluate((el) =>

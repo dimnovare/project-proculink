@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/bridge/DSPrimitives";
+import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
+import { changeFileAddress, flowAddress } from "@/lib/flowSteps";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { DestinationForm, Field, INPUT, INPUT_BASE } from "@/components/flows/DestinationForm";
 import { LookupMisses } from "@/components/flows/LookupMisses";
-import { PdfDocumentView } from "@/components/bridge/document/PdfDocumentView";
+import { FilePreview } from "@/components/flows/FilePreview";
 import { checkOutput, createOutput, deleteOutputLogo, listDestinations, listLookups, previewOutput, testOutput, updateOutput, uploadOutputLogo } from "@/lib/api/documents";
 import type { Flow, FlowOutput, LookupSummary, OutputCheck, OutputLayout, OutputRequest, SendWhen, SendWhenOp } from "@/lib/api/documents";
 import { TestOutcome } from "@/components/destinations/TestOutcome";
@@ -28,7 +29,27 @@ import { FirstDocumentDrop, useLatestRead } from "./FlowValues";
 
 export const FORMATS = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML", pdf: "PDF", txt: "Text", fixed: "Fixed-width text" };
 /** What an output makes: its standard's name, else its file type. Never decided from `template.format`. */
-export const outputTypeLabel = (o: { format: string; standard?: string | null }) =>
+/** A file card's type line, by format; `standard` for any standard. */
+const TYPE_LINES: Record<string, string> = {
+  csv: "A spreadsheet file that most systems import.", xlsx: "A workbook that opens in Excel.",
+  xml: "A data file that other systems read.", json: "A data file that other systems read.",
+  pdf: "A page with the values laid out, ready to print.", txt: "Plain text, one line per row.", fixed: "Text in columns of a set width.",
+  standard: "A standard, filled in from what each value means.",
+};
+
+/** One row of a file card: label, value and its line, then the row's button. */
+const CardRow = ({ label, value, line, children }: { label: string; value: string; line: string | null; children: React.ReactNode }) => (
+  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border px-4 py-3 first:border-t-0">
+    <span className="flex-[0_0_96px] text-[13px] font-semibold text-ink-muted">{label}</span>
+    <span className="grid min-w-0 flex-[1_1_220px] gap-0.5">
+      <span className="break-words text-[14.5px] font-semibold text-ink">{value}</span>
+      {line && <span className="break-words text-[13px] text-ink-muted">{line}</span>}
+    </span>
+    {children}
+  </div>
+);
+
+export const outputTypeLabel =(o: { format: string; standard?: string | null }) =>
   o.standard ? standardName(o.standard) : Object.hasOwn(FORMATS, o.format) ? FORMATS[o.format as keyof typeof FORMATS] : o.format;
 const SEPARATORS = [[",", "Comma"], [";", "Semicolon"], ["\t", "Tab"]];
 const LAYOUT_FIELDS = [["title", "Title", 120], ["header", "Text at the top", 500], ["footer", "Text at the bottom", 500]] as const;
@@ -220,8 +241,6 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
     },
     onError: (e) => setProblem(e instanceof ApiHttpError && e.status === 413 ? COPY.invalid_logo : documentRefusalMessage(e)),
   });
-  const pdf = shown?.contentType === "application/pdf" && shown.base64 ? shown.base64 : null;
-  const pdfBlob = useMemo(() => pdf && new Blob([Uint8Array.from(atob(pdf), (c) => c.charCodeAt(0))], { type: "application/pdf" }), [pdf]);
 
   /** What a save sends. A new output has no template yet: the server makes the default one. */
   const bodyOf = (): OutputRequest => {
@@ -381,7 +400,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
     </Field>
   );
   const destinationsFailed = destinations.isError && <StatusNotice tone="error">{documentRefusalMessage(destinations.error)}</StatusNotice>;
-  // A saved new destination closes to "Change where it goes", focused: straight after the save, or on Close after its test.
+  // A saved new destination closes to "Change where the file goes", focused: straight after the save, or on Close after its test.
   const closeSaved = () => { newSaved.current = false; setNewDestination(false); setSendOpen(false); focusNext.current = `${uid}-change`; };
   const newDestinationForm = newDestination && (
     <DestinationForm
@@ -455,12 +474,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
         <LookupMisses documentId={previewDocumentId} outputId={current.id} misses={shown.lookupMisses}
           onChanged={() => (draft ? draftPreview.refetch() : preview.mutate())} />
       ) : null}
-      {pdfBlob && current ? <PdfDocumentView cacheKey={`output-preview-${current.id}-${draft ? draft.saves : preview.submittedAt}`} blob={pdfBlob} bounded regionLabel="Preview" />
-      : shown && (
-        <pre className="max-h-72 overflow-auto rounded border border-border bg-surface-2 p-2.5 font-mono text-[12.5px] text-ink">
-          {shown.content}
-        </pre>
-      )}
+      <FilePreview preview={shown} cacheKey={`output-preview-${current?.id}-${draft ? draft.saves : preview.submittedAt}`} />
     </>
   );
 
@@ -497,9 +511,17 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
         </div>
         {renameShown && nameField}
         {externalNote}
-        <section className="grid gap-2">
+        <div className="rounded-md border border-border">
+          <CardRow label="File type" value={outputTypeLabel(current)} line={current.standard ? TYPE_LINES.standard : TYPE_LINES[current.format] ?? null}>
+            <FlowLink
+              href={changeFileAddress(flow.id, { output: current.id, document: previewDocumentId ?? undefined, from: flowAddress(flow.id, "send", { output: current.id }) })}
+              push label="Change the file type" className={buttonClass("secondary", "sm")}
+            >
+              Change
+            </FlowLink>
+          </CardRow>
           {sendShown ? (
-            <>
+            <div className="grid gap-2 border-t border-border px-4 py-3">
               {sendToField}
               {destinationsFailed}
               {destination && (
@@ -512,45 +534,63 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
               {!sendForced && (
                 <div><Button type="button" variant="secondary" size="sm" aria-label="Done choosing where it goes" aria-expanded={sendShown} onClick={closeSend}>Done</Button></div>
               )}
-            </>
-          ) : (
-            <>
-              <h3 className={sectionTitle}>Goes to</h3>
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2">
-                <div className="grid min-w-0 gap-0.5">
-                  <span className="break-words text-[14px] font-semibold text-ink">{destination ? destination.name : "Download only"}</span>
-                  <span className="break-words text-[13px] text-ink-muted">{destination ? destinationWhere(destination) : "Each file waits in Documents, ready to download."}</span>
-                </div>
-                <Button
-                  type="button" variant="secondary" size="sm" id={`${uid}-change`} aria-label="Change where it goes" aria-expanded={sendShown}
-                  onClick={() => { setSendOpen(true); focusNext.current = `${uid}-send`; }}
-                >
-                  Change
-                </Button>
-              </div>
-            </>
-          )}
-          {previewDocumentId && (
-            <div className="grid gap-2">
-              <div className="flex flex-wrap items-center gap-3">
-                <Button
-                  type="button" variant="secondary" className="border-brand-green text-brand-green-deep" loading={test.isPending}
-                  disabled={!!reason} aria-describedby={reason ? reasonId : undefined}
-                  onClick={() => { if (reason) return; setTestAt(Date.now()); test.mutate(bodyOf()); }}
-                >
-                  Send a test
-                </Button>
-                {reason && <span id={reasonId} className="text-[12.5px] text-ink-muted">{reason}</span>}
-              </div>
-              {(test.data || test.isError) && test.variables?.destinationId && (
-                <TestOutcome
-                  destinationId={test.variables.destinationId} protocol={tested?.protocol ?? ""} result={test.data ?? null}
-                  error={test.isError ? test.error : null} at={testAt} place="form" offerResend={!unpublished}
-                />
-              )}
             </div>
+          ) : (
+            <CardRow label="Goes to" value={destination ? destination.name : "Download only"} line={destination ? destinationWhere(destination) : "Each file waits in Documents, ready to download."}>
+              <Button
+                type="button" variant="secondary" size="sm" id={`${uid}-change`} aria-label="Change where the file goes" aria-expanded={sendShown}
+                onClick={() => { setSendOpen(true); focusNext.current = `${uid}-send`; }}
+              >
+                Change
+              </Button>
+            </CardRow>
           )}
-        </section>
+          {rows && (
+            <CardRow label="Columns" value={`${columnCount} ${columnCount === 1 ? "column" : "columns"}`} line="Each column takes its value from one thing we read.">
+              {/* While a column has a problem the editor stays open, so there is no Done to press. */}
+              {!(columnsOpen && columnProblem) && (
+                <Button type="button" variant="secondary" size="sm" id={`${uid}-columns-toggle`} aria-label={columnsOpen ? "Done with the columns" : undefined} aria-expanded={columnsOpen} onClick={toggleColumns}>
+                  {columnsOpen ? "Done" : "Change the columns"}
+                </Button>
+              )}
+            </CardRow>
+          )}
+        </div>
+        {problemNotice}
+        {stale && <StatusNotice tone="warning">A column takes its value from something we no longer read. Choose another value for it.</StatusNotice>}
+        {rows && columnsOpen && (
+          <div id={`${uid}-columns`} className="grid gap-2">
+            {tableField}
+            <RowList columns fixed={format === "fixed"} rows={rows.fields} options={fieldOptions} lookups={lookupList} onChange={(fields) => setRows({ ...rows, fields })} />
+            {rows.table && (
+              <>
+                <p className="m-0 text-[12.5px] font-medium text-ink-muted">{table?.label ?? "Table"} columns</p>
+                <RowList columns fixed={format === "fixed"} rows={rows.table.columns} options={columnOptions} lookups={lookupList}
+                  onChange={(columns) => setRows({ ...rows, table: { key: rows.table!.key, columns } })} />
+              </>
+            )}
+          </div>
+        )}
+        {previewDocumentId && (
+          <div className="grid gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                type="button" variant="secondary" className="border-brand-green text-brand-green-deep" loading={test.isPending}
+                disabled={!!reason} aria-describedby={reason ? reasonId : undefined}
+                onClick={() => { if (reason) return; setTestAt(Date.now()); test.mutate(bodyOf()); }}
+              >
+                Send a test
+              </Button>
+              {reason && <span id={reasonId} className="text-[12.5px] text-ink-muted">{reason}</span>}
+            </div>
+            {(test.data || test.isError) && test.variables?.destinationId && (
+              <TestOutcome
+                destinationId={test.variables.destinationId} protocol={tested?.protocol ?? ""} result={test.data ?? null}
+                error={test.isError ? test.error : null} at={testAt} place="form" offerResend={!unpublished}
+              />
+            )}
+          </div>
+        )}
         <section className="grid gap-2">
           <h3 className={sectionTitle}>What the file looks like</h3>
           {previewDocumentId ? (
@@ -565,39 +605,11 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
             </>
           ) : <AddDocument flow={flow} sends={sendsByItself(flow.automation) && !!destinationId} />}
         </section>
-        {problemNotice}
-        {stale && <StatusNotice tone="warning">A column takes its value from something we no longer read. Choose another value for it.</StatusNotice>}
-        {rows && (
-          <section className="grid gap-2">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <h3 className={sectionTitle}>Columns ({columnCount})</h3>
-              <p className="m-0 min-w-0 flex-1 text-[13px] text-ink-muted">Each column takes its value from one thing we read.</p>
-              {/* While a column has a problem the editor stays open, so there is no Done to press. */}
-              {!(columnsOpen && columnProblem) && (
-                <Button type="button" variant="secondary" size="sm" id={`${uid}-columns-toggle`} aria-label={columnsOpen ? "Done with the columns" : undefined} aria-expanded={columnsOpen} onClick={toggleColumns}>
-                  {columnsOpen ? "Done" : "Change the columns"}
-                </Button>
-              )}
-            </div>
-            {columnsOpen && (
-              <div id={`${uid}-columns`} className="grid gap-2">
-                {tableField}
-                <RowList columns fixed={format === "fixed"} rows={rows.fields} options={fieldOptions} lookups={lookupList} onChange={(fields) => setRows({ ...rows, fields })} />
-                {rows.table && (
-                  <>
-                    <p className="m-0 text-[12.5px] font-medium text-ink-muted">{table?.label ?? "Table"} columns</p>
-                    <RowList columns fixed={format === "fixed"} rows={rows.table.columns} options={columnOptions} lookups={lookupList}
-                      onChange={(columns) => setRows({ ...rows, table: { key: rows.table!.key, columns } })} />
-                  </>
-                )}
-              </div>
-            )}
-          </section>
-        )}
         <details className="rounded-md border border-border px-3 py-2">
-          <summary className="flex min-h-11 cursor-pointer items-center text-[14px] font-semibold text-ink">More options: file type, when to send, separator, lookups</summary>
+          <summary className="flex min-h-11 cursor-pointer items-center text-[14px] font-semibold text-ink">
+            {flow.downloadOnly === true ? "More options: when to make it, separator, lookups" : "More options: when to send, separator, lookups"}
+          </summary>
           <div className="grid gap-3 pb-2 pt-2">
-            {typeField}
             {!rows && tableField}
             {sendWhenFields}
             {separatorField}

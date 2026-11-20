@@ -17,7 +17,7 @@ import { CHECK_MODES, checkModeLine, type CheckMode } from "@/lib/deliveryMode";
 import { COPY, documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
-import { saveBlob } from "@/lib/saveBlob";
+import { savePreview } from "@/lib/saveBlob";
 import { nextTabIndex } from "@/lib/tabKeys";
 import { destinationNameFor, firstRunAddress, foundSummary, keepsSummary } from "@/lib/firstRun";
 import { DestinationForm, Field, INPUT } from "./DestinationForm";
@@ -139,10 +139,11 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
     }
     await publishFlow(flow.id).catch((e: unknown) => { if (refusalToken(e) !== "nothing_to_publish") throw e; });
   };
-  const done = (sent: boolean) => {
+  /** A Download lands on Your first file is ready; anything else on the flow. */
+  const done = (sent: boolean, made = false) => {
     for (const queryKey of [["documents"], ["flows"], ["flow", flow.id], ["outputs", flow.id]]) void qc.invalidateQueries({ queryKey });
     capture("wizard_step_completed", { step: 3, step_name: "send", first, sent });
-    router.push(`/flows/${flow.id}`);
+    router.push(made ? firstRunAddress({ step: "ready", flow: flow.id, doc: id }) : `/flows/${flow.id}`);
   };
   // One press at a time: a second press before the next render does nothing; a refusal gives the buttons back.
   const pressed = useRef(false);
@@ -158,17 +159,13 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
       if (state === "download" && !deliveries.some((d) => d.status === "stored"))
         throw new FileNotMade(deliveries.find((d) => d.lastError)?.lastError ?? documentRefusalMessage(null));
     },
-    onSuccess: () => done(true), onError: settle,
+    onSuccess: () => done(true, state === "download"), onError: settle,
     // A refused send may still have changed the document.
     onSettled: () => qc.invalidateQueries({ queryKey: ["documents"] }),
   });
   const finish = useMutation({ mutationFn: prepare, onSuccess: () => done(false), onError: settle });
   const sample = useMutation({
-    mutationFn: async () => {
-      const p = await previewOutput(id, output!.id);
-      const body = p.base64 ? Uint8Array.from(atob(p.base64), (c) => c.charCodeAt(0)) : p.content;
-      saveBlob(new Blob([body], { type: p.contentType }), p.fileName);
-    },
+    mutationFn: async () => savePreview(await previewOutput(id, output!.id)),
     onSettled: settle,
   });
   const press = (m: typeof send | typeof finish | typeof sample) => {

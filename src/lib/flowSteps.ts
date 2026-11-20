@@ -1,3 +1,5 @@
+import { isAppPath } from "./appPath";
+
 /** The flow page's four steps, the two views beside them, and the address that names one. */
 export type FlowStep = "arrives" | "read" | "check" | "send";
 export type FlowView = FlowStep | "documents" | "history";
@@ -36,4 +38,27 @@ export function flowAddress(flowId: string, view: FlowView | null, extra?: { out
   const q = new URLSearchParams({ tab: view });
   if (extra?.output) q.set("output", extra.output);
   return `${base}?${q}`;
+}
+
+/** The four ways the Change the file screen can open on. */
+export type FileWay = "sample" | "docs" | "standard";
+const WAYS: readonly string[] = ["sample", "docs", "standard"];
+
+/** `/flows/{id}/change-file`, naming the file, the document to preview, the way to open and where to go back to. */
+export function changeFileAddress(flowId: string, o: { output?: string; document?: string; way?: FileWay; from?: string } = {}): string {
+  const q = `${new URLSearchParams((["output", "document", "way", "from"] as const).flatMap((k) => (o[k] ? [[k, o[k]!]] : [])))}`;
+  // Named `href` so the route-reachability guard, which reads literal hrefs, sees this screen's one way in.
+  const href = `/flows/${encodeURIComponent(flowId)}/change-file`;
+  return q ? `${href}?${q}` : href;
+}
+
+/** The change-file address; `from` only when it stays in the app (`isAppPath`). */
+export function readChangeFile(params: Pick<URLSearchParams, "get">) {
+  const way = params.get("way");
+  const from = params.get("from");
+  return {
+    output: params.get("output"), document: params.get("document"),
+    way: way && WAYS.includes(way) ? (way as FileWay) : null,
+    from: from && isAppPath(from) ? from : null,
+  };
 }

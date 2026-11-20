@@ -169,9 +169,13 @@ export type Lookup = {
 export interface OutputRequest {
   name: string; format: string; tableKey?: string | null; destinationId?: string | null; template?: OutputNodeTemplate | null;
   sendWhen?: SendWhen | null; layout?: OutputLayout | null;
-  /** Create-only: the backend ignores it on update. */
+  /** Create, or an update that sends `replace`; ignored on any other update. */
   standard?: string | null;
+  /** Update only: the output becomes `standard` (null: a template output) instead of keeping its kind. */
+  replace?: boolean;
 }
+/** A file a flow could make instead, not saved: a type (`format`; a template, or null for every value) or a `standard`. */
+export interface FileChoice { format: string; standard: string | null; tableKey: string | null; template: OutputNodeTemplate | null }
 export type DraftCite = { where: string; quote: string };
 export type DraftLeaf = {
   path: string; fieldKey: string | null; by: "name" | "ai" | "meaning" | "docs" | null; confidence: number | null; required?: boolean; cite?: DraftCite | null;
@@ -349,10 +353,11 @@ export const deleteOutput = (flowId: string, id: string) =>
 export const deleteDocument = (id: string) =>
   apiFetch<void>(`/documents/${seg(id)}`, { method: "DELETE" }, UPLOAD_TIMEOUT_MS);
 export const deleteFlow = (id: string) => apiFetch<void>(`/flows/${seg(id)}`, { method: "DELETE" }, UPLOAD_TIMEOUT_MS);
-export const previewOutput = (documentId: string, outputId: string, opts?: { published?: boolean; template?: OutputNodeTemplate }) =>
+/** `as` previews the file as another type or standard; nothing is saved. */
+export const previewOutput = (documentId: string, outputId: string, opts?: { published?: boolean; template?: OutputNodeTemplate; as?: FileChoice }) =>
   apiFetch<OutputPreview>(`/documents/${seg(documentId)}/outputs/${seg(outputId)}/preview${opts?.published ? "?published=true" : ""}`, {
     method: "POST",
-    ...(opts?.template ? { body: json({ template: opts.template }) } : {}),
+    ...(opts?.as ? { body: json(opts.as) } : opts?.template ? { body: json({ template: opts.template }) } : {}),
   });
 
 export interface OutputCheck { status: "passed" | "failed" | "unavailable"; issues: { ruleId: string; severity: "error" | "warning" | "info"; message: string }[] }

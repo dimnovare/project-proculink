@@ -26,6 +26,7 @@ describe("first run", () => {
     expect(read("step=check&step=send&flow=f")).toEqual({ step: "add", flow: "f", doc: null });
     expect(read("step=check&flow=f")).toEqual({ step: "add", flow: "f", doc: null });
     expect(read("step=send&flow=f&doc=d")).toEqual({ step: "send", flow: "f", doc: "d" });
+    expect(read("step=ready&flow=f&doc=d")).toEqual({ step: "ready", flow: "f", doc: "d" });
     expect(firstRunAddress({ step: "add", flow: "f" })).toBe("/flows/new?flow=f");
     expect(firstRunAddress({ step: "check", flow: "f", doc: "d" })).toBe("/flows/new?step=check&flow=f&doc=d");
     expect(isFirstFlow([flow({})], "f")).toBe(true);

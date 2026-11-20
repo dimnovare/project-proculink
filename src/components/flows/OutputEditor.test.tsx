@@ -257,7 +257,7 @@ describe("OutputEditor on the flow page (draft)", () => {
     api.listDestinations.mockResolvedValueOnce([]).mockResolvedValue([drop]);   // the saved one is listed after the save
     api.testDestination.mockResolvedValue({ success: false, message: "Host not found" });
     renderDraft(output);
-    fireEvent.click(screen.getByRole("button", { name: "Change where it goes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Change where the file goes" }));
     fireEvent.change(screen.getByLabelText("Goes to"), { target: { value: "\u0000new" } });
     fireEvent.change(screen.getAllByLabelText("Name").at(-1)!, { target: { value: "Drop" } });
     fireEvent.click(screen.getByRole("button", { name: "Save and send a test" }));
@@ -265,7 +265,7 @@ describe("OutputEditor on the flow page (draft)", () => {
     expect(await screen.findByText(/The test didn.t arrive/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(screen.queryByText(/The test didn.t arrive/)).toBeNull();
-    await waitFor(() => expect(screen.getByRole("button", { name: "Change where it goes" })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Change where the file goes" })).toHaveFocus());
   });
 
   it("a column problem opens the columns and is said outside them", async () => {
@@ -314,14 +314,14 @@ describe("OutputEditor on the flow page (draft)", () => {
   it("the Goes to fold says its state and keeps focus where the person is", async () => {
     api.listDestinations.mockResolvedValue([{ id: "D1", name: "Accounting server", protocol: "sftp", config: { host: "sftp.example.test", remotePath: "/in" }, hasCredentials: true }]);
     renderDraft({ ...output, destinationId: "D1" });
-    const change = await screen.findByRole("button", { name: "Change where it goes" });
+    const change = await screen.findByRole("button", { name: "Change where the file goes" });
     expect(change).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(change);
     expect(screen.getByRole("combobox", { name: "Goes to" })).toBe(document.activeElement);
     const done = screen.getByRole("button", { name: "Done choosing where it goes" });
     expect(done).toHaveAttribute("aria-expanded", "true");
     fireEvent.click(done);
-    expect(screen.getByRole("button", { name: "Change where it goes" })).toBe(document.activeElement);
+    expect(screen.getByRole("button", { name: "Change where the file goes" })).toBe(document.activeElement);
   });
 
   it("remembered open, the columns open; Done closes them and remembers that", () => {

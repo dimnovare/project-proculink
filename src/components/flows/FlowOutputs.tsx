@@ -12,6 +12,7 @@ import { deleteOutput, getDocument, listDestinations, listOutputs } from "@/lib/
 import type { Flow, FlowOutput } from "@/lib/api/documents";
 import { defaultWidth } from "@/lib/flowOutputModel";
 import { flowAddress } from "@/lib/flowSteps";
+import { makeFileLabel } from "./fileChoice";
 import { draftReason, FlowLink, useFlowDraft } from "./flowDraft";
 import { OutputBuilder } from "./OutputBuilder";
 import { OutputEditor, outputTypeLabel } from "./OutputEditor";
@@ -144,13 +145,16 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
         )}
         {/* Not drawn while the panel is open: its Cancel closes it. With no file and no bar, making one is the screen's point. */}
         {!adding && (
-          <div className="p-3">
+          <div className="grid gap-2 p-3">
             <Button
               variant={point ? "primary" : "secondary"} className={point ? "w-full" : "w-full border-dashed border-brand-blue text-brand-blue"} aria-expanded={false}
               onClick={() => leave(() => setAdding(true))}
             >
-              {outputs.data.length === 0 ? "Make a file" : "Make another file"}
+              {makeFileLabel(outputs.data.length)}
             </Button>
+            {outputs.data.length === 1 && (
+              <p className="m-0 text-[13px] text-ink-muted">Each document then gives two files. To change this file instead, press Change next to File type.</p>
+            )}
           </div>
         )}
       </Card>

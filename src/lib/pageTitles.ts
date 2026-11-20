@@ -30,6 +30,7 @@ export const APP_PAGE_TITLES: Record<string, string> = {
   "/flows/[flowId]": "Flow",
   "/flows/[flowId]/documents/[documentId]": "Document",
   "/flows/[flowId]/outputs/[outputId]/advanced": "Advanced view",
+  "/flows/[flowId]/change-file": "Change the file",
   "/lookups": "Lookups",
   "/lookups/[lookupId]": "Lookup",
   "/operations/log": "History",

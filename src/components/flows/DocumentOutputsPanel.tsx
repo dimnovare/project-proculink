@@ -17,6 +17,8 @@ import { CHANNELS } from "@/lib/channels";
 import { filesOf } from "@/lib/flowWords";
 import { relativeTime } from "@/lib/relativeTime";
 import { saveBlob } from "@/lib/saveBlob";
+import { changeFileAddress } from "@/lib/flowSteps";
+import { makeFileLabel } from "./fileChoice";
 import { LookupMisses } from "./LookupMisses";
 import { outputTypeLabel } from "./OutputEditor";
 import { Failed, Quiet } from "./states";
@@ -102,6 +104,7 @@ function OutputRow({ o, flowId, documentId, flowFields, destinations, live }: {
         <span className="flex flex-wrap items-center gap-2">
           {open && live && <span className="text-[12.5px] text-ink-muted">{preview.isFetching ? "Updating…" : "Updates as you type"}</span>}
           <Button size="sm" variant="secondary" aria-expanded={open} loading={open && preview.isLoading} onClick={toggle}>{open ? "Hide preview" : "Preview"}</Button>
+          <Link href={changeFileAddress(flowId, { output: o.id, document: documentId, from: `/flows/${flowId}/documents/${documentId}` })} className={`${buttonClass("secondary", "sm")} inline-flex items-center`}>Change the file</Link>
           {!o.standard && <Link href={`/flows/${flowId}/outputs/${o.id}/advanced?document=${documentId}`} className={`${buttonClass("secondary", "sm")} inline-flex items-center`}>Open in Advanced</Link>}
         </span>
       </div>
@@ -166,7 +169,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
         )}
       {list && (list.length > 0 ? (
         <p className="m-0 text-[12.5px] text-ink-muted">
-          Want another file from this document? <Link href={addLink} className="text-brand-blue underline">Make another file</Link>
+          Want another file from this document? <Link href={addLink} className="text-brand-blue underline">{makeFileLabel(list.length)}</Link>
         </p>
       ) : <Link href={addLink} className="inline-flex items-center text-[13px] text-brand-blue">Make a file for this flow</Link>)}
       {waiting && (

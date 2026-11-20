@@ -30,6 +30,8 @@ import { RowActions, rowSecondLine } from "./RowActions";
 import { PhotoCheck, useCamera } from "./PhotoCheck";
 import { canRetryUpload, INBOX_TARGET, STOP_CODES, uploadRefusalMessage, useUploadQueue, type UploadItem } from "./UploadQueue";
 import { firstRunOf } from "@/lib/firstRun";
+import { changeFileAddress } from "@/lib/flowSteps";
+import { aFileOf } from "./fileChoice";
 import { Failed, Quiet } from "./states";
 import { Welcome } from "./Welcome";
 import { focusAfterRemove } from "@/components/pwa/HeldUploads";
@@ -207,6 +209,11 @@ export function UploadToFlow() {
     const pick = (files: FileList | null) => target && files && files.length > 0 && add([...files], target);
     // Only from an answer that has not failed since: a failed refresh never leaves a dead address with Copy.
     const address = !inbox.isError && inbox.data?.address;
+    // Every done file is in one flow, and that flow makes one file: say which, with a way to change it.
+    const docs = done.map((i) => seen(i, uploaded.data));
+    const one = docs.length > 0 && docs.every((d) => d && inInbox(d, inbox.data) === false && d.flowId === docs[0]!.flowId)
+      ? flows.data.find((f) => f.id === docs[0]!.flowId) : undefined;
+    const made = one?.summary?.outputs.length === 1 ? one.summary.outputs[0] : null;
     body = (
       <div className="grid gap-5">
         {notKeptNotice}
@@ -218,6 +225,12 @@ export function UploadToFlow() {
               <h2 ref={listHeading} tabIndex={-1} className="m-0 scroll-mt-16 text-[16px] font-semibold text-ink outline-none focus-visible:outline-none">Just added</h2>
               <span className="text-[13px] text-ink-muted">{n === 1 ? "1 document" : `${n} documents`}</span>
             </div>
+            {one && made && (
+              <p className="m-0 px-4 pb-3 text-[13px] text-ink-muted sm:px-[18px]">
+                {`Each one becomes the file its flow makes. Your flow “${one.name}” makes ${aFileOf(made)}${made.destination ? ` and sends it to ${made.destination}.` : " that you download."} `}
+                <Link href={changeFileAddress(one.id, { from: "/upload" })} className="inline-flex min-h-[44px] items-center font-semibold text-brand-blue sm:min-h-0">Change the file</Link>
+              </p>
+            )}
             <ul className="m-0 list-none p-0 sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(124px,auto)_minmax(150px,auto)] sm:gap-x-3.5">
               {items.map((i) => (
                 <UploadedRow
