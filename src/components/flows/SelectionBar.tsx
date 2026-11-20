@@ -8,7 +8,8 @@ import { noticeAria } from "@/components/bridge/layout/StatusNotice";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { eachDocument, fetchOriginal, removeOne, saveOriginals, sendOne, type Each } from "@/lib/eachDocument";
 import type { ListedDocument } from "./DocumentList";
-import { removable, removalDialog } from "./RowActions";
+import { forgetRemoved, removable, removalDialog } from "./RowActions";
+import { useUploadQueueIfMounted } from "./UploadQueue";
 
 /** The key every run of the bar (send or download) goes under; a row's own Send is busy while one is out. */
 export const BULK_SEND_KEY = ["document-send", "bulk"] as const;
@@ -70,6 +71,7 @@ export function SelectionBar({ selected, sent, report, onReport, onSent, onClear
   onClear: () => void;
 }) {
   const qc = useQueryClient();
+  const queue = useUploadQueueIfMounted();
   const confirm = useConfirm();
   // Held from the press itself, so a second press before the next render starts nothing.
   const busy = useRef(false);
@@ -125,12 +127,12 @@ export function SelectionBar({ selected, sent, report, onReport, onSent, onClear
   });
 
   const pressRemove = async () => {
-    if (busy.current || running || !(await confirm(removalDialog(removing)))) return;
+    if (busy.current || running || !(await confirm(removalDialog(removing, selected.filter((d) => d.canRemove === false).length)))) return;
     const items = removing;
     start(async () => {
       const r = await eachDocument(items, removeOne);
       onClear();
-      for (const key of ["flows", "onboarding-status"]) qc.invalidateQueries({ queryKey: [key] });
+      forgetRemoved(qc, queue, r.done.map((x) => x.item));
       return summary(r, { verb: "removed", unit: "document" }, r.done.length === 1 ? "1 document removed." : `${r.done.length} documents removed.`);
     });
   };

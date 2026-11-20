@@ -27,7 +27,7 @@ const doc = (n: number): ListedDocument => ({
 function mount(n = 3) {
   const onSent = vi.fn();
   function Harness() {
-    const [selected, setSelected] = useState([doc(1), doc(2), doc(3)].slice(0, n));
+    const [selected, setSelected] = useState([doc(1), doc(2), doc(3), doc(4)].slice(0, n));
     const [report, setReport] = useState<BarReport | null>(null);
     return <SelectionBar selected={selected} sent={new Set()} report={report} onReport={setReport} onClear={() => {}}
       onSent={(id) => { onSent(id); setSelected((s) => s.filter((d) => d.id !== id)); }} />;
@@ -102,6 +102,19 @@ describe("SelectionBar", () => {
     await waitFor(() => expect(m.bar.getByRole("alert")).toHaveTextContent("1 document removed."));
     expect(m.bar.getByRole("alert")).toHaveTextContent("invoice-1002.pdf couldn't be removed: This document is being read or sent. Try again in a moment.");
     expect(confirm.mock.calls[0][0].title).toBe("Remove 2 documents?");
+  });
+
+  it("a remove refused for one document goes on with the others, and names that one", async () => {
+    confirm.mockResolvedValue(true);
+    api.deleteDocument.mockReset().mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new ApiHttpError("busy", 409, { error: "document_busy" }))
+      .mockRejectedValueOnce(new ApiHttpError("admin", 403, { error: "requires_org_admin" }))
+      .mockResolvedValueOnce(undefined);
+    const m = mount(4);
+    await m.press("Remove");
+    await waitFor(() => expect(m.bar.getByRole("alert")).toHaveTextContent("2 documents removed. 2 couldn't be removed:"));
+    expect(api.deleteDocument).toHaveBeenCalledTimes(4);
+    expect(m.bar.getByRole("alert")).toHaveTextContent("invoice-1003.pdf: Only a workspace admin can change this.");
   });
 
   it("downloads the ticked originals in documents.zip", async () => {

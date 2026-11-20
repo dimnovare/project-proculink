@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState, type ReactNode } from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
+import { focusAfterRemove } from "@/components/pwa/HeldUploads";
 import { StatusJourney } from "@/components/bridge/StatusJourney";
 import { Pill } from "@/components/bridge/DSPrimitives";
 import { relativeTime } from "@/lib/relativeTime";
@@ -83,8 +84,9 @@ function Row({ d, showFlow, sendable, columns, onSent, onRemoved, selection }: {
       </div>
       <div role="cell"><StatusJourney stage={documentStatus(d.status, d.statusReason).stage} compact /></div>
       <div role="cell" className="text-[13px] text-ink-muted">{received(d)}</div>
+      {/* Selecting, the bar acts on the ticked rows: a row offers nothing of its own, as on a phone. */}
       <div role="cell">
-        <RowActions d={d} sendable={sendable && !selection} onSent={() => onSent({ ...d, status: "sending", statusReason: null })} onRemoved={onRemoved} />
+        {!selection && <RowActions d={d} sendable={sendable} onSent={() => onSent({ ...d, status: "sending", statusReason: null })} onRemoved={onRemoved} />}
       </div>
     </div>
   );
@@ -107,7 +109,16 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
   const [sent, setSent] = useState<Record<string, ListedDocument>>({});
   // A removed row is hidden here until the refetch stops listing it.
   const [removed, setRemoved] = useState<ReadonlySet<string>>(new Set());
-  const onRemoved = (id: string) => setRemoved((r) => new Set(r).add(id));
+  const [removedNote, setRemovedNote] = useState("");
+  const table = useRef<HTMLDivElement>(null);
+  const phoneList = useRef<HTMLUListElement>(null);
+  const onRemoved = (id: string) => {
+    setRemoved((r) => new Set(r).add(id));
+    const name = documents.find((d) => d.id === id)?.fileName;
+    if (name) setRemovedNote(`${name} removed.`);
+    // The row went with the focused button: focus goes to the list on screen, never to the page.
+    focusAfterRemove([table.current, phoneList.current].find((el) => el?.offsetParent) ?? table.current);
+  };
   const drawn = documents.filter((d) => !removed.has(d.id)).map((d) => (sent[d.id] && d.status === "ready" ? sent[d.id] : d)).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
   // An inbox document is answered on its own screen: it has no tick (its row's "Open" is the way on).
   const tickable = drawn.filter((d) => !d.inInbox);
@@ -115,7 +126,8 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
 
   return (
     <>
-      <div role="table" aria-label={label} className="hidden lg:block">
+      <p role="status" className="m-0 px-3 py-2 text-[13px] text-ink-muted empty:hidden">{removedNote}</p>
+      <div ref={table} tabIndex={-1} role="table" aria-label={label} className="hidden outline-none lg:block">
         <div role="row" className="grid gap-3 px-3 py-2 text-[12.5px] font-medium text-ink-muted" style={{ gridTemplateColumns: columns }}>
           {selection && (
             <div role="columnheader">
@@ -139,7 +151,7 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
           <Row key={d.id} d={d} showFlow={showFlow} sendable={sendable} columns={columns} selection={selection} onRemoved={onRemoved} onSent={(s) => setSent((m) => ({ ...m, [s.id]: s }))} />
         ))}
       </div>
-      <ul data-testid="documents-phone-list" aria-label={label} className="m-0 list-none p-0 lg:hidden">
+      <ul ref={phoneList} tabIndex={-1} data-testid="documents-phone-list" aria-label={label} className="m-0 list-none p-0 outline-none lg:hidden">
         {drawn.map((d) => {
           const need = rowNeed(d);
           // R17: one second line, what it is when known, otherwise where it is.

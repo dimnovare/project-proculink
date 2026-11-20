@@ -7,7 +7,7 @@ import { FlowDocuments, StreakBand } from "./FlowDocuments";
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 const api = vi.hoisted(() => ({ listDocumentPage: vi.fn(), updateFlow: vi.fn() }));
 vi.mock("@/lib/api/documents", () => api);
-vi.mock("./UploadQueue", () => ({ useUploadQueue: () => ({ items: [], add: vi.fn(), retry: vi.fn() }) }));
+vi.mock("./UploadQueue", () => ({ useUploadQueue: () => ({ items: [], add: vi.fn(), retry: vi.fn() }), useUploadQueueIfMounted: () => null }));
 
 const flow = {
   id: "flow-1", name: "Supplier invoices", fieldsConfirmed: true, fields: { fields: [], tables: [] }, documentCount: 128,

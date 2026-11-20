@@ -56,6 +56,8 @@ type Queue = {
   retry(key: string): void;
   /** Drops a held or refused item, and its copy on this device. */
   remove(key: string): void;
+  /** A document was removed, from any screen: its item leaves Just added. */
+  dropDocument(documentId: string): void;
   /** The files shared to this phone that wait for a press, oldest first; null until the device was read (or with no store or owner). */
   shared: readonly SharedFile[] | null;
   /** Binds the shared files with these keys (the ones on screen, and no other) to this person, workspace and `target`; then they go the ordinary held way. */
@@ -262,6 +264,8 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
     if (kept.current.has(key)) void forget(key);
   };
 
+  const dropDocument = (documentId: string) => update((list) => list.filter((i) => i.document?.id !== documentId));
+
   // Both act only on the keys the press saw: a file that arrived since, or a second tap, never rides along. A key already bound or gone is a no-op.
   const addShared = (target: UploadFlow, keys: readonly string[]) => {
     chain.current = chain.current.then(async () => {
@@ -286,8 +290,11 @@ export function UploadQueueProvider({ children, owner = null, store: given }: { 
     });
   };
 
-  return <QueueContext.Provider value={{ items, add, retry, remove, shared, addShared, discardShared }}>{children}</QueueContext.Provider>;
+  return <QueueContext.Provider value={{ items, add, retry, remove, dropDocument, shared, addShared, discardShared }}>{children}</QueueContext.Provider>;
 }
+
+/** The queue, or null outside the provider (a screen tested on its own). */
+export const useUploadQueueIfMounted = (): Queue | null => useContext(QueueContext);
 
 /** Items newest first; `add` answers the new items' keys. Throws outside the provider. */
 export function useUploadQueue(): Queue {

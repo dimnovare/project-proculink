@@ -15,6 +15,7 @@ export type Each<T extends { id: string; fileName: string }, R> = {
 
 /** Not about one document: paused processing, a plan, limit, sign-in or rate refusal, a server error, or no answer at all. */
 export function aboutWorkspace(error: unknown): boolean {
+  if (error instanceof AboutThisDocument) return false;
   if (refusalToken(error) === "processing_paused") return true;
   if (!(error instanceof ApiHttpError)) return true;
   return [401, 402, 403, 429].includes(error.status) || error.status >= 500;
@@ -40,9 +41,15 @@ export async function eachDocument<T extends { id: string; fileName: string }, R
 /** Sends one document. */
 export const sendOne = (d: { id: string }) => sendDocument(d.id);
 
-/** Removes one document; a 404 is done (it was already gone). */
+/** A refusal about this one document, whatever its status code: the run goes on. */
+export class AboutThisDocument extends ApiHttpError {}
+
+/** Removes one document; a 404 is done (it was already gone). A 403 is about this document (it was sent meanwhile), not the workspace. */
 export const removeOne = (d: { id: string }): Promise<void> =>
-  deleteDocument(d.id).catch((e) => { if (!(e instanceof ApiHttpError && e.status === 404)) throw e; });
+  deleteDocument(d.id).catch((e) => {
+    if (e instanceof ApiHttpError && e.status === 404) return;
+    throw e instanceof ApiHttpError && e.status === 403 ? new AboutThisDocument(e.message, e.status, e.body) : e;
+  });
 
 /** The server answered 204: storage could not read this original. Worded by `documentRefusalMessage` (`missing_original`). */
 export class MissingOriginal extends ApiHttpError {

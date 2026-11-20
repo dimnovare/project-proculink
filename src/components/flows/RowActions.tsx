@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useIsMutating, useMutation, useQuery, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useQuery, useQueryClient, type QueryClient, type UseMutationResult } from "@tanstack/react-query";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { useConfirm } from "@/components/ui/confirm";
 import { inboxQuery } from "@/hooks/useDocumentEngine";
-import { ApiHttpError } from "@/lib/api/core";
-import { deleteDocument, downloadDeliveryFile, retryDocumentRead, sendDocument, type DocumentFile } from "@/lib/api/documents";
+import { downloadDeliveryFile, retryDocumentRead, sendDocument, type DocumentFile } from "@/lib/api/documents";
 import { canRetryRead, documentRefusalMessage } from "@/lib/documentRefusals";
+import { removeOne } from "@/lib/eachDocument";
+import { useUploadQueueIfMounted } from "./UploadQueue";
 import { dayAt, flowWords, madeLine } from "@/lib/flowWords";
 import { saveBlob } from "@/lib/saveBlob";
 import type { ListedDocument } from "./DocumentList";
@@ -34,8 +35,8 @@ export function useRowSend(id: string, onSent: () => void): UseMutationResult<un
 /** Not while it is being read or sent: the server would answer document_busy. Never a reason to show Remove (the server's canRemove is). */
 export const removable = (status: string): boolean => !["received", "reading", "sending"].includes(status);
 
-/** The confirm before a removal (board Remove), for one document or several. */
-export function removalDialog(docs: readonly Pick<ListedDocument, "fileName" | "countsThisMonth">[]) {
+/** The confirm before a removal (board Remove), for one document or several. `skipped`: ticked documents only an admin may remove. */
+export function removalDialog(docs: readonly Pick<ListedDocument, "fileName" | "countsThisMonth">[], skipped = 0) {
   const one = docs.length === 1;
   const counted = docs.filter((d) => d.countsThisMonth).length;
   return {
@@ -48,8 +49,14 @@ export function removalDialog(docs: readonly Pick<ListedDocument, "fileName" | "
         </span>
         {counted > 0 && (
           <span className="mt-2 block">
-            {one ? "We already read it, so it still counts as one of this month's documents."
-              : `We already read ${counted} of them, so they still count as this month's documents.`}
+            {one ? "We already read it, so it still counts toward your plan's documents."
+              : `We already read ${counted} of them, so they still count toward your plan's documents.`}
+          </span>
+        )}
+        {skipped > 0 && (
+          <span className="mt-2 block">
+            {skipped === 1 ? "1 of the ticked documents can only be removed by an admin, so it stays."
+              : `${skipped} of the ticked documents can only be removed by an admin, so they stay.`}
           </span>
         )}
       </>
@@ -60,20 +67,30 @@ export function removalDialog(docs: readonly Pick<ListedDocument, "fileName" | "
   };
 }
 
-/** Remove one document after asking. A 404 is done (another list or tab removed it first). */
-export function useRemove(onRemoved: (id: string) => void): { ask(d: ListedDocument): Promise<void>; pendingId: string | null; error: unknown } {
+/** After documents were removed: their own queries go (unless `keep`: the screen showing one drops them as it leaves),
+ *  every list and count that showed them refreshes, and they leave Just added. */
+export function forgetRemoved(qc: QueryClient, queue: { dropDocument(id: string): void } | null, docs: readonly Pick<ListedDocument, "id" | "flowId">[], keep = false) {
+  for (const d of docs) {
+    queue?.dropDocument(d.id);
+    if (!keep) for (const key of ["document", "deliveries"]) qc.removeQueries({ queryKey: [key, d.id] });
+  }
+  const flows = [...new Set(docs.map((d) => d.flowId))].map((id) => ["flow", id]);
+  for (const queryKey of [["documents"], ["flows"], ["activity"], ["onboarding-status"], ...flows]) void qc.invalidateQueries({ queryKey });
+}
+
+/** Remove one document after asking. A 404 is done (another list or tab removed it first). `leaving`: the caller navigates away. */
+export function useRemove(onRemoved: (id: string) => void, leaving = false): { ask(d: ListedDocument): Promise<void>; pendingId: string | null; error: unknown } {
   const qc = useQueryClient();
+  const queue = useUploadQueueIfMounted();
   const confirm = useConfirm();
   const m = useMutation({
-    mutationFn: async (d: ListedDocument) => {
-      await deleteDocument(d.id).catch((e) => { if (!(e instanceof ApiHttpError && e.status === 404)) throw e; });
-      return d.id;
+    mutationFn: async (d: ListedDocument) => { await removeOne(d); return d; },
+    onSuccess: (d) => {
+      onRemoved(d.id);
+      forgetRemoved(qc, queue, [d], leaving);
     },
-    onSuccess: (id) => {
-      onRemoved(id);
-      qc.removeQueries({ queryKey: ["document", id] });
-      for (const key of ["documents", "flows", "onboarding-status"]) void qc.invalidateQueries({ queryKey: [key] });
-    },
+    // Refused (busy, or only an admin may): it is asked again, so a stale status and its Remove do not stay.
+    onError: (_e, d) => { for (const queryKey of [["document", d.id], ["documents"]]) void qc.invalidateQueries({ queryKey }); },
   });
   return {
     ask: async (d) => {

@@ -58,7 +58,9 @@ describe("RowActions", () => {
     const counted = removalDialog([{ fileName: "invoice-1043.pdf", countsThisMonth: true }]);
     expect(counted.title).toBe("Remove invoice-1043.pdf?");
     const text = (d: ReturnType<typeof removalDialog>) => render(<p>{d.description}</p>).container.textContent;
-    expect(text(counted)).toContain("We already read it, so it still counts as one of this month's documents.");
+    expect(text(counted)).toContain("We already read it, so it still counts toward your plan's documents.");
     expect(text(removalDialog([{ fileName: "invoice-1043.pdf", countsThisMonth: false }]))).not.toContain("We already read it");
+    // Ticked documents only an admin may remove stay, and the dialog says so.
+    expect(text(removalDialog([{ fileName: "invoice-1043.pdf" }], 2))).toContain("2 of the ticked documents can only be removed by an admin, so they stay.");
   });
 });

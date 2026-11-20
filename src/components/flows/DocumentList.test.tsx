@@ -6,8 +6,10 @@ import type { DocumentRow } from "@/lib/api/documents";
 import { DocumentList, rowNeed } from "./DocumentList";
 import { WaitingList } from "./WaitingList";
 
-const { sendDocument } = vi.hoisted(() => ({ sendDocument: vi.fn() }));
-vi.mock("@/lib/api/documents", () => ({ sendDocument }));
+const { sendDocument, deleteDocument } = vi.hoisted(() => ({ sendDocument: vi.fn(), deleteDocument: vi.fn() }));
+vi.mock("@/lib/api/documents", () => ({ sendDocument, deleteDocument }));
+const confirm = vi.hoisted(() => vi.fn());
+vi.mock("@/components/ui/confirm", () => ({ useConfirm: () => confirm }));
 
 const row = (over: Partial<DocumentRow> = {}): DocumentRow => ({
   id: "d1", flowId: "f1", flowName: "Supplier invoices", fileName: "invoice-2291.pdf", status: "needs_review", statusReason: null,
@@ -115,13 +117,31 @@ describe("DocumentList", () => {
     const toggle = vi.fn();
     render(
       <QueryClientProvider client={new QueryClient()}>
-        <DocumentList label="Documents" showFlow documents={[row({ id: "a", fileName: "PO-48213.pdf" })]} selection={{ ids: new Set(), toggle, all: vi.fn() }} />
+        <DocumentList label="Documents" showFlow documents={[row({ id: "a", fileName: "PO-48213.pdf", statusReason: "duplicate_file", canRemove: true })]} selection={{ ids: new Set(), toggle, all: vi.fn() }} />
       </QueryClientProvider>,
     );
     expect(screen.queryByRole("link", { name: /PO-48213\.pdf/ })).toBeNull();
     fireEvent.click(within(screen.getByRole("table", { name: "Documents" })).getByText("PO-48213.pdf"));
-    fireEvent.click(within(screen.getByTestId("documents-phone-list")).getByText("Supplier invoices"));
+    fireEvent.click(within(screen.getByTestId("documents-phone-list")).getByTestId("document-name"));
     expect(toggle.mock.calls).toEqual([["a"], ["a"]]);
+    // The bar acts on the ticked rows: a row draws no button of its own while selecting.
+    expect(within(screen.getByRole("table", { name: "Documents" })).queryByRole("button")).toBeNull();
+  });
+
+  it("after a removal the list keeps focus and says what was removed", async () => {
+    deleteDocument.mockResolvedValue(undefined);
+    confirm.mockResolvedValue(true);
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DocumentList label="Documents" showFlow documents={[row({ id: "a", fileName: "PO-48213.pdf", statusReason: "duplicate_file", canRemove: true }), row({ id: "b" })]} />
+      </QueryClientProvider>,
+    );
+    const table = screen.getByRole("table", { name: "Documents" });
+    within(table).getByRole("button", { name: "Remove PO-48213.pdf" }).focus();
+    fireEvent.click(within(table).getByRole("button", { name: "Remove PO-48213.pdf" }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("PO-48213.pdf removed."));
+    await waitFor(() => expect(document.activeElement).toBe(table));
+    expect(within(table).queryByText("PO-48213.pdf")).toBeNull();
   });
 
   it("a refused send says why on the row and keeps Send", async () => {

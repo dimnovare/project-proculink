@@ -23,7 +23,7 @@ const api = vi.hoisted(() => ({
   listDocuments: vi.fn(), getDocument: vi.fn(), previewOutput: vi.fn(), testOutput: vi.fn(),
 }));
 vi.mock("@/lib/api/documents", () => api);
-vi.mock("./UploadQueue", () => ({ useUploadQueue: () => ({ items: [], add: vi.fn(), retry: vi.fn() }) }));
+vi.mock("./UploadQueue", () => ({ useUploadQueue: () => ({ items: [], add: vi.fn(), retry: vi.fn() }), useUploadQueueIfMounted: () => null }));
 
 // History stands in for a step with a draft part: the frame must flush it before it lets the person leave.
 const part = vi.hoisted(() => ({ save: vi.fn(), change: null as null | ((v: string) => void) }));
