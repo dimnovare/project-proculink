@@ -84,8 +84,22 @@ describe("DocumentOutputsPanel", () => {
     const first = renderPanel();
     expect(await within(first.container).findByText("Nothing is made yet. When the values are right, press Make the file.")).toBeInTheDocument();
     first.unmount();
-    api.listDeliveries.mockResolvedValue([{ id: "x", outputName: "Totals", protocol: "", status: "stored", attempts: 0, lastError: null, fileName: "invoice-1043.csv", deliveredAt: new Date().toISOString() }]);
-    expect(await within(renderPanel().container).findByText("invoice-1043.csv was made just now. It waits here and in Documents until you download it.")).toBeInTheDocument();
+    const stored = (deliveredAt: string | null) => [{ id: "x", outputName: "Totals", protocol: "", status: "stored", attempts: 0, lastError: null, fileName: "invoice-1043.csv", deliveredAt }];
+    const sent = (status: string) => render(<QueryClientProvider client={new QueryClient()}>
+      <DocumentOutputsPanel flowId="f" document={{ ...detail, summary: { ...detail.summary, status } } as never} />
+    </QueryClientProvider>);
+    api.listDeliveries.mockResolvedValue(stored(new Date().toISOString()));
+    const made = sent("sent");
+    expect(await within(made.container).findByText("invoice-1043.csv was made just now. It waits here and in Documents until you download it.")).toBeInTheDocument();
+    made.unmount();
+    // No time known: no time said. A document that did not finish has no made line.
+    api.listDeliveries.mockResolvedValue(stored(null));
+    const untimed = sent("sent");
+    expect(await within(untimed.container).findByText("invoice-1043.csv was made. It waits here and in Documents until you download it.")).toBeInTheDocument();
+    untimed.unmount();
+    const failed = within(sent("send_failed").container);
+    expect(await failed.findByRole("heading", { name: "Deliveries" })).toBeInTheDocument();
+    expect(failed.queryByText(/was made/)).toBeNull();
   });
 
   it("does not promise a send on a document that can no longer be sent", async () => {

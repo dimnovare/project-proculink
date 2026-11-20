@@ -139,8 +139,10 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
   const downloadOnly = flow.data?.downloadOnly === true;
   // Made and waiting to be downloaded: every made file was stored, none went anywhere.
   const files = filesOf(deliveries.data);
-  const waiting = files.length > 0 && files.every((f) => !f.delivered);
-  const madeAt = relativeTime(deliveries.data?.map((d) => d.deliveredAt ?? "").sort().at(-1)) ?? "just now";
+  const waiting = doc.summary.status === "sent" && files.length > 0 && files.every((f) => !f.delivered);
+  // When the newest stored file was made; no time is said when none is known.
+  const at = relativeTime(deliveries.data?.filter((d) => d.status === "stored" && d.deliveredAt).map((d) => d.deliveredAt!).sort().at(-1));
+  const madeAt = at ? ` ${at}` : "";
 
   return (
     <div className="grid gap-3">
@@ -169,8 +171,8 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
       ) : <Link href={addLink} className="inline-flex items-center text-[13px] text-brand-blue">Make a file for this flow</Link>)}
       {waiting && (
         <p className="m-0 text-[13px] text-ink">
-          {files.length === 1 ? `${files[0].fileName} was made ${madeAt}. It waits here and in Documents until you download it.`
-            : `${files.length} files were made ${madeAt}. They wait here and in Documents until you download them.`}
+          {files.length === 1 ? `${files[0].fileName} was made${madeAt}. It waits here and in Documents until you download it.`
+            : `${files.length} files were made${madeAt}. They wait here and in Documents until you download them.`}
         </p>
       )}
       {!!deliveries.data?.length && <Deliveries documentId={documentId} deliveries={deliveries.data} />}

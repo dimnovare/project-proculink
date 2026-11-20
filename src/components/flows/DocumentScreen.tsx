@@ -31,7 +31,7 @@ import { formatDateTime } from "@/lib/format-date";
 import { COPY, documentRefusalMessage, rateLimited, refusalToken } from "@/lib/documentRefusals";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
 import { isPlanGateError } from "@/lib/planGate";
-import { documentStatus } from "@/lib/documentStatusManifest";
+import { DOCUMENT_STATUSES, documentStatus } from "@/lib/documentStatusManifest";
 import type { DocumentDetail, DocumentPage, Flow, SourceLocation, TeachRequest } from "@/lib/api/documents";
 import { DocumentOutputsPanel } from "./DocumentOutputsPanel";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
@@ -398,6 +398,9 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
       // Only made files to download, sent nowhere: stay, and the screen shows the file and the way on.
       if (went.length > 0 && went.every((d) => d.status === "stored")) {
         pressed.current = false;
+        // From the answer first, so the screen turns to File ready even when a refetch fails.
+        qc.setQueryData(["deliveries", documentId], went);
+        qc.setQueryData<DocumentDetail>(["document", documentId], (d) => d && { ...d, summary: { ...d.summary, status: "sent", statusReason: null } });
         await Promise.all([["document", documentId], ["deliveries", documentId], ["documents"]].map((queryKey) => qc.invalidateQueries({ queryKey })));
         return;
       }
@@ -434,10 +437,15 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   };
   const busy = send.isPending || skip.isPending || leaving || answering;
   const words = flowWords(flow.data?.downloadOnly);
-  const remove = useRemove(() => { setLeaving(true); router.replace(nextNow ? documentHref(nextNow) : "/documents"); });
+  // The document's own queries are dropped once the screen has left, so it never draws "gone" on the way out.
+  const removed = useRef(false);
+  useEffect(() => () => {
+    if (removed.current) for (const key of ["document", "deliveries"]) qc.removeQueries({ queryKey: [key, documentId] });
+  }, [qc, documentId]);
+  const remove = useRemove(() => { removed.current = true; setLeaving(true); router.replace(nextNow ? documentHref(nextNow) : "/documents"); }, true);
   const canRemove = !!doc.data?.canRemove && !!summary && removable(summary.status);
   const removeButton = canRemove && (
-    <Button variant="secondary" className="!text-danger-text" disabled={busy} loading={remove.pendingId === documentId} onClick={() => void remove.ask(summary)}>Remove</Button>
+    <Button variant="secondary" className="!text-danger-text" disabled={busy} loading={remove.pendingId === documentId} onClick={() => void remove.ask({ ...summary, countsThisMonth: doc.data?.countsThisMonth })}>Remove</Button>
   );
   // A sent document whose files were all made to download: File ready, and Download is the way on.
   const deliveries = useQuery({ queryKey: ["deliveries", documentId], queryFn: () => listDeliveries(documentId), enabled: enabled && here === false && summary?.status === "sent" });
@@ -447,7 +455,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   const madeActions = (cls: string) => made && (
     <>
       {nextNow && <Link replace href={documentHref(nextNow)} className={`${buttonClass("secondary", "md")} ${cls}`}>Open next</Link>}
-      {files.length === 1 && <Button variant="send" className={cls} loading={download.isPending} onClick={() => download.mutate()}>{`Download ${files[0].fileName}`}</Button>}
+      {files.length === 1 && <Button variant="primary" className={cls} loading={download.isPending} onClick={() => download.mutate()}>{`Download ${files[0].fileName}`}</Button>}
     </>
   );
   useShortcut("send-and-next", () => press(send), sends && !busy);
@@ -461,7 +469,9 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
     || !!doc.data?.read.tables.some((t) => t.rows.some((r) => Object.values(r.cells).some((c) => c.location?.box || c.location?.address)));
   const refused = send.error ?? skip.error ?? download.error;
   const failedCodes = doc.data?.checks.filter((c) => !c.passed).map((c) => c.code) ?? [];
-  const tag = made ? { text: finishedLabel(files), tone: "green" as const }
+  // A sent document says what its own files did once they are known; until then only that it is finished, never "Sent".
+  const finished = summary?.status === "sent" && status?.label === DOCUMENT_STATUSES.sent.label;
+  const tag = finished ? { text: deliveries.data ? finishedLabel(files) : "Finished", tone: "green" as const }
     : marks && marks.count > 0
     ? { text: marks.count === 1 ? "1 value to check" : `${marks.count} values to check`, tone: "amber" as const }
     : summary && rowNeed({ ...summary, inInbox: here, checks: failedCodes, failedChecks: 0 });
@@ -491,7 +501,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
             <Pill tone={tag.tone}>{tag.text}</Pill>
             {position && <span className="text-[12.5px] text-ink-muted">{position}</span>}
             {removeButton}
-            {made ? madeActions("") : sends ? (
+            {made ? madeActions("hidden md:inline-flex") : sends ? (
               <>
                 {canSkip && <Button variant="secondary" className="hidden md:inline-flex" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
                 <Button id="review-send" variant="send" className="hidden md:inline-flex" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}
@@ -594,7 +604,8 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
           </div>
         </div>
       )}
-      {(sends || next || made) && (
+      {/* Made with several files and nothing next: no bar, never an empty one. */}
+      {(sends || next || (made && files.length === 1)) && (
         <ActionBar>
           {made ? madeActions("") : sends ? (
             <>

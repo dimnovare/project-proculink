@@ -199,6 +199,15 @@ test.describe("one way in", () => {
     await expect(sent).not.toContainText("Check the flow");
   });
 
+  test("on a phone, a made file has one Download button, in a bar that is never empty", async ({ page }) => {
+    await open(page, 390, "/flows/flow-2/documents/doc-in-3", { height: 844 });
+    const bar = page.getByTestId("action-bar");
+    await bar.getByRole("button", { name: "Make the file" }).click();
+    await expect(page.getByRole("button", { name: /^Download / })).toHaveCount(1);
+    await expect(bar.getByRole("button", { name: /^Download / })).toBeVisible();
+    await expect(page).toHaveURL(/doc-in-3$/);
+  });
+
   test("the answers keep to the values column from 1440 to 2240, the waiting list shows from 1700, and at 390 nothing is under 44px", async ({ page }) => {
     await open(page, 1440, inboxDoc("doc-in-1"));
     const answers = answersOf(page);
