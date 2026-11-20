@@ -252,8 +252,8 @@ export function isOperatorSentence(text: string): boolean {
   if (LOG_TEMPLATE_HOLE.test(t)) return false;
   if (t.length < 12) return false;
   if (!/[a-z]/.test(t)) return false;
-  // Sentence-cased, or opening on an interpolated value ("{} could not be applied").
-  if (!/^[A-Z{]/.test(t)) return false;
+  // Sentence-cased, or opening on an interpolated value ("{} could not be applied") or a quoted name ("“{}” must be a number").
+  if (!/^[A-Z{“‘]/.test(t)) return false;
   if (t.split(/\s+/).filter((w) => /[A-Za-z]/.test(w)).length < 3) return false;
   if (/^https?:\/\//i.test(t)) return false;
   if (/<\/?[a-z][^>]*>/i.test(t)) return false; // an XML/HTML template fragment

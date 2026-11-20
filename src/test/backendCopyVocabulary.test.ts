@@ -138,6 +138,8 @@ describe("isOperatorSentence separates operator copy from log lines", () => {
     expect(isOperatorSentence("Cannot transform: lines {} still need review.")).toBe(true);
     // Opens on an interpolated value — the shape of every wrapper that splices ex.Message.
     expect(isOperatorSentence("{} could not be applied, so the order was not delivered.")).toBe(true);
+    // Opens on a quoted name: the field and column errors Advanced shows.
+    expect(isOperatorSentence("“{}” must be a number, but its value is “{}”.")).toBe(true);
   });
 
   test("an ILogger message template is dropped", () => {
