@@ -449,9 +449,9 @@ test.describe("flow page", () => {
   test("We send: with a new destination open, the changes bar waits until it is closed, the form's Save is the one filled button, and Disconnect is outlined", async ({ page }) => {
     const google = { available: true, accounts: [{ id: "account-1", provider: "google", email: "sheets@example.test", status: "reconnect", createdAt: "2026-05-20T09:00:00Z" }] };
     await open(page, 1440, at("send"), { "GET /linked-accounts": google });
-    await expect(page.getByRole("combobox", { name: "Send to" })).toHaveCount(0);
+    await expect(page.getByRole("combobox", { name: "Goes to" })).toHaveCount(0);
     await page.getByRole("button", { name: "Change where it goes" }).click();
-    await page.getByRole("combobox", { name: "Send to" }).selectOption({ label: "New destination…" });
+    await page.getByRole("combobox", { name: "Goes to" }).selectOption({ label: "New destination…" });
     await page.getByRole("combobox", { name: "Send by" }).selectOption({ label: "Google Sheets" });
     await expect(page.getByRole("button", { name: "Reconnect" })).toBeVisible();
     await page.getByRole("button", { name: "Disconnect" }).click();
@@ -462,10 +462,10 @@ test.describe("flow page", () => {
     expect(await sends(page)).toEqual([]);
   });
 
-  test("We send at 1440: Send to and Send a test are in the first screenful, the columns wait behind Change the columns, and the list counts the changes", async ({ page }) => {
+  test("We send at 1440: Goes to and Send a test are in the first screenful, the columns wait behind Change the columns, and the list counts the changes", async ({ page }) => {
     await open(page, 1440, at("send", MOCK_ENGINE_IDS.output), await simpleOutputs(), 900);
     const editor = page.getByRole("region", { name: "Edit the file Invoice CSV" });
-    const sendTo = editor.getByRole("heading", { name: "Send to", exact: true });
+    const sendTo = editor.getByRole("heading", { name: "Goes to", exact: true });
     const test1 = editor.getByRole("button", { name: "Send a test" });
     for (const l of [sendTo, test1]) {
       const b = await box(l);
@@ -528,7 +528,7 @@ test.describe("flow page on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   test.describe.configure({ timeout: 120_000 });
 
-  test("We send at 390: Send to and Send a test come before the preview, and no control is under 44px", async ({ page }) => {
+  test("We send at 390: Goes to and Send a test come before the preview, and no control is under 44px", async ({ page }) => {
     await open(page, 390, at("send", MOCK_ENGINE_IDS.output), await simpleOutputs(), 844);
     const editor = page.getByRole("region", { name: "Edit the file Invoice CSV" });
     await expect(editor.getByRole("button", { name: "Send a test" })).toBeVisible();
@@ -536,9 +536,9 @@ test.describe("flow page on a phone", () => {
       const find = (sel: string, text: string) => [...el.querySelectorAll<HTMLElement>(sel)].find((n) => n.textContent?.trim() === text)!;
       const before = (a: Node, b: Node) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
       const preview = find("h3", "What the file looks like");
-      return { sendTo: before(find("h3", "Send to"), preview), test: before(find("button", "Send a test"), preview) };
+      return { sendTo: before(find("h3", "Goes to"), preview), test: before(find("button", "Send a test"), preview) };
     });
-    expect(order, "Send to and Send a test come before the preview").toEqual({ sendTo: true, test: true });
+    expect(order, "Goes to and Send a test come before the preview").toEqual({ sendTo: true, test: true });
     const small = await editor.evaluate((el) =>
       [...el.querySelectorAll<HTMLElement>("a, button, input, select, textarea, summary")]
         .filter((n) => n.getClientRects().length && !(n instanceof HTMLInputElement && n.type === "hidden"))

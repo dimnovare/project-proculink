@@ -41,7 +41,7 @@ describe("OutputEditor", () => {
   it("saving a new destination saves only the destination, not the output around it", async () => {
     api.createDestination.mockResolvedValue({ id: "D1", name: "Drop", protocol: "http", config: {}, hasCredentials: false });
     renderEditor();
-    fireEvent.change(screen.getByLabelText("Send to"), { target: { value: "\u0000new" } });
+    fireEvent.change(screen.getByLabelText("Goes to"), { target: { value: "\u0000new" } });
     // A <form> inside the output's <form> submitted both (or reloaded the page under a password manager).
     expect(document.querySelector("form form")).toBeNull();
     fireEvent.change(screen.getAllByLabelText("Name")[1], { target: { value: "Drop" } });
@@ -258,7 +258,7 @@ describe("OutputEditor on the flow page (draft)", () => {
     api.testDestination.mockResolvedValue({ success: false, message: "Host not found" });
     renderDraft(output);
     fireEvent.click(screen.getByRole("button", { name: "Change where it goes" }));
-    fireEvent.change(screen.getByLabelText("Send to"), { target: { value: "\u0000new" } });
+    fireEvent.change(screen.getByLabelText("Goes to"), { target: { value: "\u0000new" } });
     fireEvent.change(screen.getAllByLabelText("Name").at(-1)!, { target: { value: "Drop" } });
     fireEvent.click(screen.getByRole("button", { name: "Save and send a test" }));
     await waitFor(() => expect(api.testDestination).toHaveBeenCalledWith("D1"));
@@ -292,7 +292,7 @@ describe("OutputEditor on the flow page (draft)", () => {
 
   it("a destination the list does not name is never shown as Download only, and no test is sent to it", async () => {
     renderDraft({ ...output, destinationId: "D9" });
-    const select = screen.getByRole("combobox", { name: "Send to" }) as HTMLSelectElement;
+    const select = screen.getByRole("combobox", { name: "Goes to" }) as HTMLSelectElement;
     expect(select.selectedOptions[0].textContent).toBe("Loading destinations…");
     await waitFor(() => expect(select.selectedOptions[0].textContent).toBe("A destination that no longer exists"));
     expect(screen.getByRole("button", { name: "Send a test" })).toBeDisabled();
@@ -304,20 +304,20 @@ describe("OutputEditor on the flow page (draft)", () => {
     const get = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("blocked"); });
     renderDraft({ ...output, destinationId: "D1" });
     expect(await screen.findByText("Accounting server")).toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "Send to" })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Goes to" })).toBeNull();
     const columns = screen.getByRole("button", { name: "Change the columns" });
     expect(columns).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("textbox", { name: /^Column name,/ })).toBeNull();
     get.mockRestore();
   });
 
-  it("the Send to fold says its state and keeps focus where the person is", async () => {
+  it("the Goes to fold says its state and keeps focus where the person is", async () => {
     api.listDestinations.mockResolvedValue([{ id: "D1", name: "Accounting server", protocol: "sftp", config: { host: "sftp.example.test", remotePath: "/in" }, hasCredentials: true }]);
     renderDraft({ ...output, destinationId: "D1" });
     const change = await screen.findByRole("button", { name: "Change where it goes" });
     expect(change).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(change);
-    expect(screen.getByRole("combobox", { name: "Send to" })).toBe(document.activeElement);
+    expect(screen.getByRole("combobox", { name: "Goes to" })).toBe(document.activeElement);
     const done = screen.getByRole("button", { name: "Done choosing where it goes" });
     expect(done).toHaveAttribute("aria-expanded", "true");
     fireEvent.click(done);

@@ -9,6 +9,10 @@ export const FLOW_STEPS: readonly { id: FlowStep; number: 1 | 2 | 3 | 4; title: 
   { id: "send", number: 4, title: "We send" },
 ];
 
+/** A step's title: step 4 makes the file on a download-only flow; an unknown flag keeps "We send". */
+export const stepTitle = (id: FlowStep, downloadOnly?: boolean): string =>
+  id === "send" && downloadOnly === true ? "We make the file" : FLOW_STEPS.find((s) => s.id === id)!.title;
+
 // The old tab names stay as aliases: other screens, help pages and bookmarks still link to them.
 const VIEWS = new Map<string, FlowView>([
   ["arrives", "arrives"], ["read", "read"], ["check", "check"], ["send", "send"], ["documents", "documents"], ["history", "history"],

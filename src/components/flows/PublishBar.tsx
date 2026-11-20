@@ -9,7 +9,7 @@ import { useConfirm } from "@/components/ui/confirm";
 import { publishFlow, restoreFlowVersion } from "@/lib/api/documents";
 import type { Flow } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { FLOW_STEPS, flowAddress, type FlowStep } from "@/lib/flowSteps";
+import { flowAddress, stepTitle, type FlowStep } from "@/lib/flowSteps";
 import { DraftPartFailed, draftReason, useFlowDraft } from "./flowDraft";
 
 /** Stores a publish or restore result and refreshes everything it can change. */
@@ -25,7 +25,6 @@ export const useFlowSaved = (flowId: string) => {
 };
 
 type Note = { text: string; done: boolean; step?: FlowStep; reason?: string };
-const stepTitle = (step: FlowStep) => FLOW_STEPS.find((s) => s.id === step)!.title;
 
 /** The bar is drawn: fields confirmed, a known version, and either never saved or changed since. */
 export const barPending = (flow: Flow) =>
@@ -60,7 +59,7 @@ export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(o
       setNote({ text: await work(), done: true });
     } catch (e) {
       if (e instanceof DraftPartFailed) {
-        setNote({ text: `A change on ${stepTitle(e.step)} couldn't be saved, so ${live === null ? "the setup wasn't saved" : "nothing was put in use"}.`, done: false, step: e.step, reason: draftReason(e) });
+        setNote({ text: `A change on ${stepTitle(e.step, flow.downloadOnly)} couldn't be saved, so ${live === null ? "the setup wasn't saved" : "nothing was put in use"}.`, done: false, step: e.step, reason: draftReason(e) });
       } else {
         setNote({ text: documentRefusalMessage(e), done: false });
         qc.invalidateQueries({ queryKey: flowKey });   // e.g. nothing to publish, or someone else published first
@@ -120,7 +119,7 @@ export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(o
                 <>
                   {" "}
                   <Link href={flowAddress(flow.id, shown.step)} replace className="inline-flex items-center font-semibold text-ink underline">
-                    {`Go to ${stepTitle(shown.step)}`}
+                    {`Go to ${stepTitle(shown.step, flow.downloadOnly)}`}
                   </Link>
                 </>
               )}

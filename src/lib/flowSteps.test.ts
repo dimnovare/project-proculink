@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { flowAddress, readFlowView } from "./flowSteps";
+import { flowAddress, readFlowView, stepTitle } from "./flowSteps";
 
 const view = (q: string) => readFlowView(new URLSearchParams(q));
 
@@ -21,5 +21,11 @@ describe("flowSteps", () => {
     expect(flowAddress("flow-1", "send", { output: "out-1" })).toBe("/flows/flow-1?tab=send&output=out-1");
     expect(flowAddress("flow-1", "read")).toBe("/flows/flow-1?tab=read");
     expect(flowAddress("flow-1", null)).toBe("/flows/flow-1");
+  });
+
+  it("step 4 says the file is made on a download-only flow", () => {
+    expect(stepTitle("send", true)).toBe("We make the file");
+    expect(stepTitle("send", false)).toBe("We send");
+    expect(stepTitle("send", undefined)).toBe("We send");
   });
 });

@@ -13,7 +13,7 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { getBillingStatus } from "@/lib/api/billing";
 import type { Flow } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { deliveryModeLabel } from "@/lib/deliveryMode";
+import { checkModeTitle } from "@/lib/deliveryMode";
 import { doesLine } from "@/lib/flowSentences";
 import { PLAN_BY_ID, planName, type PlanId } from "@/lib/plans";
 import { relativeTime } from "@/lib/relativeTime";
@@ -79,7 +79,7 @@ function FlowRows({ flows }: { flows: Flow[] }) {
                   className="grid items-center gap-3 px-4 py-3 text-ink hover:bg-surface-2" style={{ gridTemplateColumns: COLUMNS }}>
                   <Name f={f} p={p} />
                   <div id={`${p}-more`} className="contents">
-                    <span className="text-[13px] text-ink-muted">{deliveryModeLabel(f.automation === "auto")}</span>
+                    <span className="text-[13px] text-ink-muted">{checkModeTitle(f.automation)}</span>
                     <Needs f={f} />
                     <span className="text-[13px] text-ink">{f.documentCount || "None yet"}</span>
                     <span className="text-[13px] text-ink-muted">{last(f)?.text}</span>
@@ -101,7 +101,7 @@ function FlowRows({ flows }: { flows: Flow[] }) {
                 <div className="grid min-w-0 flex-1 gap-1.5">
                   <Name f={f} p={p} />
                   <div id={`${p}-more`} className="contents">
-                    <span className="text-[13px] text-ink-muted">{deliveryModeLabel(f.automation === "auto")}</span>
+                    <span className="text-[13px] text-ink-muted">{checkModeTitle(f.automation)}</span>
                     <Needs f={f} />
                     <div className="flex flex-wrap gap-x-3 text-[13px] text-ink-muted">
                       <span>{f.documentCount ? `${f.documentCount} ${f.documentCount === 1 ? "document" : "documents"}` : "None yet"}</span>
