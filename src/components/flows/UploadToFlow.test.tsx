@@ -180,6 +180,18 @@ describe("UploadToFlow", () => {
     expect(item("c.pdf").getByText("Sent")).toBeInTheDocument();       // off the page now: its last known status, never Received again
   });
 
+  it("says what file the flow makes, with Change the file", async () => {
+    const outputs = [{ name: "invoices CSV", format: "csv", standard: null, destination: null }];
+    api.listFlows.mockResolvedValue([flow("f1", "invoices", "review", { summary: { needsYou: 0, couldNotSend: 0, couldNotRead: 0, lastDocumentAt: null, waysIn: [], outputs } })]);
+    api.addDocument.mockResolvedValue(summary("d1", "invoice-1042.pdf"));
+    api.listDocumentPage.mockResolvedValue({ page: 1, pageSize: 100, totalCount: 1, sampleCount: 0, items: [row("d1", "invoice-1042.pdf", { status: "ready", inInbox: false })] });
+    mount();
+    await screen.findByRole("region", { name: "Add files" });
+    drop([new File(["x"], "invoice-1042.pdf")]);
+    expect(await screen.findByText(/Your flow “invoices” makes a CSV file that you download\./)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Change the file" })).toHaveAttribute("href", "/flows/f1/change-file?from=%2Fupload");
+  });
+
   it("says when uploads are refused by the plan, with a way on, and how much of the allowance is used", async () => {
     const next = PLAN_BY_ID[PLAN_BY_ID.pilot.next!].name;            // derived, never typed
     api.listFlows.mockResolvedValue([flow("f1", "Supplier invoices", "review")]);
