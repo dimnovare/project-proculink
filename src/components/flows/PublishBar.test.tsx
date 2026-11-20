@@ -146,7 +146,7 @@ describe("PublishBar", () => {
     unmount();
     api.publishFlow.mockResolvedValue({ ...flow, publishedVersion: 1, hasChanges: false });
     renderBar({ fieldsConfirmed: true, publishedVersion: null, hasChanges: false });
-    expect(screen.getByText("Changes to this flow are in use straight away until you save this setup.")).toBeInTheDocument();
+    expect(screen.getByText("You're still setting up, so changes apply right away. Save this setup when it works.")).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Changes not in use yet" })).toBeNull();   // nothing waits before the first save
     const unsaved = within(screen.getByRole("region", { name: "Save this setup" }));
     expect(unsaved.getAllByRole("button").map((b) => b.textContent)).toEqual(["Save this setup"]);

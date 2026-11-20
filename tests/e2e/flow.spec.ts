@@ -219,7 +219,7 @@ test.describe("flow page", () => {
     const never = { ...(await fixture()), publishedVersion: null, hasChanges: false };
     await open(page, 1440, at("read"), { [`GET /flows/${ID}`]: never, ...(await simpleOutputs()) });
     await expect(bar(page)).toHaveAccessibleName("Save this setup");
-    await expect(bar(page)).toContainText("Changes to this flow are in use straight away until you save this setup.");
+    await expect(bar(page)).toContainText("You're still setting up, so changes apply right away. Save this setup when it works.");
     await expect(bar(page).getByRole("button", { name: "Save this setup", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: USE })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Undo my changes" })).toHaveCount(0);

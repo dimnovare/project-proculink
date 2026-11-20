@@ -107,7 +107,7 @@ export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(o
         <div aria-live="polite" className="grid min-w-0 flex-1 gap-1 text-[13px]">
           {pending && (
             <p className="m-0 text-ink">
-              {live === null ? "Changes to this flow are in use straight away until you save this setup." : (
+              {live === null ? "You're still setting up, so changes apply right away. Save this setup when it works." : (
                 <><span className="block">Your changes aren't in use yet.</span><span className="block">New documents still follow the last saved setup.</span></>
               )}
             </p>

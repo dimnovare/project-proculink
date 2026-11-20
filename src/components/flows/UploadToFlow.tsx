@@ -108,7 +108,7 @@ function UploadedRow({ item, listed, inbox, sent, onSent, retry, remove }: {
   // Only a row known to be in a flow is treated as sorted: Review and Send. In the inbox, or not known: Open.
   const sorted = doc && inInbox(doc, inbox) === false;
   return (
-    <li aria-live="polite" className="relative grid min-h-[56px] grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3.5 gap-y-1 border-t border-border px-4 py-2.5 sm:grid-cols-[minmax(0,1fr)_minmax(124px,auto)_132px] sm:px-[18px]">
+    <li aria-live="polite" className="relative grid min-h-[56px] grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3.5 gap-y-1 border-t border-border px-4 py-2.5 sm:col-span-full sm:grid-cols-subgrid sm:px-[18px]">
       <span className="grid min-w-0 gap-0.5">
         {doc
           ? <Link href={`/flows/${doc.flowId}/documents/${doc.id}`} className={`${NAME} after:absolute after:inset-0`}>{name}</Link>
@@ -221,7 +221,7 @@ export function UploadToFlow() {
               <h2 ref={listHeading} tabIndex={-1} className="m-0 scroll-mt-16 text-[16px] font-semibold text-ink outline-none focus-visible:outline-none">Just added</h2>
               <span className="text-[13px] text-ink-muted">{n === 1 ? "1 document" : `${n} documents`}</span>
             </div>
-            <ul className="m-0 list-none p-0">
+            <ul className="m-0 list-none p-0 sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(124px,auto)_150px] sm:gap-x-3.5">
               {items.map((i) => (
                 <UploadedRow
                   key={i.key} item={i} listed={seen(i, uploaded.data)} inbox={inbox.data} sent={!!i.document && sent.has(i.document.id)}
