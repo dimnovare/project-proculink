@@ -6,6 +6,7 @@ import { Check, TriangleAlert } from "lucide-react";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { EmptyState } from "@/components/bridge/EmptyState";
+import { Loading, LogoLoader } from "@/components/bridge/LogoLoader";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import type { DocumentCheck, DocumentSummary } from "@/lib/api/documents";
 import { classifyApiFailure } from "@/lib/apiFailure";
@@ -31,31 +32,15 @@ export const Quiet =({ children }: { children: string }) => (
   <p role="status" className="m-0 text-[13px] text-ink-muted">{children}</p>
 );
 
-/** The board's bar widths, row by row. */
-const BAR_WIDTHS = [[72, 80, 58], [54, 66, 74], [64, 72, 46]];
+export { Loading };
 
-/** Still grey rows while a list loads. `label` is what a screen reader hears. `columns` draws the list's own headings. */
-export function LoadingRows({ label, columns, rows = 3 }: { label: string; columns?: string[]; rows?: number }) {
-  const cells = columns?.length || 3;
-  const grid = { gridTemplateColumns: `repeat(${cells}, minmax(0, 1fr))` };
-  return (
-    <Card flush role="status" aria-label={label}>
-      <span className="sr-only">{label}</span>
-      {columns && (
-        <div className="grid h-[42px] items-center gap-4 px-4 text-[13px] text-ink-muted" style={grid}>
-          {columns.map((c) => <span key={c}>{c}</span>)}
-        </div>
-      )}
-      {Array.from({ length: rows }, (_, r) => (
-        <div key={r} className={`grid h-[55px] items-center gap-4 px-4${columns || r > 0 ? " border-t border-border" : ""}`} style={grid}>
-          {Array.from({ length: cells }, (_, c) => (
-            <span key={c} aria-hidden="true" className="block h-3 rounded-[6px] bg-surface-2" style={{ width: `${BAR_WIDTHS[r % 3][c % 3]}%` }} />
-          ))}
-        </div>
-      ))}
-    </Card>
-  );
-}
+/** A page on its way: the moving mark, in the space a page's first list takes. `label` is what a screen reader hears. */
+export const LoadingPanel = ({ label }: { label: string }) => (
+  <div role="status" aria-label={label} className="flex h-[207px] items-center justify-center">
+    <span className="sr-only">{label}</span>
+    <LogoLoader size={56} />
+  </div>
+);
 
 const Empty = ({ icon, title, line, action }: { icon?: React.ReactNode; title: string; line: string; action: React.ReactNode }) => (
   <Card>

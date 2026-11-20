@@ -55,6 +55,7 @@ import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
+import { Loading } from "@/components/bridge/LogoLoader";
 
 // Stripe dashboard base URL. Defaults to live mode at go-live.
 // Set NEXT_PUBLIC_STRIPE_DASHBOARD_BASE=https://dashboard.stripe.com/test to
@@ -290,7 +291,7 @@ export default function AdminPage() {
       <PageShell variant="wide">
         <PageHeader title="Admin" sub="Revenue, customer health, and manual invoicing for the platform owner." />
         <OrderFindPanel knownOrgIds={knownOrgIds} />
-        <div style={{ color: "var(--ink-muted)", fontSize: 14 }}>Loading admin overview…</div>
+        <Loading>Loading admin overview…</Loading>
       </PageShell>
     );
   }

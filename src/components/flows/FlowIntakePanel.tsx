@@ -20,7 +20,7 @@ import { kindsLine } from "@/lib/fileKinds";
 import { flowAddress } from "@/lib/flowSteps";
 import { Field, INPUT } from "./DestinationForm";
 import { PICKUP_KINDS, PickupForm } from "./PickupForm";
-import { Failed, Quiet } from "./states";
+import { Failed, Quiet, Loading } from "./states";
 
 /** One mutation shape for every action here: run it, refresh the list, say what the server refused. */
 function useRun(flowId: string) {
@@ -111,7 +111,7 @@ export function FlowEmailCard({ flowId }: { flowId: string }) {
   const intakes = useIntakes(flowId);
   const email = intakes.data?.find((i) => i.kind === "email");
   if (intakes.isError && !intakes.data) return <Failed error={intakes.error} retry={() => intakes.refetch()} />;
-  return email ? <EmailCard flowId={flowId} intake={email} /> : <Quiet>Loading address…</Quiet>;
+  return email ? <EmailCard flowId={flowId} intake={email} /> : <Loading>Loading address…</Loading>;
 }
 
 function ApiCard({ flowId, intake }: { flowId: string; intake?: FlowIntake }) {
@@ -226,7 +226,7 @@ export function FlowIntakePanel({ flow }: { flow: Flow }) {
   const workspace = !inbox.isError && inbox.data?.address && inbox.data.flowId !== flow.id ? inbox.data.address : null;
   const body = () => {
     if (intakes.isError && !intakes.data) return <Failed error={intakes.error} retry={() => intakes.refetch()} />;
-    if (!intakes.data) return <Quiet>Loading…</Quiet>;
+    if (!intakes.data) return <Loading>Loading…</Loading>;
     const email = intakes.data.find((i) => i.kind === "email");
     const api = intakes.data.find((i) => i.kind === "api");
     return (

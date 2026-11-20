@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { EmptyState } from "@/components/bridge/EmptyState";
+import { Loading } from "@/components/bridge/LogoLoader";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { listActivity, listDestinations, type ActivityEvent } from "@/lib/api/documents";
@@ -113,7 +114,7 @@ export function ActivityPage() {
       </StatusNotice>
     );
   } else if (!activity.data) {
-    panel = <Quiet>Loading history…</Quiet>;
+    panel = <Loading>Loading history…</Loading>;
   } else if (activity.data.events.length === 0) {
     panel = page > 1 ? (
       <div className="flex flex-col items-start gap-2">
@@ -233,4 +234,4 @@ const Frame = ({ children, actions }: { children: React.ReactNode; actions?: Rea
 );
 
 /** The route's Suspense fallback: the page frame and the in-page loading line, so the first paint does not shift. */
-export const ActivityLoading = () => <Frame actions={<Button disabled><Download size={16} aria-hidden />Export</Button>}><Quiet>Loading history…</Quiet></Frame>;
+export const ActivityLoading = () => <Frame actions={<Button disabled><Download size={16} aria-hidden />Export</Button>}><Loading>Loading history…</Loading></Frame>;

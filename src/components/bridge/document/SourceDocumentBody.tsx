@@ -35,6 +35,7 @@ import { ZoomButtons } from "./ZoomButtons";
 import { SpotsContext, spotProps, useSpotAt, type SourceSpot } from "./SourceHighlight";
 import { parseAddress, spreadsheetColumnName } from "@/lib/sourceAddress";
 import { scrollRegionProps } from "./scrollRegion";
+import { Loading } from "@/components/bridge/LogoLoader";
 import {
   MAX_PREVIEW_ROWS,
   parseCsvTable,
@@ -50,7 +51,7 @@ export { scrollTo };
 // order never downloads it and the server bundle never sees it.
 const PdfDocumentView = dynamic(
   () => import("./PdfDocumentView").then((m) => m.PdfDocumentView),
-  { ssr: false, loading: () => <Message>Opening the document…</Message> },
+  { ssr: false, loading: () => <Loading className="px-4 py-3">Opening the document…</Loading> },
 );
 
 /** A spot the person pointed at: a box on a page or image, or a sheet cell / words on a text line. */
@@ -158,7 +159,7 @@ function SheetView({
     retry: false,
   });
 
-  if (isLoading) return <Message>Reading the spreadsheet…</Message>;
+  if (isLoading) return <Loading className="px-4 py-3">Reading the spreadsheet…</Loading>;
   if (isError || !data || data.tables.length === 0) {
     return (
       <Message>
@@ -381,7 +382,7 @@ function TextView({
     retry: false,
   });
 
-  if (isLoading) return <Message>Reading the document…</Message>;
+  if (isLoading) return <Loading className="px-4 py-3">Reading the document…</Loading>;
   if (isError || !data) {
     return <Message>We couldn&rsquo;t read this file in the browser. Download it to check it.</Message>;
   }

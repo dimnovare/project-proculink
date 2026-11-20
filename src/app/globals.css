@@ -1040,3 +1040,18 @@ details[open] > summary [data-disclosure-chevron] {
 /* The hidden attribute always hides. Without this a display utility on the same element (grid, flex) wins over
    the browser's own rule, and a closed section stays open. */
 [hidden]:where(:not([hidden="until-found"])) { display: none !important; }
+
+/* The loader (LogoLoader): the mark's dash runs blue dot → green dot while the dots pulse in turn. Under reduced
+   motion the global reset would stop the dash at a fragment, so it holds still as the whole mark instead. */
+.logo-loader .ll-rail { stroke: #DCE2EC; }
+.logo-loader .ll-in { stop-color: var(--brand-blue); fill: var(--brand-blue); }
+.logo-loader .ll-out { stop-color: var(--brand-green); fill: var(--brand-green); }
+.logo-loader .ll-wire { stroke-dasharray: 26 74; animation: ll-wire 1.9s cubic-bezier(.5, 0, .5, 1) infinite; }
+.logo-loader .ll-node { transform-box: fill-box; transform-origin: center; animation: ll-node 1.9s ease-in-out infinite; }
+.logo-loader .ll-node-out { animation-delay: .95s; }
+@keyframes ll-wire { from { stroke-dashoffset: 100; } to { stroke-dashoffset: -100; } }
+@keyframes ll-node { 0%, 100% { opacity: .5; transform: scale(1); } 50% { opacity: 1; transform: scale(1.18); } }
+@media (prefers-reduced-motion: reduce) {
+  .logo-loader .ll-wire { animation: none !important; stroke-dasharray: none; }
+  .logo-loader .ll-node { animation: none !important; opacity: 1; }
+}

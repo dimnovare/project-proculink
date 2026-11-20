@@ -7,7 +7,7 @@ import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { Button } from "@/components/bridge/DSPrimitives";
-import { Failed, Quiet } from "@/components/flows/states";
+import { Failed, Quiet, Loading } from "@/components/flows/states";
 import { mapStatus, STATUS_PRESENTATION } from "@/lib/orderArchiveStatus";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { apiClient } from "@/lib/api-client";
@@ -36,7 +36,7 @@ export function OrderArchive() {
 
   let body;
   if (q.isError) body = <Failed error={q.error} retry={() => q.refetch()} />;
-  else if (!q.data) body = <Quiet>Loading…</Quiet>;
+  else if (!q.data) body = <Loading>Loading…</Loading>;
   else if (!q.data.items.length) body = <Quiet>No old orders.</Quiet>;
   else {
     body = (

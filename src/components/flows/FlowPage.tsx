@@ -31,7 +31,7 @@ import { FlowValues, useLatestRead } from "./FlowValues";
 import { FlowDraftProvider, FlowLink, GoContext, leaveClick, useFlowDraft } from "./flowDraft";
 import { FlowVersionsPanel } from "./FlowVersionsPanel";
 import { PublishBar } from "./PublishBar";
-import { Failed, Quiet } from "./states";
+import { Failed, Loading } from "./states";
 
 const STEP_IDS: readonly FlowView[] = FLOW_STEPS.map((s) => s.id);
 const isFlowStep = (v: FlowView): v is FlowStep => STEP_IDS.includes(v);
@@ -242,7 +242,7 @@ function FlowFrame({ flowId }: { flowId: string }) {
         {flow.isError && !f ? (
           <Failed error={flow.error} retry={() => flow.refetch()} />
         ) : !f ? (
-          <Quiet>Loading flow…</Quiet>
+          <Loading>Loading flow…</Loading>
         ) : (
           <FlowBody flow={f} view={view} output={output} renaming={renaming} onRenamed={() => setRenaming(false)} blocked={draft.stay} />
         )}

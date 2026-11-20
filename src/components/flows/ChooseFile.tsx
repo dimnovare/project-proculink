@@ -21,7 +21,7 @@ import { useLatestRead } from "./FlowValues";
 import { DOCS_ACCEPT, DOCS_BYTES, SAMPLE_ACCEPT, SAMPLE_BYTES, StandardList } from "./OutputBuilder";
 import { FORMATS, outputTypeLabel } from "./OutputEditor";
 import { COMMON_TYPES, aFileOf, makeFileLabel, replaceOutput, standardChoice, typeChoice } from "./fileChoice";
-import { Failed, Quiet } from "./states";
+import { Failed, Quiet, Loading } from "./states";
 
 const H2 = "m-0 text-[17px] font-semibold text-ink";
 const LINE = "m-0 text-[14px] leading-normal text-ink-muted";
@@ -84,7 +84,7 @@ export function ChooseFile({ flowId }: { flowId: string }) {
   const failed = [flow, outputs].find((q) => q.isError);
   const header = (sub?: string) => <PageHeader title="Change the file" sub={sub} back={{ href: back, label: f?.name ?? "Flow" }} />;
   if (failed) return <PageShell>{header()}<Failed error={failed.error} retry={() => failed.refetch()} /></PageShell>;
-  if (!f || !outputs.data) return <PageShell>{header()}<Quiet>Loading…</Quiet></PageShell>;
+  if (!f || !outputs.data) return <PageShell>{header()}<Loading>Loading…</Loading></PageShell>;
   if (!output) return <PageShell>{header()}<Quiet>{address.output ? "This file no longer exists." : "No file yet."}</Quiet></PageShell>;
 
   const type = outputTypeLabel(output);

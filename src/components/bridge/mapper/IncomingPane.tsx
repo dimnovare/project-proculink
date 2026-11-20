@@ -30,6 +30,7 @@ import {
   SAVED_MAPPING_TITLE,
 } from "./suggestionBasisModel";
 import { SourceTypeChip } from "./SourceTypeChip";
+import { LogoLoader } from "@/components/bridge/LogoLoader";
 import {
   buildIncomingGroups,
   incomingFilterCounts,
@@ -204,7 +205,7 @@ export function IncomingPane({
   if (loading) {
     return (
       <PaneFrame title="What we received" sourceType={sourceType} tabs={tabs} notice={documentNotice}>
-        <div style={{ padding: "10px 12px", fontSize: 11, color: "var(--ink-faint)" }}>Loading incoming data…</div>
+        <div role="status" className="flex items-center gap-2" style={{ padding: "10px 12px", fontSize: 11, color: "var(--ink-faint)" }}><LogoLoader size={14} />Loading incoming data…</div>
       </PaneFrame>
     );
   }

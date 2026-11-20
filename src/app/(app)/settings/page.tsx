@@ -15,7 +15,7 @@ import { SavedMark, SettingsPanel } from "@/components/settings/SettingsPrimitiv
 import { Button, buttonClass, Pill } from "@/components/bridge/DSPrimitives";
 import { membershipRoleLabel, nameInitials, UserChipMenu } from "@/components/bridge/UserChipMenu";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { Failed, Quiet } from "@/components/flows/states";
+import { Failed, Loading } from "@/components/flows/states";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import {
   checkAdminAccess,
@@ -161,7 +161,7 @@ function OrgSection({ developersOpen }: { developersOpen: boolean }) {
 
   let roster: ReactNode;
   if (memberships?.isError && !people?.length) roster = <p className="m-0 text-[14px] text-ink-muted">We couldn&apos;t load the people in this workspace.</p>;
-  else if (!people || (memberships?.isLoading && !people.length)) roster = <Quiet>Loading people…</Quiet>;
+  else if (!people || (memberships?.isLoading && !people.length)) roster = <Loading>Loading people…</Loading>;
   else
     roster = (
       <>
@@ -385,7 +385,7 @@ function ApiKeysSection() {
 
   let body: ReactNode;
   if (list.isError && !keys) body = <Failed error={list.error} retry={() => list.refetch()} />;
-  else if (!keys) body = <Quiet>Loading keys…</Quiet>;
+  else if (!keys) body = <Loading>Loading keys…</Loading>;
   else if (!keys.length && !showCreate)
     body = (
       <div className="grid gap-1">

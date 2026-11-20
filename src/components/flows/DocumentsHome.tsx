@@ -28,7 +28,7 @@ import { keyWord, openSearch } from "@/lib/shortcuts";
 import { DocumentList, type ListSelection } from "./DocumentList";
 import { SelectionBar, type BarReport } from "./SelectionBar";
 import { firstRunOf } from "@/lib/firstRun";
-import { CaughtUp, EmptyFilter, Quiet } from "./states";
+import { CaughtUp, EmptyFilter, Quiet, Loading } from "./states";
 import { StoppedAlert } from "./StoppedAlert";
 import { Welcome } from "./Welcome";
 
@@ -137,7 +137,7 @@ export function DocumentsHome() {
       </StatusNotice>
     );
   } else if (!tabDef || !docs.data) {
-    panel = <Quiet>Loading documents…</Quiet>;
+    panel = <Loading>Loading documents…</Loading>;
   } else if (docs.data.items.length === 0) {
     panel = page === 1 ? (tabDef.id === "needs-you" ? <CaughtUp /> : <EmptyFilter tab={tabDef.id} />) : (
       <div className="flex flex-col items-start gap-2">
@@ -186,7 +186,7 @@ export function DocumentsHome() {
       </StatusNotice>
     );
   } else if (engine === "unknown" || !flows.data) {
-    body = <Quiet>Loading flows…</Quiet>;
+    body = <Loading>Loading flows…</Loading>;
   } else {
     body = (
       <div className="flex min-w-0 flex-col gap-3">
@@ -275,4 +275,4 @@ const Frame = ({ children, sub, actions }: { children: React.ReactNode; sub?: st
 );
 
 /** What the screen draws before its first answer; the route's Suspense fallback, so the first paint does not shift. */
-export const DocumentsLoading = () => <Frame><Quiet>Loading flows…</Quiet></Frame>;
+export const DocumentsLoading = () => <Frame><Loading>Loading flows…</Loading></Frame>;

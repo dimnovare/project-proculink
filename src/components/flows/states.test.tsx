@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, within } from "@testing-library/react";
-import { Failed, LoadingRows, ReadProblem } from "./states";
+import { Failed, Loading, LoadingPanel, ReadProblem } from "./states";
 import { COPY } from "@/lib/documentRefusals";
 import { ApiHttpError } from "@/lib/api/core";
 import { EmptyState } from "@/components/bridge/EmptyState";
@@ -49,13 +49,19 @@ describe("Failed and EmptyState", () => {
   });
 });
 
-describe("LoadingRows and a document we couldn't read", () => {
-  it("loading is a still list of rows a screen reader hears as one status", () => {
-    const { container } = render(<LoadingRows label="Loading documents" columns={["Document", "Flow", "What's needed"]} />);
-    const status = within(container).getByRole("status", { name: "Loading documents" });
-    expect(within(status).getByText("What's needed")).toBeTruthy();
-    expect(status.querySelectorAll("[aria-hidden='true']").length).toBeGreaterThanOrEqual(3);
-    expect(status.outerHTML).not.toMatch(/animate-/);
+describe("Loading and a document we couldn't read", () => {
+  it("loading shows the moving mark, which a screen reader skips for the words", () => {
+    const { container } = render(<><LoadingPanel label="Loading the page" /><Loading>Loading flows…</Loading></>);
+    const page = within(container).getByRole("status", { name: "Loading the page" });
+    const line = within(container).getByText("Loading flows…");
+    for (const status of [page, line]) {
+      const mark = status.querySelector("svg.logo-loader");
+      expect(mark?.getAttribute("aria-hidden")).toBe("true");
+      // Each mark carries its own gradient: one in a hidden tree would blank the others.
+      expect(mark?.querySelector(".ll-wire")?.getAttribute("stroke")).toBe(`url(#${mark?.querySelector("linearGradient")?.id})`);
+    }
+    expect(line.getAttribute("role")).toBe("status");
+    expect(page.querySelector("linearGradient")?.id).not.toBe(line.querySelector("linearGradient")?.id);
   });
 
   it("a document we couldn't read says it was not sent or counted, and offers a clearer copy", () => {

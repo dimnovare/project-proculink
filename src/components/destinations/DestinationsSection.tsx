@@ -9,7 +9,7 @@ import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { DestinationForm } from "@/components/flows/DestinationForm";
-import { Failed, Quiet } from "@/components/flows/states";
+import { Failed, Loading } from "@/components/flows/states";
 import { useConfirm } from "@/components/ui/confirm";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { deleteDestination, listDestinations, testDestination } from "@/lib/api/documents";
@@ -36,7 +36,7 @@ export function DestinationsSection() {
 
   let rows: React.ReactNode;
   if (list.isError && !list.data) rows = <div className="p-4"><Failed error={list.error} retry={() => list.refetch()} /></div>;
-  else if (!list.data) rows = <div className="p-4"><Quiet>Loading destinations…</Quiet></div>;
+  else if (!list.data) rows = <div className="p-4"><Loading>Loading destinations…</Loading></div>;
   else if (!list.data.length)
     rows = (
       <div className="grid gap-1 p-4">

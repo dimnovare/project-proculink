@@ -13,6 +13,7 @@ import {
 } from "@clerk/nextjs";
 import { Card } from "@/components/bridge/layout/Card";
 import { Button } from "@/components/bridge/DSPrimitives";
+import { LogoLoader } from "@/components/bridge/LogoLoader";
 import { captureException } from "@/lib/sentry-context";
 import { capture } from "@/lib/analytics";
 import { isApiMockMode, isQaBypass } from "@/lib/api-client";
@@ -29,7 +30,8 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 function GateSpinner() {
   return (
-    <div role="status" aria-live="polite" className="text-sm" style={{ color: "var(--ink-muted)" }}>
+    <div role="status" aria-live="polite" className="flex flex-col items-center gap-4 text-sm" style={{ color: "var(--ink-muted)" }}>
+      <LogoLoader size={44} />
       Setting up your workspace…
     </div>
   );

@@ -20,7 +20,7 @@ import { Field, INPUT } from "./DestinationForm";
 import { FileDrop } from "./FileDrop";
 import { DraftState, useDraftPart } from "./flowDraft";
 import { useFlowSaved } from "./PublishBar";
-import { Failed, Quiet } from "./states";
+import { Failed, Loading } from "./states";
 import { useUploadQueue } from "./UploadQueue";
 
 /** The newest document of this flow the engine has finished reading, and what it read off it. */
@@ -354,7 +354,7 @@ export function FirstDocumentDrop({ flow, newest, prompt, reading, sends, filled
 }) {
   const queue = useUploadQueue();
   if (newest?.status === STATUS.received || newest?.status === STATUS.reading)
-    return <Quiet>{`We are reading ${newest.fileName}. ${reading}`}</Quiet>;
+    return <Loading>{`We are reading ${newest.fileName}. ${reading}`}</Loading>;
   if (newest && !Object.hasOwn(DOCUMENT_STATUSES, newest.status))
     return (
       <p className="m-0 text-[13px] text-ink-muted">
@@ -381,7 +381,7 @@ export function FlowValues({ flow }: { flow: Flow }) {
   const fileName = doc.data?.summary.fileName;
   if (flow.fieldsConfirmed) return <DraftValues flow={flow} read={doc.data?.read} fileName={fileName} />;
   if (docs.isError && !docs.data) return <Failed error={docs.error} retry={() => docs.refetch()} />;
-  if (!docs.data || (latest && doc.isPending)) return <Quiet>Loading…</Quiet>;
+  if (!docs.data || (latest && doc.isPending)) return <Loading>Loading…</Loading>;
   if (doc.isError && !doc.data) return <Failed error={doc.error} retry={() => doc.refetch()} />;
   if (!doc.data) return <FirstDocument flow={flow} newest={newest} />;
   return <FirstValues flow={flow} read={doc.data.read} fileName={doc.data.summary.fileName} />;

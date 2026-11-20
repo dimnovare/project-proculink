@@ -24,6 +24,7 @@ import { DestinationForm, Field, INPUT } from "./DestinationForm";
 import { notFound, useRunDocument } from "./CheckStep";
 import { useLinkedAccounts } from "./GoogleTargetFields";
 import { Failed, Gone } from "./states";
+import { Loading } from "@/components/bridge/LogoLoader";
 
 type NewTile = "email" | "google_drive" | "google_sheets" | "server" | "s3" | "http";
 export type SendChoice =
@@ -283,7 +284,7 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
           <StatusNotice tone="error" action={<Button size="sm" variant="secondary" onClick={() => outputs.refetch()}>Try again</Button>}>
             {documentRefusalMessage(outputs.error)}
           </StatusNotice>
-        ) : !outputs.data || run.isLoading ? <p role="status" className="m-0 text-[13px] text-ink-muted">Loading…</p> : <>
+        ) : !outputs.data || run.isLoading ? <Loading>Loading…</Loading> : <>
         <p className="m-0 text-[14px] text-ink">
           {state === "sample" ? "This is our sample invoice, so we never send it. Download its CSV file to see what your documents will become, then add one of your own."
             : state === "unknown" ? "Finish now and send your document later from Documents."

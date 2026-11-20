@@ -18,7 +18,7 @@ import { doesLine } from "@/lib/flowSentences";
 import { PLAN_BY_ID, planName, type PlanId } from "@/lib/plans";
 import { relativeTime } from "@/lib/relativeTime";
 import { firstRunOf } from "@/lib/firstRun";
-import { Quiet } from "./states";
+import { Loading } from "./states";
 import { Welcome } from "./Welcome";
 
 const COLUMNS = "minmax(0,2.4fr) minmax(0,1.2fr) minmax(0,1.4fr) 88px 120px 16px";
@@ -165,7 +165,7 @@ export function FlowsHome() {
       </StatusNotice>
     );
   } else {
-    body = <Quiet>Loading flows…</Quiet>;
+    body = <Loading>Loading flows…</Loading>;
   }
 
   return (

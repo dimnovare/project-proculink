@@ -20,7 +20,7 @@ import { editKey, reviewMarks } from "@/lib/reviewMarks";
 import { Field, INPUT } from "./DestinationForm";
 import { Original, Pane, PaneTabs } from "./DocumentScreen";
 import { needsWords, SAVE_WORDS, ValueInput } from "./ReadValuesPanel";
-import { Failed, Gone, Quiet, ReadProblem } from "./states";
+import { Failed, Gone, ReadProblem, Loading } from "./states";
 
 export const notFound = (e: unknown) => e instanceof ApiHttpError && e.status === 404;
 
@@ -90,11 +90,11 @@ export function CheckStep({ flow, docId, first }: { flow: Flow; docId: string | 
   const another = <Link href={firstRunAddress({ flow: flow.id })} className={WAY_ON}>Use another file</Link>;
   if (!doc.data) {
     if (notFound(doc.error)) return <Gone text={COPY.document_not_found} />;
-    return doc.isError ? <Failed error={doc.error} retry={() => doc.refetch()} /> : <Quiet>Loading…</Quiet>;
+    return doc.isError ? <Failed error={doc.error} retry={() => doc.refetch()} /> : <Loading>Loading…</Loading>;
   }
   const { summary } = doc.data;
   if (summary.status === "received" || summary.status === "reading")
-    return <Quiet>{`Reading ${summary.fileName}… This takes a few seconds.`}</Quiet>;
+    return <Loading>{`Reading ${summary.fileName}… This takes a few seconds.`}</Loading>;
   const nothingRead = !read || read.fields.length + read.tables.length === 0;
   if (summary.status === "read_failed" || (summary.statusReason === "duplicate_file" && nothingRead))
     return <div className="grid justify-items-start gap-3"><ReadProblem summary={summary} retry={retry} scansOn={flow.scansOn} uploadHref={firstRunAddress({ step: "add", flow: flow.id })} />{another}</div>;

@@ -16,7 +16,7 @@ import { WAITING_LINE } from "./ChooseFile";
 import { FilePreview } from "./FilePreview";
 import { FORMATS } from "./OutputEditor";
 import { COMMON_TYPES, replaceOutput, typeChoice } from "./fileChoice";
-import { Failed, Quiet } from "./states";
+import { Failed, Loading } from "./states";
 
 const KINDS: Record<string, string> = { csv: "A CSV spreadsheet file", xlsx: "An Excel workbook", xml: "An XML file", json: "A JSON file", pdf: "A PDF" };
 const H2 = "m-0 text-[17px] font-semibold text-ink";
@@ -70,7 +70,7 @@ export function FirstFile({ flow, docId }: { flow: Flow; docId: string }) {
             <Button variant="primary" size="lg" loading={download.isPending} onClick={() => download.mutate()}>Download</Button>
             {download.isError && <p role="alert" className="m-0 basis-full text-[13px] text-danger-text">{documentRefusalMessage(download.error)}</p>}
           </div>
-        ) : failed ? <Failed error={failed.error} retry={() => failed.refetch()} /> : <Quiet>Loading…</Quiet>}
+        ) : failed ? <Failed error={failed.error} retry={() => failed.refetch()} /> : <Loading>Loading…</Loading>}
       </Card>
       {output && (
         <Card as="section" aria-labelledby="first-file-change" pad={20} radius={12}>
