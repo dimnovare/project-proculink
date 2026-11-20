@@ -1,3 +1,5 @@
+import { isAppPath } from "./appPath";
+
 /** The flow page's four steps, the two views beside them, and the address that names one. */
 export type FlowStep = "arrives" | "read" | "check" | "send";
 export type FlowView = FlowStep | "documents" | "history";
@@ -48,13 +50,13 @@ export function changeFileAddress(flowId: string, o: { output?: string; document
   return `/flows/${encodeURIComponent(flowId)}/change-file${q && `?${q}`}`;
 }
 
-/** The change-file address; `from` only when it stays in the app (a path, never `//host` or `/\host`). */
+/** The change-file address; `from` only when it stays in the app (`isAppPath`). */
 export function readChangeFile(params: Pick<URLSearchParams, "get">) {
   const way = params.get("way");
   const from = params.get("from");
   return {
     output: params.get("output"), document: params.get("document"),
     way: way && WAYS.includes(way) ? (way as FileWay) : null,
-    from: from?.startsWith("/") && from[1] !== "/" && from[1] !== "\\" ? from : null,
+    from: from && isAppPath(from) ? from : null,
   };
 }

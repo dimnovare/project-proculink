@@ -14,13 +14,10 @@ import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { GOOGLE_CONNECT_CHANNEL, completeGoogleConnect } from "@/lib/api/linkedAccounts";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { isAppPath } from "@/lib/appPath";
 
-/**
- * The same check as GoogleConnectService.Start: a same-site path with no control character (C#
- * `char.IsControl` is `\p{Cc}`), else /flows. A URL parser drops tabs, so "/\t/host" means "//host".
- */
-const safePath = (p: string) =>
-  p.startsWith("/") && !p.startsWith("//") && !p.startsWith("/\\") && !/\p{Cc}/u.test(p) ? p : "/flows";
+/** A same-site path (`isAppPath`, the same check as GoogleConnectService.Start), else /flows. */
+const safePath = (p: string) => (isAppPath(p) ? p : "/flows");
 
 function GoogleCallback() {
   const params = useSearchParams();
