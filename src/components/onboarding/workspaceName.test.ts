@@ -27,6 +27,10 @@ describe("deriveWorkspaceName", () => {
   it("trims the derived email local-part", () => {
     expect(deriveWorkspaceName(null, "  orders@company.com  ")).toBe("orders's workspace");
   });
+  it("drops a +tag from the email local-part", () => {
+    expect(deriveWorkspaceName(null, "orders+inbox@company.com")).toBe("orders's workspace");
+    expect(deriveWorkspaceName(null, "+inbox@company.com")).toBe("My workspace");
+  });
   it("treats a whitespace-only email local-part as absent", () => {
     expect(deriveWorkspaceName(null, "   @company.com")).toBe("My workspace");
   });
