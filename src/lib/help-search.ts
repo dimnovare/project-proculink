@@ -21,6 +21,7 @@ export function buildHelpFuse(
       { name: "category", weight: 0.05 },
     ],
     threshold: 0.4,
+    includeScore: true,
   });
 }
 
@@ -50,6 +51,7 @@ export function buildSiteHelpFuse(): Fuse<HelpHit> {
       { name: "keywords", weight: 0.15 },
     ],
     threshold: 0.4,
+    includeScore: true,
   });
 }
 
@@ -57,8 +59,16 @@ export function buildSiteHelpFuse(): Fuse<HelpHit> {
 export function searchHelpArticles<T>(fuse: Fuse<T>, query: string, max = 6): T[] {
   const q = query.trim();
   if (!q) return [];
-  return fuse
-    .search(q)
-    .slice(0, max)
-    .map((r) => r.item);
+  const whole = fuse.search(q);
+  const words = q.split(/\s+/);
+  if (whole.length > 0 || words.length < 2) return whole.slice(0, max).map((r) => r.item);
+  // No article has the words together ("excel semicolon"): rank by how many of them it has, then by how well.
+  const hits = new Map<T, { n: number; score: number }>();
+  for (const w of words) {
+    for (const r of fuse.search(w)) {
+      const h = hits.get(r.item) ?? { n: 0, score: 0 };
+      hits.set(r.item, { n: h.n + 1, score: h.score + (r.score ?? 1) });
+    }
+  }
+  return [...hits].sort(([, a], [, b]) => b.n - a.n || a.score / a.n - b.score / b.n).slice(0, max).map(([item]) => item);
 }

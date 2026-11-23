@@ -38,6 +38,8 @@ describe("DocumentList", () => {
 
   it("says what each row needs, from what is known about it", () => {
     expect(rowNeed(row({ status: "ready" }))).toEqual({ text: "Ready to send", tone: "green" });
+    // Our sample is never sent, so its row never says it is ready to send.
+    expect(rowNeed(row({ status: "ready", isSample: true }))).toEqual({ text: "Nothing to send", tone: "green" });
     expect(rowNeed(row({ failedChecks: 2, checks: ["low_confidence", "required_missing"] }))).toEqual({ text: "2 values to check", tone: "amber" });
     expect(rowNeed(row({ failedChecks: 1, checks: ["type_invalid"] })).text).toBe("1 value to check");
     expect(rowNeed(row({ failedChecks: 3, checks: ["low_confidence", "duplicate"] })).text).toBe("Same number as an earlier document");
@@ -118,14 +120,16 @@ describe("DocumentList", () => {
     expect(within(screen.getByRole("link", { name: /scan\.pdf/ })).getByText(/^From Example Supplier Ltd/)).toBeInTheDocument();
   });
 
-  it("selecting, a click on the row (not the box) ticks it and opens nothing, on both layouts", () => {
+  it("selecting, a click on the row (not the box) ticks it and opens nothing, on both layouts, an inbox row too", () => {
     const toggle = vi.fn();
     render(
       <QueryClientProvider client={new QueryClient()}>
-        <DocumentList label="Documents" showFlow documents={[row({ id: "a", fileName: "PO-48213.pdf", statusReason: "duplicate_file", canRemove: true })]} selection={{ ids: new Set(), toggle, all: vi.fn() }} />
+        <DocumentList label="Documents" showFlow documents={[row({ id: "a", fileName: "PO-48213.pdf", statusReason: "new_kind", inInbox: true, canRemove: true })]} selection={{ ids: new Set(), toggle, all: vi.fn() }} />
       </QueryClientProvider>,
     );
     expect(screen.queryByRole("link", { name: /PO-48213\.pdf/ })).toBeNull();
+    // A new kind waits in the inbox, and can still be removed with others at once.
+    expect(within(screen.getByRole("table", { name: "Documents" })).getByRole("checkbox", { name: "Select PO-48213.pdf" })).toBeInTheDocument();
     fireEvent.click(within(screen.getByRole("table", { name: "Documents" })).getByText("PO-48213.pdf"));
     fireEvent.click(within(screen.getByTestId("documents-phone-list")).getByTestId("document-name"));
     expect(toggle.mock.calls).toEqual([["a"], ["a"]]);

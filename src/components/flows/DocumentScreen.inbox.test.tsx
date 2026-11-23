@@ -24,9 +24,9 @@ beforeEach(() => {
   (window as unknown as { __mockEngine: Spy }).__mockEngine = { calls: [] };
 });
 
-const mount = (documentId: string, flowId = "flow-inbox") =>
+const mount = (documentId: string, flowId = "flow-inbox", client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) =>
   render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider client={client}>
       <DocumentScreen flowId={flowId} documentId={documentId} />
     </QueryClientProvider>,
   );
@@ -158,6 +158,21 @@ describe("DocumentScreen, a document in the inbox", () => {
     expect(nav.push).toHaveBeenCalledTimes(1);
     expect(calls().filter((c) => c.includes("/set-up"))).toHaveLength(1);
     expect(calls().filter((c) => c.startsWith("POST") && c.includes("/outputs"))).toEqual([]); // the server makes the CSV file (P3)
+  });
+
+  it("Move it says, on the screen it opens, how many documents like it went along", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    spy().answer = { "POST /documents/doc-in-2/move": { id: "doc-in-2", flowId: "flow-1", flowName: "Supplier invoices", alsoMoved: 2 } };
+    const first = mount("doc-in-2", "flow-inbox", client);
+    const list = within(await answers()).getByRole("combobox", { name: "Flow it belongs with" });
+    await waitFor(() => expect(within(list).getByRole("option", { name: "Supplier invoices" })).toBeTruthy());
+    fireEvent.change(list, { target: { value: "flow-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Move it" }));
+    await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/flows/flow-1/documents/doc-in-2"));
+    first.unmount();
+    spy().answer = {};
+    mount("doc-in-2", "flow-1", client);
+    expect(await screen.findByText("2 more documents like it went to Supplier invoices too.")).toBeVisible();
   });
 
   it("several flows fit: Move it comes first and nothing says it is new", async () => {

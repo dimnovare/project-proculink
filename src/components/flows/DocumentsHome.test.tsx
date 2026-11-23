@@ -213,7 +213,8 @@ describe("DocumentsHome", () => {
 
   it("Select ticks only the rows on screen, Send sends only the ready ones once, and a new tab clears it", async () => {
     const two = [
-      { ...row(1), id: "doc-1", fileName: "invoice-1001.pdf", status: "needs_review", checks: [], failedChecks: 1 },
+      // An inbox row ticks like any other (Send leaves it: it is answered on its own screen).
+      { ...row(1), id: "doc-1", fileName: "invoice-1001.pdf", status: "needs_review", statusReason: "new_kind", inInbox: true, checks: [], failedChecks: 1 },
       { ...row(2), id: "doc-2", fileName: "invoice-1002.pdf", status: "ready" },
     ];
     answers({ needs: 2, rows: two });
@@ -224,8 +225,7 @@ describe("DocumentsHome", () => {
     expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
     fireEvent.click(screen.getByRole("button", { name: "Select" }));
     expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
-    fireEvent.click(table().getByRole("checkbox", { name: "Select invoice-1001.pdf" }));
-    fireEvent.click(table().getByRole("checkbox", { name: "Select invoice-1002.pdf" }));
+    fireEvent.click(table().getByRole("checkbox", { name: "Select all 2 documents" }));
     const bar = within(screen.getByRole("region", { name: "2 documents selected" }));
     expect(bar.getByText("2 selected")).toBeInTheDocument();
     // The bar's Send is the one filled button: the header's Review next turns secondary, the phone bar goes.

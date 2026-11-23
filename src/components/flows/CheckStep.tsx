@@ -19,7 +19,7 @@ import { fieldListFromRead } from "@/lib/flowFieldModel";
 import { excelSeparator, shownLabels } from "@/lib/flowOutputModel";
 import { editKey, reviewMarks } from "@/lib/reviewMarks";
 import { Field, INPUT } from "./DestinationForm";
-import { Original, Pane, PaneTabs } from "./DocumentScreen";
+import { Original, Pane, PaneTabs, UNDER_HEADER } from "./DocumentScreen";
 import { needsWords, SAVE_WORDS, ValueInput } from "./ReadValuesPanel";
 import { Failed, Gone, ReadProblem, Loading } from "./states";
 
@@ -115,7 +115,8 @@ export function CheckStep({ flow, docId, first }: { flow: Flow; docId: string | 
     <div className="grid gap-4">
       <PaneTabs panes={PANES} active={tab} onSelect={setTab} />
       <div className="grid items-start gap-4 lg:grid-cols-2">
-        <Pane id="original" title="Original" dot="blue" hidden={tab !== "original"}>
+        {/* The original stays in view while a long list of values scrolls past it, as on the review screen. */}
+        <Pane id="original" title="Original" dot="blue" hidden={tab !== "original"} sticky={UNDER_HEADER}>
           {(isLg || tab === "original") && <Original documentId={id} fileName={summary.fileName} marks={marks.places} />}
         </Pane>
         <Pane

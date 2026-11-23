@@ -261,8 +261,9 @@ export async function addDocument(file: File): Promise<DocumentSummary> {
 }
 
 /** Put a document with a flow; moving it to the flow it is already in confirms that it belongs there. */
+/** `alsoMoved`: how many waiting documents like it the move took to the same flow. */
 export const moveDocument = (id: string, flowId: string) =>
-  apiFetch<DocumentSummary>(`/documents/${seg(id)}/move`, { method: "POST", body: json({ flowId }) });
+  apiFetch<DocumentSummary & { alsoMoved?: number }>(`/documents/${seg(id)}/move`, { method: "POST", body: json({ flowId }) });
 /** "Do the same every time": a flow made from this inbox document's read. */
 export const setUpDocument = (id: string, name?: string, csvSeparator = excelSeparator()) =>
   apiFetch<SetUpResult>(`/documents/${seg(id)}/set-up`, { method: "POST", body: json({ ...(name ? { name } : {}), csvSeparator }) });

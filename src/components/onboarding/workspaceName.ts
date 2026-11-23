@@ -10,7 +10,8 @@
 export function deriveWorkspaceName(firstName?: string | null, email?: string | null): string {
   const f = firstName?.trim();
   if (f) return `${f}'s workspace`;
-  const local = email?.split("@")[0]?.trim();
+  // "orders+inbox@…" is the orders mailbox: the tag is not part of anyone's name.
+  const local = email?.split("@")[0]?.split("+")[0]?.trim();
   if (local) return `${local}'s workspace`;
   return "My workspace";
 }

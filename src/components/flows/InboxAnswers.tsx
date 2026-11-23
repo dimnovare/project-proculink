@@ -28,6 +28,10 @@ export const UNSAVED = new Error("unsaved");
 export const UNSAVED_TEXT = "Nothing was sent: your last change isn't saved yet.";
 /** Saves a typed correction first; a failure the server gave no word for is the unsaved change. */
 export const saveFirst = (flush: () => Promise<unknown>) => flush().catch((e: unknown) => { throw refusalToken(e) === null ? UNSAVED : e; });
+/** A note for the next review screen to show once (read and dropped when it opens). */
+export const REVIEW_NOTE_KEY = ["review-sent"];
+/** What Move it took along to the same flow. */
+export const movedWithWords = (n: number, flow: string) => `${n} more ${n === 1 ? "document" : "documents"} like it went to ${flow} too.`;
 /** A stable ref callback, so focus moves once, when the element appears. */
 const focusOnMount = (el: HTMLElement | null) => el?.focus();
 
@@ -52,7 +56,11 @@ export function useAnswers(s: DocumentSummary | undefined, { enabled, flush }: {
       if (!s) return;
       await saveFirst(flush);
       if (a === "set-up") return router.push(firstRunAddress({ step: "send", flow: (await setUpDocument(s.id)).flowId, doc: s.id }));
-      if (typeof a === "object") return router.replace(`/flows/${(await moveDocument(s.id, a.move)).flowId}/documents/${s.id}`);
+      if (typeof a === "object") {
+        const moved = await moveDocument(s.id, a.move);
+        if (moved.alsoMoved) qc.setQueryData(REVIEW_NOTE_KEY, movedWithWords(moved.alsoMoved, moved.flowName));
+        return router.replace(`/flows/${moved.flowId}/documents/${s.id}`);
+      }
       saveBlob(await downloadDocument(s.id, a), `${s.fileName.replace(/\.[^.]*$/, "")}.${a}`);
     },
     // The answer may hold the document as a duplicate rather than read it again: the refetched document says which.

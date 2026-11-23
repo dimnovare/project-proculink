@@ -73,7 +73,8 @@ describe("CheckStep", () => {
     expect(within(screen.getByTestId("check-value-reference")).getByText(/Check this one\. We are 62% sure of it\./)).toBeInTheDocument();
     expect(within(found).getByText(needsWords(1))).toBeInTheDocument();
     expect(within(screen.getByTestId("check-table-lines")).getByText("3 rows, 5 columns (Code, Item, Qty, Price, Amount)")).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Original" })).toBeInTheDocument();
+    // It stays in view while the values scroll, as on the review screen.
+    expect(screen.getByRole("region", { name: "Original" }).className).toContain("lg:!sticky");
     fireEvent.click(within(screen.getByTestId("check-value-bill_to")).getByRole("checkbox", { name: "Keep Bill to" }));
     const next = screen.getByRole("button", { name: "Looks right, next" });
     // A value typed but not saved stops Next where it was pressed; the next press saves it and goes on.
