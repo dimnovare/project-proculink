@@ -33,8 +33,9 @@ describe("help search (shared Fuse index)", () => {
 
   it("finds how files are written, and words no article has together", () => {
     expect(searchHelpArticles(fuse, "separator")[0]?.slug).toBe("outputs");
-    // No article has both words in one field: the one with the most of them comes first.
     expect(searchHelpArticles(fuse, "excel semicolon")[0]?.slug).toBe("outputs");
+    // The whole phrase finds nothing (no field holds both words): the article with the most of them comes first.
+    expect(searchHelpArticles(fuse, "comma decimal")[0]?.slug).toBe("outputs");
   });
 
   it("returns [] for gibberish", () => {
