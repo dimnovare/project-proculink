@@ -89,9 +89,9 @@ test.describe("flow page", () => {
     await open(page, 1440, at("read"));
     await expect(page.getByText("In use", { exact: true })).toBeVisible();
     await expect(bar(page)).toHaveAccessibleName("Changes not in use yet");
-    await expect(bar(page)).toContainText("Your changes aren't in use yet.");
+    await expect(bar(page)).toContainText("Your changes to We read and We send aren't in use yet.");
     await expect(bar(page)).toContainText("New documents still follow the last saved setup.");
-    await expect(bar(page).getByRole("button", { name: "Undo my changes" })).toBeVisible();
+    await expect(bar(page).getByRole("button", { name: "Throw away changes" })).toBeVisible();
     await page.getByRole("textbox", { name: "Name for Invoice number" }).fill("Invoice no.");
     await savedFields(page, '"label":"Invoice no."');
     expect(await sends(page), "an autosave sends nothing and puts nothing in use").toEqual([]);
@@ -101,7 +101,7 @@ test.describe("flow page", () => {
     await expect(bar(page)).toContainText("Your changes are in use.");
     await expect(page.getByText("In use", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: USE })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Undo my changes" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Throw away changes" })).toHaveCount(0);
     await expect(page.getByRole("textbox", { name: "Name for Invoice number" })).toHaveCount(0);
     await expect(page.getByRole("textbox", { name: "Name for Invoice no." })).toHaveValue("Invoice no.");
     const log = await calls(page);
@@ -164,13 +164,13 @@ test.describe("flow page", () => {
     expect(await sends(page), "nothing was put in use").toEqual([]);
   });
 
-  test("Undo my changes asks, greys the step while it runs, and brings the values in use back", async ({ page }) => {
+  test("Throw away changes asks, greys the step while it runs, and brings the values in use back", async ({ page }) => {
     await open(page, 1440, at("read"));
     await page.getByRole("textbox", { name: "Name for Invoice number" }).fill("Number typed");
     await savedFields(page, '"label":"Number typed"');
-    await bar(page).getByRole("button", { name: "Undo my changes" }).click();
+    await bar(page).getByRole("button", { name: "Throw away changes" }).click();
     const dialog = page.getByRole("alertdialog").or(page.getByRole("dialog"));
-    await expect(dialog).toContainText("The flow goes back to the setup in use. This can't be undone.");
+    await expect(dialog).toContainText("The flow goes back to the setup in use. You can't get these changes back.");
     // The mock does not remember a restore; from here the server holds version 1 with nothing waiting.
     const restored = { ...(await fixture()), hasChanges: false };
     await page.evaluate((f) => {
@@ -178,7 +178,7 @@ test.describe("flow page", () => {
       w.__mockEngine.answer[`GET /flows/${f.id}`] = f;
       w.__slowMock = true;
     }, restored);
-    await dialog.getByRole("button", { name: "Undo my changes" }).click();
+    await dialog.getByRole("button", { name: "Throw away changes" }).click();
     await expect(page.locator("fieldset[disabled]")).toHaveCount(1);
     await expect(bar(page)).toContainText("Your changes are undone.", { timeout: 20_000 });
     await expect(bar(page)).toHaveAccessibleName("Your changes");
@@ -222,7 +222,7 @@ test.describe("flow page", () => {
     await expect(bar(page)).toContainText("You're still setting up, so changes apply right away. Save this setup when it works.");
     await expect(bar(page).getByRole("button", { name: "Save this setup", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: USE })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Undo my changes" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Throw away changes" })).toHaveCount(0);
     await expect(page.getByText("In use", { exact: true }), "never saved: the header does not claim it is in use").toHaveCount(0);
     await page.getByRole("textbox", { name: "Name for Invoice number" }).fill("Invoice no.");
     await savedFields(page, '"label":"Invoice no."');

@@ -177,6 +177,9 @@ describe("UploadToFlow", () => {
     await waitFor(() => expect(item("b.csv").getByRole("button", { name: "Send b.csv" })).toBeInTheDocument());
     expect(item("a.pdf").getByText("1 value to check")).toBeInTheDocument();
     expect(item("a.pdf").getByRole("link", { name: "a.pdf" })).toHaveAttribute("href", "/flows/f1/documents/d1");
+    // The two that need a person are the screen's one filled action; Choose files steps back.
+    expect(panel.getByRole("link", { name: "Review the 2 that need you" }).getAttribute("href")).toMatch(/^\/flows\/f1\/documents\/d[12]$/);
+    expect(screen.getByRole("button", { name: "Choose files" }).className).not.toContain("bg-brand-blue ");
     expect(api.listDocumentPage.mock.calls.every(([p]) => JSON.stringify(p) === JSON.stringify({ page: 1, pageSize: 100 }))).toBe(true);
     const asked = api.listDocumentPage.mock.calls.length;
     await act(() => vi.advanceTimersByTimeAsync(2500));
@@ -205,6 +208,8 @@ describe("UploadToFlow", () => {
     expect(paused).toHaveTextContent("Your trial has ended. You can still view previous documents, but new processing is paused.");
     expect(within(paused).getByRole("link", { name: `Upgrade to ${next}` })).toHaveAttribute("href", "/settings?tab=billing");
     expect(await screen.findByText(/^20 of 20 trial documents used\./)).toBeInTheDocument();
+    expect(await screen.findByText("Processing is paused, so new documents can't be read right now.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Choose files" })).toBeDisabled();
     first.unmount();
     billing.getBillingStatus.mockResolvedValue(status({ plan: "pilot", ordersThisMonth: 5, orderLimit: 20, canProcessOrders: true }));
     api.addDocument.mockRejectedValue(new ApiHttpError("ended", 429, { error: "pilot_expired", plan: "pilot", limit: 20, upgradeUrl: "/settings" }));

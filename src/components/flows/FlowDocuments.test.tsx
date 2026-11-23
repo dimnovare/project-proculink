@@ -63,4 +63,24 @@ describe("FlowDocuments", () => {
       expect(screen.queryByText(/without a correction/)).toBeNull();
     }
   });
+
+  it("the streak band says what its button did, even after the flow leaves review", async () => {
+    api.updateFlow.mockResolvedValue({ ...flow, automation: "marked" });
+    const qc = new QueryClient();
+    const { rerender } = render(<QueryClientProvider client={qc}><StreakBand flow={flow} /></QueryClientProvider>);
+    fireEvent.click(screen.getByRole("button", { name: "Send unmarked documents automatically" }));
+    expect(await screen.findByText("Done. Documents with nothing marked now go out by themselves. Change this on You check.")).toBeTruthy();
+    rerender(<QueryClientProvider client={qc}><StreakBand flow={{ ...flow, automation: "marked" }} /></QueryClientProvider>);
+    expect(screen.getByRole("link", { name: "Open You check" })).toHaveAttribute("href", "/flows/flow-1?tab=check");
+    expect(api.updateFlow).toHaveBeenCalledWith("flow-1", { automation: "marked" });
+  });
+
+  it("a document that couldn't be sent is counted, never 'Nothing needs you'", async () => {
+    api.listDocumentPage.mockImplementation(async (p: { status?: string[] }) =>
+      p.status ? { items: [], totalCount: p.status.includes("send_failed") ? 1 : 0, page: 1, pageSize: 1, sampleCount: 0 }
+        : { items: [{ ...row(1), status: "send_failed", inInbox: false }], totalCount: 1, page: 1, pageSize: 10, sampleCount: 0 });
+    mount(<FlowDocuments flow={flow} />);
+    expect(await screen.findByText("1 couldn't be sent. Nothing else needs you. Newest first.")).toBeTruthy();
+    expect((await screen.findAllByRole("button", { name: "Send again invoice-1.pdf" })).length).toBeGreaterThan(0);
+  });
 });

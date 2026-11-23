@@ -84,7 +84,7 @@ describe("FirstRun", () => {
     expect(await within(main).findByText("This flow is set up.")).toBeInTheDocument();
     expect(within(main).getByRole("link", { name: "Open the flow" })).toHaveAttribute("href", "/flows/f-1");
     expect(within(main).queryByText("Where should the file go?")).toBeNull();
-    expect(within(main).queryByText("Here's what we found")).toBeNull();
+    expect(within(main).queryByText("What we read")).toBeNull();
   });
 
   it("moves on to check once the file is taken, though the address gained the flow it made on the way", async () => {

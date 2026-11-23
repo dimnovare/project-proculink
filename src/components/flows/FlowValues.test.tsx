@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Flow, FlowFieldList } from "@/lib/api/documents";
 import { FlowDraftProvider } from "./flowDraft";
-import { FlowValues } from "./FlowValues";
+import { FirstDocumentDrop, FlowValues } from "./FlowValues";
 
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 const api = vi.hoisted(() => ({ listDocuments: vi.fn(), getDocument: vi.fn(), saveFlowFields: vi.fn() }));
@@ -130,4 +130,9 @@ describe("FlowValues", () => {
     expect(screen.getByRole("link", { name: "Open it" })).toHaveAttribute("href", "/flows/flow-1/documents/doc-2");
     expect(screen.getByText("Drop one document like the ones this flow will get.")).toBeTruthy();
   });
-});
+  it("We send's drop zone stays after a failed read, and the notice says what to do, in amber (B-12)", () => {
+    const failed = { ...detail.summary, id: "doc-2", fileName: "invoice-1006.csv", status: "read_failed" } as never;
+    render(<FirstDocumentDrop flow={flow} newest={failed} prompt="Add a document." reading="" sends={false} dropOnFail="Add another document to see the file." />);
+    expect(screen.getByText("We couldn't read invoice-1006.csv. Add another document to see the file.")).toBeTruthy();
+    expect(screen.getByText("Add a document.")).toBeTruthy();
+  });});

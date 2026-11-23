@@ -55,6 +55,11 @@ describe("FlowOutputs", () => {
     expect(editor.getByText("2 columns")).toBeInTheDocument();
     expect(editor.getByText("More options: when to send, separator, lookups")).toBeInTheDocument();
     expect(editor.queryByRole("combobox", { name: "File type" })).toBeNull();
+    // B-09: Advanced lives inside More options, and stopping the file is a quiet red action at the foot.
+    const more = editor.getByText("More options: when to send, separator, lookups").closest("details")!;
+    expect(within(more as HTMLElement).getByRole("link", { name: "Map columns one by one (Advanced)" })).toHaveAttribute("href", "/flows/flow-1/outputs/out-1/advanced");
+    expect(editor.getByRole("button", { name: "Stop making this file" })).toBeInTheDocument();
+    expect(editor.queryByRole("button", { name: "Delete this file" })).toBeNull();
   });
 
   it("Make a second file, with its line, only while the flow has one file", async () => {

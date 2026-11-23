@@ -106,14 +106,14 @@ describe("PublishBar", () => {
     expect(api.publishFlow).toHaveBeenCalledTimes(1);
   });
 
-  it("Undo my changes asks, restores the published version, never sends what was typed, and the editors show the server's state", async () => {
+  it("Throw away changes asks, restores the published version, never sends what was typed, and the editors show the server's state", async () => {
     const save = vi.fn().mockResolvedValue(undefined);
     api.restoreFlowVersion.mockImplementation(async () => (server = { ...flow, hasChanges: false }));
     render(page(flow, save, true));
     fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Supplier bills" } });
-    fireEvent.click(bar().getByRole("button", { name: "Undo my changes" }));
+    fireEvent.click(bar().getByRole("button", { name: "Throw away changes" }));
     expect(await screen.findByText("Your changes are undone.")).toBeTruthy();
-    expect(vi.mocked(window.confirm).mock.calls[0][0]).toContain("The flow goes back to the setup in use. This can't be undone.");
+    expect(vi.mocked(window.confirm).mock.calls[0][0]).toContain("The flow goes back to the setup in use. You can't get these changes back.");
     expect(api.restoreFlowVersion).toHaveBeenCalledWith("flow-1", 1);
     expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Supplier invoices");
     expect(save).not.toHaveBeenCalled();
@@ -133,9 +133,9 @@ describe("PublishBar", () => {
     api.publishFlow.mockResolvedValue({ ...flow, publishedVersion: 4, hasChanges: false });
     renderBar({ fieldsConfirmed: true, publishedVersion: 3, hasChanges: true });
     const region = within(screen.getByRole("region", { name: "Changes not in use yet" }));
-    expect(region.getByText("Your changes aren't in use yet.")).toBeInTheDocument();
+    expect(region.getByText("Your changes to We read and We send aren't in use yet.")).toBeInTheDocument();
     expect(region.getByText("New documents still follow the last saved setup.")).toBeInTheDocument();
-    expect(region.getAllByRole("button").map((b) => b.textContent)).toEqual(["Undo my changes", "Use these changes"]);
+    expect(region.getAllByRole("button").map((b) => b.textContent)).toEqual(["Throw away changes", "Use these changes"]);
     fireEvent.click(region.getByRole("button", { name: "Use these changes" }));
     expect(await screen.findByText("Your changes are in use.")).toBeInTheDocument();
   });

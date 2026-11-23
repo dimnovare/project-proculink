@@ -48,7 +48,7 @@ beforeEach(() => {
   api.getDocumentHistory.mockResolvedValue([]);
   api.getInbox.mockResolvedValue({ flowId: "inbox", address: null, intakeId: null }); // these documents are in flow "f"
   api.getFlow.mockResolvedValue({ id: "f", fieldsConfirmed: false });
-  api.listOutputs.mockResolvedValue([]);
+  api.listOutputs.mockResolvedValue([{ id: "o", flowId: "f", name: "Totals", format: "csv", tableKey: null, destinationId: null, template: {}, createdAt: "" }]);
   api.listDestinations.mockResolvedValue([]);
   api.listDeliveries.mockResolvedValue([]);
   api.fetchDocumentSource.mockRejectedValue(new Error("no source"));
@@ -109,7 +109,7 @@ describe("DocumentScreen", () => {
     const bad = detail("");
     api.getDocument.mockResolvedValue({ ...bad, summary: { ...bad.summary, status: "read_failed", statusReason: "unreadable_file" }, read: { ...bad.read, fields: [] } });
     renderScreen();
-    const link = await screen.findByRole("link", { name: "Upload a clearer copy" });
+    const link = await screen.findByRole("link", { name: "Upload another copy" });
     expect(link.getAttribute("href")).toBe("/flows/f?tab=documents");
   });
 
@@ -445,5 +445,30 @@ describe("DocumentScreen values", () => {
     expect(screen.getByTestId("rows-sum")).toHaveTextContent("The rows add up to 30.00, the same as Total.");
     fireEvent.change(screen.getByLabelText("Lines row 2 Amount"), { target: { value: "25" } });
     expect(screen.getByTestId("rows-sum")).toHaveTextContent("The rows add up to 35.00. Total says 30.00.");
+  });
+
+  it("a failed state shows its fix as the main action", async () => {
+    const base = detail("INV-1");
+    const as = (status: string) => api.getDocument.mockResolvedValue({ ...base, summary: { ...base.summary, status } });
+    // Couldn't send: Send again, and below lg the reason sits above the tabs.
+    as("send_failed");
+    api.listDeliveries.mockResolvedValue([{ id: "x", outputName: "Totals", protocol: "webhook", status: "dead_letter", attempts: 3, lastError: "The server said 404.", fileName: null, deliveredAt: null }]);
+    const failed = renderScreen();
+    expect(await within(await screen.findByTestId("review-header-actions")).findByRole("button", { name: "Send again" })).toBeInTheDocument();
+    expect(await screen.findByText("Totals: The server said 404.")).toBeInTheDocument();
+    failed.unmount();
+    // A flow that makes no file yet: set it up first, never a send the server refuses.
+    as("ready");
+    api.listOutputs.mockResolvedValue([]);
+    const none = renderScreen();
+    expect(await within(await screen.findByTestId("review-header-actions")).findByRole("link", { name: "Set up the file" })).toHaveAttribute("href", "/flows/f?tab=outputs");
+    expect(within(screen.getByTestId("review-header-actions")).queryByRole("button", { name: /Send/ })).toBeNull();
+    none.unmount();
+    // Gone: no Try again, the way back to Documents.
+    api.getDocument.mockRejectedValue(new ApiHttpError("document_not_found", 404, { error: "document_not_found" }));
+    renderScreen(new QueryClient({ defaultOptions: { queries: { retry: false } } }));
+    expect(await screen.findByText("This document isn't here any more. It may have been removed.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to Documents" })).toHaveAttribute("href", "/documents");
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });
 });

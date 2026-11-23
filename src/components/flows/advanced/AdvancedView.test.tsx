@@ -86,6 +86,22 @@ describe("AdvancedView", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(COPY.lookup);
   });
 
+  it("a column the file's own setup fills reads 'from file setup', not 'not set' (B-03)", async () => {
+    const rule = { outputPath: "Number", sourceToken: "invoiceNumber", fieldManipulators: [] };
+    const empty = { name: "Note", nodeType: "field" };
+    api.listOutputs.mockResolvedValue([{ ...output, template: { ...output.template, root: { ...output.template.root, children: [{ name: "Number", nodeType: "field", rule }, empty] } } }]);
+    renderView();
+    const bench = within(await screen.findByTestId("advanced-workbench"));
+    expect(await bench.findByText("from file setup")).toBeTruthy();
+    expect(bench.getByText("not set")).toBeTruthy();
+    expect(bench.getByText("These columns fill automatically from the file type. Map one here only to change where it comes from.")).toBeTruthy();
+  });
+
+  it("on a phone it sends the person back to We send (B-08)", async () => {
+    renderView();
+    expect(screen.getByRole("link", { name: "Back to We send" })).toHaveAttribute("href", "/flows/f?tab=send&output=o");
+  });
+
   it("with no document, the fields still show and the preview says why", async () => {
     api.listDocuments.mockResolvedValue([]);
     renderView();

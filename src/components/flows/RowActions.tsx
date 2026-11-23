@@ -7,6 +7,7 @@ import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { useConfirm } from "@/components/ui/confirm";
 import { inboxQuery } from "@/hooks/useDocumentEngine";
 import { downloadDeliveryFile, retryDocumentRead, sendDocument, type DocumentFile } from "@/lib/api/documents";
+import { fixDestinationHref } from "@/lib/activityRows";
 import { canRetryRead, documentRefusalMessage } from "@/lib/documentRefusals";
 import { removeOne } from "@/lib/eachDocument";
 import { useUploadQueueIfMounted } from "./UploadQueue";
@@ -144,6 +145,9 @@ export function RowActions({ d, sendable, onSent, onRemoved, phone = false, clas
   else if (files.length > 1) items = [<Link key="open" href={href(d)} aria-label={`${copy} ${d.fileName}`} className={`${buttonClass("secondary", "sm")} ${z}`}>{copy}</Link>];
   else if (d.statusReason === "duplicate_file") items = [removeButton, button("Read it anyway", () => read.mutate(), read.isPending)];
   else if (d.status === "read_failed") items = [canRetryRead(d.statusReason, { scansOn }) && button("Try again", () => read.mutate(), read.isPending), removeButton];
+  // Couldn't send: send the undelivered files again, or fix where they go first.
+  else if (d.status === "send_failed")
+    items = [button("Send again", () => send.mutate(), send.isPending || bulk), d.stop?.destinationId && <Link key="fix" href={fixDestinationHref(d.stop.destinationId)} className={`${buttonClass("secondary", "sm")} ${z}`}>Fix the destination</Link>];
   else if (sendable && rowSends(d))
     items = [button(flowWords(d.downloadOnly).action, () => send.mutate(), send.isPending || bulk, "!border-brand-green-deep !text-brand-green-deep")];
   // An inbox document is answered on its own screen, never sent from a row; one not known to be sorted is not sent either.
@@ -151,7 +155,7 @@ export function RowActions({ d, sendable, onSent, onRemoved, phone = false, clas
   // A sort we were not sure of is reviewed, never sent from a row: its notice is on the review screen.
   else if (d.status === "needs_review" || d.statusReason === "check_sort") items = [drawn("Review")];
 
-  const failed = send.isError && d.status === "ready" ? send.error : read.error ?? download.error ?? remove.error;
+  const failed = send.isError && (d.status === "ready" || d.status === "send_failed") ? send.error : read.error ?? download.error ?? remove.error;
   items = items.filter(Boolean);
   if (!items.length && !failed) return null;
   return (

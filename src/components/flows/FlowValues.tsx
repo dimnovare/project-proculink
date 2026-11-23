@@ -61,6 +61,9 @@ const toggled = (off: Set<string>, id: string, on: boolean) => { const n = new S
 
 const NOT_FOUND = "Not found on this document";
 const CELL = "px-2 py-1.5 align-middle";
+// Below sm the table stacks (B-07): each row is tick, name and More on one line, its example on the next.
+const ROW_SM = "max-sm:grid max-sm:grid-cols-[44px_minmax(0,1fr)_auto] max-sm:items-center";
+const UNDER_SM = "max-sm:col-start-2 max-sm:col-end-4 max-sm:row-start-2 max-sm:pt-0 max-sm:text-ink-muted";
 
 const Tick = ({ label, checked, disabled, onChange }: { label: string; checked: boolean; disabled?: boolean; onChange(on: boolean): void }) => (
   <label className="inline-flex h-11 w-11 cursor-pointer items-center justify-center">
@@ -94,16 +97,16 @@ function ValueRow({ field, scope, on, example, columns, indent, failed, onInclud
   const toggle = () => { moved.current = true; setOpen(!open); };
   return (
     <>
-      <tr className="border-t border-border-faint">
-        <td className={CELL}><Tick label={`Read ${field.label}`} checked={on} onChange={onInclude} /></td>
-        <td className={`${CELL} ${indent ? "pl-6" : ""}`}>
+      <tr className={`border-t border-border-faint ${ROW_SM}`}>
+        <td className={`${CELL} max-sm:p-0`}><Tick label={`Read ${field.label}`} checked={on} onChange={onInclude} /></td>
+        <td className={`${CELL} ${indent ? "pl-6 max-sm:pl-2" : ""}`}>
           <input
-            aria-label={`Name for ${field.label}`} className={`${INPUT} min-w-36`} value={field.label} disabled={!on}
+            aria-label={`Name for ${field.label}`} className={`${INPUT} min-w-36 max-sm:min-w-0`} value={field.label} disabled={!on}
             onChange={(e) => onChange({ ...field, label: e.target.value })}
           />
         </td>
         {example !== undefined && (
-          <td className={`${CELL} text-[13px] ${example ? "font-mono text-ink" : "text-ink-muted"}`}>{example ?? NOT_FOUND}</td>
+          <td className={`${CELL} text-[13px] ${example ? "font-mono text-ink" : "text-ink-muted"} ${UNDER_SM}`}>{example ?? NOT_FOUND}</td>
         )}
         <td className={CELL}>
           {/* A problem holds the panel open, so More could not close it: it is not drawn until the problem is gone. */}
@@ -118,8 +121,8 @@ function ValueRow({ field, scope, on, example, columns, indent, failed, onInclud
         </td>
       </tr>
       {shown && (
-        <tr id={id}>
-          <td colSpan={columns} className="px-2 pb-3">
+        <tr id={id} className="max-sm:block">
+          <td colSpan={columns} className="px-2 pb-3 max-sm:block">
             <div ref={body} className="grid gap-3 rounded-md bg-surface-2 p-3 min-[720px]:grid-cols-2">
               <div className="flex items-center gap-1 min-[720px]:col-span-2">
                 <Tick label={`${field.label} is required`} checked={field.required} disabled={!on} onChange={(required) => onChange({ ...field, required }, true)} />
@@ -193,9 +196,10 @@ function ValueTable({ rows, edit, read, fileName, failed }: {
 
   return (
     <div className="grid gap-4">
+      {showExample && <p className="m-0 text-[12.5px] font-semibold text-ink-muted sm:hidden">{`Example from ${fileName}`}</p>}
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-left text-[13px]">
-          <thead>
+        <table className="w-full border-collapse text-left text-[13px] max-sm:block">
+          <thead className="max-sm:hidden">
             <tr className="text-[12.5px] font-semibold text-ink-muted">
               <th scope="col" className={CELL}>Read</th>
               <th scope="col" className={CELL}>Value</th>
@@ -203,7 +207,7 @@ function ValueTable({ rows, edit, read, fileName, failed }: {
               <th scope="col" className={CELL}><span className="sr-only">More</span></th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="max-sm:block">
             {list.fields.map((f, i) => (
               <ValueRow
                 key={f.key} field={f} scope="header" on={!off.has(f.key)} example={fieldExample(f.key)} columns={columns}
@@ -216,17 +220,20 @@ function ValueTable({ rows, edit, read, fileName, failed }: {
             const tableOn = !off.has(t.key);
             const readTable = read?.tables.find((x) => x.key === t.key);
             return (
-              <tbody key={t.key}>
-                <tr className="border-t border-border">
-                  <td className={CELL}><Tick label={`Read the table ${t.label}`} checked={tableOn} onChange={(on) => include(t.key, on)} /></td>
+              <tbody key={t.key} className="max-sm:block">
+                <tr className={`border-t border-border ${ROW_SM}`}>
+                  <td className={`${CELL} max-sm:p-0`}><Tick label={`Read the table ${t.label}`} checked={tableOn} onChange={(on) => include(t.key, on)} /></td>
                   <td className={CELL}>
                     <input
-                      aria-label={`Name for ${t.label}`} className={`${INPUT} min-w-36 font-semibold`} value={t.label} disabled={!tableOn}
+                      aria-label={`Name for ${t.label}`} className={`${INPUT} min-w-36 max-sm:min-w-0 font-semibold`} value={t.label} disabled={!tableOn}
                       onChange={(e) => setTable(ti, (x) => ({ ...x, label: e.target.value }))}
                     />
                   </td>
-                  <td colSpan={columns - 2} className={`${CELL} text-[13px] text-ink-muted`}>
-                    {readTable ? `A table. ${readTable.rows.length} rows in the latest document.` : "A table."}
+                  <td colSpan={columns - 2} className={`${CELL} text-[13px] text-ink-muted ${UNDER_SM}`}>
+                    {readTable ? <>
+                      <span className="sm:hidden">{`A table, ${readTable.rows.length} rows`}</span>
+                      <span className="max-sm:hidden">{`A table. ${readTable.rows.length} rows in the latest document.`}</span>
+                    </> : "A table."}
                   </td>
                 </tr>
                 {t.columns.map((c, ci) => (
@@ -350,7 +357,8 @@ function FirstDocument({ flow, newest }: { flow: Flow; newest?: DocumentSummary 
  *  zone that adds one. `sends`: the flow sends automatically to a destination, so a dropped document is sent too. */
 export function FirstDocumentDrop({ flow, newest, prompt, reading, sends, filled, dropOnFail }: {
   flow: Flow; newest?: DocumentSummary; prompt: React.ReactNode; reading: string; sends: boolean; filled?: boolean;
-  /** We read: a failed read still offers the drop zone beside its notice. */ dropOnFail?: boolean;
+  /** A failed read still offers the drop zone beside its notice. A line (We send) is said after the notice, in amber. */
+  dropOnFail?: boolean | string;
 }) {
   const queue = useUploadQueue();
   if (newest?.status === STATUS.received || newest?.status === STATUS.reading)
@@ -365,8 +373,8 @@ export function FirstDocumentDrop({ flow, newest, prompt, reading, sends, filled
   return (
     <div className="grid gap-3">
       {newest?.status === STATUS.read_failed && (
-        <StatusNotice tone="error" action={<Link href={`/flows/${flow.id}/documents/${newest.id}`} className={buttonClass("secondary", "sm")}>Open it</Link>}>
-          {`We couldn't read ${newest.fileName}.`}
+        <StatusNotice tone={typeof dropOnFail === "string" ? "warning" : "error"} action={<Link href={`/flows/${flow.id}/documents/${newest.id}`} className={buttonClass("secondary", "sm")}>Open it</Link>}>
+          {`We couldn't read ${newest.fileName}.${typeof dropOnFail === "string" ? ` ${dropOnFail}` : ""}`}
         </StatusNotice>
       )}
       {(dropOnFail || newest?.status !== STATUS.read_failed) && <FileDrop accept={acceptFor(flow)} maxBytes={MAX_UPLOAD_BYTES} variant={filled ? "blue" : "secondary"} onFile={(f) => queue.add([f], flow)}

@@ -172,12 +172,13 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
               key={chosen.id} mode="draft" flow={flow} output={chosen} previewDocumentId={preview} previewFile={source.data?.summary.fileName}
               headingRef={chosen.id === focusFor ? (h: HTMLHeadingElement | null) => { if (h) { h.focus(); setFocusFor(null); } } : undefined}
               onSaved={() => {}} onCancel={() => {}}
-              actions={<>
-                {!chosen.standard && (
-                  <FlowLink href={`/flows/${flow.id}/outputs/${chosen.id}/advanced`} push className={buttonClass("secondary", "sm")}>Open in Advanced</FlowLink>
-                )}
-                <Button variant="secondary" size="sm" className="text-danger-text" loading={remove.isPending} onClick={() => ask(chosen)}>Delete this file</Button>
-              </>}
+              /* B-08/B-09: Advanced needs a wide screen, so it is offered only at lg, inside More options. */
+              advanced={!chosen.standard && (
+                <FlowLink href={`/flows/${flow.id}/outputs/${chosen.id}/advanced`} push className={`${buttonClass("secondary", "sm")} hidden justify-self-start lg:inline-flex`}>
+                  Map columns one by one (Advanced)
+                </FlowLink>
+              )}
+              foot={<div><Button variant="ghost" size="md" className="text-danger-text" loading={remove.isPending} onClick={() => ask(chosen)}>Stop making this file</Button></div>}
             />
             {remove.isError && <StatusNotice tone="error">{draftReason(remove.error)}</StatusNotice>}
           </div>

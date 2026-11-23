@@ -18,11 +18,13 @@ import { DraftReview } from "./DraftReview";
 import { FileDrop } from "./FileDrop";
 import { FilePreview } from "./FilePreview";
 import { useLatestRead } from "./FlowValues";
-import { DOCS_ACCEPT, DOCS_BYTES, SAMPLE_ACCEPT, SAMPLE_BYTES, StandardList } from "./OutputBuilder";
+import { kindGroup, standardFamilies } from "@/lib/standardOutputs";
+import { DOCS_ACCEPT, DOCS_BYTES, SAMPLE_ACCEPT, SAMPLE_BYTES, StandardList, WORDS } from "./OutputBuilder";
 import { FORMATS, outputTypeLabel } from "./OutputEditor";
 import { COMMON_TYPES, aFileOf, makeFileLabel, replaceOutput, standardChoice, typeChoice } from "./fileChoice";
 import { Failed, Quiet, Loading } from "./states";
 
+const or = (words: string[]) => (words.length < 2 ? words.join("") : `${words.slice(0, -1).join(", ")} or ${words.at(-1)}`);
 const H2 = "m-0 text-[17px] font-semibold text-ink";
 const LINE = "m-0 text-[14px] leading-normal text-ink-muted";
 /** A published flow with other changes waiting: a new file joins them instead of going into use. */
@@ -88,6 +90,14 @@ export function ChooseFile({ flowId }: { flowId: string }) {
   if (!output) return <PageShell>{header()}<Quiet>{address.output ? "This file no longer exists." : "No file yet."}</Quiet></PageShell>;
 
   const type = outputTypeLabel(output);
+  // B-13: the standards line follows the documents' kind, as the list below it does.
+  const fams = standardFamilies(f.peppolOn);
+  const fit = kindGroup(doc.data?.read?.kindLabel ?? null);
+  const fitting = fit ? fams[fit] : [...fams.invoices, ...fams.orders];
+  const standardLine = fitting.length
+    ? `${or(fitting.map((s) => s.name))}. We fill the standard in from what each value means.`
+    // Only the invoice group can be empty (its standards are switched on per workspace); the order ones always ship.
+    : `There is no invoice standard yet. These ${WORDS[fams.orders.length] ?? fams.orders.length} are for purchase orders, so only use one if your system asked for it.`;
   const goesTo = destinations.data?.find((d) => d.id === output.destinationId);
   const blocked = goesTo?.protocol === "google_sheets" && !!choice && (!!choice.standard || choice.format !== "csv");
   const pressedType = (id: string) => (pick ? pick.by === "type" && choice!.format === id : !output.standard && output.format === id);
@@ -129,13 +139,14 @@ export function ChooseFile({ flowId }: { flowId: string }) {
           {opener("sample", "Choose a sample file")}
           {drafted("sample", sample, SAMPLE_ACCEPT, SAMPLE_BYTES, "Drop a sample here, or choose a file.", "Reading the sample…")}
         </Way>
+        {address.way === "docs" && f.docsOutputsOn !== true && <p className={LINE}>Building from documentation isn&apos;t on for this workspace yet.</p>}
         {f.docsOutputsOn === true && (
           <Way title="From your system’s documentation" line="Upload its import guide or specification: PDF, HTML, XSD, JSON or text. We build the file from it and show which part of the guide each column came from.">
             {opener("docs", "Choose the documentation")}
             {drafted("docs", docs, DOCS_ACCEPT, DOCS_BYTES, "Drop the documentation here, or choose a file.", "Reading the documentation…")}
           </Way>
         )}
-        <Way title="A standard" line="UBL, cXML, EDIFACT ORDERS or ANSI X12 850. We fill the standard in from what each value means.">
+        <Way title="A standard" line={standardLine}>
           {opener("standard", "See the standards")}
           {open === "standard" && (
             <div className="grid w-full gap-2">
@@ -155,14 +166,13 @@ export function ChooseFile({ flowId }: { flowId: string }) {
           </div>
         </Card>
         {blocked && <StatusNotice tone="warning">Google Sheets takes only a CSV file. Choose CSV, or change where this file goes first.</StatusNotice>}
-        {typeof f.publishedVersion === "number" && f.hasChanges && (
-          <p className={LINE}>{WAITING_LINE}</p>
-        )}
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
           <p className="m-0 min-w-0 flex-[1_1_320px] text-[13.5px] leading-normal text-ink-muted">
             The new file replaces the {type}. To keep the {type} as well, go back and use “{makeFileLabel(outputs.data.length)}”.
+            {typeof f.publishedVersion === "number" && f.hasChanges && <> {WAITING_LINE}</>}
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {!choice && <span className="text-[13px] text-ink-muted">Pick a file type, a sample or a standard above.</span>}
             <Link href={back} className={buttonClass("secondary", "md")}>Cancel</Link>
             <Button variant="primary" size="md" loading={use.isPending} disabled={!choice || blocked || use.isPending || (!!output.destinationId && !destinations.data)} onClick={() => use.mutate()}>
               Use this file

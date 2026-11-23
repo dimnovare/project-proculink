@@ -37,6 +37,11 @@ describe("FlowCheck", () => {
     expect(screen.getByRole("radio", { name: "Check nothing" })).not.toBeChecked();
   });
 
+  it("with changes waiting elsewhere, says the mode is not one of them (B-01)", () => {
+    mount({ ...flow, hasChanges: true });
+    expect(screen.getByText("Saved as soon as you pick. This is not part of the changes waiting below.")).toBeTruthy();
+  });
+
   it("offers the three modes in order, with download-only words", () => {
     mount({ ...flow, automation: "marked", downloadOnly: true });
     const radios = screen.getAllByRole("radio");

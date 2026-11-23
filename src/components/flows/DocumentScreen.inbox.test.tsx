@@ -81,7 +81,7 @@ describe("DocumentScreen, a document in the inbox", () => {
     const notice = (await screen.findByText(COPY.flow_not_found)).closest<HTMLElement>("[data-notice-tone]")!;
     expect(notice).toBeVisible();
     // The way on from the review screen is Documents, not the first run's "Start again".
-    expect(within(notice).getByRole("link", { name: "Back to Documents" })).toHaveAttribute("href", "/documents");
+    expect(within(notice).getByRole("link", { name: "Go to Documents" })).toHaveAttribute("href", "/documents");
     expect(screen.queryByRole("link", { name: "Start again" })).toBeNull();
     expect(document.getElementById("review-send")).toBeNull();
     expect(screen.queryByRole("heading", { name: "What we'll send" })).toBeNull();

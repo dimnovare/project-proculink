@@ -11,6 +11,7 @@ import {
 } from "@/lib/api/documents";
 import type { DocumentDelivery, DocumentDetail, Flow, FlowOutput } from "@/lib/api/documents";
 import { describeSendWhen } from "@/lib/flowOutputModel";
+import { fixDestinationHref } from "@/lib/activityRows";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { CHANNELS } from "@/lib/channels";
@@ -30,7 +31,8 @@ const STATUSES = new Map([
 const BAD = new Set(["failed", "dead_letter"]);
 const BUSY = new Set(["queued", "delivering"]);
 
-function Deliveries({ documentId, deliveries }: { documentId: string; deliveries: DocumentDelivery[] }) {
+/** `destinationOf`: where an output sends, by its name, so a stopped line can say where to fix it. */
+function Deliveries({ documentId, deliveries, destinationOf }: { documentId: string; deliveries: DocumentDelivery[]; destinationOf(outputName: string): string | null | undefined }) {
   const download = useMutation({
     mutationFn: async (d: DocumentDelivery) => saveBlob(await downloadDeliveryFile(documentId, d.id), d.fileName!),
   });
@@ -53,6 +55,10 @@ function Deliveries({ documentId, deliveries }: { documentId: string; deliveries
               )}
             </div>
             {d.lastError && <span className="text-danger">{d.lastError}</span>}
+            {d.status === "dead_letter" && (() => {
+              const dest = destinationOf(d.outputName);
+              return dest && <Link href={fixDestinationHref(dest)} className={`${buttonClass("secondary", "sm")} justify-self-start`}>Fix the destination</Link>;
+            })()}
           </li>
         ))}
       </ul>
@@ -105,7 +111,8 @@ function OutputRow({ o, flowId, documentId, flowFields, destinations, live }: {
           {open && live && <span className="text-[12.5px] text-ink-muted">{preview.isFetching ? "Updating…" : "Updates as you type"}</span>}
           <Button size="sm" variant="secondary" aria-expanded={open} loading={open && preview.isLoading} onClick={toggle}>{open ? "Hide preview" : "Preview"}</Button>
           <Link href={changeFileAddress(flowId, { output: o.id, document: documentId, from: `/flows/${flowId}/documents/${documentId}` })} className={`${buttonClass("secondary", "sm")} inline-flex items-center`}>Change the file</Link>
-          {!o.standard && <Link href={`/flows/${flowId}/outputs/${o.id}/advanced?document=${documentId}`} className={`${buttonClass("secondary", "sm")} inline-flex items-center`}>Open in Advanced</Link>}
+          {/* Only where Advanced fits: a phone would be sent to a screen that says it needs a wider one. */}
+          {!o.standard && <Link href={`/flows/${flowId}/outputs/${o.id}/advanced?document=${documentId}`} className="hidden items-center text-[12.5px] text-brand-blue underline lg:inline-flex">More settings</Link>}
         </span>
       </div>
       {open && preview.isError && <StatusNotice tone="error">{documentRefusalMessage(preview.error)}</StatusNotice>}
@@ -153,7 +160,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
       {outputs.isError && !list ? <Failed error={outputs.error} retry={() => outputs.refetch()} />
         : !list ? <Loading>Loading files…</Loading>
         : list.length > 0 && (
-          <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr))]">
+          <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr))] [&>*:only-child]:col-span-full">
             {list.map((o) => (
               <OutputRow key={o.id} o={o} flowId={flowId} documentId={documentId} flowFields={flow.data?.fields} destinations={destinations.data} live={editable} />
             ))}
@@ -161,7 +168,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
         )}
       {deliveries.isError && !deliveries.data ? <Failed error={deliveries.error} retry={() => deliveries.refetch()} />
         : !deliveries.data ? <Loading>Loading deliveries…</Loading>
-        : deliveries.data.length === 0 && (
+        : deliveries.data.length === 0 && list?.length !== 0 && (
           <p className="m-0 text-[12.5px] text-ink-muted">
             {downloadOnly ? `Nothing is made yet.${editable ? " When the values are right, press Make the file." : ""}`
               : `Nothing has been sent yet.${list?.length && !list.some((o) => o.sendWhen) && editable ? ` ${goOut(list.length)}` : ""}`}
@@ -171,14 +178,14 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
         <p className="m-0 text-[12.5px] text-ink-muted">
           Want another file from this document? <Link href={addLink} className="text-brand-blue underline">{makeFileLabel(list.length)}</Link>
         </p>
-      ) : <Link href={addLink} className="inline-flex items-center text-[13px] text-brand-blue">Make a file for this flow</Link>)}
+      ) : <p className="m-0 text-[13px] text-ink">This flow doesn&apos;t make a file yet. Set one up, and every document in this flow gets it.</p>)}
       {waiting && (
         <p className="m-0 text-[13px] text-ink">
           {files.length === 1 ? `${files[0].fileName} was made${madeAt}. It waits here and in Documents until you download it.`
             : `${files.length} files were made${madeAt}. They wait here and in Documents until you download them.`}
         </p>
       )}
-      {!!deliveries.data?.length && <Deliveries documentId={documentId} deliveries={deliveries.data} />}
+      {!!deliveries.data?.length && <Deliveries documentId={documentId} deliveries={deliveries.data} destinationOf={(name) => list?.find((o) => o.name === name)?.destinationId} />}
     </div>
   );
 }

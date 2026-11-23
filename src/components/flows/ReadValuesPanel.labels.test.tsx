@@ -13,13 +13,26 @@ const detail = {
   read: { tables: [], truncated: false, kindLabel: null, fields: [field("seller", "Firma A"), field("buyer", "Firma B")] },
 } as unknown as DocumentDetail;
 
-function Panel() {
+function Panel({ d = detail, editable = true }: { d?: DocumentDetail; editable?: boolean }) {
   const edits = useDocumentEdits("d1");
-  return <ReadValuesPanel detail={detail} editable edits={edits} marks={reviewMarks(detail, true)} />;
+  return <ReadValuesPanel detail={d} editable={editable} edits={edits} marks={reviewMarks(d, editable)} />;
 }
 
 it("numbers a repeated label so two values never share a name", () => {
   render(<QueryClientProvider client={new QueryClient()}><Panel /></QueryClientProvider>);
   expect(screen.getByLabelText("Supplier")).toHaveValue("Firma A");
   expect(screen.getByLabelText("Supplier 2")).toHaveValue("Firma B");
+});
+
+it("a sent document shows its values as fixed: says why, with no row to add or remove", () => {
+  const sent = {
+    ...detail, summary: { id: "d1", status: "sent", statusReason: null },
+    read: { ...detail.read, tables: [{ key: "lines", label: "Lines", listed: true, columns: [{ key: "qty", label: "Qty", type: "number", meaning: null }],
+      rows: [{ cells: { qty: { value: "2", confidence: 0.9, location: null, notOnPage: false, edited: false } } }] }] },
+  } as unknown as DocumentDetail;
+  render(<QueryClientProvider client={new QueryClient()}><Panel d={sent} editable={false} /></QueryClientProvider>);
+  expect(screen.getByText("Sent. Values can't be changed now.")).toBeInTheDocument();
+  expect(screen.getByLabelText("Supplier")).toBeDisabled();
+  expect(screen.queryByRole("button", { name: /^Remove row/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Add row" })).toBeNull();
 });

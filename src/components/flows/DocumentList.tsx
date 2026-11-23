@@ -34,7 +34,7 @@ export function rowNeed(d: ListedDocument): { text: string; tone: Tone } {
   if (s.label !== DOCUMENT_STATUSES[d.status]?.label) return { text: s.label, tone: STATUS_TONE[s.tone] };
   // Finished: what its own files did ("File ready", "Sent to …"), whatever the flow says now.
   if (d.status === "sent" && d.files?.length) return { text: finishedLabel(d.files), tone: "green" };
-  if (d.status === "ready") return { text: d.isSample ? "Nothing to send" : flowWords(d.downloadOnly).ready, tone: "green" };
+  if (d.status === "ready") return { text: d.isSample ? "Nothing to send" : flowWords(d.downloadOnly).ready, tone: "amber" };   // waits on a person: green is only for finished
   if (d.status === "needs_review" && d.checks) {
     if (d.checks.includes("duplicate")) return { text: "Same number as an earlier document", tone: "amber" };
     if (d.checks.includes("new_sender")) return { text: "First document from this email address", tone: "amber" };

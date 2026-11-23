@@ -11,10 +11,11 @@ import { MOCK_DOCUMENT_NUMBER, MOCK_ENGINE_IDS } from "../../src/lib/api/mockEng
  */
 
 test.describe("Document screen error handling", () => {
-  test("an unknown document shows the error state with a retry, not an empty success", async ({ page }) => {
+  test("an unknown document says it isn't here, with a way back, not an empty success", async ({ page }) => {
     await page.goto(`/flows/${MOCK_ENGINE_IDS.flow}/documents/does-not-exist-1234`);
 
-    await expect(page.getByRole("button", { name: /^try again$/i })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("This document isn't here any more. It may have been removed.")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("link", { name: "Go to Documents", exact: true })).toHaveAttribute("href", "/documents");
     await expect(page.getByText(MOCK_DOCUMENT_NUMBER)).toHaveCount(0);
   });
 });

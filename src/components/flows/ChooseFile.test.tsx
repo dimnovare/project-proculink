@@ -56,6 +56,15 @@ describe("ChooseFile", () => {
     await waitFor(() => expect(nav.push).toHaveBeenCalledWith("/flows/flow-1"));
   });
 
+  it("an invoice flow with no invoice standard says so, and the disabled Use this file says why (B-13, B-23)", async () => {
+    setSearch("way=docs");
+    mount({ docsOutputsOn: false });
+    expect(await screen.findByText("There is no invoice standard yet. These four are for purchase orders, so only use one if your system asked for it.")).toBeInTheDocument();
+    expect(screen.getByText("Pick a file type, a sample or a standard above.")).toBeInTheDocument();
+    expect(screen.getByText("Building from documentation isn't on for this workspace yet.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Use this file" })).toBeDisabled();
+  });
+
   it("Cancel after a preview changes nothing", async () => {
     mount();
     fireEvent.click(await screen.findByRole("button", { name: "JSON" }));

@@ -110,6 +110,22 @@ describe("DocumentOutputsPanel", () => {
     expect(failed.queryByText(/was made/)).toBeNull();
   });
 
+  it("a flow with no file says so once; a stopped delivery says where to fix it; Advanced is a quiet More settings", async () => {
+    api.listOutputs.mockResolvedValue([]);
+    api.listDeliveries.mockResolvedValue([]);
+    const none = renderPanel();
+    expect(await within(none.container).findByText("This flow doesn't make a file yet. Set one up, and every document in this flow gets it.")).toBeInTheDocument();
+    expect(within(none.container).queryByText(/Nothing (is made|has been sent)/)).toBeNull();
+    expect(within(none.container).queryByRole("link")).toBeNull();
+    none.unmount();
+    api.listOutputs.mockResolvedValue([{ id: "o", flowId: "f", name: "Totals", format: "csv", tableKey: null, destinationId: "dest-1", template: {}, createdAt: "" }]);
+    api.listDeliveries.mockResolvedValue([{ id: "x", outputName: "Totals", protocol: "webhook", status: "dead_letter", attempts: 3, lastError: "404", fileName: null, deliveredAt: null }]);
+    const panel = within(renderPanel().container);
+    expect(await panel.findByRole("link", { name: "Fix the destination" })).toHaveAttribute("href", expect.stringContaining("dest-1"));
+    expect(panel.getByRole("link", { name: "More settings" })).toHaveAttribute("href", "/flows/f/outputs/o/advanced?document=d");
+    expect(panel.queryByRole("link", { name: "Open in Advanced" })).toBeNull();
+  });
+
   it("does not promise a send on a document that can no longer be sent", async () => {
     api.listDeliveries.mockResolvedValue([]);
     const panel = within(render(<QueryClientProvider client={new QueryClient()}>

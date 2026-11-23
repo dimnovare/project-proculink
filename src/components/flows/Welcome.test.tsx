@@ -15,6 +15,8 @@ const api = vi.hoisted(() => ({
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 const analytics = vi.hoisted(() => ({ capture: vi.fn() }));
 vi.mock("@/lib/api/documents", () => api);
+const billing = vi.hoisted(() => ({ getBillingStatus: vi.fn() }));
+vi.mock("@/lib/api-client", () => billing);
 vi.mock("@/lib/api/linkedAccounts", () => ({ listLinkedAccounts: () => Promise.resolve({ available: false, accounts: [] }) }));
 vi.mock("@/lib/analytics", () => analytics);
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
@@ -36,9 +38,19 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 );
 const choose = (main: HTMLElement, file: File) => fireEvent.change(within(main).getByLabelText("Choose a file"), { target: { files: [file] } });
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => { vi.clearAllMocks(); billing.getBillingStatus.mockResolvedValue({ canProcessOrders: true }); });
 
 describe("Welcome", () => {
+  it("with processing paused, says so under the title and takes no file, photo or sample", async () => {
+    billing.getBillingStatus.mockResolvedValue({ plan: "pilot", canProcessOrders: false, isTrialExpired: true, isOrderLimitReached: false });
+    const main = render(<Welcome flows={[]} flowId={null} />, { wrapper }).container;
+    expect(await within(main).findByText("Processing is paused, so new documents can't be read right now.")).toBeInTheDocument();
+    expect(within(main).getByRole("alert")).toHaveTextContent("Your trial has ended.");
+    for (const name of ["Choose a file", "Take a photo", "Use our sample invoice"]) expect(within(main).getByRole("button", { name })).toBeDisabled();
+    choose(main, new File(["x"], "po.pdf", { type: "application/pdf" }));
+    expect(api.createFlow).not.toHaveBeenCalled();
+  });
+
   it("says why a file was refused, offers a way on, and reuses the flow it made", async () => {
     const unreadable = new ApiHttpError("x", 422, { error: "unreadable_file" });
     api.createFlow.mockResolvedValue({ ...emptyFlow, id: "f-new" });

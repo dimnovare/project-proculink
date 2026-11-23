@@ -40,6 +40,9 @@ describe("RowActions", () => {
     expect(offers(doc({ status: "read_failed", statusReason: "ai_error" }))).toEqual(["Try again", "Remove"]);
     expect(offers(doc({ status: "ready", downloadOnly: true }))).toEqual(["Make the file"]);
     expect(offers(doc({ status: "ready", downloadOnly: false }))).toEqual(["Send"]);
+    // Couldn't send: the fix sits on the row (A-01, B-02); with no destination left to name, only Send again.
+    expect(offers(doc({ status: "send_failed", stop: { destinationId: "dest-1", destination: "Books", error: null } }))).toEqual(["Send again", "link:Fix the destination"]);
+    expect(offers(doc({ status: "send_failed", stop: null }))).toEqual(["Send again"]);
     // The server said this person may not remove it: no Remove.
     expect(offers(doc({ status: "read_failed", statusReason: "ai_error", canRemove: false }))).toEqual(["Try again"]);
   });

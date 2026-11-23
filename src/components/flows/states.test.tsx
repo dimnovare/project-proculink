@@ -64,13 +64,13 @@ describe("Loading and a document we couldn't read", () => {
     expect(page.querySelector("linearGradient")?.id).not.toBe(line.querySelector("linearGradient")?.id);
   });
 
-  it("a document we couldn't read says it was not sent or counted, and offers a clearer copy", () => {
+  it("a document we couldn't read says it was not sent or counted, and offers another copy as the filled button", () => {
     const summary = { id: "d", status: "read_failed", statusReason: "unreadable_file" };
     const { container } = render(<ReadProblem summary={summary as never} retry={{ isPending: false, isError: false, mutate() {} } as never} uploadHref="/flows/f?tab=documents" />);
     expect(within(container).getByText(COPY.unreadable_file)).toBeTruthy();
     expect(within(container).getByText("It hasn't been sent anywhere, and it doesn't count as a document on your plan.")).toBeTruthy();
-    const link = within(container).getByRole("link", { name: "Upload a clearer copy" });
+    const link = within(container).getByRole("link", { name: "Upload another copy" });
     expect(link.getAttribute("href")).toBe("/flows/f?tab=documents");
-    expect(link.className).toBe(buttonClass("secondary", "md")); // outlined (R14)
+    expect(link.className).toBe(buttonClass("primary", "md")); // the way on is the filled button (A-09)
   });
 });
