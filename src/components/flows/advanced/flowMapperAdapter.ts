@@ -2,7 +2,7 @@ import type { MapperAdapter } from "@/components/bridge/mapper/types";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { previewOutput, updateOutput } from "@/lib/api/documents";
 import type { Flow, FlowOutput, ReadResult } from "@/lib/api/documents";
-import { flowSourceFields, outputTable, toOverride, toTemplate } from "./flowMapperModel";
+import { flowSourceFields, leafPaths, outputTable, toOverride, toTemplate } from "./flowMapperModel";
 
 /** Wires one flow output to the mapper. Preview exists only when there is a document to preview against. */
 export function flowMapperAdapter(args: {
@@ -34,5 +34,7 @@ export function flowMapperAdapter(args: {
         }
       : undefined,
     sourceFields: flowSourceFields(flow.fields, output.tableKey, read),
+    // A value named by sourceToken or an expression is filled by the backend, but the mapper only draws canonicalField wires.
+    filledBySetup: new Set(leafPaths(output.template).filter(({ node: { rule: r } }) => !!r && !r.canonicalField && r.fixedValue == null && !!(r.sourceToken || r.expression)).map((l) => l.path)),
   };
 }

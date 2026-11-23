@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { buttonClass } from "@/components/bridge/DSPrimitives";
+import { flowAddress } from "@/lib/flowSteps";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
@@ -63,7 +66,9 @@ export function AdvancedView({ flowId, outputId, documentId }: { flowId: string;
         }
       />
       <div className="lg:hidden">
-        <StatusNotice tone="working">The Advanced view needs a wider screen. On this device, use the document page.</StatusNotice>
+        <StatusNotice tone="working" action={<Link href={flowAddress(flowId, "send", { output: outputId })} className={buttonClass("secondary", "md")}>Back to We send</Link>}>
+          The Advanced view needs a wider screen. You can change this file on the flow&apos;s We send step.
+        </StatusNotice>
       </div>
       <div className="hidden lg:block">
         {failed ? <Failed error={failed.error} retry={() => failed.refetch()} />

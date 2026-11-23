@@ -71,4 +71,6 @@ export interface MapperAdapter {
   /** Absent when there is nothing to preview against; the pane then shows `emptyHint`. */
   preview?: (next: OrderMappingOverride) => Promise<MappingOverridePreview>;
   sourceFields: SourceField[];
+  /** Output paths the file's own setup fills in a way this view draws no wire for (a rule naming a read value directly). */
+  filledBySetup?: ReadonlySet<string>;
 }

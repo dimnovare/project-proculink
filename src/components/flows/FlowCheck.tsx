@@ -9,7 +9,7 @@ import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { CHECK_MODES, checkModeLine, type CheckMode } from "@/lib/deliveryMode";
 import { Pill } from "@/components/bridge/DSPrimitives";
 import { Field, INPUT } from "./DestinationForm";
-import { useFlowSaved } from "./PublishBar";
+import { barPending, useFlowSaved } from "./PublishBar";
 
 export function streakText(n: number) {
   if (n === 0) return "The last document sent needed a correction.";
@@ -53,7 +53,8 @@ export function FlowCheck({ flow }: { flow: Flow }) {
             ))}
           </div>
           <p className="m-0 flex flex-wrap gap-x-2 text-[13px] text-ink-muted">
-            This choice applies to new documents straight away.
+            {/* B-01: the mode never joins the waiting changes, so with a bar below it says so. */}
+            {flow.publishedVersion !== null && barPending(flow) ?"Saved as soon as you pick. This is not part of the changes waiting below." : "This choice applies to new documents straight away."}
             <span role="status" className="font-semibold text-ink">{save.isPending ? "Saving…" : save.isSuccess ? "Saved" : ""}</span>
           </p>
           {save.isError && <p role="alert" className="m-0 text-[12.5px] text-danger">{documentRefusalMessage(save.error)}</p>}

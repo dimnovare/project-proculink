@@ -794,6 +794,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       targetFields={outgoingFields}
       outputConnections={model.outputConnections}
       fixedValues={model.fixedValues}
+      filledBySetup={props.adapter.filledBySetup}
       statusInput={statusInput}
       portRef={(path, el) => { targetEls.current[path] = el; }}
       onHover={setHoveredId}

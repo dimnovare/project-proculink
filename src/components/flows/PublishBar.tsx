@@ -30,6 +30,9 @@ type Note = { text: string; done: boolean; step?: FlowStep; reason?: string };
 export const barPending = (flow: Flow) =>
   flow.publishedVersion !== undefined && flow.fieldsConfirmed && (flow.publishedVersion === null || !!flow.hasChanges);
 
+/** Only We read and We send keep a draft (useDraftPart); the name, the check mode and how documents arrive save at once. */
+export const waitingLine = (flow: Flow) => `Your changes to ${stepTitle("read")} and ${stepTitle("send", flow.downloadOnly)} aren't in use yet.`;
+
 /** The one bar that makes a flow's draft real: it saves every waiting change first, and a part that could not be
  *  saved stops the publish. Drawn only when the server says there is something to publish, or while it reports a result. */
 export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(on: boolean): void }) {
@@ -92,7 +95,7 @@ export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(o
     draft.bump();
     return text;
   }, () => confirm({
-    title: "Undo your changes?", description: "The flow goes back to the setup in use. This can't be undone.", confirmLabel: "Undo my changes", danger: true,
+    title: "Throw away your changes?", description: "The flow goes back to the setup in use. You can't get these changes back.", confirmLabel: "Throw away changes", danger: true,
   }));
 
   const shown = note && !(note.done && pending) ? note : null;
@@ -107,7 +110,7 @@ export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(o
           {pending && (
             <p className="m-0 text-ink">
               {live === null ? "You're still setting up, so changes apply right away. Save this setup when it works." : (
-                <><span className="block">Your changes aren't in use yet.</span><span className="block">New documents still follow the last saved setup.</span></>
+                <><span className="block">{waitingLine(flow)}</span><span className="block">New documents still follow the last saved setup.</span></>
               )}
             </p>
           )}
@@ -127,11 +130,11 @@ export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(o
           )}
         </div>
         {pending && (
-          // The two buttons share the row while both fit; on a narrow phone Use these changes wraps under Undo.
+          // The two buttons share the row while both fit; on a narrow phone Use these changes wraps under Throw away changes.
           <div className="flex w-full flex-wrap gap-2 min-[720px]:w-auto">
             {live !== null && (
               <Button variant="secondary" className="flex-1 min-[720px]:flex-none" loading={running === "discard"} disabled={running !== null} onClick={() => discard(live)}>
-                Undo my changes
+                Throw away changes
               </Button>
             )}
             <Button variant="primary" className="flex-1 min-[720px]:flex-none" loading={running === "publish"} disabled={running !== null} onClick={publish}>

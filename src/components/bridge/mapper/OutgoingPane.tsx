@@ -55,6 +55,8 @@ export interface OutgoingPaneProps {
   outputConnections?: Partial<Record<string, string>>;
   /** outputPath → fixed literal value (a target with no wired source). */
   fixedValues?: Partial<Record<string, string>>;
+  /** Output paths the file's own setup fills without a wire here: they read "from file setup", not "not set". */
+  filledBySetup?: ReadonlySet<string>;
   /** Inputs for the honest value-preview computation (built by the host from the model). */
   statusInput: OutgoingStatusInput;
   /** Register a row's LEFT-edge drop PORT element for the wire engine. */
@@ -173,6 +175,7 @@ export function OutgoingPane({
   targetFields,
   outputConnections,
   fixedValues,
+  filledBySetup,
   statusInput,
   portRef,
   onHover,
@@ -266,6 +269,7 @@ export function OutgoingPane({
       status={status}
       wired={isTargetWired(field.outputPath, outputConnections)}
       fixedValue={fixedValues?.[field.outputPath] ?? null}
+      fromSetup={!!filledBySetup?.has(field.outputPath)}
       hovered={activeIds ? activeIds.has(field.outputPath) : hoveredId === field.outputPath}
       snapped={snapTarget === field.outputPath}
       canRename={canRename}
@@ -337,6 +341,12 @@ export function OutgoingPane({
           <span style={{ color: "var(--ink-faint)" }}>
             To send another structure, choose another standard on We send.
           </span>
+        </div>
+      )}
+
+      {!structuredFixedFormat && !!filledBySetup?.size && (
+        <div role="note" style={{ padding: "9px 12px", borderBottom: "1px solid var(--border-faint)", background: "var(--surface-2)", color: "var(--ink-muted)", fontSize: 11.5, lineHeight: 1.5 }}>
+          These columns fill automatically from the file type. Map one here only to change where it comes from.
         </div>
       )}
 
@@ -535,7 +545,7 @@ function AutoFilledSection({ fields }: { fields?: AutoFilledFields | null }) {
 
 // ── A single output-field row (the LEFT-edge drop PORT + honest status + INLINE controls) ──
 function OutgoingRow({
-  field, status, wired, fixedValue, hovered, snapped, canRename, readOnly,
+  field, status, wired, fixedValue, fromSetup, hovered, snapped, canRename, readOnly,
   portRef, onHover, onSelect, onDisconnect, onSetFixedValue, onRenamePath, manipulators, onFieldManipulatorsChange, badgeSlot,
   pickerMode, incomingFields, onPickSource,
 }: {
@@ -543,6 +553,8 @@ function OutgoingRow({
   status: OutgoingFieldStatus;
   wired: boolean;
   fixedValue: string | null;
+  /** See OutgoingPaneProps.filledBySetup. */
+  fromSetup?: boolean;
   hovered: boolean;
   snapped?: boolean;
   canRename: boolean;
@@ -787,6 +799,7 @@ function OutgoingRow({
           ) : (
             <OutgoingStatusTag
               status={status}
+              fromSetup={fromSetup}
               onDisconnect={!readOnly && wired ? onDisconnect : undefined}
               onEditFixed={!readOnly && status.kind === "fixed" && onSetFixedValue ? startFixedEdit : undefined}
             />
@@ -1029,9 +1042,10 @@ function AutoMappedSummary({ count, open, onToggle }: { count: number; open: boo
 
 // ── The honest right-side status tag ──────────────────────────────────────────
 function OutgoingStatusTag({
-  status, onDisconnect, onEditFixed,
+  status, fromSetup, onDisconnect, onEditFixed,
 }: {
   status: OutgoingFieldStatus;
+  fromSetup?: boolean;
   onDisconnect?: (outputPath: string) => void;
   /** When set, the fixed-value chip becomes a click-to-edit affordance (direct manipulation). */
   onEditFixed?: () => void;
@@ -1086,7 +1100,7 @@ function OutgoingStatusTag({
   // computeOutgoingStatus and arrives with kind "auto", never "none". The marker now hangs off
   // `needsSourceStatus` in the row itself, which is a question about the VALUE and can be true.
   return (
-    <span style={{ fontSize: 11, fontWeight: 600, color: "#5E6779", flexShrink: 0 }}>not set</span>
+    <span style={{ fontSize: 11, fontWeight: 600, color: "#5E6779", flexShrink: 0 }}>{fromSetup ? "from file setup" : "not set"}</span>
   );
 }
 

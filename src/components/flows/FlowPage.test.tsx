@@ -82,6 +82,15 @@ describe("FlowPage", () => {
     expect(strip().getByRole("link", { name: "History of changes" })).toBeInTheDocument();
   });
 
+  it("an unconfirmed flow asks for its values above the phone's step list, with a button (B-11)", async () => {
+    api.getFlow.mockResolvedValue({ ...flow, fieldsConfirmed: false });
+    renderPage();
+    const choose = await screen.findByRole("link", { name: "Choose the values" });
+    expect(choose).toHaveAttribute("href", "/flows/flow-1?tab=read");
+    const steps = screen.getByRole("navigation", { name: "The four steps of this flow" });
+    expect(choose.compareDocumentPosition(steps) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("the header says In use only for a flow with a saved setup", async () => {
     for (const publishedVersion of [1, null, undefined]) {
       api.getFlow.mockResolvedValue({ ...flow, publishedVersion });

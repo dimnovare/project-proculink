@@ -28,7 +28,7 @@ export const SAMPLE_BYTES = 2 * 1024 * 1024;
 export const DOCS_ACCEPT = ".pdf,.html,.htm,.json,.yaml,.yml,.xsd,.xml,.txt,.csv";
 export const DOCS_BYTES = 10 * 1024 * 1024;
 const LINK = "inline-flex min-h-11 items-center text-[14px] font-semibold text-brand-blue-deep underline";
-const WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
+export const WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
 
 /** A closed line that opens a list in place; opening moves focus to the list's first button. */
 function Fold({ label, line, children }: { label: string; line: string; children: ReactNode }) {

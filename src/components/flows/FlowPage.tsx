@@ -61,10 +61,10 @@ function useStepSummaries(flow: Flow): Record<FlowStep, string | null> {
   };
 }
 
-/** The step number: 1 and 2 bring in (blue), 3 needs you (amber), 4 sends (green). */
+/** The step number: 1 and 2 bring in (blue), 3 is neutral (it is not a warning), 4 sends (green). */
 const BADGE: Record<1 | 2 | 3 | 4, string> = {
   1: "bg-brand-blue-soft text-brand-blue-deep", 2: "bg-brand-blue-soft text-brand-blue-deep",
-  3: "bg-amber-soft text-amber-text", 4: "bg-brand-green-soft text-brand-green-deep",
+  3: "bg-border text-ink", 4: "bg-brand-green-soft text-brand-green-deep",
 };
 const Badge = ({ n, big }: { n: 1 | 2 | 3 | 4; big?: boolean }) => (
   <span aria-hidden className={`inline-flex flex-none items-center justify-center rounded-full font-bold ${big ? "h-[30px] w-[30px] text-[14px]" : "h-6 w-6 text-[13px]"} ${BADGE[n]}`}>{n}</span>
@@ -264,22 +264,15 @@ function FlowBody({ flow, view, output, renaming, onRenamed, blocked }: { flow: 
         </div>
       )}
       {blocked && <StatusNotice tone="error">{blocked}</StatusNotice>}
+      {/* Above the phone's step cards, or above the desk's Documents: drawn once for both. */}
+      {(!view || view === "documents") && !flow.fieldsConfirmed && (
+        <StatusNotice tone="warning" action={<FlowLink href={flowAddress(flow.id, "read")} className={buttonClass("secondary", "md")}>Choose the values</FlowLink>}>
+          Choose what we read from every document, so each one is read the same way.
+        </StatusNotice>
+      )}
       {/* No step chosen: a desk shows Documents, a phone the overview (R14). */}
       {!view && <div className="lg:hidden"><PhoneOverview flow={flow} summaries={summaries} /></div>}
-      {/* Under the phone's step cards, or above the desk's Documents: drawn once for both. */}
-      {(!view || view === "documents") && (
-        <>
-          {!flow.fieldsConfirmed && (
-            <StatusNotice
-              tone="warning"
-              action={<FlowLink href={flowAddress(flow.id, "read")} className="inline-flex items-center font-semibold text-ink underline">Go to We read</FlowLink>}
-            >
-              Choose what we read from every document, so each one is read the same way.
-            </StatusNotice>
-          )}
-          <StreakBand flow={flow} />
-        </>
-      )}
+      {(!view || view === "documents") && <StreakBand flow={flow} />}
       <div className={view ? undefined : "hidden lg:block"}><ViewBody flow={flow} view={view ?? "documents"} output={output} /></div>
     </div>
   );

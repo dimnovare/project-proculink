@@ -24,7 +24,7 @@ import { FLAGGED, RULE_SETS, standardName } from "@/lib/standardOutputs";
 import { StandardQuestions } from "@/components/flows/StandardQuestions";
 import { PartnerIds } from "@/components/flows/PartnerIds";
 import type { EnvelopeConfig } from "@/lib/api/types";
-import { Pencil } from "lucide-react";
+import { ChevronDown, Pencil } from "lucide-react";
 import { FirstDocumentDrop, useLatestRead } from "./FlowValues";
 import { renamed } from "./fileChoice";
 
@@ -64,7 +64,8 @@ const COLUMNS_KEY = "plk:columns-open";
 /** No document read yet: one is added to this flow right here, through the app's upload queue, as on We read. */
 function AddDocument({ flow, sends }: { flow: Flow; sends: boolean }) {
   const { newest } = useLatestRead(flow.id);
-  return <FirstDocumentDrop flow={flow} newest={newest} prompt="Add a document to this flow to see the file and send a test." reading="The file appears here, usually within a minute." sends={sends} />;
+  return <FirstDocumentDrop flow={flow} newest={newest} prompt="Add a document to this flow to see the file and send a test." reading="The file appears here, usually within a minute." sends={sends}
+    dropOnFail="Add another document to see the file." />;
 }
 
 /** A row's lookup swap. `of` names the row in the labels, for a list of them away from the row itself. */
@@ -156,8 +157,10 @@ type EditorProps = {
   onSaved(): void; onCancel(): void;
   /** Draft only: handed the file's heading when it is drawn. */
   headingRef?: React.Ref<HTMLHeadingElement>;
-  /** Draft only: buttons for the file, drawn on the row with its name. */
-  actions?: React.ReactNode;
+  /** Draft only: a link drawn first inside More options (Advanced). */
+  advanced?: React.ReactNode;
+  /** Draft only: drawn at the foot, under More options (Stop making this file). */
+  foot?: React.ReactNode;
 };
 type Draft = { part: ReturnType<typeof useDraftPart<OutputRequest>>; saves: number };
 
@@ -180,7 +183,7 @@ function DraftOutputEditor(props: EditorProps & { output: FlowOutput }) {
   return <Editor {...props} draft={{ part, saves }} />;
 }
 
-function Editor({ flow, output, previewDocumentId, previewFile, hideDestination, onCreated, onSaved, onCancel, headingRef, actions, draft }: EditorProps & { draft?: Draft }) {
+function Editor({ flow, output, previewDocumentId, previewFile, hideDestination, onCreated, onSaved, onCancel, headingRef, advanced, foot, draft }: EditorProps & { draft?: Draft }) {
   const qc = useQueryClient();
   const enabled = useTenantQueriesEnabled();
   const onFlowPage = useOnFlowPage();
@@ -443,7 +446,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
   );
   const externalNote = external && (
     <p className="text-[12.5px] text-ink-muted">
-      This file was set up outside this editor. You can change its name and destination here.
+      Columns come from the file type. Change the name, type or where it goes here.
     </p>
   );
   const standardQuestions = standard && <StandardQuestions flow={flow} needs={current.needs ?? []} tableKey={tableKey} name={standardName(standard)} />;
@@ -508,7 +511,6 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <DraftState part={draft.part} />
-            {actions}
           </div>
         </div>
         {renameShown && nameField}
@@ -607,11 +609,16 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
             </>
           ) : <AddDocument flow={flow} sends={sendsByItself(flow.automation) && !!destinationId} />}
         </section>
-        <details className="rounded-md border border-border px-3 py-2">
-          <summary className="flex min-h-11 cursor-pointer items-center text-[14px] font-semibold text-ink">
-            {flow.downloadOnly === true ? "More options: when to make it, separator, lookups" : "More options: when to send, separator, lookups"}
+        <details className="group rounded-md border border-border px-3 py-2">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 text-[14px] font-semibold text-ink [&::-webkit-details-marker]:hidden">
+            {/* Names only what it holds (B-09); whole literals, so the help pages' guard can find them. */}
+            {flow.downloadOnly === true
+              ? separatorField ? "More options: when to make it, separator, lookups" : rows ? "More options: when to make it, lookups" : "More options: when to make it"
+              : separatorField ? "More options: when to send, separator, lookups" : rows ? "More options: when to send, lookups" : "More options: when to send"}
+            <ChevronDown size={18} aria-hidden className="flex-none text-ink-muted transition-transform group-open:rotate-180" />
           </summary>
           <div className="grid gap-3 pb-2 pt-2">
+            {advanced}
             {!rows && tableField}
             {sendWhenFields}
             {separatorField}
@@ -639,6 +646,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
             )}
           </div>
         </details>
+        {foot}
       </div>
     );
   }
