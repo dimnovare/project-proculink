@@ -61,7 +61,7 @@ test.describe("power tools", () => {
     await page.keyboard.type("Example Supplier Ltd");
     await page.keyboard.press("Control+Enter");
     await expect(page).toHaveURL(/\/flows\/[^/]+\/documents\/(?!doc-1$)[^/]+$/);
-    await expect(page.getByTestId("review-header-actions")).toContainText("1 of 2 that need you");
+    await expect(page.getByTestId("review-header-actions")).toContainText("Document 1 of 2");
     // The mock remembers for the life of the page: open doc-1 again without a reload, through the list.
     await page.getByRole("link", { name: "Documents" }).first().click();
     await page.getByRole("tab", { name: /^Finished/ }).click();

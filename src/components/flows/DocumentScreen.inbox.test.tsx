@@ -107,7 +107,7 @@ describe("DocumentScreen, a document in the inbox", () => {
       const view = mount(doc);
       const panel = await answers();
       if (press === "Move it") {
-        const list = within(panel).getByRole("combobox", { name: "Flow it belongs with" });
+        const list = within(panel).getByRole("combobox", { name: "Handle it like" });
         await within(list).findByRole("option", { name: "Remittance advices" });
         fireEvent.change(list, { target: { value: "flow-4" } });
       }
@@ -164,7 +164,7 @@ describe("DocumentScreen, a document in the inbox", () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     spy().answer = { "POST /documents/doc-in-2/move": { id: "doc-in-2", flowId: "flow-1", flowName: "Supplier invoices", alsoMoved: 2 } };
     const first = mount("doc-in-2", "flow-inbox", client);
-    const list = within(await answers()).getByRole("combobox", { name: "Flow it belongs with" });
+    const list = within(await answers()).getByRole("combobox", { name: "Handle it like" });
     await waitFor(() => expect(within(list).getByRole("option", { name: "Supplier invoices" })).toBeTruthy());
     fireEvent.change(list, { target: { value: "flow-1" } });
     fireEvent.click(screen.getByRole("button", { name: "Move it" }));
@@ -181,10 +181,10 @@ describe("DocumentScreen, a document in the inbox", () => {
     expect(within(panel).getByRole("heading", { name: "Which flow does this invoice belong with?" })).toBeVisible();
     expect(within(panel).queryByText(/the first/i)).toBeNull(); // no "The first of its kind here.": flows already hold this kind
     expect(within(panel).getAllByRole("button").map((b) => b.textContent)).toEqual(["Move it", "Set it up", "Excel", "CSV"]);
-    const list = within(panel).getByRole("combobox", { name: "Flow it belongs with" });
+    const list = within(panel).getByRole("combobox", { name: "Handle it like" });
     // The flows that fit first, then the others; none chosen.
     await waitFor(() => expect(within(list).getAllByRole("option").slice(0, 3).map((o) => o.textContent))
-      .toEqual(["Choose a flow", "Remittance advices", "Supplier invoices"]));
+      .toEqual(["Choose one", "Remittance advices", "Supplier invoices"]));
     expect(within(list).getByRole("option", { name: "Delivery notes" })).toBeTruthy();
     expect(list).toHaveValue("");
     expect(within(panel).getByRole("button", { name: "Move it" })).toBeDisabled();
@@ -198,20 +198,20 @@ describe("DocumentScreen, a document in the inbox", () => {
   });
 
   it("a sort that is not certain says where it went and can be moved, and Send stays", { timeout: 20_000 }, async () => {
-    // The person's flows did not load: say so, never a list with only "Choose a flow".
+    // The person's flows did not load: say so, never a list with only "Choose one".
     spy().answer = { "GET /flows": { refuse: [503, "unavailable"] } };
     const failed = mount("doc-in-3", "flow-2");
     // flowsQuery retries twice before it reports the failure.
     expect(await screen.findByText("We couldn't load your flows.", undefined, { timeout: 8000 })).toBeVisible();
-    expect(screen.queryByRole("combobox", { name: "Another flow" })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Handle it like" })).toBeNull();
     expect(screen.getByRole("button", { name: "Try again" })).toBeEnabled();
     failed.unmount();
     spy().answer = {};
 
     mount("doc-in-3", "flow-2");
-    expect(await screen.findByText("We put this with Delivery notes. Check that is right.")).toBeVisible();
+    expect(await screen.findByText("We put this with Delivery notes. If that's right, carry on. If not, move it:")).toBeVisible();
     expect(screen.queryByRole("region", { name: "What to do with it" })).toBeNull();
-    const list = screen.getByRole("combobox", { name: "Another flow" });
+    const list = screen.getByRole("combobox", { name: "Handle it like" });
     await waitFor(() => expect(within(list).getByRole("option", { name: "Supplier invoices" })).toBeTruthy());
     expect(within(list).queryByRole("option", { name: "Delivery notes" })).toBeNull();
     expect(list).toHaveValue("");

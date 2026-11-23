@@ -90,19 +90,23 @@ export function Pill({
   icon,
   children,
   className,
+  title,
   "data-testid": testId,
 }: {
   tone?: PillTone;
   icon?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  /** The full words: the pill then fits its space and ends in "…" when it must. */
+  title?: string;
   "data-testid"?: string;
 }) {
   const t = PILL_TONE[tone];
   return (
     <span
       data-testid={testId}
-      className={["inline-flex items-center gap-1 rounded-full font-semibold whitespace-nowrap", className]
+      title={title}
+      className={["inline-flex items-center gap-1 rounded-full font-semibold whitespace-nowrap", title && "max-w-full", className]
         .filter(Boolean)
         .join(" ")}
       style={{
@@ -115,7 +119,7 @@ export function Pill({
       }}
     >
       {icon}
-      {children}
+      {title ? <span className="min-w-0 truncate">{children}</span> : children}
     </span>
   );
 }

@@ -37,15 +37,15 @@ describe("documentKind", () => {
   });
 
   it("labels the sorting reasons, keeps Downloaded apart from Sent, and an unknown reason is the status", () => {
-    expect(documentStatus("needs_review", "new_kind").label).toBe("New kind");
-    expect(documentStatus("needs_review", "choose_flow").label).toBe("Choose a flow");
-    expect(documentStatus("needs_review", "check_sort")).toMatchObject({ label: "Check the flow", needsYou: true, editable: true });
+    expect(documentStatus("needs_review", "new_kind").label).toBe("First of its kind");
+    expect(documentStatus("needs_review", "choose_flow").label).toBe("Where should it go?");
+    expect(documentStatus("needs_review", "check_sort")).toMatchObject({ label: "Check where we put it", needsYou: true, editable: true });
     expect(documentStatus("sent", "downloaded")).toMatchObject({ label: "Downloaded", tone: "success", needsYou: false });
     expect(documentStatus("needs_review", "downloaded").label).not.toBe("Downloaded");
     const review = documentStatus("needs_review", null);
     expect(documentStatus("needs_review", "new_kind")).toMatchObject({ tone: review.tone, needsYou: review.needsYou });
     expect(documentStatus("sent", "something_new").label).toBe("Sent");
-    expect(rowNeed({ ...row, status: "needs_review", statusReason: "check_sort", failedChecks: 2, checks: ["low_confidence", "low_confidence"] }).text).toBe("Check the flow");
+    expect(rowNeed({ ...row, status: "needs_review", statusReason: "check_sort", failedChecks: 2, checks: ["low_confidence", "low_confidence"] }).text).toBe("Check where we put it");
     expect(documentRefusalMessage(new ApiHttpError("x", 415, { error: "unsupported_format" }))).toBe("This file type can't be read.");
     expect([422, 400].map((s) => documentRefusalMessage(new ApiHttpError("x", s, { error: "invalid_fields", detail: "Field key is taken." }))))
       .toEqual([COPY.invalid_fields, "Field key is taken."]);

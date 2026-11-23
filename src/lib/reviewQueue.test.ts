@@ -7,8 +7,8 @@ const page = (ids: string[], total = ids.length) => ({ items: ids.map(r), totalC
 
 describe("review queue", () => {
   it("places the document in the queue and picks the next one from what the server says now", () => {
-    expect(positionText(queuePosition(page(["a", "b", "c"]), "b"))).toBe("2 of 3 that need you");
-    expect(positionText(queuePosition(page(["a"], 1), "a"))).toBe("The only one that needs you");
+    expect(positionText(queuePosition(page(["a", "b", "c"]), "b"))).toBe("Document 2 of 3");
+    expect(positionText(queuePosition(page(["a"], 1), "a"))).toBe("The only one waiting");
     expect(positionText(queuePosition(page(["a", "b"], 80), "z"))).toBeNull();          // not in the first 50
     expect(queuePosition(undefined, "a")).toBeNull();                                     // unknown is not a position
     const before = page(["a", "b", "c"]).items;

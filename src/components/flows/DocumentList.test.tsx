@@ -98,11 +98,12 @@ describe("DocumentList", () => {
     expect(within(invoice).getByText("An invoice from Example Supplier Ltd")).toBeInTheDocument();
     const inbox = within(table.getByRole("row", { name: /statement\.pdf/ })).getAllByRole("cell");
     expect(inbox[1]).toHaveTextContent(/^New documents$/);
-    expect(inbox[2]).toHaveTextContent("New kind");
-    expect(inbox[5]).toHaveTextContent(/^Open$/);
+    expect(inbox[2]).toHaveTextContent("First of its kind");
+    expect(within(inbox[2]).getByTitle("First of its kind")).toBeInTheDocument(); // a pill that must cut keeps its words on hover
+    expect(inbox[5]).toHaveTextContent(/^Review$/);
     expect(table.queryByRole("button", { name: "Send price-list.xlsx" })).toBeNull(); // a ready inbox document is never sent from a row
-    // Not known to be with a flow: not sent from the row either, and "Open" is the way on.
-    expect(within(table.getByRole("row", { name: /unplaced\.pdf/ })).getAllByRole("cell")[5]).toHaveTextContent(/^Open$/);
+    // Not known to be with a flow: not sent from the row either, and "Review" is the way on.
+    expect(within(table.getByRole("row", { name: /unplaced\.pdf/ })).getAllByRole("cell")[5]).toHaveTextContent(/^Review$/);
     // A sort we were not sure of is never sent from a row: its notice is on the review screen.
     expect(within(table.getByRole("row", { name: /delivery-note-70\.pdf/ })).getAllByRole("cell")[5]).toHaveTextContent(/^Review$/);
     const downloaded = within(table.getByRole("row", { name: /remittance\.pdf/ })).getAllByRole("cell");

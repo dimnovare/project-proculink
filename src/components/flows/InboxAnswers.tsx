@@ -129,7 +129,7 @@ export const Changed = ({ a }: { a: Answers }) => a.gone ? (
 function MoveTo({ a, label, filled }: { a: Answers; label: string; filled: boolean }) {
   const [to, setTo] = useState("");
   const id = useId();
-  // A list with only "Choose a flow" would read as "you have no flow".
+  // A list with only "Choose one" would read as "you have no flow".
   if (a.flows.isError && !a.flows.data) return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-[14px] text-ink">We couldn&apos;t load your flows.</span>
@@ -141,10 +141,11 @@ function MoveTo({ a, label, filled }: { a: Answers; label: string; filled: boole
       <label htmlFor={id} className="text-[13px] font-medium text-ink">{label}</label>
       <div className="flex flex-wrap gap-2">
         <select id={id} className={`${INPUT} min-h-[44px] w-auto min-w-[180px] flex-1`} value={to} onChange={(e) => setTo(e.target.value)}>
-          <option value="" disabled>Choose a flow</option>
+          <option value="" disabled>Choose one</option>
           {a.list.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
         </select>
-        <Button variant={filled ? "primary" : "secondary"} disabled={!to || a.busy} loading={a.pending === "move"} onClick={() => a.press({ move: to })}>Move it</Button>
+        {/* Disabled, it is always the quiet button: one disabled look. */}
+        <Button variant={filled && to && !a.busy ? "primary" : "secondary"} disabled={!to || a.busy} loading={a.pending === "move"} onClick={() => a.press({ move: to })}>Move it</Button>
       </div>
     </div>
   );
@@ -170,7 +171,7 @@ export function InboxAnswers({ detail, a }: { detail: DocumentDetail; a: Answers
     ["Just this one", "Download what we read. Nothing is set up, and nothing is sent anywhere.", <Downloads a={a} />],
   ];
   // With no flow at all there is nothing to move it to. Several flows fit: moving it is the first answer.
-  const move: [string, string, ReactNode] = ["It belongs with one you already have", "Handle it like the documents of another flow.", <MoveTo a={a} label="Flow it belongs with" filled={several} />];
+  const move: [string, string, ReactNode] = ["It belongs with one you already have", "Handle it like the documents of another flow.", <MoveTo a={a} label="Handle it like" filled={several} />];
   if (!a.none) { if (several) rows.unshift(move); else rows.push(move); }
   const [title, helper] = several
     ? [`Which flow does this ${kind ?? "document"} belong with?`, "More than one of your flows takes documents like this. Choose the one this belongs with."]
@@ -188,7 +189,7 @@ export function InboxAnswers({ detail, a }: { detail: DocumentDetail; a: Answers
       ) : (
         <>
           <div className="grid gap-1">
-            <h2 className="m-0 font-display text-[24px] font-semibold text-ink">{title}</h2>
+            <h2 className="m-0 font-sans text-[18px] font-semibold text-ink">{title}</h2>
             <p className="m-0 text-[14px] text-ink-muted">{helper}</p>
           </div>
           {rows.map(([name, help, action], i) => (
@@ -211,8 +212,8 @@ export function InboxAnswers({ detail, a }: { detail: DocumentDetail; a: Answers
 export function SortNotice({ detail, a }: { detail: DocumentDetail; a: Answers }) {
   return (
     <div className="grid gap-2">
-      <StatusNotice tone="warning" action={!a.none && <MoveTo a={a} label="Another flow" filled={false} />}>
-        {`We put this with ${detail.summary.flowName}. Check that is right.`}
+      <StatusNotice tone="warning" action={!a.none && <MoveTo a={a} label="Handle it like" filled={false} />}>
+        {`We put this with ${detail.summary.flowName}. If that's right, carry on.${a.none ? "" : " If not, move it:"}`}
       </StatusNotice>
       {a.error && <Refused a={a} />}
     </div>

@@ -6,7 +6,7 @@ describe("documentTabs", () => {
     expect(DOCUMENT_TABS.map((t) => [t.id, t.label, t.statuses])).toEqual([
       ["needs-you", "Needs you", ["needs_review", "ready"]],
       ["sent", "Finished", ["sent"]],
-      ["failed", "Couldn't be read or sent", ["read_failed", "send_failed"]],
+      ["failed", "Problems", ["read_failed", "send_failed"]],
       ["all", "All", null],
     ]);
     expect(BEING_READ_STATUSES).toEqual(["received", "reading"]);
@@ -24,7 +24,7 @@ describe("documentTabs", () => {
   });
 
   it("names the tabs as the board does", () => {
-    expect(DOCUMENT_TABS.map((t) => t.label)).toEqual(["Needs you", "Finished", "Couldn't be read or sent", "All"]);
+    expect(DOCUMENT_TABS.map((t) => t.label)).toEqual(["Needs you", "Finished", "Problems", "All"]);
     expect(DOCUMENT_TABS[1].id).toBe("sent");
     expect(documentsHelper(2, 14)).toBe("2 need you. 14 finished this week.");
   });

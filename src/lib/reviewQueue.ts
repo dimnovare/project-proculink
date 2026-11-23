@@ -8,10 +8,10 @@ export function queuePosition(queue: DocumentPage | undefined, id: string): { n:
   return i < 0 || of === undefined ? null : { n: i + 1, of };
 }
 
-/** "{n} of {m} that need you" | "The only one that needs you" | null */
+/** "Document {n} of {m}" | "The only one waiting" | null */
 export function positionText(p: { n: number; of: number } | null): string | null {
   if (!p) return null;
-  return p.of === 1 ? "The only one that needs you" : `${p.n} of ${p.of} that need you`;
+  return p.of === 1 ? "The only one waiting" : `Document ${p.n} of ${p.of}`;
 }
 
 /** R2. `before`: the queue when the person pressed; `after`: the queue now (undefined when unknown). */

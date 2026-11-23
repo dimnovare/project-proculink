@@ -20,7 +20,7 @@ const file = (over: Partial<DocumentFile> = {}): DocumentFile => ({ deliveryId: 
 
 const draw = (d: ListedDocument, onRemoved = vi.fn()) =>
   render(<QueryClientProvider client={new QueryClient()}><RowActions d={d} sendable onSent={() => {}} onRemoved={onRemoved} /></QueryClientProvider>);
-/** What a row offers, in order: its buttons, links and the drawn-only Review/Open. */
+/** What a row offers, in order: its buttons, links and the drawn-only Review. */
 const offers = (d: ListedDocument) => {
   const { container, unmount } = draw(d);
   const out = [...container.querySelectorAll("button, a, span[aria-hidden]")].map((e) => `${e.tagName === "A" ? "link:" : ""}${e.textContent}`);

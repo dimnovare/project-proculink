@@ -75,7 +75,7 @@ test.describe("Review", () => {
     await page.getByTestId("review-next").click();
     await expect(page).toHaveURL(/\/flows\/flow-3\/documents\/doc-5$/);
     const header = page.getByTestId("review-header-actions");
-    await expect(header).toContainText("1 of 3 that need you");
+    await expect(header).toContainText("Document 1 of 3");
     // flow-3 makes no file yet, so the way on is to set one up, never a send the server would refuse.
     await expect(header.getByRole("link", { name: "Set up the file" })).toHaveAttribute("href", "/flows/flow-3?tab=outputs");
     await expect(header.getByRole("button", { name: "Make the file" })).toHaveCount(0);
@@ -92,7 +92,7 @@ test.describe("Review", () => {
     await expect(page.getByTestId("save-state")).toHaveText(/Saving…|Saves as you type/);
     await header.getByRole("button", { name: "Send and open next" }).click();             // saves first, then sends
     await expect(page).toHaveURL(/\/documents\/doc-5$/);
-    await expect(page.getByTestId("review-header-actions")).toContainText("1 of 2 that need you");
+    await expect(page.getByTestId("review-header-actions")).toContainText("Document 1 of 2");
     await page.goBack();
     await expect(page).toHaveURL(/\/documents$/);
     await expect(page.getByRole("tab", { name: /Needs you/ })).toContainText("2");
