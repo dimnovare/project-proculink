@@ -470,7 +470,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
       {files.length === 1 && <Button variant="primary" className={cls} loading={download.isPending} onClick={() => download.mutate()}>{`Download ${files[0].fileName}`}</Button>}
     </>
   );
-  useShortcut("send-and-next", () => press(send), sends && !setUp && !busy);
+  useShortcut("send-and-next", () => press(send), sends && !setUp && !outputs.isLoading && !busy);
   const canSkip = sends && !!nextNow;
   // Review next is the way on wherever nothing is sent from here; beside the inbox answers it is never the filled button.
   const next = here !== undefined && !sends && nextNow;
@@ -514,17 +514,17 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
             {summary?.status !== "read_failed" && <Pill tone={tag.tone}>{tag.text}</Pill>}
             {position && <span className="text-[12.5px] text-ink-muted">{position}</span>}
             {removeButton}
-            {made ? madeActions("hidden md:inline-flex") : setUp ? setUpLink("hidden md:inline-flex") : sends ? (
+            {made ? madeActions("hidden md:inline-flex") : sends ? (
               <>
                 {canSkip && <Button variant="secondary" className="hidden md:inline-flex" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
-                <Button id="review-send" variant="send" className="hidden md:inline-flex" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}
+                {setUp ? setUpLink("hidden md:inline-flex") : <Button id="review-send" variant="send" className="hidden md:inline-flex" disabled={busy || outputs.isLoading} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}
                   // After Enter brought the cursor here, only Enter sends: a space or a letter is typing, and goes back into the value.
                   onKeyDown={(e) => { noRepeat(e); if (walked.current && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) walked.current.focus(); }}
                   onBlur={() => { walked.current = null; }}
                 >
                   {primary}
                   <kbd aria-hidden className="hidden h-[22px] items-center rounded bg-brand-green-deep px-1.5 font-sans text-[12.5px] font-semibold lg:inline-flex">{keyWord("Mod", apple)} Enter</kbd>
-                </Button>
+                </Button>}
               </>
             ) : reviewNext("hidden items-center md:inline-flex")}
           </div>
@@ -624,10 +624,10 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
       {/* Made with several files and nothing next: no bar, never an empty one. */}
       {(sends || next || (made && files.length === 1)) && (
         <ActionBar>
-          {made ? madeActions("") : setUp ? setUpLink("inline-flex items-center") : sends ? (
+          {made ? madeActions("") : sends ? (
             <>
               {canSkip && <Button variant="secondary" className="!flex-none" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
-              <Button variant="send" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}>{primary}</Button>
+              {setUp ? setUpLink("inline-flex items-center") : <Button variant="send" disabled={busy || outputs.isLoading} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}>{primary}</Button>}
             </>
           ) : reviewNext("inline-flex items-center")}
         </ActionBar>

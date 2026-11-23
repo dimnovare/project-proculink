@@ -1,6 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
 import { preparePage, settle } from "./a11yHarness";
-import { COPY } from "../../src/lib/documentRefusals";
 
 /** What a person sees go wrong on a narrow screen, measured on the document screen as it stands. */
 async function measure(page: Page) {
@@ -77,10 +76,9 @@ test.describe("Review", () => {
     await expect(page).toHaveURL(/\/flows\/flow-3\/documents\/doc-5$/);
     const header = page.getByTestId("review-header-actions");
     await expect(header).toContainText("1 of 3 that need you");
-    await header.getByRole("button", { name: "Make the file" }).click();                  // flow-3 has no file, so nothing goes anywhere
-    await expect(page.getByTestId("review-refusal").getByRole("alert")).toContainText(COPY.no_outputs);
-    await expect(page.getByTestId("review-refusal").getByRole("link", { name: "Open the flow's files" }))
-      .toHaveAttribute("href", "/flows/flow-3?tab=outputs");
+    // flow-3 makes no file yet, so the way on is to set one up, never a send the server would refuse.
+    await expect(header.getByRole("link", { name: "Set up the file" })).toHaveAttribute("href", "/flows/flow-3?tab=outputs");
+    await expect(header.getByRole("button", { name: "Make the file" })).toHaveCount(0);
     await expect(page).toHaveURL(/doc-5$/);
     await header.getByRole("button", { name: "Skip" }).click();
     await expect(page).toHaveURL(/\/documents\/doc-2$/);

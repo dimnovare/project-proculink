@@ -84,7 +84,7 @@ test.describe("destinations", () => {
     await preparePage(page, { dismissCookieBanner: true });
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/documents?show=failed");
-    await page.getByRole("link", { name: "Fix the destination" }).click();
+    await page.getByRole("link", { name: "Fix the destination" }).first().click();   // the alert's; each stopped row has its own too
     await expect(page).toHaveURL(/\/settings\?tab=destinations&open=dest-1$/);
     const panel = page.getByRole("region", { name: "Edit Accounting inbox" });
     await expect(panel).toContainText("One file uses this destination, so it can't be deleted.");
