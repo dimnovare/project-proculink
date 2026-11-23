@@ -154,10 +154,10 @@ const EXCEL_EPOCH_UTC = Date.UTC(1899, 11, 30);
 /** Built-in number-format ids that are dates or times (ECMA-376 §18.8.30). */
 const BUILTIN_DATE_FMT_IDS = new Set([14, 15, 16, 17, 18, 19, 20, 21, 22, 45, 46, 47]);
 
-// OOXML parts carry a DEFAULT namespace, so every element's qualified name equals its local
-// name. `getElementsByTagName` therefore matches reliably in both browsers and jsdom, while CSS
-// type selectors through `querySelectorAll` behave inconsistently across XML implementations —
-// which is why this file uses tag-name lookups throughout.
+// Excel writes OOXML with a DEFAULT namespace (`<worksheet>`), but OpenXML SDK / ClosedXML write
+// a prefix (`<x:worksheet>`), so elements are matched by LOCAL name: `getElementsByTagNameNS("*")`
+// and `localName`. CSS type selectors through `querySelectorAll` behave inconsistently across XML
+// implementations — which is why this file uses tag-name lookups throughout.
 function parseXml(xml: string): Document | null {
   if (typeof DOMParser === "undefined") return null;
   let doc: Document;
@@ -167,7 +167,7 @@ function parseXml(xml: string): Document | null {
     return null;
   }
   const root = doc.documentElement;
-  if (!root || root.nodeName === "parsererror" || root.getElementsByTagName("parsererror").length) {
+  if (!root || root.nodeName === "parsererror" || root.getElementsByTagNameNS("*", "parsererror").length) {
     return null;
   }
   return doc;
@@ -177,7 +177,7 @@ function parseXml(xml: string): Document | null {
 function childrenNamed(parent: Element | Document, tag: string): Element[] {
   const out: Element[] = [];
   // A sibling walk, not `children`: jsdom's live collection makes that quadratic (20,000 rows took a minute).
-  for (let el = (parent as Element).firstElementChild; el; el = el.nextElementSibling) if (el.tagName === tag) out.push(el);
+  for (let el = (parent as Element).firstElementChild; el; el = el.nextElementSibling) if (el.localName === tag) out.push(el);
   return out;
 }
 
@@ -235,7 +235,7 @@ function readStyleKinds(stylesXml: string | undefined): CellKind[] {
   if (!doc) return [];
 
   const custom = new Map<number, string>();
-  Array.from(doc.getElementsByTagName("numFmt")).forEach((el) => {
+  Array.from(doc.getElementsByTagNameNS("*", "numFmt")).forEach((el) => {
     const id = Number(el.getAttribute("numFmtId"));
     const code = el.getAttribute("formatCode") ?? "";
     if (Number.isFinite(id)) custom.set(id, code);
@@ -243,7 +243,7 @@ function readStyleKinds(stylesXml: string | undefined): CellKind[] {
 
   // `xf` appears under BOTH cellStyleXfs and cellXfs; only the latter is what a cell's `s=`
   // index addresses, so this must not be a document-wide tag sweep.
-  const cellXfs = doc.getElementsByTagName("cellXfs")[0];
+  const cellXfs = doc.getElementsByTagNameNS("*", "cellXfs")[0];
   const kinds: CellKind[] = [];
   if (!cellXfs) return kinds;
   childrenNamed(cellXfs, "xf").forEach((xf) => {
@@ -268,8 +268,8 @@ function readSharedStrings(xml: string | undefined): string[] {
   if (!doc) return [];
   // `<si>` is either a single `<t>` or a run of `<r><t>` fragments; concatenating every
   // descendant `<t>` handles both without branching.
-  return Array.from(doc.getElementsByTagName("si")).map((si) =>
-    Array.from(si.getElementsByTagName("t"))
+  return Array.from(doc.getElementsByTagNameNS("*", "si")).map((si) =>
+    Array.from(si.getElementsByTagNameNS("*", "t"))
       .map((t) => t.textContent ?? "")
       .join(""),
   );
@@ -290,7 +290,7 @@ function readSheetPlan(files: Record<string, Uint8Array>): { name: string; path:
   const RELS_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
   const target = new Map<string, string>();
   if (rels) {
-    Array.from(rels.getElementsByTagName("Relationship")).forEach((r) => {
+    Array.from(rels.getElementsByTagNameNS("*", "Relationship")).forEach((r) => {
       const id = r.getAttribute("Id");
       const t = r.getAttribute("Target");
       if (id && t) target.set(id, t.replace(/^\/?xl\//, "").replace(/^\//, ""));
@@ -299,7 +299,7 @@ function readSheetPlan(files: Record<string, Uint8Array>): { name: string; path:
 
   const plan: { name: string; path: string }[] = [];
   if (wb) {
-    Array.from(wb.getElementsByTagName("sheet")).forEach((s, i) => {
+    Array.from(wb.getElementsByTagNameNS("*", "sheet")).forEach((s, i) => {
       const name = s.getAttribute("name") || `Sheet ${i + 1}`;
       // `r:id` is namespaced. getAttributeNS is the correct read; the prefixed qualified name
       // is kept as a fallback for parsers that expose only that.
@@ -326,7 +326,7 @@ function readSheetRows(xml: string, shared: string[], styleKinds: CellKind[], ma
   if (!doc) return [];
   const rows: string[][] = [];
 
-  const sheetData = doc.getElementsByTagName("sheetData")[0];
+  const sheetData = doc.getElementsByTagNameNS("*", "sheetData")[0];
   const rowEls = sheetData ? childrenNamed(sheetData, "row") : [];
   for (const rowEl of rowEls) {
     if (!rowEl.firstElementChild) continue;   // a row kept only for its formatting holds no cell
@@ -352,11 +352,11 @@ function readSheetRows(xml: string, shared: string[], styleKinds: CellKind[], ma
 function readCell(c: Element, shared: string[], styleKinds: CellKind[]): string {
   const type = c.getAttribute("t") ?? "n";
   if (type === "inlineStr") {
-    return Array.from(c.getElementsByTagName("t"))
+    return Array.from(c.getElementsByTagNameNS("*", "t"))
       .map((t) => t.textContent ?? "")
       .join("");
   }
-  const v = c.getElementsByTagName("v")[0]?.textContent ?? "";
+  const v = c.getElementsByTagNameNS("*", "v")[0]?.textContent ?? "";
   if (v === "") return "";
   if (type === "s") {
     const i = Number(v);
