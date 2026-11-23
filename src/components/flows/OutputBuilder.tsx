@@ -56,8 +56,9 @@ export function StandardList({ flow, kind, onUse, busyId, pickedId }: {
   flow: Flow; kind: string | null; onUse(s: StandardSupport): void; busyId: string | null; pickedId?: string | null;
 }) {
   const fams = standardFamilies(flow.peppolOn);
-  const group = kindGroup(kind);
-  const fit = group && fams[group].length ? group : null;
+  // The documents' own group even when it has no standard here: the other group then stays folded and named,
+  // so an invoice is never offered an order format as if it fit.
+  const fit = kindGroup(kind);
   const other = fit ? fams[fit === "invoices" ? "orders" : "invoices"] : [];
   const twins = fams.invoices.flatMap((f) => (f.creditNote ? [f.creditNote] : []));
   const row = (id: string, line: string | null, name?: string, invoice = false) => {
@@ -84,7 +85,7 @@ export function StandardList({ flow, kind, onUse, busyId, pickedId }: {
   const famRows = (list: typeof fams.invoices) => list.map((f) => row(f.id, f.description ?? f.version, f.name, fams.invoices.includes(f)));
   return (
     <>
-      {fit ? (
+      {fit ? fams[fit].length > 0 && (
         <section className="grid gap-2">
           <h3 className="m-0 text-[14px] font-semibold text-ink">
             {fit === "invoices" ? "For invoices and credit notes" : "For orders"}, like the documents in this flow

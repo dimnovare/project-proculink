@@ -153,12 +153,16 @@ describe("OutputBuilder", () => {
     fireEvent.click(within(others).getByRole("button", { name: "Credit note versions (4)" }));
     expect(uses(others)).toHaveLength(8);
     o.unmount();
-    // e-invoices off: the fitting group is empty, so no heading and only the order standards
+    // e-invoices off: the fitting group is empty, so the order standards stay folded and named as such, never offered
+    // to an invoice flow as if they fit it
     renderBuilder({ flow: invoiceFlow, kind: "Invoice" });
     fireEvent.click(screen.getByRole("button", { name: "A standard format" }));
     expect(screen.queryByRole("heading", { name: /like the documents in this flow/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /Peppol|Credit note|Other standards/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Use / })).toBeNull();
+    expect(screen.getByText("For orders: cXML, UBL Order, EDIFACT ORDERS and ANSI X12 850.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Other standards (4)" }));
     expect(screen.getAllByRole("button", { name: /^Use / })).toHaveLength(4);
+    expect(screen.queryByRole("button", { name: /Peppol|Credit note/ })).toBeNull();
     expect(standardFamilies(false).invoices).toEqual([]);
     // A kind is matched by whole words; an answer to an order is not an order.
     const kinds: [string | null, ReturnType<typeof kindGroup>][] = [
