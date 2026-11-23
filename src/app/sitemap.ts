@@ -11,6 +11,7 @@ const routes = [
   "/formats",
   "/pricing",
   "/security",
+  "/compare",
   ...USE_CASES.map((u) => u.path),
   "/help",
   // Help articles come straight from the registry — a hand list can't drift.
