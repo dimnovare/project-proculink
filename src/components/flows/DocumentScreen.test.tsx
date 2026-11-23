@@ -366,6 +366,14 @@ describe("DocumentScreen", () => {
     expect(screen.queryByRole("button", { name: /^(Skip|Send and open next)$/ })).toBeNull();
   });
 
+  it("our sample opened from a link offers no Send: the detail says it is the sample", async () => {
+    api.getDocument.mockResolvedValue({ ...detail("INV-1"), isSample: true });
+    renderScreen();
+    await screen.findByTestId("review-header-actions");
+    await waitFor(() => expect(api.getDocument).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: /Send/ })).toBeNull();
+  });
+
   const ctrlEnter = (on: Element, repeat = false) => fireEvent.keyDown(on, { key: "Enter", code: "Enter", ctrlKey: true, repeat });
 
   it("Ctrl+Enter in a value box saves what was typed, then sends and opens the next", async () => {
