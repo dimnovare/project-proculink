@@ -63,13 +63,13 @@ describe("CheckStep", () => {
     api.getDocument.mockResolvedValue(sampleDetail);                  // nine values, one table, Reference at 0.62
     api.listDocumentPage.mockResolvedValue({ items: [{ ...row, isSample: true }], totalCount: 1, page: 1, pageSize: 20, sampleCount: 1 });
     api.listOutputs.mockResolvedValue([]);
-    api.updateFlow.mockResolvedValue({ ...unconfirmed, name: "Invoices" });
-    api.saveFlowFields.mockResolvedValue({ ...unconfirmed, name: "Invoices", fieldsConfirmed: true });
+    api.updateFlow.mockResolvedValue({ ...unconfirmed, name: "Invoice" });
+    api.saveFlowFields.mockResolvedValue({ ...unconfirmed, name: "Invoice", fieldsConfirmed: true });
     api.createOutput.mockResolvedValue(csvOutput);
     render(<CheckStep flow={unconfirmed} docId="d-1" first />, { wrapper });
     const found = await screen.findByRole("region", { name: "Here's what we found" });
     expect(within(found).getByText("9 values and 1 table")).toBeInTheDocument();
-    expect(within(found).getByLabelText("Flow name")).toHaveValue("Invoices");
+    expect(within(found).getByLabelText("Flow name")).toHaveValue("Invoice");
     expect(within(screen.getByTestId("check-value-reference")).getByText(/Check this one\. We are 62% sure of it\./)).toBeInTheDocument();
     expect(within(found).getByText(needsWords(1))).toBeInTheDocument();
     expect(within(screen.getByTestId("check-table-lines")).getByText("3 rows, 5 columns (Code, Item, Qty, Price, Amount)")).toBeInTheDocument();
@@ -90,7 +90,7 @@ describe("CheckStep", () => {
     expect(api.saveFlowFields).toHaveBeenCalledTimes(1);
     expect(api.saveFlowFields.mock.calls[0][1].fields.map((f: FlowField) => f.key)).not.toContain("bill_to");
     expect(api.createOutput).toHaveBeenCalledWith("f-1", expect.objectContaining({ name: "CSV file", format: "csv", csvSeparator: expect.stringMatching(/^[,;]$/) }));
-    expect(api.updateFlow).toHaveBeenCalledWith("f-1", { name: "Invoices" });
+    expect(api.updateFlow).toHaveBeenCalledWith("f-1", { name: "Invoice" });
   });
 
   it("a document we couldn't read, or with nothing on it, never shows an empty check", async () => {
@@ -109,7 +109,7 @@ describe("CheckStep", () => {
 
   it("going back to the check keeps what was unticked", async () => {
     const all = fieldListFromRead(sampleDetail.read);
-    const saved: Flow = { ...unconfirmed, name: "Invoices", fieldsConfirmed: true, fields: { ...all, fields: all.fields.filter((f) => f.key !== "bill_to") } };
+    const saved: Flow = { ...unconfirmed, name: "Invoice", fieldsConfirmed: true, fields: { ...all, fields: all.fields.filter((f) => f.key !== "bill_to") } };
     api.getDocument.mockResolvedValue(sampleDetail);
     api.listDocumentPage.mockResolvedValue({ items: [row], totalCount: 1, page: 1, pageSize: 20, sampleCount: 0 });
     api.listOutputs.mockResolvedValue([csvOutput]);

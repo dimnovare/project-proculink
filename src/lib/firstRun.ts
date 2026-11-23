@@ -52,10 +52,10 @@ export function isFirstFlow(flows: readonly Flow[], flowId: string | null): bool
   return flows.every((f) => f.id === flowId);
 }
 
-/** R9: "Invoice" → "Invoices", "Delivery note" → "Delivery notes"; null for an empty label. */
+/** The kind as printed ("Invoice", "Arve"), no English plural, like the backend's DocumentKind.FlowNameFor; null for an empty label. */
 export function suggestFlowName(kindLabel: string | null | undefined): string | null {
   const label = kindLabel?.trim();
-  return label ? `${label}s` : null;
+  return label || null;
 }
 
 const count = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;

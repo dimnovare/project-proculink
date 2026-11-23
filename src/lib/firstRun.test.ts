@@ -43,8 +43,8 @@ describe("first run", () => {
   });
 
   it("words only what is known", () => {
-    expect(suggestFlowName("Invoice")).toBe("Invoices");
-    expect(suggestFlowName("Delivery note")).toBe("Delivery notes");
+    expect(suggestFlowName("Invoice")).toBe("Invoice");
+    expect(suggestFlowName("Arve")).toBe("Arve");
     expect(suggestFlowName("")).toBeNull();
     expect(foundSummary({ fields: nine, tables: [lines] })).toBe("9 values and 1 table");
     expect(foundSummary({ fields: [one], tables: [] })).toBe("1 value");
