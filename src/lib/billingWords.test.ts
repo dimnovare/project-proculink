@@ -47,6 +47,7 @@ describe("billing words", () => {
     expect(flowsUse(3, 5)).toMatchObject({ label: "Flows", limit: 5, sub: "Room for 2 more flows.", barLabel: "3 of 5 flows used" });
     expect(flowsUse(4, 5).sub).toBe("Room for 1 more flow.");
     expect(flowsUse(6, 5).sub).toBe("No room for more flows on this plan.");
+    expect([flowsUse(4, 5).warn, flowsUse(5, 5).warn, flowsUse(6, 5).warn]).toEqual([false, true, true]);
     expect(flowsUse(3, null)).toMatchObject({ limit: null, sub: "Your plan has no limit on flows.", barLabel: null });
     expect(extraLines("starter")).toEqual([
       `€${starter.overageEur} for each extra document. You're never blocked.`,

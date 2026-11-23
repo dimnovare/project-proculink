@@ -98,13 +98,15 @@ export function FlowDocuments({ flow }: { flow: Flow }) {
   return (
     <div className="grid gap-4">
       <FileDrop
-        accept={acceptFor(flow)} maxBytes={MAX_UPLOAD_BYTES} prompt={`Drop a file to add it to this flow. ${kindsLine(flow)}`}
+        accept={acceptFor(flow)} maxBytes={MAX_UPLOAD_BYTES}
+        prompt={<><span className="hidden md:inline">Drop a file to add it to this flow.</span><span className="md:hidden">Add a file to this flow.</span>{` ${kindsLine(flow)}`}</>}
         onFile={(file) => queue.add([file], flow)}
       />
       <Card flush>
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="grid gap-0.5">
-            <h2 className="m-0 text-[16px] font-semibold text-ink">Documents in this flow</h2>
+            {/* A desk names this view in the step row above, so the heading is for phones and screen readers. */}
+            <h2 className="m-0 text-[16px] font-semibold text-ink lg:sr-only">Documents in this flow</h2>
             <p className="m-0 text-[13px] text-ink-muted">
               {need === undefined ? "Newest first." : need === 0 ? `${couldNotSend}${couldNotSend ? "Nothing else needs" : "Nothing needs"} you. Newest first.` : `${couldNotSend}${needsYouWords(need)}. Newest first.`}
             </p>

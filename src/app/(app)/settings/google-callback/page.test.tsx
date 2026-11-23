@@ -59,12 +59,25 @@ describe("Google callback page", () => {
     await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/flows"));
   });
 
-  it("shows the not-granted copy and calls nothing when the user declined", async () => {
+  it("shows the not-granted copy and calls nothing when the user declined: a whole tab goes back to destinations", async () => {
     nav.search = "?error=access_denied&state=s1";
     const ui = mount();
-    expect(ui.getByText("Google access was not granted. Close this window and try again.")).toBeTruthy();
-    expect(ui.getByRole("link", { name: "Back to flows" }).getAttribute("href")).toBe("/flows");
+    expect(ui.getByText("Google access was not granted, so nothing was connected.")).toBeTruthy();
+    expect(ui.getByRole("link", { name: "Back to destinations" }).getAttribute("href")).toBe("/settings?tab=destinations");
+    expect(ui.queryByRole("button", { name: "Close" })).toBeNull();
     await new Promise((r) => setTimeout(r, 20));
     expect(linked.completeGoogleConnect).not.toHaveBeenCalled();
+  });
+
+  it("a declined popup says to close it, with a Close button", async () => {
+    nav.search = "?error=access_denied&state=s1";
+    Object.defineProperty(window, "opener", { value: {}, configurable: true, writable: true });
+    const close = vi.spyOn(window, "close").mockImplementation(() => {});
+    const ui = mount();
+    expect(await ui.findByText("Google access was not granted. Close this window and try again.")).toBeTruthy();
+    ui.getByRole("button", { name: "Close" }).click();
+    expect(close).toHaveBeenCalled();
+    expect(ui.queryByRole("link", { name: "Back to destinations" })).toBeNull();
+    window.opener = null;
   });
 });

@@ -23,10 +23,26 @@ describe("LookupPage", () => {
     let answer!: (flows: unknown) => void;
     api.listFlows.mockReturnValueOnce(new Promise((r) => { answer = r; }));
     show();
-    expect(await screen.findByText(/^Not used yet\. To use it, open a flow, go to We send, open a file, choose More options and pick this lookup for a column\.$/)).toBeTruthy();
+    expect(await screen.findByText("Not used yet.")).toBeTruthy();
     expect(screen.queryByRole("list", { name: "Your flows" })).toBeNull(); // nothing drawn as empty while the flows load
     await act(async () => answer([{ id: "flow-1", name: "Supplier invoices" }]));
+    expect(await screen.findByText("Not used yet. Use it in a flow's file:")).toBeTruthy();
     expect(await screen.findByRole("link", { name: "Supplier invoices" })).toHaveAttribute("href", flowAddress("flow-1", "send"));
+  });
+
+  it("an empty lookup has no search or export; a failed load says so with Try again", async () => {
+    api.getLookup.mockResolvedValue(lookup([]));
+    api.listFlows.mockResolvedValue([]);
+    const { unmount } = show();
+    expect(await screen.findByText("No rows yet. Add a row, or replace from a file.")).toBeTruthy();
+    expect(screen.queryByLabelText("Search rows")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Export CSV" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Replace from a file" })).toBeTruthy();
+    unmount();
+    api.getLookup.mockRejectedValue(new Error("down"));
+    show(new QueryClient({ defaultOptions: { queries: { retry: false } } }));
+    fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(api.getLookup.mock.calls.length).toBeGreaterThanOrEqual(3));
   });
 
   it("a change saves the whole table, and a row the server would refuse is held back and says why", async () => {

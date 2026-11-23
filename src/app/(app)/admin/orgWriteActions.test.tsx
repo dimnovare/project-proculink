@@ -121,9 +121,23 @@ async function renderAdmin(rows: AdminOrganisation[]): Promise<HTMLElement> {
   await screen.findByText("Customers");
   // jsdom has no Tailwind, so the `hidden lg:block` desktop table AND the
   // `lg:hidden` mobile list BOTH mount. Every query below is scoped to the
-  // desktop table so a duplicate never decides the result.
-  return screen.getByTestId("admin-orgs-table");
+  // mobile list, whose row controls are plain buttons (the desktop row keeps
+  // only Adjust limits and folds the rest into a More menu, pinned below), so a
+  // duplicate never decides the result.
+  return screen.getByTestId("admin-orgs-mobile");
 }
+
+describe("admin — a desktop row is Adjust limits plus one More menu (B-16)", () => {
+  it("lists Retention, Unfreeze, then the two that destroy data, last", async () => {
+    await renderAdmin([org()]);
+    const table = screen.getByTestId("admin-orgs-table");
+    expect(within(table).getByRole("button", { name: "Adjust limits" })).toBeTruthy();
+    expect(within(table).queryByRole("button", { name: /erase workspace/i })).toBeNull();
+    fireEvent.keyDown(within(table).getByRole("button", { name: /^More actions for/ }), { key: "Enter" });
+    const items = (await screen.findAllByRole("menuitem")).map((i) => i.textContent);
+    expect(items).toEqual(["Retention", "Unfreeze", "Erase workspace…", "Delete documents…"]);
+  });
+});
 
 describe("admin — the un-freeze control is offered only where the server accepts it", () => {
   it("floor: an eligible read_only Pilot row offers it", async () => {

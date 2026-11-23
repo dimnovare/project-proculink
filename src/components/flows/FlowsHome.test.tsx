@@ -116,28 +116,29 @@ describe("FlowsHome", () => {
     expect(named).toHaveLength(0);
     empty.unmount();
 
-    // Exactly at the limit is not over it.
+    // Under the limit: an outlined "New flow" and the quiet plan line.
     const limit = PLAN_BY_ID.pilot.flowLimit!;
-    listFlows.mockResolvedValue(Array.from({ length: limit }, (_, i) => flow(`flow-${i}`, `Flow ${i}`, 0)));
+    listFlows.mockResolvedValue(Array.from({ length: limit - 1 }, (_, i) => flow(`flow-${i}`, `Flow ${i}`, 0)));
     getBillingStatus.mockResolvedValue({ plan: "pilot" });
     const known = show();
     const seePlans = await screen.findByRole("link", { name: "See plans" });
     expect(seePlans.getAttribute("href")).toBe("/settings?tab=billing");
-    expect(seePlans.closest("p")?.textContent).toBe(`${limit} of ${limit} flows on ${planName("pilot")}. Need more? See plans`);
+    expect(seePlans.closest("p")?.textContent).toBe(`${limit - 1} of ${limit} flows on ${planName("pilot")}. Need more? See plans`);
     expect(screen.getByText("A flow is what happens to one kind of document. We sort each document into the right one.")).toBeTruthy();
-    // The page's own content has no filled button: "New flow" is outlined, and stays over the limit (the server's refusal explains).
     const header = () => screen.getByRole("button", { name: "New flow" }).className;
     expect(header()).toBe(buttonClass("secondary", "md"));
     expect(header()).not.toBe(buttonClass("primary", "md"));
     known.unmount();
 
-    listFlows.mockResolvedValue(Array.from({ length: PLAN_BY_ID.pilot.flowLimit! + 1 }, (_, i) => flow(`flow-${i}`, `Flow ${i}`, 0)));
-    const over = show();
-    const overPlans = await screen.findByRole("link", { name: "See plans" });
-    expect(overPlans.closest("p")?.textContent).toBe("You have more flows than your plan includes. New flows can't be added until you upgrade. See plans");
-    expect(screen.queryByText(/flows on/)).toBeNull();
-    expect(header()).toBe(buttonClass("secondary", "md"));
-    over.unmount();
+    // At or over the limit: no "New flow"; the header says "See plans" and an amber notice sits above the list.
+    for (const [n, lead] of [[limit, `${limit} of ${limit} flows on ${planName("pilot")}.`], [limit + 1, "You have more flows than your plan includes."]] as const) {
+      listFlows.mockResolvedValue(Array.from({ length: n }, (_, i) => flow(`flow-${i}`, `Flow ${i}`, 0)));
+      const full = show();
+      expect(await screen.findByText(`${lead} New flows can't be added until you upgrade.`)).toBeTruthy();
+      expect(screen.getByRole("link", { name: "See plans" }).className).toBe(buttonClass("secondary", "md"));
+      expect(screen.queryByRole("button", { name: "New flow" })).toBeNull();
+      full.unmount();
+    }
     listFlows.mockResolvedValue([invoices]);
 
     const unlimited = Object.values(PLAN_BY_ID).find((p) => p.flowLimit === null)!;

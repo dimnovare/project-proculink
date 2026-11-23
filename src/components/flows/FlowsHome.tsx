@@ -7,7 +7,7 @@ import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
-import { Button, Pill } from "@/components/bridge/DSPrimitives";
+import { Button, buttonClass, Pill } from "@/components/bridge/DSPrimitives";
 import { flowsQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { getBillingStatus } from "@/lib/api/billing";
@@ -18,7 +18,7 @@ import { doesLine } from "@/lib/flowSentences";
 import { PLAN_BY_ID, planName, type PlanId } from "@/lib/plans";
 import { relativeTime } from "@/lib/relativeTime";
 import { firstRunOf } from "@/lib/firstRun";
-import { Loading } from "./states";
+import { Failed, Loading } from "./states";
 import { Welcome } from "./Welcome";
 
 const COLUMNS = "minmax(0,2.4fr) minmax(0,1.2fr) minmax(0,1.4fr) 88px 120px 16px";
@@ -129,6 +129,8 @@ export function FlowsHome() {
   const newFlow = () => router.push("/flows/new");
   const plan = billing.data?.plan;
   const limit = plan ? PLAN_BY_ID[plan as PlanId]?.flowLimit : null;
+  const count = flows.data?.length ?? 0;
+  const full = typeof limit === "number" && count >= limit;
 
   // Only an answered list can say the workspace is new: loading or failed draws its own state below.
   if (flows.data && firstRunOf(flows.data).state === "new") return <Welcome flows={flows.data} />;
@@ -137,6 +139,11 @@ export function FlowsHome() {
   if (flows.data) {
     body = (
       <div className="flex flex-col gap-3">
+        {full && plan && (
+          <StatusNotice tone="warning">
+            {`${count > limit! ? "You have more flows than your plan includes." : `${count} of ${limit} flows on ${planName(plan)}.`} New flows can't be added until you upgrade.`}
+          </StatusNotice>
+        )}
         <Card flush as="section" aria-labelledby="flows-heading">
           <h2 id="flows-heading" className="m-0 px-4 pb-2 pt-3.5 text-[14px] font-semibold text-ink">Your flows</h2>
           <FlowRows flows={flows.data} />
@@ -146,11 +153,9 @@ export function FlowsHome() {
           The lists your flows use to change values are in{" "}
           <Link href="/lookups" className="inline-flex items-center font-semibold underline">Lookups</Link>.
         </p>
-        {plan && typeof limit === "number" && (
+        {plan && typeof limit === "number" && !full && (
           <p className="m-0 text-[13px] text-ink-muted">
-            {flows.data.length > limit
-              ? "You have more flows than your plan includes. New flows can't be added until you upgrade. "
-              : `${flows.data.length} of ${limit} flows on ${planName(plan)}. Need more? `}
+            {`${count} of ${limit} flows on ${planName(plan)}. Need more? `}
             <Link href="/settings?tab=billing" className="inline-flex items-center font-semibold underline">See plans</Link>
           </p>
         )}
@@ -159,11 +164,7 @@ export function FlowsHome() {
   } else if (engine === "off") {
     body = <StatusNotice tone="warning">{documentRefusalMessage(flows.error)}</StatusNotice>;
   } else if (flows.isError) {
-    body = (
-      <StatusNotice tone="error" action={<Button variant="secondary" size="sm" onClick={() => flows.refetch()}>Try again</Button>}>
-        {documentRefusalMessage(flows.error)}
-      </StatusNotice>
-    );
+    body = <Failed error={flows.error} retry={() => flows.refetch()} />;
   } else {
     body = <Loading>Loading flows…</Loading>;
   }
@@ -173,7 +174,13 @@ export function FlowsHome() {
       <PageHeader
         title="Flows"
         sub="A flow is what happens to one kind of document. We sort each document into the right one."
-        actions={flows.data?.length ? <Button variant="secondary" size="md" onClick={newFlow}>New flow</Button> : undefined}
+        actions={
+          !count ? undefined : full ? (
+            <Link href="/settings?tab=billing" className={buttonClass("secondary", "md")}>See plans</Link>
+          ) : (
+            <Button variant="secondary" size="md" onClick={newFlow}>New flow</Button>
+          )
+        }
       />
       {body}
     </PageShell>

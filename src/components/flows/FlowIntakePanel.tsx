@@ -58,6 +58,16 @@ function OnOff({ intake, flowId, run }: { intake: FlowIntake; flowId: string; ru
   );
 }
 
+/** An address in mono that wraps only where it must, with a soft break offered before "@". */
+const Address = ({ value, className }: { value: string; className?: string }) => {
+  const at = value.lastIndexOf("@");
+  return (
+    <span className={`min-w-0 font-mono [overflow-wrap:anywhere] ${className ?? ""}`}>
+      {at > 0 ? <>{value.slice(0, at)}<wbr />{value.slice(at)}</> : value}
+    </span>
+  );
+};
+
 /** This flow's own address: address and Copy, On, the last run, and a new address (asks first) or a first one (does not). */
 function OwnAddress({ flowId, intake }: { flowId: string; intake: FlowIntake }) {
   const confirm = useConfirm();
@@ -70,7 +80,7 @@ function OwnAddress({ flowId, intake }: { flowId: string; intake: FlowIntake }) 
     <div className="grid gap-3">
       {intake.address && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="break-all font-mono text-[13px]">{intake.address}</span>
+          <Address value={intake.address} className="text-[13px]" />
           <CopyButton text={intake.address} />
         </div>
       )}
@@ -135,7 +145,7 @@ function ApiCard({ flowId, intake }: { flowId: string; intake?: FlowIntake }) {
     <Card edge="blue" title="API address for this flow">
       <form onSubmit={(e) => { e.preventDefault(); if (!run.isPending && !test.isPending) save(); }} className="grid gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="break-all font-mono text-[13px]">{endpoint}</span>
+          <Address value={endpoint} className="text-[13px]" />
           <CopyButton text={endpoint} label="Copy API address" />
         </div>
         <p className="m-0 text-[13px] text-ink-muted">
@@ -262,7 +272,7 @@ export function FlowIntakePanel({ flow }: { flow: Flow }) {
         <Card edge="blue">
           <div className="grid gap-1">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="m-0 text-[14px] text-ink">Send any document to <span className="break-all font-mono">{workspace}</span></p>
+              <p className="m-0 text-[14px] text-ink">Send any document to <Address value={workspace} className="block" /></p>
               <CopyButton text={workspace} label="Copy address" />
             </div>
             <p className="m-0 text-[13px] text-ink-muted">We work out which flow each document belongs to.</p>

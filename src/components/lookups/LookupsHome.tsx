@@ -24,6 +24,7 @@ import { importRefusal, LookupNoticeBanner, markNewLookup, showLookupNotice, use
 
 const rows = (n: number) => (n === 1 ? "1 row" : `${n} rows`);
 const PAD = "px-[18px] py-[14px]";
+const HINT = "CSV or Excel, with headings in the first row. The first column becomes From, the second becomes To.";
 
 export function LookupsHome({ lookupId }: { lookupId?: string }) {
   const router = useRouter();
@@ -148,7 +149,8 @@ export function LookupsHome({ lookupId }: { lookupId?: string }) {
         title="Lookups"
         sub="Tables that swap one value for another, for example a supplier's item code for your own."
         actions={engine === "on" ? (
-          <div className="flex flex-col items-start gap-1 sm:items-end">
+          // A phone with one lookup open shows only that lookup: no header actions, hint or Import bar.
+          <div className={`flex-col items-start gap-1 sm:items-end ${lookupId ? "hidden md:flex" : "flex"}`}>
             <div className="flex flex-wrap items-center gap-4">
               <button
                 type="button"
@@ -160,9 +162,7 @@ export function LookupsHome({ lookupId }: { lookupId?: string }) {
               </button>
               {importButton("hidden md:inline-flex")}
             </div>
-            <p className="m-0 text-[13px] text-ink-muted">
-              CSV or Excel, with headings in the first row. The first column becomes From, the second becomes To.
-            </p>
+            <p className="m-0 hidden text-[13px] text-ink-muted md:block">{HINT}</p>
             <input
               ref={fileInput}
               type="file"
@@ -180,7 +180,13 @@ export function LookupsHome({ lookupId }: { lookupId?: string }) {
       />
       <LookupNoticeBanner />
       {body}
-      {engine === "on" && <ActionBar>{importButton()}</ActionBar>}
+      {engine === "on" && !lookupId && (
+        <>
+          {/* Phones: the hint sits right above the sticky Import, at the foot of the page. */}
+          <p className="m-0 mt-4 text-[13px] text-ink-muted md:hidden">{HINT}</p>
+          <ActionBar>{importButton()}</ActionBar>
+        </>
+      )}
     </PageShell>
   );
 }

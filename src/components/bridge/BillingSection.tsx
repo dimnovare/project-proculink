@@ -334,7 +334,7 @@ function UseRow({ use }: { use: Use }) {
       </div>
       {use.limit != null && use.barLabel && (
         <div role="img" aria-label={use.barLabel} className="h-2 overflow-hidden rounded bg-surface-2">
-          <div className="h-full rounded bg-brand-blue" style={{ width: `${Math.min(100, (use.used / Math.max(1, use.limit)) * 100)}%` }} />
+          <div className={`h-full rounded ${use.warn ? "bg-amber" : "bg-brand-blue"}`} style={{ width: `${Math.min(100, (use.used / Math.max(1, use.limit)) * 100)}%` }} />
         </div>
       )}
       {use.sub && <p className={`m-0 text-[13px] ${use.warn ? "font-semibold text-amber-text" : "text-ink-muted"}`}>{use.sub}</p>}
@@ -373,7 +373,8 @@ function PlanPanel({ status, flows }: { status: BillingStatus; flows: Use | null
       : isPaused
         ? `${name} · Processing paused`
         : name;
-  const label = isPaused ? null : accountStatusLabel(status.accountStatus);
+  // A trial gets no tag: its price line already says how many days are left.
+  const label = isPaused || status.accountStatus === "trialing" ? null : accountStatusLabel(status.accountStatus);
   const price = planLine(status, new Date());
   const extra = extraLines(status.plan, !status.canProcessOrders);
   const uses = flows ? [documentsUse(status), flows] : [documentsUse(status)];

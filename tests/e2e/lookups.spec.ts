@@ -119,9 +119,7 @@ test.describe("lookups", () => {
     await preparePage(page, { dismissCookieBanner: true });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/lookups/lookup-4");
-    await expect(page.getByText(
-      "Not used yet. To use it, open a flow, go to We send, open a file, choose More options and pick this lookup for a column.", { exact: true },
-    )).toBeVisible();
+    await expect(page.getByText("Not used yet. Use it in a flow's file:", { exact: true })).toBeVisible();
     const flows = await mockEngineFetch<Flow[]>("/flows");
     const links = page.getByRole("list", { name: "Your flows" }).getByRole("link");
     await expect(links).toHaveCount(flows.length);
@@ -144,10 +142,9 @@ test.describe("lookups", () => {
     await expect(page.getByRole("navigation", { name: "All lookups" })).toBeHidden();
     await expect(page.getByRole("link", { name: "All lookups" })).toBeVisible();
     await expect(page.getByText("No rows yet. Add a row, or replace from a file.")).toBeVisible();
-    const search = (await page.getByLabel("Search rows").evaluate((el) => [el.getBoundingClientRect().height, getComputedStyle(el).fontSize]));
-    console.log(`search ${search[0]}px tall, ${search[1]}`);
-    expect(search[0]).toBeGreaterThanOrEqual(44);
-    expect(search[1]).toBe("16px");
+    // One lookup open on a phone: no search for 0 rows, no Import bar.
+    await expect(page.getByLabel("Search rows")).toHaveCount(0);
+    await expect(bar).toHaveCount(0);
     const right = await page.locator("main").evaluate((m) => Math.max(...[...m.querySelectorAll("*")].map((el) => el.getBoundingClientRect().right)));
     console.log(`largest right edge in main ${right}`);
     expect(right).toBeLessThanOrEqual(391);
@@ -160,6 +157,10 @@ test.describe("lookups", () => {
     console.log(`row input ${row[0]}px tall, ${row[1]}`);
     expect(row[0]).toBeGreaterThanOrEqual(44);
     expect(row[1]).toBe("16px");
+    const search = (await page.getByLabel("Search rows").evaluate((el) => [el.getBoundingClientRect().height, getComputedStyle(el).fontSize]));
+    console.log(`search ${search[0]}px tall, ${search[1]}`);
+    expect(search[0]).toBeGreaterThanOrEqual(44);
+    expect(search[1]).toBe("16px");
 
     // Each screen at 390 and 360, reloaded after the resize (Chromium keeps the shell's h-dvh otherwise).
     for (const width of [390, 360]) {
@@ -167,8 +168,8 @@ test.describe("lookups", () => {
       for (const path of ["/lookups", "/lookups/lookup-4", `/lookups/${MOCK_ENGINE_IDS.lookup}`]) {
         await page.goto(path);
         await settle(page, 300);
-        await expect(bar.getByRole("button", { name: "Import a table" })).toBeVisible();
-        await expect(path === "/lookups" ? page.getByText("4 lookups") : page.getByLabel("Search rows")).toBeVisible();
+        if (path === "/lookups") await expect(bar.getByRole("button", { name: "Import a table" })).toBeVisible();
+        await expect(path === "/lookups" ? page.getByText("4 lookups") : page.getByRole("link", { name: "All lookups" })).toBeVisible();
         const seen = await audit(page);
         console.log(`${path} at ${width}: right edge ${seen.right.toFixed(1)}, filled ${seen.filled.length}`);
         expect(seen.overflow, `nothing past the screen or its card on ${path} at ${width}`).toEqual([]);
