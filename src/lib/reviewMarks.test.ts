@@ -37,4 +37,10 @@ describe("reviewMarks", () => {
     const sent = reviewMarks(detail([f("date", "2026-05-20", 0.72)], [fail("low_confidence", "date")]), false);
     expect([sent.count, sent.unattached.length]).toEqual([0, 1]);                                      // nothing to change: nothing marked
   });
+
+  it("marks a value not in the page's text even when no check names it, so the page never reads as all clear", () => {
+    const m = reviewMarks(detail([f("city", "Tallinn", 0.95, { notOnPage: true }), f("typed", "X", 0.95, { notOnPage: true, edited: true })], []), true);
+    expect(m.looks.get(editKey({ field: "city" }))?.text).toBe("Not in the page's text. Check it.");
+    expect([m.count, m.allClear]).toEqual([1, true]);
+  });
 });

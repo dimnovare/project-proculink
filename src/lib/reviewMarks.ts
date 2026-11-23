@@ -24,6 +24,8 @@ const unsure = (confidence: number): Look => {
   return { kind: "unsure", text: pct === 0 ? "Check this one. We couldn't read it clearly." : `Check this one. We are ${pct}% sure of it.` };
 };
 
+const NOT_ON_PAGE: Look = { kind: "unsure", text: "Not in the page's text. Check it." };
+
 type Value = { value: string | null; confidence: number; edited: boolean; location: SourceLocation | null };
 const hasText = (v: Value) => !!v.value?.trim();
 /** No check named it: only an unedited value we read with low confidence needs a look. An empty one says nothing. */
@@ -48,9 +50,10 @@ export function reviewMarks(detail: DocumentDetail, editable: boolean): ReviewMa
     const check = named.find((c) => c.code === "required_missing" || c.code === "not_on_page") ?? named.find((c) => c.code === "low_confidence") ?? named[0];
     const look = !editable ? null
       : check?.code === "required_missing" ? { kind: "missing" as const, text: "Not found on the page. Type it." }
-      : check?.code === "not_on_page" ? { kind: "unsure" as const, text: "Not in the page's text. Check it." }
+      : check?.code === "not_on_page" ? NOT_ON_PAGE
       : check?.code === "low_confidence" ? unsure(field.confidence)
       : check ? { kind: "unsure" as const, text: `Check this one. ${check.message}` }
+      : field.notOnPage && !field.edited ? NOT_ON_PAGE
       : byConfidence(field);
     mark(editKey({ field: field.key }), field, look);
   }
