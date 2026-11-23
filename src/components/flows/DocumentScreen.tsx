@@ -39,6 +39,7 @@ import { INPUT } from "./DestinationForm";
 import { ADDED_TO_CHANGES, ReadValuesPanel, SAVE_WORDS, type Teach } from "./ReadValuesPanel";
 import { Checks, Failed, Gone, Quiet, ReadProblem, Loading } from "./states";
 import { ApiHttpError } from "@/lib/api/core";
+import { History as HistoryIcon } from "lucide-react";
 
 const notFound = (e: unknown) => e instanceof ApiHttpError && e.status === 404;
 import { LogoLoader } from "@/components/bridge/LogoLoader";
@@ -82,8 +83,12 @@ function History({ documentId, version }: { documentId: string; version: number 
   const [open, setOpen] = useState(false);
   const history = useQuery({ queryKey: ["document-history", documentId], queryFn: () => getDocumentHistory(documentId), enabled });
   return (
-    <div className="grid justify-items-end gap-2 text-[12.5px]">
-      <Button size="sm" variant="ghost" aria-expanded={open} aria-controls="document-history" onClick={() => setOpen((o) => !o)}>History</Button>
+    <div className="grid justify-items-start gap-2 text-[12.5px] sm:justify-items-end">
+      {/* A text link flush with the edge, not a ghost button whose padding floats it (A-04). */}
+      <button type="button" aria-expanded={open} aria-controls="document-history" onClick={() => setOpen((o) => !o)}
+        className="inline-flex min-h-11 items-center gap-1.5 text-[13px] font-medium text-brand-blue hover:underline sm:min-h-8">
+        <HistoryIcon size={14} aria-hidden />History
+      </button>
       <div id="document-history" hidden={!open} className="justify-self-stretch">
         {history.isError ? <p className="m-0 text-ink-muted">{documentRefusalMessage(history.error)}</p> : (
           <ul className="m-0 grid list-none gap-1 p-0 text-ink-muted">

@@ -65,20 +65,15 @@ describe("SendStep", () => {
     const ids = (g: HTMLElement) => within(g).getAllByRole("radio").map((r) => r.getAttribute("data-testid"));
     expect(ids(group)).toEqual(["send-tile-download", "send-tile-email"]);
     expect(within(group).getByRole("radio", { name: /^Download/ })).toBeChecked();
-    const more = screen.getByRole("button", { name: /^A server or another system/ });
-    expect(more).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(more);
-    expect(more).toHaveAttribute("aria-expanded", "true");
-    expect(ids(group)).toEqual(["send-tile-download", "send-tile-email", "send-tile-server", "send-tile-s3", "send-tile-http"]);
-    expect(document.activeElement).toBe(within(group).getByTestId("send-tile-server"));
-    fireEvent.click(more);
-    expect(document.activeElement).toBe(more);
-    // While a server kind is the choice the fold cannot close: it is drawn as a label, and a button again after.
-    fireEvent.click(more);
-    fireEvent.click(within(group).getByTestId("send-tile-server"));
+    // One press replaces the fold, in place, with its three kinds in one row of their own; focus on the first.
+    fireEvent.click(screen.getByRole("button", { name: /^A server or another system/ }));
     expect(screen.queryByRole("button", { name: /^A server or another system/ })).toBeNull();
+    expect(ids(group)).toEqual(["send-tile-download", "send-tile-email", "send-tile-server", "send-tile-s3", "send-tile-http"]);
+    expect(ids(within(group).getByTestId("send-tile-server").parentElement!)).toEqual(["send-tile-server", "send-tile-s3", "send-tile-http"]);
+    expect(document.activeElement).toBe(within(group).getByTestId("send-tile-server"));
+    // Picking another place keeps the row: nothing set up is dropped by a fold closing.
     fireEvent.click(within(group).getByTestId("send-tile-download"));
-    expect(screen.getByRole("button", { name: /^A server or another system/ })).toHaveAttribute("aria-expanded", "true");
+    expect(ids(group)).toHaveLength(5);
     unmount();
     linked.mockReturnValue({ data: { available: true, accounts: [] } });
     api.listDestinations.mockResolvedValue([savedSftp]);
@@ -139,6 +134,9 @@ describe("SendStep", () => {
     const send = within(finish).getByRole("button", { name: "Send po-1.pdf now" });
     expect(send).toBeDisabled();
     expect(filled(container).map((b) => b.textContent)).toEqual(["Save and send a test"]);   // the form's button is the one
+    // Which documents wait is asked above the destination's form, so its test leads into Send.
+    const legend = screen.getByText("Which documents wait for you");
+    expect(legend.compareDocumentPosition(filled(container)[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(finish).getByText("Send a test first to check the settings. Or finish now and send your document later from Documents.")).toBeInTheDocument();
     expect(readiness({ kind: "new", tile: "server" }, null, false)).toBe("not-ready");
     expect(readiness({ kind: "new", tile: "server" }, { destinationId: "x", ok: false }, false)).toBe("not-ready");

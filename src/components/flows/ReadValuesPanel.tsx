@@ -423,7 +423,8 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
         {tables.map((t) => <TableValues key={t.key} table={t} marks={marks} edits={edits} onLocate={onLocate} editable={editable} sum={sum?.table === t.key ? sum : null} />)}
       </fieldset>
       {pasteNote && <StatusNotice tone="warning">{pasteNote}</StatusNotice>}
-      <Checks checks={marks.unattached} inbox={inbox} />
+      {/* A held copy says "already here" once, in its hold above the panel (A-12). */}
+      <Checks checks={detail.summary.statusReason === "duplicate_file" ? marks.unattached.filter((c) => c.code !== "duplicate") : marks.unattached} inbox={inbox} />
       {(hasMore || history) && (
         <div className="flex flex-wrap items-start justify-between gap-2">
           {hasMore && (
@@ -436,7 +437,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
               Something missing or in the wrong place?
             </Button>
           )}
-          <div className="ml-auto">{history}</div>
+          <div className="sm:ml-auto">{history}</div>
         </div>
       )}
       {hasMore && flow && (

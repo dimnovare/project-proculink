@@ -127,6 +127,18 @@ describe("DocumentScreen", () => {
     await waitFor(() => expect(api.retryDocumentRead).toHaveBeenCalledWith("d"));
   });
 
+  it("a held copy with values read says it is already here once, not again under the values", async () => {
+    const dup = detail("INV-1");
+    api.getDocument.mockResolvedValue({
+      ...dup, summary: { ...dup.summary, statusReason: "duplicate_file", failedChecks: 1 },
+      checks: [{ code: "duplicate", passed: false, fieldKey: null, message: "This file is already in your workspace." }],
+    });
+    renderScreen();
+    expect(await screen.findAllByText("This file is already in your workspace.")).toHaveLength(1);
+    // History is a text link with an icon, not a floating ghost button.
+    expect(screen.getByRole("button", { name: "History" }).className).toContain("text-brand-blue");
+  });
+
   it("says why the first document from an email address waits", async () => {
     api.getDocument.mockResolvedValue(withValues([["invoice_no", "INV-1", 0.99, false]],
       [{ code: "new_sender", passed: false, fieldKey: null, message: "First document from this email address. Check it before sending." }]));

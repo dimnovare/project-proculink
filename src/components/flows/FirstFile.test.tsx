@@ -52,6 +52,10 @@ describe("FirstFile", () => {
 
   it("one tap changes the flow's file and the preview, and Download saves the new type", async () => {
     mount();
+    // The chosen type is pressed and soft blue, never Download's navy.
+    const chosen = await screen.findByRole("button", { name: "CSV", pressed: true });
+    expect(chosen.className).toContain("bg-brand-blue-soft");
+    expect(chosen.className).not.toContain("bg-navy");
     fireEvent.click(await screen.findByRole("button", { name: "XML" }));
     await waitFor(() => expect(api.updateOutput).toHaveBeenCalledWith("flow-1", "out-1", expect.objectContaining({ replace: true, format: "xml" })));
     await waitFor(() => expect(api.previewOutput).toHaveBeenCalledTimes(2));
