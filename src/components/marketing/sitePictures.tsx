@@ -273,7 +273,7 @@ export function ReviewPicture({ teach = false }: { teach?: boolean }) {
 
 export function ClosingCta({
   title = "Try it on your own documents",
-  lead = "Upload one and see what comes back. It takes a few minutes, and nothing is sent on until you say so.",
+  lead = "Upload one and see what comes back. It takes a few minutes, and you see the result before anything is sent.",
   more = { href: "/book-demo", label: "Talk to us" },
 }: { title?: string; lead?: string; more?: { href: string; label: string } } = {}) {
   return (

@@ -7,7 +7,7 @@ import { MAX_DOCUMENTS_PER_FILE, PAGES_PER_DOCUMENT } from "@/lib/plans";
 // what the product does NOT do as plainly as what it does.
 
 const UNSENT =
-  "Reading is automatic and can be wrong, so each document waits for you to check it until you choose to let a flow send by itself.";
+  "Reading is automatic and can be wrong, so anything missing or hard to read is marked and that document waits for you to check it. You can also set a flow to wait on every document.";
 const PAGES = `It reads up to ${PAGES_PER_DOCUMENT * MAX_DOCUMENTS_PER_FILE} pages of a file.`;
 
 export const INVOICE_USE_CASE: UseCase = {

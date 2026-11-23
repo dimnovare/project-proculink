@@ -29,7 +29,7 @@ const STEPS: [string, string][] = [
   ["Check what we read", "The original stays on screen beside it. Fix anything that's wrong."],
   [
     "Choose where it goes",
-    "Download the file, or send it by email, to a server or to Google Drive. Nothing is sent until you say so.",
+    "Download the file, or send it by email, to a server or to Google Drive. You see the file before anything is sent.",
   ],
 ];
 

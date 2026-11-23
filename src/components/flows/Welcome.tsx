@@ -116,7 +116,7 @@ export function Welcome({ flows, flowId }: { flows: readonly Flow[]; flowId?: st
     <PageShell variant="narrow">
       <PageHeader
         title={title} back={onFirstRun ? { href: "/flows", label: "Flows" } : undefined}
-        sub={first ? "About two minutes. Nothing is sent until you say so." : "Add one document like the ones this flow will read. We set the flow up from it."}
+        sub={first ? "About two minutes. You see the file before anything is sent." : "Add one document like the ones this flow will read. We set the flow up from it."}
       />
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="grid content-start gap-5">
