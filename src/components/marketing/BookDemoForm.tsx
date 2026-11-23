@@ -6,8 +6,8 @@ import { capture } from "@/lib/analytics";
 import { friendlySubmitError } from "@/lib/friendly-submit-error";
 import { captureException } from "@/lib/sentry-context";
 import { Card } from "@/components/bridge/layout/Card";
-import { FORM } from "@/components/marketing/ContactForm";
-import { INK_CTA } from "@/components/marketing/LegalPage";
+import { FORM, checkNeeded, fieldError } from "@/components/marketing/ContactForm";
+import { SITE } from "@/components/marketing/sitePictures";
 
 // Same visual grammar as ContactForm (FORM), so the two marketing forms stay in lockstep.
 
@@ -45,16 +45,19 @@ export function BookDemoForm() {
   const [message, setMessage]   = useState("");
   const [state, setState]       = useState<{ status: "idle" | "submitting" | "success" | "error"; message?: string }>({ status: "idle" });
 
-  const canSubmit =
-    state.status !== "submitting" &&
-    name.trim().length > 0 &&
-    email.trim().length > 0 &&
-    company.trim().length > 0;
+  const [errors, setErrors]     = useState<Record<string, string>>({});
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     // A second press while one request is out sends nothing.
-    if (!canSubmit) return;
+    if (state.status === "submitting") return;
+    const missing = checkNeeded([
+      { id: "demo-name", value: name, message: "Enter your name" },
+      { id: "demo-email", value: email, message: "Enter your work email", email: true },
+      { id: "demo-company", value: company, message: "Enter your company" },
+    ]);
+    setErrors(missing);
+    if (Object.keys(missing).length) return;
     setState({ status: "submitting" });
 
     // Compose one readable plain-text body — the support pipeline forwards the
@@ -119,12 +122,17 @@ export function BookDemoForm() {
     );
   }
 
+  const nameErr = fieldError("demo-name", errors);
+  const emailErr = fieldError("demo-email", errors, "demo-email-hint");
+  const companyErr = fieldError("demo-company", errors);
+
   return (
     // /book-demo is framed as a 20-minute call about one of the visitor's documents,
     // not a generic demo — the form's own labels say the same thing as the page around it.
     <Card>
-      <form onSubmit={onSubmit} aria-label="Request a 20-minute call" className="flex flex-col gap-5">
+      <form onSubmit={onSubmit} noValidate aria-label="Request a 20-minute call" className="flex flex-col gap-5">
         <h2 className="font-display text-[26px] font-semibold leading-[1.2] tracking-[-0.015em]">Request a call</h2>
+        <p className={FORM.hint}>Name, work email and company are needed.</p>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(200px,100%),1fr))] gap-x-4 gap-y-5">
           <Field id="demo-name" label="Name">
             <input
@@ -136,7 +144,9 @@ export function BookDemoForm() {
               required
               maxLength={200}
               autoComplete="name"
+              {...nameErr.props}
             />
+            {nameErr.node}
           </Field>
           <Field id="demo-email" label="Work email" hint="We use this only to reply and schedule the call.">
             <input
@@ -148,8 +158,9 @@ export function BookDemoForm() {
               required
               maxLength={320}
               autoComplete="email"
-              aria-describedby="demo-email-hint"
+              {...emailErr.props}
             />
+            {emailErr.node}
           </Field>
         </div>
 
@@ -163,7 +174,9 @@ export function BookDemoForm() {
             required
             maxLength={200}
             autoComplete="organization"
+            {...companyErr.props}
           />
+          {companyErr.node}
         </Field>
 
         <Field
@@ -206,7 +219,7 @@ export function BookDemoForm() {
         </Field>
 
         <div className="flex flex-col gap-3 pt-1">
-          <button type="submit" disabled={!canSubmit} className={`${INK_CTA} w-full`}>
+          <button type="submit" disabled={state.status === "submitting"} className={`${SITE.cta} w-full`}>
             {state.status === "submitting" ? "Sending…" : "Request a call"}
           </button>
           {state.status === "error" && <p role="alert" className={FORM.bad}>{state.message}</p>}

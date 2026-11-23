@@ -41,8 +41,34 @@ import { scrollRegionProps } from "@/components/bridge/document/scrollRegion";
  * stop appears on hydration only where it is needed.
  */
 export function TableScroller({ label, children }: { label: string; children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement | null>(null);
+  const { ref, scrolls, onScroll, fade } = useSideScroll<HTMLDivElement>();
+
+  return (
+    <>
+      {scrolls && <p className="m-0 px-[18px] pt-3 text-[14.5px] text-ink-muted">Scroll sideways to see every column →</p>}
+      <div
+        ref={ref}
+        data-testid="table-scroller"
+        data-scrolls={scrolls ? "true" : "false"}
+        onScroll={onScroll}
+        style={{ overflowX: "auto", maxWidth: "100%", ...fade }}
+        {...scrollRegionProps(label, scrolls)}
+      >
+        {children}
+      </div>
+    </>
+  );
+}
+
+/**
+ * Whether a box scrolls sideways, and a right-edge fade while there is more to the right — the
+ * cue a phone otherwise never gives, since touch scrollbars stay hidden. A mask, not an overlay,
+ * so it works on any background. Shared with the help code block.
+ */
+export function useSideScroll<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null);
   const [scrolls, setScrolls] = useState(false);
+  const [atEnd, setAtEnd] = useState(false);
 
   const measure = useCallback(() => {
     const el = ref.current;
@@ -50,6 +76,7 @@ export function TableScroller({ label, children }: { label: string; children: Re
     // +1 absorbs sub-pixel layout rounding, which would otherwise flip this on and
     // off across a resize and add or remove a tab stop under the reader.
     setScrolls(el.scrollWidth > el.clientWidth + 1);
+    setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1);
   }, []);
 
   useEffect(() => {
@@ -61,15 +88,7 @@ export function TableScroller({ label, children }: { label: string; children: Re
     return () => ro.disconnect();
   }, [measure]);
 
-  return (
-    <div
-      ref={ref}
-      data-testid="table-scroller"
-      data-scrolls={scrolls ? "true" : "false"}
-      style={{ overflowX: "auto", maxWidth: "100%" }}
-      {...scrollRegionProps(label, scrolls)}
-    >
-      {children}
-    </div>
-  );
+  const mask = "linear-gradient(to right, black calc(100% - 48px), transparent)";
+  const fade = scrolls && !atEnd ? { maskImage: mask, WebkitMaskImage: mask } : {};
+  return { ref, scrolls, onScroll: measure, fade };
 }

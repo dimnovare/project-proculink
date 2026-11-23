@@ -28,12 +28,19 @@ describe("the article template", () => {
         <h2 id="b">Second part</h2>
       </HelpArticleShell>,
     );
-    const toc = await screen.findByRole("navigation", { name: "In this article" });
-    expect(within(toc).getAllByRole("link").map((l) => [l.textContent, l.getAttribute("href")])).toEqual([
-      ["First part", "#a"],
-      ["Second part", "#b"],
-    ]);
-    expect(hrefs(screen.getByRole("region", { name: "Step-by-step guides" }))).toEqual(guidesForArticle(a!.slug).map((g) => g.href));
+    // jsdom has no Tailwind, so the wide aside and the narrow folded card both render: check each.
+    const aside = within(await screen.findByTestId("article-aside"));
+    const folded = within(screen.getByTestId("article-toc-folded"));
+    expect(folded.getByText("In this article · 2 sections")).toBeTruthy();
+    for (const scope of [aside, folded]) {
+      expect(within(scope.getByRole("navigation", { name: "In this article" })).getAllByRole("link").map((l) => [l.textContent, l.getAttribute("href")])).toEqual([
+        ["First part", "#a"],
+        ["Second part", "#b"],
+      ]);
+    }
+    const guideHrefs = guidesForArticle(a!.slug).map((g) => g.href);
+    expect(hrefs(aside.getByRole("region", { name: "Step-by-step guides" }))).toEqual(guideHrefs);
+    expect(hrefs(within(screen.getByTestId("article-footer-guides")).getByRole("region", { name: "Step-by-step guides" }))).toEqual(guideHrefs);
     expect(hrefs(screen.getByRole("navigation", { name: "Keep reading" }))).toEqual([`/help/${prev!.slug}`, `/help/${next!.slug}`]);
     const crumb = screen.getByRole("navigation", { name: "Breadcrumb" });
     expect(within(crumb).getByRole("link", { name: "Help centre" })).toHaveAttribute("href", "/help");

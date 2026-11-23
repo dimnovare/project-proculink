@@ -87,8 +87,12 @@ describe("ContactForm — prefilled from ?order= and ?problem=", () => {
 
     render(<ContactFormFromAddress />);
 
-    expect((screen.getByRole("textbox", { name: /Message/i }) as HTMLTextAreaElement).value).toBe("");
-    expect(screen.getByRole("button", { name: /Send message/i })).toBeDisabled();
+    const message = screen.getByRole("textbox", { name: /Message/i }) as HTMLTextAreaElement;
+    expect(message.value).toBe("");
+    fireEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    expect(submitSupportRequest).not.toHaveBeenCalled();
+    expect(message).toHaveFocus();
+    expect(message).toHaveAccessibleDescription(/Write your message/);
   });
 });
 
@@ -153,9 +157,16 @@ describe("ContactForm — sending", () => {
     expect(await within(again).findByRole("alert")).toHaveTextContent("support@proculink.eu");
   });
 
-  it("refuses to send without an address", () => {
+  it("keeps Send pressable, and refuses to send without an address, saying so at the field", () => {
     render(<ContactFormFromAddress />);
     fireEvent.change(screen.getByRole("textbox", { name: /Message/i }), { target: { value: "The export stopped" } });
-    expect(screen.getByRole("button", { name: /Send message/i })).toBeDisabled();
+    const send = screen.getByRole("button", { name: /Send message/i });
+    expect(send).toBeEnabled();
+    fireEvent.click(send);
+    expect(submitSupportRequest).not.toHaveBeenCalled();
+    const email = screen.getByRole("textbox", { name: /Your email/i });
+    expect(email).toHaveFocus();
+    expect(email).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("Enter your email")).toBeTruthy();
   });
 });

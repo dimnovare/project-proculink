@@ -1,5 +1,6 @@
 import { helpArticleMetadata } from "@/lib/seo";
-import { DOCUMENT_PLANS, LEGACY_PAID_PLANS, PLAN_BY_ID } from "@/lib/plans";
+import { LEGACY_PAID_PLANS, PLAN_BY_ID } from "@/lib/plans";
+import { PlanTable } from "@/components/help/PlanTable";
 
 export const metadata = helpArticleMetadata({
   slug: "billing-faq",
@@ -8,7 +9,6 @@ export const metadata = helpArticleMetadata({
 });
 
 export const trial = PLAN_BY_ID.pilot;
-export const flows = (n) => (n === null ? "unlimited flows" : `${n} flows`);
 
 # Plans and billing
 
@@ -20,13 +20,9 @@ A document is one file of up to 10 pages. A longer file counts once for every 10
 
 ## The plans
 
-<ul>
-  <li><strong>{trial.name}</strong> is free for {trial.priceCadence}. You can process {trial.orderLimit} documents in total, in {flows(trial.flowLimit)}.</li>
-  {DOCUMENT_PLANS.map((p) => (
-    <li key={p.id}><strong>{p.name}</strong> costs {p.priceLabel} a month, or €{p.priceYearly} a year if you pay annually. It covers {p.orderLimit.toLocaleString("en-IE")} documents a month, in {flows(p.flowLimit)}. Each extra document costs €{p.overageEur.toFixed(2)}.</li>
-  ))}
-  <li><strong>{PLAN_BY_ID.enterprise.name}</strong> has a volume and a price agreed with you. <a href="/book-demo">Talk to us</a>.</li>
-</ul>
+<PlanTable />
+
+The {PLAN_BY_ID.enterprise.name} plan has a volume and a price agreed with you. [Talk to us](/book-demo).
 
 Every paid plan has every way to send documents in, every file type and every check, and any number of users. Plans differ only by how many documents you process and how many flows you set up.
 

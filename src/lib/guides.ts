@@ -250,7 +250,7 @@ export const GUIDES: Guide[] = [
     href: "/admin/guides/erase-order-data",
     title: "Erase a customer's order data",
     blurb:
-      "The two erasure calls that deliberately have no button — what they require, what they return, and why they cannot be undone.",
+      "Delete a workspace's documents or the whole workspace with the buttons on the admin page, or old order records with curl — and why none of it can be undone.",
     section: "Admin",
     audience: "admin",
     status: "live",

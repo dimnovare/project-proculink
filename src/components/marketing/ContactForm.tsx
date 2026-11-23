@@ -6,7 +6,7 @@ import { apiClient } from "@/lib/api-client";
 import { friendlySubmitError } from "@/lib/friendly-submit-error";
 import { captureException } from "@/lib/sentry-context";
 import { PROBLEM_COPY, isProblemStatus } from "@/components/bridge/problem/problemCopy";
-import { INK_CTA } from "@/components/marketing/LegalPage";
+import { SITE } from "@/components/marketing/sitePictures";
 
 type Category = "general" | "bug" | "billing" | "security";
 
@@ -56,6 +56,32 @@ export const FORM = {
   bad: "text-[15.5px] font-semibold text-danger",
 } as const;
 
+type Needed = { id: string; value: string; message: string; email?: boolean };
+
+/**
+ * The needed-field check both site forms run on press (the button is never greyed out):
+ * returns each missing field's message by id and moves focus to the first one.
+ */
+export function checkNeeded(fields: Needed[]): Record<string, string> {
+  const errors: Record<string, string> = {};
+  for (const f of fields) {
+    const v = f.value.trim();
+    if (!v || (f.email && !/^\S+@\S+\.\S+$/.test(v))) errors[f.id] = f.message;
+  }
+  const first = fields.find((f) => errors[f.id]);
+  if (first) document.getElementById(first.id)?.focus();
+  return errors;
+}
+
+/** The field's inline message, and the props that tie the field to it. */
+export function fieldError(id: string, errors: Record<string, string>, hint?: string) {
+  const message = errors[id];
+  return {
+    props: { "aria-invalid": message ? true : undefined, "aria-describedby": [hint, message && `${id}-error`].filter(Boolean).join(" ") || undefined },
+    node: message ? <p id={`${id}-error`} className={FORM.bad}>{message}</p> : null,
+  };
+}
+
 /** The form, opened on `initialSubject`. Paints the same frame before and after the address is read. */
 export function ContactForm({ initialSubject }: { initialSubject: string }) {
   const pathname = usePathname() ?? "(unknown)";
@@ -68,12 +94,18 @@ export function ContactForm({ initialSubject }: { initialSubject: string }) {
   const [email, setEmail]       = useState("");
   const [state, setState]       = useState<{ status: "idle" | "submitting" | "success" | "error"; message?: string }>({ status: "idle" });
 
-  const canSubmit = state.status !== "submitting" && message.trim() !== "" && email.trim() !== "";
+  const [errors, setErrors]     = useState<Record<string, string>>({});
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     // A second press while one request is out sends nothing.
-    if (!canSubmit) return;
+    if (state.status === "submitting") return;
+    const missing = checkNeeded([
+      { id: "contact-message", value: message, message: "Write your message" },
+      { id: "contact-email", value: email, message: "Enter your email", email: true },
+    ]);
+    setErrors(missing);
+    if (Object.keys(missing).length) return;
     setState({ status: "submitting" });
     try {
       const result = await apiClient.submitSupportRequest({
@@ -106,9 +138,13 @@ export function ContactForm({ initialSubject }: { initialSubject: string }) {
     }
   }
 
+  const messageErr = fieldError("contact-message", errors, "contact-message-hint");
+  const emailErr = fieldError("contact-email", errors, "contact-email-hint");
+
   return (
-    <form onSubmit={onSubmit} aria-label="Contact support" className="flex flex-col gap-[22px]">
+    <form onSubmit={onSubmit} noValidate aria-label="Contact support" className="flex flex-col gap-[22px]">
       <h2 className="font-display text-[30px] font-semibold leading-[1.1] tracking-[-0.02em]">Write to us</h2>
+      <p className={FORM.hint}>Your message and email are needed.</p>
 
       <div className={FORM.row}>
         <label htmlFor="contact-category" className={FORM.label}>What is it about?</label>
@@ -147,8 +183,9 @@ export function ContactForm({ initialSubject }: { initialSubject: string }) {
           className={FORM.area}
           required
           maxLength={4000}
-          aria-describedby="contact-message-hint"
+          {...messageErr.props}
         />
+        {messageErr.node}
         <p id="contact-message-hint" className={FORM.hint}>The more detail you give, the faster we can help.</p>
       </div>
 
@@ -162,13 +199,14 @@ export function ContactForm({ initialSubject }: { initialSubject: string }) {
           className={FORM.field}
           required
           autoComplete="email"
-          aria-describedby="contact-email-hint"
+          {...emailErr.props}
         />
+        {emailErr.node}
         <p id="contact-email-hint" className={FORM.hint}>We use this only to reply to your request.</p>
       </div>
 
       <div className="flex flex-col items-stretch gap-3 sm:items-start">
-        <button type="submit" disabled={!canSubmit} className={INK_CTA}>
+        <button type="submit" disabled={state.status === "submitting"} className={SITE.cta}>
           {state.status === "submitting" ? "Sending…" : "Send message"}
         </button>
         {state.status === "success" && <p role="status" className={FORM.ok}>{state.message}</p>}

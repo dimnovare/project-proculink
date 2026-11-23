@@ -106,7 +106,7 @@ export default function GuideLayout({
                         <h2 id="guide-reference" className={H2}>
                           Reference articles
                         </h2>
-                        <p className={`${SITE.soft} m-0`}>This guide is the procedure. These go deeper on the details.</p>
+                        <p className={`${SITE.soft} m-0`}>For more detail, read:</p>
                         <ul className="m-0 list-none p-0">
                           {related.map((a) => (
                             <li key={a.slug} className="border-t border-border first:border-t-0">

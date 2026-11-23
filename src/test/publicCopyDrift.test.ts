@@ -53,7 +53,7 @@ const readCopy = (f: string) => {
 const stripped = new Map(files.map((f) => [f, readCopy(f)]));
 
 const legacyNames = LEGACY_PAID_PLANS.map((p) => new RegExp(`\\b${p.name}\\b`));
-const C26_TEMPLATE = "I'm on ${LEGACY_PLAN_NAMES}. What changes?";
+const C26_TEMPLATE = "If you are on ${LEGACY_PLAN_NAMES}, nothing changes until you change plan.";
 
 describe("public copy drift", () => {
   it("walks the pages it should", () => {

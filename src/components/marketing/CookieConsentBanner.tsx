@@ -82,11 +82,11 @@ export function CookieConsentBanner() {
         boxShadow: "0 10px 30px rgba(11,26,47,0.12)",
       }}
     >
-      {/* Compact copy on mobile — one short sentence + link. */}
+      {/* Compact copy on mobile — two short sentences + link. */}
       <p
-        className="m-0 flex-1 basis-full text-[12.5px] leading-snug text-[#3D4A5C] sm:hidden"
+        className="m-0 flex-1 basis-full text-[13.5px] leading-snug text-[#3D4A5C] sm:hidden"
       >
-        Functional cookies only — optional analytics.{" "}
+        We use cookies to keep you signed in. May we also use analytics cookies to improve ProcuLink?{" "}
         <Link href="/privacy" style={{ color: "#1E6D29", textDecoration: "underline" }}>Privacy Policy</Link>
       </p>
       {/* Full copy on sm+ (desktop variant unchanged). */}

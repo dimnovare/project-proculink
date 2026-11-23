@@ -18,9 +18,11 @@ export const metadata = pageMetadata({
 
 // ─── Security posture (the six feature cards) ──────────────────────────────────
 
-const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNode }> = [
+// Each card opens with one plain sentence (`lead`); `body` is the detail, word for word as pinned.
+const POSTURE: Array<{ title: string; lead: string; body: React.ReactNode; icon: React.ReactNode }> = [
   {
     title: "Encryption in transit and at rest",
+    lead: "Connections are encrypted by default, and the passwords you save for delivery are encrypted at rest.",
     body: `Delivery credentials are encrypted at rest with AES-256-GCM authenticated encryption and are never written to application logs. Every outbound channel configured by URL — webhook and HTTP delivery, and S3 ingestion — must use https://, and a plain http:// address is refused when you save it. SFTP is encrypted by construction, and FTPS negotiates explicit TLS. Two connection settings can still weaken that if you switch them on: skipping FTPS certificate validation, and turning SSL off for IMAP or SMTP.`,
     icon: <Lock />,
   },
@@ -32,6 +34,7 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
     // this card untrue. See docs/qa/2026-07-30-residency-ground-truth.md in the
     // backend repo for the sourced position behind every sentence here.
     title: "Where your data lives",
+    lead: "Your files are stored in EU-region infrastructure, and some processing uses named US providers.",
     body: (
       <>
         Your files, the database behind them, and the API all run in EU-region
@@ -41,9 +44,7 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
         flow's address, and the data we email out. If you deliver by
         email, the output itself passes through a US provider. Each one is listed with its
         location and contract on{" "}
-        <Link href="/subprocessors">
-          /subprocessors
-        </Link>
+        <Link href="/subprocessors">the subprocessor list</Link>
         . Where your data is stored and the route it travels are two different questions: the
         network path out to your supplier is chosen by our hosting provider and is not pinned to
         a region by us, so we cannot tell you today which country an outbound delivery leaves
@@ -54,6 +55,7 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
   },
   {
     title: "What we record for every delivery",
+    lead: "Every send is recorded.",
     // The second sentence used to read "Export the full delivery log for any order at any time."
     // It described a per-order export that did not exist. What every plan really gets is one
     // document's history, GET /api/documents/{id}/history (DocumentsController.History), rendered
@@ -75,11 +77,13 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
   },
   {
     title: "Validation before delivery",
+    lead: "Every document is checked before it goes out.",
     body: `Built-in checks run on every plan and cannot be switched off: we flag a value that is missing, in the wrong shape or hard to read, and we hold a document we have already seen instead of sending it twice.`,
     icon: <ListChecks />,
   },
   {
     title: "Access control",
+    lead: "Your workspace's data is kept apart from every other workspace.",
     // The second sentence used to read "Role-based access and SAML/OIDC SSO are available on
     // Enterprise — we set them up with you during onboarding." Both halves were unbacked. SSO has
     // no Settings surface and no entitlement consumer anywhere in this app (see the note in
@@ -125,6 +129,7 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
   // and not the capability whose production status we cannot check.
   {
     title: "Responsible AI",
+    lead: "AI suggestions never apply themselves.",
     body: "Suggestions never apply themselves: you accept each one, and every value shows how sure we are. Your data is never used to train third-party models. We can also turn AI off for a workspace entirely, so nothing about its documents reaches OpenAI. Documents there cannot be read, because reading uses AI: they are stopped and marked as not read, never sent out. We set that for you on request; it is not a self-serve setting, and it does not change where your files are stored.",
     icon: <Eye />,
   },
@@ -205,7 +210,8 @@ export default function SecurityPage() {
                     {p.icon}
                   </span>
                   <h3 className={SITE.h3}>{p.title}</h3>
-                  <p className="col-span-2 text-[16px] leading-[1.6] text-ink-muted sm:col-span-1 sm:col-start-2 [&_a]:text-brand-blue-deep [&_a]:underline">
+                  <p className="col-span-2 text-[16px] font-semibold leading-[1.5] text-ink sm:col-span-1 sm:col-start-2">{p.lead}</p>
+                  <p className="col-span-2 text-[15px] leading-[1.6] text-ink-muted sm:col-span-1 sm:col-start-2 [&_a]:text-brand-blue-deep [&_a]:underline">
                     {p.body}
                   </p>
                 </article>
