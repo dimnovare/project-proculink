@@ -19,6 +19,10 @@ export const SITE = {
   onNavyLink: "inline-flex min-h-[44px] items-center font-semibold text-white underline underline-offset-[5px]",
 } as const;
 
+/** The one definition of a flow on the public site, shown at its first use on a page. */
+export const FLOW_SENTENCE =
+  "A flow is one kind of document you receive, set up once: what to read, which file to make and where it goes. Most teams need one per document type.";
+
 export const EXAMPLE_INVOICE = {
   supplier: "Example Supplier Ltd",
   street: "12 Harbour Road",

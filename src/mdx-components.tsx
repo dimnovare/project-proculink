@@ -6,6 +6,7 @@ import Link from "next/link";
 // shell renders the client `HelpArticleShell` chrome inside it. See
 // HelpArticleShellServer.tsx for the full rationale (the help SEO fix).
 import HelpArticleShell from "@/components/help/HelpArticleShellServer";
+import { CodeBlock } from "@/components/help/CodeBlock";
 
 /**
  * MDX renderer for the Help centre articles (the only `.mdx` pages in the app).
@@ -38,6 +39,14 @@ const linkClass =
 // No size here: public pages get 17px from SITE_PAGE, the in-app help panel and admin runbooks keep their own.
 const BODY_TEXT = "leading-[1.65] text-ink";
 const HEADING = "font-display font-semibold text-ink scroll-mt-20";
+
+/** The help table's grammar, shared with tables a component builds (PlanTable). */
+export const HELP_TABLE = {
+  wrap: "my-5 overflow-x-auto",
+  table: "w-full border-collapse text-[15.5px] leading-[1.45]",
+  th: "border-b border-border bg-bg px-3 py-2 text-left font-semibold text-ink",
+  td: "border-b border-border px-3 py-2 align-top text-ink",
+} as const;
 
 function MdxLink({
   href = "",
@@ -107,17 +116,10 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
       </code>
     ),
 
-    pre: ({ children }) => (
-      // `help-scroll` gives the horizontally-scrollable code block a persistent
-      // slim scrollbar (globals.css) so a clipped-but-scrollable sample reads as
-      // "scroll for more" rather than "cut off" — the wide format samples (EDI/
-      // XML/JSON) overflow 390px on mobile and touch scrollbars otherwise hide.
-      // tabIndex: a box that scrolls must be reachable by keyboard (axe scrollable-region-focusable);
-      // the code inside keeps the block's 14px instead of shrinking to inline code's 0.86em.
-      <pre tabIndex={0} className="help-scroll my-5 overflow-x-auto rounded-[8px] border border-border bg-bg px-4 py-3.5 font-mono text-[14px] leading-[1.6] text-ink [&_code]:border-0 [&_code]:bg-transparent [&_code]:p-0 [&_code]:text-[1em]">
-        {children}
-      </pre>
-    ),
+    // A Copy button, a slim visible scrollbar and a right-edge fade, so a wide format sample
+    // (EDI/XML/JSON overflows 390px) reads as "scroll for more" rather than "cut off". It is a
+    // tab stop only while it scrolls (axe scrollable-region-focusable).
+    pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
 
     blockquote: ({ children }) => (
       <blockquote className="my-5 border-l-2 border-border-strong py-1 pl-4 text-ink-muted">{children}</blockquote>
@@ -125,21 +127,26 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
 
     strong: ({ children }) => <strong className="font-semibold text-ink">{children}</strong>,
 
+    // A key to press, written `<Kbd>Ctrl K</Kbd>` in an article.
+    Kbd: ({ children }: { children?: ReactNode }) => (
+      <kbd className="whitespace-nowrap rounded-[5px] border border-border-strong border-b-2 bg-surface px-1.5 py-0.5 font-mono text-[0.86em] font-semibold text-ink">
+        {children}
+      </kbd>
+    ),
+
     em: ({ children }) => <em className="italic">{children}</em>,
 
     hr: () => <hr className="my-8 h-px border-0 bg-border" />,
 
     table: ({ children }) => (
-      <div tabIndex={0} className="my-5 overflow-x-auto">
-        <table className="w-full border-collapse text-[15.5px] leading-[1.45]">{children}</table>
+      <div tabIndex={0} className={HELP_TABLE.wrap}>
+        <table className={HELP_TABLE.table}>{children}</table>
       </div>
     ),
 
-    th: ({ children }) => (
-      <th className="border-b border-border bg-bg px-3 py-2 text-left font-semibold text-ink">{children}</th>
-    ),
+    th: ({ children }) => <th className={HELP_TABLE.th}>{children}</th>,
 
-    td: ({ children }) => <td className="border-b border-border px-3 py-2 align-top text-ink">{children}</td>,
+    td: ({ children }) => <td className={HELP_TABLE.td}>{children}</td>,
 
     img: (props) => (
       <img {...props} alt={props.alt ?? ""} className="my-5 h-auto max-w-full rounded-[8px] border border-border" />

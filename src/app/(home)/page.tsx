@@ -3,7 +3,7 @@ import { SkipToContent } from "@/components/a11y/SkipToContent";
 import { HomeExample } from "@/components/marketing/HomeExample";
 import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
-import { ClosingCta, ReviewPicture, SecondDocumentPicture, SITE, Ticks } from "@/components/marketing/sitePictures";
+import { ClosingCta, FLOW_SENTENCE, ReviewPicture, SecondDocumentPicture, SITE, Ticks } from "@/components/marketing/sitePictures";
 import { LEGAL_ENTITY, REGISTERED_LOCALITY } from "@/lib/legal-entity";
 import { PLAN_BY_ID, PUBLIC_LADDER } from "@/lib/plans";
 import { SITE_DESCRIPTION } from "@/lib/seo";
@@ -20,7 +20,7 @@ const COLUMNS = [
 ];
 
 const STEPS = [
-  { title: "Send it", rule: "border-brand-blue", body: "Upload a file, forward an email, or let us collect it from a mailbox, an SFTP or FTP server, an S3 bucket, or our API." },
+  { title: "You send it in", rule: "border-brand-blue", body: "Upload a file, forward an email, or let us collect it from a mailbox, an SFTP or FTP server, an S3 bucket, or our API." },
   { title: "We read it", rule: "border-brand-blue", body: "We read every value and table on the first document. There's no template to build first. Scans and phone photos are read too." },
   { title: "You check it", rule: "border-amber", body: "The original stays on screen beside what we read. Fix a value, or point at it on the page so we find it next time." },
   { title: "We send it", rule: "border-brand-green", body: "Choose the file your system needs, then send it by email, to a server, to Google Drive or Sheets, or download it." },
@@ -130,6 +130,7 @@ export default function RootPage() {
                 There is no template to build first. When a flow keeps going through without corrections, you can let it
                 send everything by itself.
               </p>
+              <p className={SITE.soft}>{FLOW_SENTENCE}</p>
             </div>
           </div>
         </section>

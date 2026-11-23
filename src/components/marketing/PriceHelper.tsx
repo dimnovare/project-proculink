@@ -11,7 +11,7 @@ import {
   cheapestDocumentPlan,
   type BillingPeriod,
 } from "@/lib/plans";
-import { SITE, Tag } from "./sitePictures";
+import { FLOW_SENTENCE, SITE, Tag } from "./sitePictures";
 
 // The one client island on /pricing: the billing period, the volume slider, its answer and the
 // four plans. Every figure is read from src/lib/plans.ts; the arithmetic is cheapestDocumentPlan,
@@ -175,6 +175,7 @@ export function PriceHelper({ heading }: { heading?: ReactNode }) {
             );
           })}
         </div>
+        <p className={`${SITE.soft} mt-3 text-[15px]`}>{FLOW_SENTENCE}</p>
       </div>
     </div>
   );

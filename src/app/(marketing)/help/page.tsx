@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { Search } from "lucide-react";
 import {
   HELP_ARTICLES,
   CATEGORY_ORDER,
@@ -36,7 +37,9 @@ const STUCK = [
 
 const H2 = "m-0 font-display text-[26px] font-semibold leading-[1.15] tracking-[-0.02em]";
 const LINK = "font-semibold text-brand-blue-deep underline underline-offset-4";
-const ROW = "flex min-h-[44px] flex-col justify-center gap-0.5 border-t border-border py-3 no-underline first:border-t-0";
+/** Every card title on this page: ink, no underline, blue when its card is pointed at. */
+const CARD_TITLE = "text-ink no-underline group-hover:text-brand-blue-deep";
+const ROW = "group flex min-h-[44px] flex-col justify-center gap-0.5 border-t border-border py-3 no-underline first:border-t-0";
 
 const articleCount = (category: HelpCategory) => HELP_ARTICLES.filter((a) => a.category === category).length;
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
@@ -50,7 +53,7 @@ function HitRows({ hits }: { hits: HelpHit[] }) {
     <Card edge="none">
       {hits.map((hit) => (
         <Link key={hit.href} href={hit.href} className={ROW}>
-          <span className="font-semibold text-brand-blue-deep underline underline-offset-4">{hit.title}</span>
+          <span className={`font-semibold ${CARD_TITLE}`}>{hit.title}</span>
           <span className="text-[15px] text-ink-muted">{meta(hit)}</span>
         </Link>
       ))}
@@ -97,14 +100,18 @@ export default function HelpIndex() {
             </p>
             <label className="mt-2 flex max-w-[560px] flex-col gap-2">
               <span className="font-semibold">Search articles and guides</span>
-              <input
-                ref={searchRef}
-                type="search"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                onKeyDown={(e) => e.key === "Escape" && setQ("")}
-                className="h-[52px] w-full min-w-0 rounded-[10px] border border-border-strong bg-surface px-4 text-[17px] text-ink"
-              />
+              <span className="relative">
+                <Search aria-hidden="true" size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-muted" />
+                <input
+                  ref={searchRef}
+                  type="search"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  onKeyDown={(e) => e.key === "Escape" && setQ("")}
+                  placeholder="Try: change where a file goes"
+                  className="h-[52px] w-full min-w-0 rounded-[10px] border border-border-strong bg-surface pl-11 pr-4 text-[17px] text-ink placeholder:text-ink-muted"
+                />
+              </span>
             </label>
             {/* Always mounted, so the first count is announced too; the visible count is hidden from screen readers. */}
             <p aria-live="polite" className="sr-only">
@@ -172,7 +179,7 @@ export default function HelpIndex() {
                 <ol className="m-0 grid list-none gap-4 p-0 sm:grid-cols-3">
                   {START_HERE.map((slug) => getGuideBySlug(slug)!).map((g) => (
                     <Card key={g.slug} edge="none" as="li">
-                      <Link href={g.href} className={`${SITE.h3} inline-flex min-h-[44px] items-center text-brand-blue-deep underline underline-offset-4`}>
+                      <Link href={g.href} className={`${SITE.h3} group inline-flex min-h-[44px] items-center ${CARD_TITLE}`}>
                         {g.title}
                       </Link>
                       <p className="m-0 mt-2 text-[15px]">{g.blurb}</p>
@@ -197,9 +204,9 @@ export default function HelpIndex() {
                       key={c}
                       type="button"
                       onClick={() => setTopic(c)}
-                      className="flex flex-col items-start gap-1 rounded-[10px] border border-border bg-surface p-5 text-left hover:border-border-strong"
+                      className="group flex flex-col items-start gap-1 rounded-[10px] border border-border bg-surface p-5 text-left hover:border-border-strong"
                     >
-                      <h3 className="m-0 font-display text-[19px] font-semibold text-ink">{c}</h3>
+                      <h3 className={`m-0 font-display text-[19px] font-semibold ${CARD_TITLE}`}>{c}</h3>
                       <span className={`${SITE.soft} text-[15px]`}>{plural(articleCount(c), "article")}</span>
                       <span className="text-[15px] text-ink">{CATEGORY_BLURB[c]}</span>
                     </button>

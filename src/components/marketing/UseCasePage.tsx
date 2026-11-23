@@ -42,11 +42,14 @@ export function UseCasePage({ page }: { page: UseCase }) {
       </section>
 
       <section aria-labelledby="problem-title" className="bg-surface py-16 sm:py-20">
-        <div className={`${SITE.wrap} flex max-w-[820px] flex-col gap-4`}>
-          <h2 id="problem-title" className={SITE.h2}>{page.problem.title}</h2>
-          {page.problem.body.map((p) => (
-            <p key={p} className="m-0">{p}</p>
-          ))}
+        {/* The page's left edge, with the measure on the text, so this band lines up with the others. */}
+        <div className={SITE.wrap}>
+          <div className="flex max-w-[820px] flex-col gap-4">
+            <h2 id="problem-title" className={SITE.h2}>{page.problem.title}</h2>
+            {page.problem.body.map((p) => (
+              <p key={p} className="m-0">{p}</p>
+            ))}
+          </div>
         </div>
       </section>
 

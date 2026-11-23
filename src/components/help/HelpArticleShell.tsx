@@ -63,8 +63,9 @@ export default function HelpArticleShell({ children }: { children: React.ReactNo
               <>
                 <li aria-hidden="true">/</li>
                 <li>{article.category}</li>
-                <li aria-hidden="true">/</li>
-                <li aria-current="page" className="text-ink">
+                {/* On a phone the title is the h1 just below, so the crumb stops at the category. */}
+                <li aria-hidden="true" className="max-sm:hidden">/</li>
+                <li aria-current="page" className="text-ink max-sm:hidden">
                   {article.title}
                 </li>
               </>
@@ -85,6 +86,20 @@ export default function HelpArticleShell({ children }: { children: React.ReactNo
           </header>
         )}
 
+        {/* Below 960px the aside is hidden, so the headings fold into a card under the title. */}
+        {toc.length >= 2 && (
+          <Card edge="none" pad="0 16px" data-testid="article-toc-folded" className="mt-6 min-[960px]:hidden">
+            <details>
+              <summary className="flex min-h-[48px] cursor-pointer items-center text-[15px] font-semibold">
+                In this article · {toc.length} sections
+              </summary>
+              <nav aria-label="In this article" className="pb-2">
+                <Toc toc={toc} />
+              </nav>
+            </details>
+          </Card>
+        )}
+
         <div className="mt-8 flex items-start gap-x-16">
           <div className="min-w-0 max-w-[72ch] flex-1">
             {/* Per-tool walkthrough video — only when the registry entry carries a hosted, verified videoUrl. No autoplay. */}
@@ -97,6 +112,11 @@ export default function HelpArticleShell({ children }: { children: React.ReactNo
 
             <footer className="mt-12 flex flex-col gap-8">
               <FeedbackPrompt slug={slug} title={article?.title} />
+
+              {/* Below 960px the aside is hidden, so its guides come here. */}
+              <div data-testid="article-footer-guides" className="min-[960px]:hidden">
+                <Guides id="article-guides-footer" guides={guides} />
+              </div>
 
               {(prev || next) && (
                 <nav aria-label="Keep reading" className="flex flex-col gap-3">
@@ -124,42 +144,53 @@ export default function HelpArticleShell({ children }: { children: React.ReactNo
             </footer>
           </div>
 
-          <aside className="sticky top-6 hidden w-[260px] shrink-0 flex-col gap-8 min-[960px]:flex">
+          <aside data-testid="article-aside" className="sticky top-6 hidden w-[260px] shrink-0 flex-col gap-8 min-[960px]:flex">
             {toc.length >= 2 && (
               <nav aria-label="In this article">
                 <p className="m-0 text-[15px] font-semibold">In this article</p>
-                <ol className="m-0 mt-2 list-none p-0">
-                  {toc.map((t) => (
-                    <li key={t.id}>
-                      <a href={`#${t.id}`} className={ASIDE_LINK}>
-                        {t.text}
-                      </a>
-                    </li>
-                  ))}
-                </ol>
+                <Toc toc={toc} />
               </nav>
             )}
-            {guides.length > 0 && (
-              <section aria-labelledby="article-guides">
-                <h2 id="article-guides" className="m-0 text-[15px] font-semibold">
-                  Step-by-step guides
-                </h2>
-                <ul className="m-0 mt-2 flex list-none flex-col gap-3 p-0">
-                  {guides.map((g) => (
-                    <li key={g.slug} className="flex flex-col">
-                      <Link href={g.href} className="text-[15px] font-semibold text-brand-blue-deep underline underline-offset-4">
-                        {g.title}
-                      </Link>
-                      {g.minutes != null && <span className={`${SITE.soft} text-[14px]`}>About {g.minutes} minutes</span>}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
+            <Guides id="article-guides" guides={guides} />
           </aside>
         </div>
       </div>
     </div>
+  );
+}
+
+function Toc({ toc }: { toc: { id: string; text: string }[] }) {
+  return (
+    <ol className="m-0 mt-2 list-none p-0">
+      {toc.map((t) => (
+        <li key={t.id}>
+          <a href={`#${t.id}`} className={ASIDE_LINK}>
+            {t.text}
+          </a>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function Guides({ id, guides }: { id: string; guides: ReturnType<typeof guidesForArticle> }) {
+  if (guides.length === 0) return null;
+  return (
+    <section aria-labelledby={id}>
+      <h2 id={id} className="m-0 text-[15px] font-semibold">
+        Step-by-step guides
+      </h2>
+      <ul className="m-0 mt-2 flex list-none flex-col gap-3 p-0">
+        {guides.map((g) => (
+          <li key={g.slug} className="flex flex-col">
+            <Link href={g.href} className="inline-flex min-h-[44px] items-center text-[15px] font-semibold text-brand-blue-deep underline underline-offset-4">
+              {g.title}
+            </Link>
+            {g.minutes != null && <span className={`${SITE.soft} text-[14px]`}>About {g.minutes} minutes</span>}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

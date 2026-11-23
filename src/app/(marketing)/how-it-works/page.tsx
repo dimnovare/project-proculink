@@ -11,7 +11,6 @@ import {
   SITE,
   Ticks,
 } from "@/components/marketing/sitePictures";
-import { checkModeTitle } from "@/lib/deliveryMode";
 import { pageMetadata } from "@/lib/seo";
 
 const LEAD =
@@ -120,7 +119,7 @@ function SendPicture() {
 
 const STEPS = [
   {
-    title: "Send it",
+    title: "You send it in",
     node: "border-brand-blue",
     lead: "Upload a file, forward an email to the address your flow gives you, or let ProcuLink collect files for you.",
     detail:
@@ -161,7 +160,7 @@ const PIPELINE: Record<(typeof STAGES)[number], { dot: string; body: string }> =
   Send: { dot: "border-[var(--brand-green-bright)]", body: "The file goes to each destination. Each delivery keeps its attempts, the destination's answer where it gives one and, when it fails, the error." },
 };
 
-// Below 360px "Transform it." at 42px is about as wide as the column, so the
+// Below 360px "We send it on." at 42px is about as wide as the column, so the
 // pairs are only held together where there is room for them.
 const NOWRAP = "min-[360px]:whitespace-nowrap";
 // Clears the sticky header when a step or the pipeline is jumped to.
@@ -175,10 +174,10 @@ export default function HowItWorksPage() {
           <div className="flex min-w-0 flex-[1_1_560px] flex-col gap-[26px]">
             <h1 className={SITE.h1}>
               <span className="text-brand-blue">
-                <span className={NOWRAP}>Read it.</span> <span className={NOWRAP}>Check it.</span>
+                <span className={NOWRAP}>Send it in.</span> <span className={NOWRAP}>We read it.</span>
               </span>{" "}
               <span className="block text-brand-green-deep">
-                <span className={NOWRAP}>Transform it.</span> <span className={NOWRAP}>Send it.</span>
+                <span className={NOWRAP}>You check it.</span> <span className={NOWRAP}>We send it on.</span>
               </span>
             </h1>
             <p className={`${SITE.lead} max-w-[640px]`}>{LEAD}</p>
@@ -242,7 +241,7 @@ export default function HowItWorksPage() {
             </p>
             <Ticks
               items={[
-                `A new flow starts on ${checkModeTitle("marked")} when an admin creates it. A document with a marked value waits for you; every other one goes straight through.`,
+                "A new flow holds a document for you only when we have marked one of its values; the rest go straight through.",
                 "The flow tells you how many documents in a row went out without a correction.",
                 "You can set a flow to check every document, or nothing at all, and change it at any time.",
                 "A document with a number we have already received always waits for you, so nothing is sent twice.",

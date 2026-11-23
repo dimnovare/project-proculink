@@ -86,7 +86,7 @@ export function MarketingNav() {
 
   return (
     <header className="on-navy sticky top-0 z-40 bg-navy">
-      <div className="mx-auto flex h-[60px] max-w-[1208px] items-center gap-2 px-[clamp(14px,2vw,24px)] min-[900px]:h-16">
+      <div className="mx-auto flex h-[60px] max-w-[1160px] items-center gap-2 px-[clamp(14px,2vw,24px)] min-[900px]:h-16">
         <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2.5">
           <span className="inline-flex [&>svg]:size-[26px] min-[900px]:[&>svg]:size-7">
             <ProcuLinkMark size={28} />

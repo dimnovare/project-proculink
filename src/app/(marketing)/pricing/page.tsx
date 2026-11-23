@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { Card } from "@/components/bridge/layout/Card";
 import { PriceHelper } from "@/components/marketing/PriceHelper";
-import { ClosingCta, SITE, Ticks } from "@/components/marketing/sitePictures";
+import { ClosingCta, FLOW_SENTENCE, SITE, Ticks } from "@/components/marketing/sitePictures";
 import { euro } from "@/lib/billingWords";
 import {
   DOCUMENT_PLAN_FEATURES,
@@ -22,7 +22,7 @@ import {
 //
 // Every plan block carries `data-plans` with the ids whose text it holds, so
 // gatedCapabilityClaims can check each bullet against every plan it is sold on. The legacy
-// paid plans are hidden here; their names appear only in the "I'm on …" question, derived
+// paid plans are hidden here; their names appear only in the "older plan" answer, derived
 // from LEGACY_PAID_PLANS.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -86,8 +86,8 @@ const FAQ: Array<[string, ReactNode]> = [
     </>,
   ],
   [
-    `I'm on ${LEGACY_PLAN_NAMES}. What changes?`,
-    "Nothing until you change plan. You keep your current price and limits. To change plan, go to Settings, then Plan & billing.",
+    "I'm on an older plan. What changes?",
+    `If you are on ${LEGACY_PLAN_NAMES}, nothing changes until you change plan. You keep your current price and limits. To change plan, go to Settings, then Plan & billing.`,
   ],
 ];
 
@@ -104,6 +104,7 @@ export default function PricingPage() {
             <p className={`${SITE.lead} max-w-[700px]`}>
               Every plan has every way to send documents in, every output and every check. Plans differ only by how many documents you process and how many flows you set up.
             </p>
+            <p className={`${SITE.soft} text-[16px]`}>{FLOW_SENTENCE}</p>
             <p className={`${SITE.soft} text-[16px]`}>{DOCUMENT_UNIT_SENTENCE}</p>
           </div>
 

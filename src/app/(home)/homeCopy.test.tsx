@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, cleanup, within } from "@testing-library/react";
 import { PLAN_BY_ID, PUBLIC_LADDER } from "@/lib/plans";
+import { FLOW_SENTENCE } from "@/components/marketing/sitePictures";
 
 vi.mock("@/components/marketing/MarketingNav", () => ({ MarketingNav: () => <nav /> }));
 
@@ -23,6 +24,7 @@ describe("landing page sells the document tool", () => {
     expect(body).toContain("Free for 30 days · 20 documents · from €35 a month after");
     expect(cta?.getAttribute("href")).toBe("/sign-up");
     expect(body).toContain("Try it on your own documents");
+    expect(body).toContain(FLOW_SENTENCE); // a flow is defined where the page first leans on it
   });
 
   it("no longer carries the ROI calculator or order-era copy", () => {

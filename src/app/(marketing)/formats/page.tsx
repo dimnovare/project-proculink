@@ -31,7 +31,7 @@ const SECTIONS: Array<{ id: string; title: string; lead: string; rule: string; i
     lead: "Send the file as it is. We read every value and table on it, and there is no template to build first.",
   },
   {
-    id: "outputs", title: "Outputs", icon: FileSpreadsheet, rule: "border-t-ink", tone: "text-ink", rows: OUTPUT_ROWS,
+    id: "outputs", title: "Outputs", icon: FileSpreadsheet, rule: "border-t-brand-green", tone: "text-brand-green-deep", rows: OUTPUT_ROWS,
     lead: "The file your system expects. You choose what goes in it and what each value is called.",
   },
   {

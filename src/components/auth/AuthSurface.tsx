@@ -44,7 +44,7 @@ type Tone = "onNavy" | "onLight";
    plan, the trial included. */
 export const AUTH_VALUE_CLAIMS: { kind: FeatureKind; label: string }[] = [
   { kind: "file", label: "Use the documents you already get" },
-  { kind: "check", label: "Review the result before anything is sent" },
+  { kind: "check", label: "Check anything we're unsure of before it's sent" },
   { kind: "clock", label: "Keep a complete history of every document" },
 ];
 

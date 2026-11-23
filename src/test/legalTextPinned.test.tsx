@@ -39,7 +39,9 @@ const PINNED: Record<"/privacy" | "/terms" | "/aup" | "/dpa" | "/subprocessors" 
   "/aup": "917a1e45c7f3775aad05ae6d74275ee63f522e4a2db5012bdecca0702f4c0fbf",
   "/dpa": "a86971bb79039f2a9403ebef616bf194cd955d36d4fe3cd3b20a5fe903a72e39",
   "/subprocessors": "e4bd03fe1c61f9709e8a396e8070351c8ec6991a0b202b3b2dc7d47a89956122",
-  "/security#statements": "280994103424d63c5b854ab168afcbc4eea525c4d35883069d1ffa2e2bad37b4",
+  // Re-pinned 2026-11-23 (UI review C-04): each card gained a one-sentence plain answer above its
+  // unchanged detail, and the residency card's link reads "the subprocessor list", not "/subprocessors".
+  "/security#statements": "54a4c704be2ee16152bfc84ff949b36bef493e4f469be56b3f0be512c7494a76",
 };
 
 const PAGES = [

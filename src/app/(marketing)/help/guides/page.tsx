@@ -37,8 +37,7 @@ export default function GuidesIndexPage() {
               Step-by-step guides
             </h1>
             <p className={`${SITE.soft} m-0 max-w-[72ch] text-[19px]`}>
-              One task per guide, in numbered steps, with what to do when a step does not work. The help articles stay
-              the reference; a guide is the procedure.
+              One task per guide, in numbered steps, with what to do if a step doesn&apos;t work.
             </p>
           </header>
 
