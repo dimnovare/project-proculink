@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, within, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, onTestFinished } from "vitest";
+import { act, render, screen, fireEvent, within, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import type { DocumentPage, DocumentRow, DocumentSummary, Flow, Inbox } from "@/lib/api/documents";
@@ -161,6 +161,9 @@ describe("UploadToFlow", () => {
     api.listDocumentPage.mockImplementation(async () => ({ page: 1, pageSize: 100, totalCount: 2, sampleCount: 0, items: read
       ? [row("d2", "b.csv", { status: "ready" }), row("d1", "a.pdf", { status: "needs_review", failedChecks: 1, checks: ["low_confidence"] })]
       : [row("d3", "c.pdf", { status: "sent" }), row("d2", "b.csv", { status: "reading" }), row("d1", "a.pdf", { status: "reading" })] }));
+    // The 2 s poll and the quiet after it run on a fake clock; real time still moves it, so the waits below work.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    onTestFinished(() => void vi.useRealTimers());
     mount();
     await screen.findByRole("region", { name: "Add files" });
     drop([new File(["x"], "a.pdf"), new File(["y"], "b.csv"), new File(["z"], "c.pdf")]);
@@ -170,12 +173,13 @@ describe("UploadToFlow", () => {
     await waitFor(() => expect(item("a.pdf").getByText("Reading")).toBeInTheDocument());
     await waitFor(() => expect(item("c.pdf").getByText("Sent")).toBeInTheDocument());
     read = true;
-    await waitFor(() => expect(item("b.csv").getByRole("button", { name: "Send b.csv" })).toBeInTheDocument(), { timeout: 5000 });
+    await act(() => vi.advanceTimersByTimeAsync(2000));                // the next poll
+    await waitFor(() => expect(item("b.csv").getByRole("button", { name: "Send b.csv" })).toBeInTheDocument());
     expect(item("a.pdf").getByText("1 value to check")).toBeInTheDocument();
     expect(item("a.pdf").getByRole("link", { name: "a.pdf" })).toHaveAttribute("href", "/flows/f1/documents/d1");
     expect(api.listDocumentPage.mock.calls.every(([p]) => JSON.stringify(p) === JSON.stringify({ page: 1, pageSize: 100 }))).toBe(true);
     const asked = api.listDocumentPage.mock.calls.length;
-    await new Promise((r) => setTimeout(r, 2500));
+    await act(() => vi.advanceTimersByTimeAsync(2500));
     expect(api.listDocumentPage).toHaveBeenCalledTimes(asked);        // nothing is being read: no more requests
     expect(item("c.pdf").getByText("Sent")).toBeInTheDocument();       // off the page now: its last known status, never Received again
   });
@@ -232,6 +236,8 @@ describe("UploadToFlow", () => {
     choose.focus();
     drop([new File(["y"], "scan-7.pdf")]);
     expect(await screen.findByText("2 documents")).toBeInTheDocument();
+    // The queue uploads one file at a time: wait for the last one, or it settles after jsdom is torn down.
+    await screen.findByRole("link", { name: "scan-7.pdf" });
     expect(choose).toHaveFocus();
   });
 
