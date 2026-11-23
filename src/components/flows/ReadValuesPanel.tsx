@@ -12,6 +12,7 @@ import { saveFlowFields } from "@/lib/api/documents";
 import type { DocumentDetail, Flow, SourceLocation } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { addReadExtra, withReadExtras } from "@/lib/flowFieldModel";
+import { shownLabels } from "@/lib/flowOutputModel";
 import { editKey, type EditTarget, type Look, type ReviewMarks } from "@/lib/reviewMarks";
 import { parseAddress, spreadsheetColumnName } from "@/lib/sourceAddress";
 import { pasteGrid, rowsSum, type RowsSum } from "@/lib/reviewSheet";
@@ -258,6 +259,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
   const [showEmpty, setShowEmpty] = useState(false);
   const uid = useId();
   const { fields, tables } = detail.read;
+  const labels = shownLabels(fields);
   const isMarked = (f: (typeof fields)[number]) => marks.looks.has(editKey({ field: f.key }));
   // Decided once, when the document opens: a value typed into an empty box must not move the box while it is typed in.
   // A value to check is never one of them: once it is filled in it joins the values with text, in the same grid.
@@ -293,7 +295,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
     return (
       <div key={f.key} className={look ? "plk-look" : undefined} {...pointAt(onLocate, f.location)}>
         <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3">
-          <label htmlFor={id} className="text-[13px] font-semibold text-ink-muted">{f.label}</label>
+          <label htmlFor={id} className="text-[13px] font-semibold text-ink-muted">{labels.get(f.key)}</label>
           <Meta read={f} />
         </div>
         <div className="group/value relative">
@@ -306,7 +308,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
             <button type="button" tabIndex={-1} onClick={teach}
               className={`absolute right-1 top-1 hidden h-8 w-8 items-center justify-center rounded-md text-ink-muted hover:bg-surface-2 hover:text-ink lg:inline-flex ${look ? "" : "opacity-0 group-focus-within/value:opacity-100 group-hover/value:opacity-100"}`}>
               <Crosshair size={15} aria-hidden />
-              <span className="sr-only">Point to {f.label} on the original</span>
+              <span className="sr-only">Point to {labels.get(f.key)} on the original</span>
             </button>
           )}
         </div>
@@ -396,7 +398,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
           <div className="grid gap-3">
             {stillEmpty.length > 0 && (
               <p className="m-0 flex flex-wrap items-center gap-x-2 text-[13px] text-ink-muted">
-                {emptyWords(stillEmpty.map((f) => f.label))}
+                {emptyWords(stillEmpty.map((f) => labels.get(f.key)!))}
                 {stillEmpty.length === empty.length && (
                   <Button size="sm" variant="ghost" className="!text-brand-blue" aria-expanded={showEmpty} aria-controls={`${uid}-empty`} onClick={() => setShowEmpty((s) => !s)}>
                     {showEmpty ? "Hide them" : "Show them"}

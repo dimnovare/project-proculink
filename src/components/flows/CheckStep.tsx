@@ -16,7 +16,7 @@ import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { documentStatus } from "@/lib/documentStatusManifest";
 import { firstRunAddress, foundSummary, PROVISIONAL_FLOW_NAME, suggestFlowName, tableSummary } from "@/lib/firstRun";
 import { fieldListFromRead } from "@/lib/flowFieldModel";
-import { excelSeparator } from "@/lib/flowOutputModel";
+import { excelSeparator, shownLabels } from "@/lib/flowOutputModel";
 import { editKey, reviewMarks } from "@/lib/reviewMarks";
 import { Field, INPUT } from "./DestinationForm";
 import { Original, Pane, PaneTabs } from "./DocumentScreen";
@@ -102,6 +102,7 @@ export function CheckStep({ flow, docId, first }: { flow: Flow; docId: string | 
   if (nothingRead || !marks)
     return <div className="grid justify-items-start gap-3"><p className="m-0 text-[14px] text-ink">We couldn&apos;t find any values on this document.</p>{another}</div>;
 
+  const labels = shownLabels(read.fields);
   const keep = (key: string, label: string) => (
     <label className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center sm:min-h-0 sm:min-w-0">
       <input
@@ -138,9 +139,9 @@ export function CheckStep({ flow, docId, first }: { flow: Flow; docId: string | 
               <legend className="sr-only">What we read</legend>
               {read.fields.map((f) => (
                 <div key={f.key} data-testid={`check-value-${f.key}`} className="flex items-start gap-3">
-                  {keep(f.key, f.label)}
+                  {keep(f.key, labels.get(f.key)!)}
                   <div className="min-w-0 flex-1">
-                    <Field label={f.label} look={marks.looks.get(editKey({ field: f.key }))?.text}>
+                    <Field label={labels.get(f.key)!} look={marks.looks.get(editKey({ field: f.key }))?.text}>
                       <ValueInput target={{ field: f.key }} value={f.value} edits={edits} />
                     </Field>
                   </div>

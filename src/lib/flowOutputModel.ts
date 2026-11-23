@@ -27,6 +27,23 @@ export function excelSeparator(languages?: readonly string[], timeZone?: string)
   }
 }
 
+/** Mirrors the backend's OutputTemplateEmitter.UniqueNames: a repeat (any case) becomes "{name} 2", "{name} 3"…; blanks stay blank. */
+export function uniqueNames(names: string[]): string[] {
+  const used = new Set<string>();
+  return names.map((name) => {
+    let unique = name;
+    for (let n = 2; name.trim() && used.has(unique.toUpperCase()); n++) unique = `${name} ${n}`;
+    used.add(unique.toUpperCase());
+    return unique;
+  });
+}
+
+/** Each field's label as shown on screen, numbered in read order so two "Supplier" fields read "Supplier" and "Supplier 2". */
+export const shownLabels = (fields: { key: string; label: string }[]) => {
+  const names = uniqueNames(fields.map((f) => f.label));
+  return new Map(fields.map((f, i) => [f.key, names[i]]));
+};
+
 /** Same rule as the backend's DefaultOutputTemplate: the name's length, from 40 to 1000. */
 export const defaultWidth = (name: string) => Math.min(Math.max(name.length, 40), 1000);
 
