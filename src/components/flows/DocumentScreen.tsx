@@ -43,7 +43,7 @@ import { rowNeed } from "./DocumentList";
 import { onItsWay } from "./SelectionBar";
 import { removable, useRemove } from "./RowActions";
 import { WaitingList } from "./WaitingList";
-import { Changed, InboxAnswers, SortNotice, saveFirst, UNSAVED, UNSAVED_TEXT, useAnswers } from "./InboxAnswers";
+import { Changed, InboxAnswers, REVIEW_NOTE_KEY, SortNotice, saveFirst, UNSAVED, UNSAVED_TEXT, useAnswers } from "./InboxAnswers";
 
 // The file's own extension decides the viewer. The server's content type is not trusted for this.
 const TYPES: Record<string, string> = {
@@ -242,7 +242,7 @@ function SplitGrip({ split, onChange, className }: { split: number; onChange(n: 
 }
 
 /** Where the original and the handle stick under the page's one-row header, and how tall they are. */
-const UNDER_HEADER = "lg:top-[73px] lg:h-[calc(100dvh-152px)]";
+export const UNDER_HEADER = "lg:top-[73px] lg:h-[calc(100dvh-152px)]";
 /** A key held down never presses Send again and again. */
 const noRepeat = (e: ReactKeyboardEvent) => { if (e.repeat) e.preventDefault(); };
 
@@ -278,9 +278,6 @@ function sendRefusal(e: unknown, flowId: string): { text: string; wayOn: ReactNo
   if (rateLimited(e)) return { text: "Couldn't send just now. Try again in a moment.", wayOn: null };
   return { text: documentRefusalMessage(e), wayOn: null };
 }
-
-/** Send and open next leaves its sentence here; the next document's screen, a new one, says it. */
-const SENT_KEY = ["review-sent"];
 
 /** The route's component: everything below is keyed by the document, so nothing carries over to the next one. */
 export function DocumentScreen(p: { flowId: string; documentId: string }) {
@@ -389,8 +386,8 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   // Drawn empty first and filled after, so it is spoken; it takes no focus.
   const [sentNote, setSentNote] = useState<string | null>(null);
   useEffect(() => {
-    const n = qc.getQueryData<string>(SENT_KEY);
-    if (n) { qc.removeQueries({ queryKey: SENT_KEY }); setSentNote(n); }
+    const n = qc.getQueryData<string>(REVIEW_NOTE_KEY);
+    if (n) { qc.removeQueries({ queryKey: REVIEW_NOTE_KEY }); setSentNote(n); }
   }, [qc]);
   const send = useMutation({
     mutationFn: async () => {
@@ -417,7 +414,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
       // R2: a refresh that failed tells us nothing, so the person goes to Needs you rather than to a guess.
       const refreshFailed = qc.getQueryState(reviewQueueQuery.queryKey)?.status === "error";
       const next = refreshFailed ? null : pickNext(before, qc.getQueryData<DocumentPage>(reviewQueueQuery.queryKey)?.items, documentId);
-      if (next && summary) qc.setQueryData(SENT_KEY, onItsWay(summary.fileName));
+      if (next && summary) qc.setQueryData(REVIEW_NOTE_KEY, onItsWay(summary.fileName));
       router.replace(next ? documentHref(next) : documentsAddress("needs-you"));
     },
     onError: (e) => {
