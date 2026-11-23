@@ -8,7 +8,7 @@ import { noticeAria } from "@/components/bridge/layout/StatusNotice";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { eachDocument, fetchOriginal, removeOne, saveOriginals, sendOne, type Each } from "@/lib/eachDocument";
 import type { ListedDocument } from "./DocumentList";
-import { forgetRemoved, removable, removalDialog } from "./RowActions";
+import { forgetRemoved, removable, removalDialog, rowSends } from "./RowActions";
 import { useUploadQueueIfMounted } from "./UploadQueue";
 
 /** The key every run of the bar (send or download) goes under; a row's own Send is busy while one is out. */
@@ -105,7 +105,7 @@ export function SelectionBar({ selected, sent, report, onReport, onSent, onClear
     if (report && (!document.activeElement || document.activeElement === document.body)) live.current?.focus();
   }, [report]);
   // As the row: only a document known to be with a flow is sent from here (an inbox one is answered on its own screen).
-  const ready = selected.filter((d) => d.status === "ready" && d.inInbox === false && d.statusReason !== "check_sort" && !sent.has(d.id) && !rowSending.includes(d.id));
+  const ready = selected.filter((d) => rowSends(d) && !sent.has(d.id) && !rowSending.includes(d.id));
   const label = sendLabel(selected.length, ready.length);
   // Only what the server says this person may remove, and nothing being read or sent.
   const removing = selected.filter((d) => d.canRemove === true && removable(d.status));

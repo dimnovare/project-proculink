@@ -53,6 +53,8 @@ describe("first run", () => {
     expect(tableSummary(lines)).toBe("3 rows, 5 columns (Code, Item, Qty, Price, Amount)");
     expect(keepsSummary(9, 9)).toBe("keeps all 9 values and makes a CSV file");
     expect(keepsSummary(7, 9)).toBe("keeps 7 of 9 values and makes a CSV file");
+    expect(keepsSummary(9, 9, 1)).toBe("keeps all 9 values and the table, and makes a CSV file");
+    expect(keepsSummary(9, 9, 2)).toBe("keeps all 9 values and the 2 tables, and makes a CSV file");
     expect(destinationNameFor("sftp", "Invoices")).toBe("Invoices server");
     expect(destinationNameFor("google_sheets", "Invoices")).toBe("Invoices sheet");
     expect(destinationNameFor("carrier_pigeon", "Invoices")).toBe("Invoices destination");

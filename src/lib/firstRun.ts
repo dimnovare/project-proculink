@@ -74,9 +74,9 @@ export function tableSummary(table: ReadResult["tables"][number]): string {
   return `${count(table.rows.length, "row")}, ${count(table.columns.length, "column")}${columns ? ` (${columns})` : ""}`;
 }
 
-/** "keeps all 9 values and makes a CSV file" / "keeps 7 of 9 values and makes a CSV file". */
-export function keepsSummary(kept: number, total: number): string {
-  return `keeps ${kept === total ? `all ${count(total, "value")}` : `${kept} of ${count(total, "value")}`} and makes a CSV file`;
+/** "keeps all 9 values and makes a CSV file" / "keeps 7 of 9 values and the table, and makes a CSV file" / "… and the 2 tables, …". */
+export function keepsSummary(kept: number, total: number, tables = 0): string {
+  return `keeps ${kept === total ? `all ${count(total, "value")}` : `${kept} of ${count(total, "value")}`}${tables === 0 ? "" : tables === 1 ? " and the table," : ` and the ${tables} tables,`} and makes a CSV file`;
 }
 
 const DESTINATION_NOUNS: Record<string, string> = {

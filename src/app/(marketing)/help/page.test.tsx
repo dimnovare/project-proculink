@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen, within, fireEvent } from "@testing-library/react";
 import HelpIndex from "./page";
 import { START_HERE, getGuideBySlug, liveClientGuides } from "@/lib/guides";
-import { DOCUMENT_STATUSES } from "@/lib/documentStatusManifest";
+import { DOCUMENT_TABS } from "@/lib/documentTabs";
 
 describe("the help home", () => {
   it("searches articles and guides together and says how many it found", () => {
@@ -20,8 +20,8 @@ describe("the help home", () => {
   it("names the app's own statuses and the three Start here guides", () => {
     render(<HelpIndex />);
     const stuck = screen.getByRole("region", { name: "Is a document stuck?" });
-    for (const k of ["needs_review", "read_failed", "send_failed"] as const) {
-      expect(within(stuck).getByText(DOCUMENT_STATUSES[k].label)).toBeInTheDocument();
+    for (const t of DOCUMENT_TABS.filter((t) => t.id === "needs-you" || t.id === "failed")) {
+      expect(within(stuck).getByText(t.label)).toBeInTheDocument();
     }
     const start = screen.getByRole("region", { name: "Start here" });
     expect(within(start).getAllByRole("link").slice(0, 3).map((a) => a.getAttribute("href"))).toEqual(

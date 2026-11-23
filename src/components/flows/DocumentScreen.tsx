@@ -360,7 +360,10 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   const here = !summary || gone ? undefined : flow.data ? false : there;
   const status = summary && documentStatus(summary.status, summary.statusReason);
   // Only a document sorted into a flow can be sent or skipped; an inbox document is answered instead (Review Focus 1).
-  const sends = here === false && !!status?.editable;
+  // Our sample is never sent (the server refuses it too). The detail does not say so; a list row the screen already holds does.
+  const isSample = qc.getQueriesData<Partial<DocumentPage>>({ queryKey: ["documents"] })
+    .some(([, p]) => p?.items?.some?.((r) => r.id === documentId && r.isSample));
+  const sends = here === false && !!status?.editable && !isSample;
   const answered = here === true && !!summary && ((!!status?.editable && summary.statusReason !== "duplicate_file") || (summary.status === "sent" && summary.statusReason === "downloaded"));
   // The answers live here, not in their panel: a refusal outlives the panel, and Send, Skip and Review next wait on them.
   const a = useAnswers(summary, { enabled: enabled && (answered || (sends && summary?.statusReason === "check_sort")), flush: edits.flush });

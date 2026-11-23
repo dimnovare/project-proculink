@@ -17,9 +17,12 @@
  * It arrives on `order.errorMessage`, NOT on `rejectionReason`: the backend composes its own
  * failure sentence and concatenates the supplier's error page after "Response summary:". That is
  * why the sanitiser, which guarded only `rejectionReason`, never saw it.
+ *
+ * The backend's own sentence is the one it writes today (`HttpDeliveryDispatcher`, reworded from
+ * "HTTP 404: supplier endpoint returned an error." in plan 27); the page after it is verbatim.
  */
 export const PRODUCTION_404_ERROR_MESSAGE =
-  "HTTP 404: supplier endpoint returned an error. Response summary: " +
+  "The address answered with an error (HTTP 404). Response summary: " +
   "<!-- Tip: Set the Accept header to application/json to get errors in JSON format. --> " +
   "<!DOCTYPE html> <html> <head>";
 

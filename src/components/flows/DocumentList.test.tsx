@@ -73,6 +73,11 @@ describe("DocumentList", () => {
     expect(table.queryByRole("row", { name: /PO-48213\.pdf/ })).toBeNull();   // the server stopped listing it: the row goes
   });
 
+  it("never offers Send for our sample, which the server would refuse", () => {
+    render(<QueryClientProvider client={new QueryClient()}><DocumentList label="Documents: All" showFlow sendable documents={[row({ status: "ready", isSample: true })]} /></QueryClientProvider>);
+    expect(within(screen.getByRole("table", { name: "Documents: All" })).queryByRole("button", { name: /^Send/ })).toBeNull();
+  });
+
   it("says what each document is, and a downloaded one is not sent", () => {
     render(
       <QueryClientProvider client={new QueryClient()}>

@@ -223,7 +223,7 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
         </div>
         <div className="grid gap-0.5">
           <span className="text-[14px] font-semibold text-ink [overflow-wrap:anywhere]">{flow.name}</span>
-          {read && <span className="text-[13px] text-ink-muted">{keepsSummary(kept, read.fields.length)}</span>}
+          {read && <span className="text-[13px] text-ink-muted">{keepsSummary(kept, read.fields.length, flow.fields.tables.length)}</span>}
           <Link href={firstRunAddress({ step: "check", flow: flow.id, doc: id })} className={WAY_ON}>Change values</Link>
         </div>
         </div>
