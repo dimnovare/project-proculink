@@ -115,8 +115,8 @@ describe("UploadToFlow", () => {
     await waitFor(() => expect(row("invoice-2310.pdf").getByText("An invoice from Example Supplier Ltd")).toBeInTheDocument(), { timeout: 8000 });
     expect(row("invoice-2310.pdf").getByRole("link", { name: "invoice-2310.pdf" }).getAttribute("href")).toMatch(/^\/flows\/flow-1\/documents\//);
     await waitFor(() => expect(row("scan-7.pdf").getByText("A document. The first of its kind here.")).toBeInTheDocument(), { timeout: 8000 });
-    expect(row("scan-7.pdf").getByText("New kind")).toBeInTheDocument();
-    expect(row("scan-7.pdf").getByText("Open")).toBeInTheDocument();
+    expect(row("scan-7.pdf").getByText("First of its kind")).toBeInTheDocument();
+    expect(row("scan-7.pdf").getByText("Review")).toBeInTheDocument();
     expect(spy.calls.filter((c) => c === "GET /inbox")).toHaveLength(1);
     delete (window as { __mockEngine?: unknown }).__mockEngine;
   }, 20_000);

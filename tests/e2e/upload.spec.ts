@@ -76,7 +76,7 @@ test.describe("upload", () => {
     await expect(page).toHaveURL(/\/upload$/);
     // A photo of no kind we know waits in the workspace as a new kind; the invoice is sorted into Supplier invoices.
     const photoRow = panel.getByRole("listitem").filter({ hasText: /photo-\d{8}-\d{6}\.jpg/ });
-    await expect(photoRow).toContainText("New kind", { timeout: 15_000 });
+    await expect(photoRow).toContainText("First of its kind", { timeout: 15_000 });
     await expect(photoRow).toContainText("A document. The first of its kind here.");
     await expect(panel.getByRole("listitem").filter({ hasText: "invoice-2294.pdf" })).toContainText("1 value to check");
     await expect(tabBar.getByRole("link", { name: "Documents, 5 need you" })).toBeVisible({ timeout: 15_000 });

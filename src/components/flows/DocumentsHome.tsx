@@ -28,13 +28,9 @@ import { keyWord, openSearch } from "@/lib/shortcuts";
 import { DocumentList, type ListSelection } from "./DocumentList";
 import { SelectionBar, type BarReport } from "./SelectionBar";
 import { firstRunOf } from "@/lib/firstRun";
-import { CaughtUp, EmptyFilter, Quiet, Loading } from "./states";
+import { CaughtUp, EmptyFilter, Failed, Quiet, Loading } from "./states";
 import { StoppedAlert } from "./StoppedAlert";
 import { Welcome } from "./Welcome";
-
-const Retry = ({ onClick }: { onClick: () => void }) => (
-  <Button variant="secondary" size="sm" onClick={onClick}>Try again</Button>
-);
 
 export function DocumentsHome() {
   const engine = useDocumentEngine();
@@ -131,11 +127,7 @@ export function DocumentsHome() {
 
   let panel;
   if (docs.isError && !docs.data) {
-    panel = (
-      <StatusNotice tone="error" action={<Retry onClick={() => docs.refetch()} />}>
-        {documentRefusalMessage(docs.error)}
-      </StatusNotice>
-    );
+    panel = <Failed error={docs.error} retry={() => docs.refetch()} what="your documents" />;
   } else if (!tabDef || !docs.data) {
     panel = <Loading>Loading documents…</Loading>;
   } else if (docs.data.items.length === 0) {
@@ -180,19 +172,15 @@ export function DocumentsHome() {
   if (engine === "off") {
     body = <StatusNotice tone="warning">{documentRefusalMessage(flows.error)}</StatusNotice>;
   } else if (flows.isError && !flows.data) {
-    body = (
-      <StatusNotice tone="error" action={<Retry onClick={() => flows.refetch()} />}>
-        {documentRefusalMessage(flows.error)}
-      </StatusNotice>
-    );
+    body = <Failed error={flows.error} retry={() => flows.refetch()} what="your documents" />;
   } else if (engine === "unknown" || !flows.data) {
-    body = <Loading>Loading flows…</Loading>;
+    body = <Loading>Loading documents…</Loading>;
   } else {
     body = (
       <div className="flex min-w-0 flex-col gap-3">
         <StoppedAlert page={stopped.data} />
         <div className="flex items-center gap-2 border-b border-border">
-          <div role="tablist" aria-label="Show" className="flex min-w-0 flex-1 flex-wrap sm:flex-nowrap sm:overflow-x-auto">
+          <div role="tablist" aria-label="Show" className="flex min-w-0 flex-1 flex-nowrap overflow-x-auto">
             {DOCUMENT_TABS.map((t, i) => {
               const n = pageTotal(counts[i].data);
               const selected = t.id === tab;
@@ -225,19 +213,19 @@ export function DocumentsHome() {
               setPicked((p) => ({ ...p, ids: new Set([...p.ids].filter((x) => x !== id)) }));
             }} />
         ) : report && <StatusNotice tone={report.ok ? "success" : "error"}>{report.lines}</StatusNotice>}
-        {/* One line for everything older. History is not in the top bar; it is reached from here. A phone has no Ctrl key. */}
+        {/* One line for everything older. History is not in the top bar; it is reached from here. Its links keep a 44px tap height; the negative margin keeps the lines even (A-10). */}
         <p className="m-0 text-[13px] text-ink-muted">
           To download or remove several at once, press Select and tick them. Open any document to remove it from there.{" "}
-          Older documents are under Finished and All
-          {pagePopulation(anyOldOrders.data).rows > 0 && <>, and older orders under <Link href="/archive" className="inline-flex items-center font-medium text-brand-blue-deep underline">Old orders</Link></>}
+          Older documents are under All
+          {pagePopulation(anyOldOrders.data).rows > 0 && <> and <Link href="/archive" className="-my-3 inline-flex items-center font-medium text-brand-blue-deep underline">Old orders</Link></>}
           <span className="hidden md:inline">
             , or press{" "}
             <button type="button" onClick={openSearch} aria-label={`Search all documents, ${keyWord("Mod", apple)} K`}
-              className="inline-flex items-center font-medium text-brand-blue-deep underline">{`${keyWord("Mod", apple)} K`}</button>
+              className="-my-3 inline-flex items-center font-medium text-brand-blue-deep underline">{`${keyWord("Mod", apple)} K`}</button>
             {" "}to find any document
           </span>
-          . What happened to each document, and when, is in{" "}
-          <Link href="/operations/log" className="inline-flex items-center font-medium text-brand-blue-deep underline">History</Link>.
+          . What happened to each one is in{" "}
+          <Link href="/operations/log" className="-my-3 inline-flex items-center font-medium text-brand-blue-deep underline">History</Link>.
         </p>
       </div>
     );
@@ -269,10 +257,11 @@ export function DocumentsHome() {
 
 const Frame = ({ children, sub, actions }: { children: React.ReactNode; sub?: string | null; actions?: React.ReactNode }) => (
   <PageShell variant="wide">
-    <PageHeader title="Documents" sub={sub ?? "Every document that has arrived, newest first."} actions={actions} />
+    {/* The line's height is kept while its words change from the plain line to the counts, so nothing below moves. */}
+    <PageHeader title="Documents" sub={<span className="inline-block min-h-[2.9em] sm:min-h-[1.45em]">{sub ?? "Every document that has arrived, newest first."}</span>} actions={actions} />
     {children}
   </PageShell>
 );
 
 /** What the screen draws before its first answer; the route's Suspense fallback, so the first paint does not shift. */
-export const DocumentsLoading = () => <Frame><Loading>Loading flows…</Loading></Frame>;
+export const DocumentsLoading = () => <Frame><Loading>Loading documents…</Loading></Frame>;

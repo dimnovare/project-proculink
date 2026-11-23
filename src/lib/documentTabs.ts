@@ -13,7 +13,7 @@ export const BEING_READ_STATUSES: readonly string[] = where((s) => s.tone === "w
 export const DOCUMENT_TABS: readonly DocumentTabDef[] = [
   { id: "needs-you", label: "Needs you", statuses: NEEDS_YOU_STATUSES },
   { id: "sent", label: "Finished", statuses: where((s) => s.tone === "success") },
-  { id: "failed", label: "Couldn't be read or sent", statuses: where((s) => s.tone === "error") },
+  { id: "failed", label: "Problems", statuses: where((s) => s.tone === "error") },
   { id: "all", label: "All", statuses: null },
 ];
 

@@ -78,7 +78,7 @@ export const CORE_SCREENS: readonly CoreScreen[] = [
     pattern: "/documents",
     path: "/documents",
     auth: "app",
-    why: "Journey step: what needs you. The operator's home, with Needs you / Finished / Couldn't be read or sent / All tabs.",
+    why: "Journey step: what needs you. The operator's home, with Needs you / Finished / Problems / All tabs.",
   },
   {
     id: "document",

@@ -9,7 +9,7 @@ import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { INPUT } from "@/components/flows/DestinationForm";
-import { Loading } from "@/components/flows/states";
+import { Failed, Loading } from "@/components/flows/states";
 import { useAutosave } from "@/hooks/useAutosave";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { flowsQuery } from "@/hooks/useDocumentEngine";
@@ -244,37 +244,42 @@ function LookupEditor({ lookup, lookupId, usedBy }: { lookup: Lookup; lookupId: 
           </div>
           {used && (
             <p className="m-0 text-[13px] text-ink-muted">
-              {unused ? `${used} To use it, open a flow, go to We send, open a file, choose More options and pick this lookup for a column.` : used}
+              {unused && flows.data?.length ? `${used} Use it in a flow's file:` : used}
             </p>
           )}
           {unused && !!flows.data?.length && (
             <ul aria-label="Your flows" className="m-0 flex list-none flex-wrap gap-x-4 p-0">
               {flows.data.map((f) => (
-                <li key={f.id}><Link href={flowAddress(f.id, "send")} className="inline-flex min-h-[44px] items-center text-[14px] font-semibold">{f.name}</Link></li>
+                <li key={f.id}><Link href={flowAddress(f.id, "send")} className="inline-flex min-h-[44px] items-center text-[14px] font-semibold text-brand-blue underline">{f.name}</Link></li>
               ))}
             </ul>
           )}
         </div>
 
         <div className={`flex flex-wrap items-center gap-3 border-t border-border ${PAD}`}>
-          <input
-            type="search"
-            aria-label="Search rows"
-            placeholder={n === 1 ? "Search 1 row" : `Search ${n} rows`}
-            className={`${INPUT} max-w-[340px] max-sm:h-11 max-sm:text-base`}
-            value={term}
-            onChange={(e) => {
-              setTerm(e.target.value);
-              setPage(1);
-            }}
-          />
+          {/* An empty lookup has nothing to search or export. */}
+          {n > 0 && (
+            <input
+              type="search"
+              aria-label="Search rows"
+              placeholder={n === 1 ? "Search 1 row" : `Search ${n} rows`}
+              className={`${INPUT} max-w-[340px] max-sm:h-11 max-sm:text-base`}
+              value={term}
+              onChange={(e) => {
+                setTerm(e.target.value);
+                setPage(1);
+              }}
+            />
+          )}
           <Button variant="secondary" loading={replace.isPending} onClick={() => fileInput.current?.click()}>Replace from a file</Button>
-          <Button
-            variant="secondary"
-            onClick={() => saveBlob(new Blob([exportLookupCsv(savable(doc.rows).entries)], { type: "text/csv" }), `${doc.name}.csv`)}
-          >
-            Export CSV
-          </Button>
+          {n > 0 && (
+            <Button
+              variant="secondary"
+              onClick={() => saveBlob(new Blob([exportLookupCsv(savable(doc.rows).entries)], { type: "text/csv" }), `${doc.name}.csv`)}
+            >
+              Export CSV
+            </Button>
+          )}
           <input
             ref={fileInput}
             type="file"
@@ -452,7 +457,7 @@ function LookupPanel({ lookupId, usedBy }: { lookupId: string; usedBy: string[] 
   const [opened, setOpened] = useState(false);
   if (!opened && query.isSuccess && query.isFetchedAfterMount) setOpened(true);
   if (opened && query.data) return <LookupEditor lookup={query.data} lookupId={lookupId} usedBy={usedBy} />;
-  if (query.isError) return <StatusNotice tone="error">{documentRefusalMessage(query.error)}</StatusNotice>;
+  if (query.isError) return <Failed error={query.error} retry={() => query.refetch()} />;
   return <Loading>Loading lookup…</Loading>;
 }
 

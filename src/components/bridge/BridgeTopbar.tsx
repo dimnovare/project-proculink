@@ -176,11 +176,11 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
         )}
 
         {/* Upload — the pinned create action (the sidebar's PINNED_ACTION_HREF).
-            Blue = buyer/source action. Phones reach it through the tab bar's Add. */}
+            A quiet outline, so the page's own filled button is the one main action. Phones reach it through the tab bar's Add. */}
         <Link
           href={PINNED_ACTION_HREF}
           aria-label="Upload a document"
-          className="hidden h-10 shrink-0 items-center justify-center gap-2 rounded-[8px] bg-brand-blue px-[13px] text-[13px] font-semibold text-white no-underline transition-colors hover:bg-brand-blue-deep md:inline-flex"
+          className="hidden h-10 shrink-0 items-center justify-center gap-2 rounded-[8px] border border-navy-muted bg-transparent px-[13px] text-[13px] font-semibold text-white no-underline transition-colors hover:bg-navy-surface md:inline-flex"
         >
           <Upload size={15} strokeWidth={2} aria-hidden />
           <span>Upload</span>

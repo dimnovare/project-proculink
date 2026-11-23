@@ -73,33 +73,38 @@ const documentsSoFar = (n: number) => (n ? `${n} so far` : "None yet");
 
 function StepStrip({ flow, view, summaries }: { flow: Flow; view: FlowView; summaries: Record<FlowStep, string | null> }) {
   const id = useId();
-  const side = (to: "documents" | "history", text: string, extra?: number) => (
-    <FlowLink href={flowAddress(flow.id, to)} current={view === to} className={`${buttonClass("secondary", "md")} ${view === to ? "bg-surface-2" : ""}`}>
-      {text}
-      {!!extra && <span className="font-medium text-ink-muted">{extra}</span>}
-    </FlowLink>
+  // One row, one underline: the four steps, then Documents and History after a divider.
+  const tab = (on: boolean) => `flex h-full w-full flex-col justify-center gap-0.5 border-b-[3px] px-5 pb-[11px] pt-3.5 text-ink no-underline ${on ? "border-navy bg-surface-2" : "border-transparent hover:bg-surface-2"}`;
+  const side = (to: "documents" | "history", text: string) => (
+    <li className="flex flex-none border-l border-border-faint first:border-l-0">
+      <FlowLink href={flowAddress(flow.id, to)} current={view === to} className={tab(view === to)}>
+        <span className="whitespace-nowrap text-[15px] font-semibold">{text}</span>
+      </FlowLink>
+    </li>
   );
   return (
-    <nav aria-label="Flow sections" className="hidden gap-2 lg:grid">
+    <nav aria-label="Flow sections" className="hidden lg:block">
       <Card flush>
-        <ol className="m-0 flex min-w-0 list-none p-0">
-          {FLOW_STEPS.map((s) => (
-            <li key={s.id} className="flex min-w-0 flex-1 border-l border-border-faint first:border-l-0">
-              <FlowLink
-                href={flowAddress(flow.id, s.id)} current={view === s.id} label={stepTitle(s.id, flow.downloadOnly)} describedBy={summaries[s.id] ? `${id}-${s.id}` : undefined}
-                className={`flex w-full flex-col gap-0.5 border-b-[3px] px-5 pb-[11px] pt-3.5 text-ink no-underline ${view === s.id ? "border-navy bg-surface-2" : "border-transparent hover:bg-surface-2"}`}
-              >
-                <span className="flex items-center gap-2 text-[15px] font-semibold"><Badge n={s.number} />{stepTitle(s.id, flow.downloadOnly)}</span>
-                {summaries[s.id] && <span id={`${id}-${s.id}`} className="pl-8 text-[13px] text-ink-muted">{summaries[s.id]}</span>}
-              </FlowLink>
-            </li>
-          ))}
-        </ol>
+        <div className="flex min-w-0">
+          <ol className="m-0 flex min-w-0 flex-1 list-none p-0">
+            {FLOW_STEPS.map((s) => (
+              <li key={s.id} className="flex min-w-0 flex-1 border-l border-border-faint first:border-l-0">
+                <FlowLink
+                  href={flowAddress(flow.id, s.id)} current={view === s.id} label={stepTitle(s.id, flow.downloadOnly)} describedBy={summaries[s.id] ? `${id}-${s.id}` : undefined}
+                  className={tab(view === s.id)}
+                >
+                  <span className="flex items-center gap-2 text-[15px] font-semibold"><Badge n={s.number} />{stepTitle(s.id, flow.downloadOnly)}</span>
+                  {summaries[s.id] && <span id={`${id}-${s.id}`} className="pl-8 text-[13px] text-ink-muted">{summaries[s.id]}</span>}
+                </FlowLink>
+              </li>
+            ))}
+          </ol>
+          <ul className="m-0 flex list-none border-l border-border p-0">
+            {side("documents", flow.documentCount ? `Documents · ${flow.documentCount}` : "Documents")}
+            {flow.publishedVersion !== undefined && side("history", "History")}
+          </ul>
+        </div>
       </Card>
-      <div className="flex flex-wrap gap-2">
-        {side("documents", "Documents in this flow", flow.documentCount)}
-        {flow.publishedVersion !== undefined && side("history", "History of changes")}
-      </div>
     </nav>
   );
 }

@@ -199,6 +199,22 @@
   border-radius: var(--radius); /* 6px — Claude Design v2 */
   box-shadow: 0 0 0 4px rgba(30, 102, 201, 0.15); /* soft halo — Claude Design v2 focus ring */
 }
+/* No ring on a focus target that is not a control (a list, heading or notice focused by script with tabindex -1),
+   and no halo where an element sets focus-visible:outline-none. `:where` keeps these at the rule above's specificity,
+   so a `focus-visible:ring-*` utility still wins. */
+:where([tabindex="-1"]:not(a, button, input, select, textarea, summary, [role="tab"], [role="option"], [role="menuitem"], [role="row"], [role="gridcell"])):focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+:where(.focus-visible\:outline-none):focus-visible { box-shadow: none; }
+
+/* The Documents list: its table from 1000px of the list's own width (the help panel narrows it), its cards below. */
+.docs-list { container-type: inline-size; }
+.docs-table { display: none; }
+@container (min-width: 1000px) {
+  .docs-table { display: block; }
+  .docs-cards { display: none; }
+}
 
 /* On dark navy chrome (topbar, sidebar) use a lighter blue ring.
    Scoped to the explicit navy-chrome classes only — the bare `aside` /

@@ -64,7 +64,7 @@ export function flowsUse(used: number, flowLimit: number | null): Use {
   if (flowLimit == null) return { label: "Flows", used, limit: null, sub: "Your plan has no limit on flows.", barLabel: null };
   const room = flowLimit - used;
   const sub = room > 0 ? `Room for ${count(room)} more flow${room === 1 ? "" : "s"}.` : "No room for more flows on this plan.";
-  return { label: "Flows", used, limit: flowLimit, sub, barLabel: `${count(used)} of ${count(flowLimit)} flows used` };
+  return { label: "Flows", used, limit: flowLimit, sub, barLabel: `${count(used)} of ${count(flowLimit)} flows used`, warn: room <= 0 };
 }
 
 export interface PlanRow { plan: Plan; state: "current" | "upgrade" | "lower" }

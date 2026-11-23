@@ -5,7 +5,7 @@
  * a secret typed under any other key must never be read back. A URL keeps only its host: a webhook
  * address often carries its secret in the path. A kind this build does not know prints its protocol word.
  */
-import type { Destination, DestinationLastSend } from "./api/documents";
+import type { Destination, DestinationLastSend, DestinationUse } from "./api/documents";
 import { DATE_LOCALE } from "./format-date";
 
 const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
@@ -62,7 +62,9 @@ export function lastSendWords(last: DestinationLastSend | null, now: Date): { te
   return { text, tone: words ? (last.ok ? "ok" : "failed") : "never" };
 }
 
-export const usedByWords = (n: number) => (n === 0 ? "Not used" : n === 1 ? "1 file" : `${n} files`);
+/** "Not used", or each file that sends here: "Supplier invoices (Invoice CSV), Delivery notes (Notes PDF)". */
+export const usedByWords = (uses: DestinationUse[]) =>
+  uses.length ? uses.map((u) => `${u.flowName} (${u.outputName})`).join(", ") : "Not used";
 
 /** "/settings?tab=destinations", and "&open=<id>" when one is open ("new" for the new-destination form). */
 export const destinationsAddress = (open?: string) =>

@@ -161,7 +161,8 @@ describe("the plan card never reads a database word back to the customer", () =>
     // The old code rendered exactly this string. Stated as its own claim so the failure
     // message names the defect rather than a diff between two phrases.
     expect(statusLineText()).not.toBe("trialing");
-    expect(statusLineText()).toBe(accountStatusLabel("trialing"));
+    // B-24: a trial draws no tag at all; its price line already says the days left.
+    expect(statusLineText()).toBeNull();
     expect(planCard().textContent).not.toContain("trialing");
   });
 
@@ -176,7 +177,7 @@ describe("the plan card never reads a database word back to the customer", () =>
 
   it("every_processing_status_renders_its_derived_phrase_and_not_its_token", async () => {
     // The walk, so a status added to the map later cannot quietly regress.
-    for (const status of PROCESSING_STATUSES) {
+    for (const status of PROCESSING_STATUSES.filter((s) => s !== "trialing")) {
       cleanup();
       await renderBilling(billing({ plan: "growth", accountStatus: status }));
 

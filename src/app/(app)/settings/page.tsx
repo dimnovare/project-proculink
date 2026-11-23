@@ -67,6 +67,8 @@ function SettingsScreen() {
           <UserChipMenu collapsed placement="down" onLight />
         </div>}
       />
+      {/* The tab rule and every tab's content share one width. */}
+      <div className="w-full max-w-[1230px]">
       <nav aria-label="Settings sections" className="mb-5 flex gap-1 overflow-x-auto shadow-[inset_0_-1px_0_var(--border)]">
         {SETTINGS_TABS.map((t) => {
           const on = tab === t.id;
@@ -88,6 +90,7 @@ function SettingsScreen() {
       {tab === "org"          && <OrgSection developersOpen={developers} />}
       {tab === "destinations" && <DestinationsSection />}
       {tab === "billing"      && <BillingSection />}
+      </div>
     </PageShell>
   );
 }
@@ -213,16 +216,18 @@ function OrgSection({ developersOpen }: { developersOpen: boolean }) {
           </SettingsPanel>
         )}
         <NotificationEmailSection />
-        <details open={developers} onToggle={(e) => setDevelopers(e.currentTarget.open)} className="grid gap-4">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-card border border-border bg-surface px-6 py-3 max-[560px]:px-4 [&::-webkit-details-marker]:hidden">
+        <Card flush radius={12}>
+        <details open={developers} onToggle={(e) => setDevelopers(e.currentTarget.open)}>
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 px-6 py-3 max-[560px]:px-4 [&::-webkit-details-marker]:hidden">
             <ChevronRight size={16} aria-hidden data-disclosure-chevron />
             <span className="grid gap-0.5">
               <span className="text-[14px] font-semibold text-ink">For developers</span>
               <span className="text-[13px] text-ink-muted">API keys, for connecting another system to this workspace.</span>
             </span>
           </summary>
-          {developers && <div className="mt-4"><ApiKeysSection /></div>}
+          {developers && <ApiKeysSection />}
         </details>
+        </Card>
       </div>
       <div className="flex min-w-0 max-w-[412px] flex-[1_1_280px] flex-col gap-4">
         <SettingsPanel as="aside" id="s-about" title="About this workspace">
@@ -232,7 +237,7 @@ function OrgSection({ developersOpen }: { developersOpen: boolean }) {
                 <dt className="text-[13px] text-ink-muted">Plan</dt>
                 <dd className="m-0 flex flex-wrap items-center justify-between gap-x-3">
                   <span className="font-semibold text-ink">{planName(billing.plan)}</span>
-                  <Link href={settingsAddress("billing")} className="inline-flex min-h-[40px] items-center font-semibold">See plan and billing</Link>
+                  <Link href={settingsAddress("billing")} className="inline-flex min-h-[40px] items-center font-semibold text-brand-blue underline">See plan and billing</Link>
                 </dd>
               </div>
             )}
@@ -454,12 +459,12 @@ function ApiKeysSection() {
     );
 
   return (
-    <SettingsPanel
-      id="api-keys"
-      title="API keys"
-      sub="A key lets another system send files to your flows and fetch results. You see a key once, when you create it."
-      className="max-w-[960px]"
-    >
+    // Inside the For developers card, under a hairline: one card, not two.
+    <section aria-labelledby="api-keys" className="flex flex-col gap-4 border-t border-border p-6 max-[560px]:px-4 max-[560px]:py-5">
+      <div className="flex flex-col gap-0.5">
+        <h2 id="api-keys" className="m-0 text-[16px] font-semibold leading-[1.3] text-ink">API keys</h2>
+        <p className="m-0 text-[14px] text-ink-muted">You see a key once, when you create it.</p>
+      </div>
       {/* One-time reveal: a focus-trapped dialog; every way of closing it forgets the key. */}
       <Dialog open={!!newKey} onOpenChange={(open) => { if (!open) closeKey(); }}>
         <DialogContent className="sm:max-w-md">
@@ -525,6 +530,6 @@ function ApiKeysSection() {
           </div>
         )
       )}
-    </SettingsPanel>
+    </section>
   );
 }

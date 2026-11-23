@@ -3,7 +3,6 @@ import { act, render, screen, fireEvent, waitFor, within } from "@testing-librar
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import { buttonClass } from "@/components/bridge/DSPrimitives";
-import { OPEN_SEARCH_EVENT } from "@/lib/shortcuts";
 import { DocumentsHome } from "./DocumentsHome";
 import { UploadQueueProvider } from "./UploadQueue";
 
@@ -73,12 +72,15 @@ describe("DocumentsHome", () => {
     answers({});
     listFlows.mockReturnValue(new Promise(() => {}));
     const loading = mount();
-    expect(await screen.findByText("Loading flows…")).toBeInTheDocument();
+    expect(await screen.findByText("Loading documents…")).toBeInTheDocument();
     expect(welcome()).toBeNull();
     loading.unmount();
     listFlows.mockRejectedValue(new ApiHttpError("down", 500, null));
     const failed = mount();
     expect(await screen.findByRole("button", { name: "Try again" }, { timeout: 10_000 })).toBeInTheDocument();
+    // The one error block: what failed, then what to do.
+    expect(screen.getByRole("heading", { name: "We couldn't load your documents." })).toBeInTheDocument();
+    expect(screen.getByText("Nothing is lost. Check your connection and try again.")).toBeInTheDocument();
     expect(welcome()).toBeNull();
     failed.unmount();
     listFlows.mockResolvedValue([]);
@@ -99,7 +101,7 @@ describe("DocumentsHome", () => {
     // and while its page is out the panel holds none of the previous tab's rows.
     search.q = "show=failed";
     first.again();
-    expect(screen.getByRole("tab", { name: "Couldn't be read or sent" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Problems" })).toHaveAttribute("aria-selected", "true");
     const panel = within(screen.getByRole("tabpanel"));
     expect(panel.getByText("Loading documents…")).toBeInTheDocument();
     expect(panel.queryAllByText("doc-0.pdf")).toHaveLength(0);
@@ -115,7 +117,7 @@ describe("DocumentsHome", () => {
     answers({ sent: 120, needs: new Error("down") });
     const first = mount();
     expect(await screen.findByRole("tab", { name: "Finished 120" })).toHaveAttribute("aria-selected", "true");
-    expect(await screen.findByRole("tab", { name: "Couldn't be read or sent 0" })).toBeInTheDocument(); // a known zero
+    expect(await screen.findByRole("tab", { name: "Problems 0" })).toBeInTheDocument(); // a known zero
     expect(screen.getByRole("tab", { name: "Needs you" })).toBeInTheDocument(); // unknown: no number, not 0
     expect(await screen.findByText("Documents 1 to 50 of 120")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Next" })).toHaveAttribute("href", "/documents?show=sent&page=2");
@@ -125,7 +127,7 @@ describe("DocumentsHome", () => {
     answers({ sent: 120, rows: [], failed: "pending" });
     mount();
     expect(await screen.findByText("There is nothing on this page.")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Couldn't be read or sent" })).toBeInTheDocument(); // still out: no number, not 0
+    expect(screen.getByRole("tab", { name: "Problems" })).toBeInTheDocument(); // still out: no number, not 0
     expect(screen.getByRole("link", { name: "First page" })).toHaveAttribute("href", "/documents?show=sent");
   });
 
@@ -296,27 +298,21 @@ describe("DocumentsHome", () => {
     expect(sendDocument).toHaveBeenCalledTimes(2);
   });
 
-  it("the footer is one line: older documents, search, History, and Old orders only when there are old orders", async () => {
+  it("the footer is one line: older documents and History, and Old orders only when there are old orders", async () => {
     answers({ needs: 0, rows: [row(1)] });
-    const spy = vi.spyOn(window, "dispatchEvent");
     const first = mount();
-    // The Ctrl K part is hidden under 768px (a span); jsdom has no widths, so textContent includes it.
     const line = (await screen.findByRole("link", { name: "History" })).closest("p")!;
-    expect(line.textContent).toBe("To download or remove several at once, press Select and tick them. Open any document to remove it from there. Older documents are under Finished and All, or press Ctrl K to find any document. What happened to each document, and when, is in History.");
+    expect(line.textContent).toBe("To download or remove several at once, press Select and tick them. Open any document to remove it from there. Older documents are under All, or press Ctrl K to find any document. What happened to each one is in History.");
     expect(within(line).getByRole("link", { name: "History" })).toHaveAttribute("href", "/operations/log");
-    fireEvent.click(within(line).getByRole("button", { name: /^Search all documents, Ctrl K$/ }));
-    expect(spy.mock.calls.map(([e]) => e.type)).toContain(OPEN_SEARCH_EVENT);
     first.unmount();
-    spy.mockRestore();
     getOrders.mockResolvedValue({ items: [{}], totalCount: 1, page: 1, pageSize: 1, sampleCount: 0 });
     mount();
     const old = await screen.findByRole("link", { name: "Old orders" });
     expect(old).toHaveAttribute("href", "/archive");
     expect(old.closest("p")!.textContent).toBe(
-      "To download or remove several at once, press Select and tick them. Open any document to remove it from there. Older documents are under Finished and All, and older orders under Old orders, or press Ctrl K to find any document. What happened to each document, and when, is in History.",
+      "To download or remove several at once, press Select and tick them. Open any document to remove it from there. Older documents are under All and Old orders, or press Ctrl K to find any document. What happened to each one is in History.",
     );
   });
-
   it("says flows are off on the engine refusal", async () => {
     listFlows.mockRejectedValue(new ApiHttpError("no", 403, { error: "document_engine_not_enabled" }));
     mount();

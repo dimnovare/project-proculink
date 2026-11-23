@@ -31,6 +31,8 @@ describe("screen help", () => {
 
   it("finds the screen's help by pattern, and nothing for an address it does not know", () => {
     expect(matchGuide("/documents")?.screen).toBe("Documents");
+    // The help names the tabs the screen draws.
+    expect(matchGuide("/documents")?.tasks[2].line).toBe("Look under Finished or All, or search by name or number.");
     expect(matchGuide("/flows/new")?.screen).toBe("New flow");
     expect(matchGuide("/flows/f-1")?.screen).toBe("A flow");
     expect(matchGuide("/flows/f-1/documents/d-9?x=1#y")?.screen).toBe("A document");

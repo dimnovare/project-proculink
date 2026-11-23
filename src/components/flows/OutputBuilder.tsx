@@ -61,13 +61,17 @@ export function StandardList({ flow, kind, onUse, busyId, pickedId }: {
   const fit = kindGroup(kind);
   const other = fit ? fams[fit === "invoices" ? "orders" : "invoices"] : [];
   const twins = fams.invoices.flatMap((f) => (f.creditNote ? [f.creditNote] : []));
-  const row = (id: string, line: string | null, name?: string, invoice = false) => {
+  // The version follows the name in muted text, so it never takes the description's line.
+  const row = (id: string, line: string | null, name?: string, invoice = false, version: string | null = null) => {
     const s = OFFERED.find((x) => x.id === id)!;
     name ??= s.name;
     return (
       <div key={id} className="flex items-center justify-between gap-3">
         <div className="grid">
-          <span className="text-[14px] font-semibold text-ink">{name}{invoice && <span className="text-[13px] font-normal text-ink-muted"> invoice</span>}</span>
+          <span className="text-[14px] font-semibold text-ink">
+            {name}{invoice && <span className="text-[13px] font-normal text-ink-muted"> invoice</span>}
+            {version && <span className="text-[13px] font-normal text-ink-muted"> {version}</span>}
+          </span>
           {line && <span className="text-[13px] text-ink-muted">{line}</span>}
         </div>
         <Button size="sm" variant="secondary" aria-label={`Use ${name}`} data-standard={id} disabled={busyId !== null}
@@ -79,10 +83,10 @@ export function StandardList({ flow, kind, onUse, busyId, pickedId }: {
   // The credit-note versions belong to the invoice families: in an orders flow they sit with them, inside "Other standards".
   const credit = twins.length > 0 && (
     <Fold label={`Credit note versions (${twins.length})`} line={twins.length === 1 ? "Its credit note version." : `The same ${WORDS[twins.length] ?? twins.length}, for credit notes.`}>
-      {twins.map((id) => row(id, OFFERED.find((s) => s.id === id)?.version ?? null))}
+      {twins.map((id) => row(id, null, undefined, false, OFFERED.find((s) => s.id === id)?.version ?? null))}
     </Fold>
   );
-  const famRows = (list: typeof fams.invoices) => list.map((f) => row(f.id, f.description ?? f.version, f.name, fams.invoices.includes(f)));
+  const famRows = (list: typeof fams.invoices) => list.map((f) => row(f.id, f.description ?? null, f.name, fams.invoices.includes(f), f.version ?? null));
   return (
     <>
       {fit ? fams[fit].length > 0 && (

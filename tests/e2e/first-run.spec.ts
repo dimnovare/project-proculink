@@ -29,16 +29,15 @@ async function serverFold(page: Page) {
   const common = ["send-tile-download", "send-tile-email", "send-tile-google_drive", "send-tile-google_sheets"];
   expect(await ids(), "the common places, in order, and no server kind yet").toEqual(common);
   const fold = page.getByRole("button", { name: FOLD });
-  await expect(fold).toHaveAttribute("aria-expanded", "false");
   const [g, f] = [(await group.boundingBox())!, (await fold.boundingBox())!];
   expect(f.y, "the fold sits below the tiles").toBeGreaterThanOrEqual(g.y + g.height - 0.5);
   await fold.click();
-  await expect(fold).toHaveAttribute("aria-expanded", "true");
+  // Replaced in place by its three kinds, in one row.
+  await expect(fold).toHaveCount(0);
   expect(await ids()).toEqual([...common, "send-tile-server", "send-tile-s3", "send-tile-http"]);
   await expect(page.getByTestId("send-tile-server")).toBeFocused();
-  await fold.click();
-  await expect(fold).toBeFocused();
-  expect(await ids()).toEqual(common);
+  const tops = await Promise.all(["server", "s3", "http"].map(async (t) => Math.round((await page.getByTestId(`send-tile-${t}`).boundingBox())!.y)));
+  expect(new Set(tops).size, "the three server kinds share one row").toBe(1);
 }
 const DOWNLOAD_LINE ="Press Finish and we make your first file. You will find it in Documents, ready to download.";
 const pdf = (name: string) => ({ name, mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n% invented test file\n") });
@@ -421,7 +420,8 @@ async function googleAndAFailedTest(browser: Browser) {
   await expect(page.getByRole("radio", { name: /^Google Sheets/ })).toBeVisible();
   await serverFold(page);
 
-  await pickServer(page);
+  // The fold is already replaced by its three kinds: pick SFTP or FTPS directly.
+  await page.getByTestId("send-tile-server").click();
   const flow = (await mockState(page))!.flows[0];
   const server = destinationNameFor("sftp", flow.name);
   await page.getByLabel("Server", { exact: true }).fill("sftp.example.test");

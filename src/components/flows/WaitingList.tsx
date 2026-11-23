@@ -39,7 +39,7 @@ export function WaitingList({ queue, currentId, off = false }: { queue: Document
               {to(documentHref(d), `grid gap-0.5 rounded-md px-2.5 py-2 no-underline ${here ? "bg-brand-blue-soft" : "hover:bg-surface-2"}`, <>
                 <span className="truncate text-[13px] font-semibold text-ink">{d.fileName}</span>
                 <span title={line} className="truncate text-[12.5px] text-ink-muted">{line}</span>
-                <span className="min-w-0 [&>*]:max-w-full [&>*]:truncate"><Pill tone={need.tone}>{need.text}</Pill></span>
+                <span className="flex min-w-0"><Pill tone={need.tone} title={need.text}>{need.text}</Pill></span>
               </>, true, here)}
             </li>
           );

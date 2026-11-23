@@ -73,13 +73,15 @@ describe("FlowPage", () => {
     expect(within(down.container).queryByText("We can't find that page")).toBeNull();
   });
 
-  it("says what the flow does, and puts Documents and History under the four steps", async () => {
+  it("says what the flow does, and puts Documents and History in the same row as the four steps (B-10)", async () => {
     api.listFlows.mockResolvedValue([{ ...flow, summary: { needsYou: 0, couldNotSend: 0, couldNotRead: 0, lastDocumentAt: null, waysIn: ["email"], outputs: [{ name: "Invoices CSV", format: "csv", standard: null, destination: null }] } }]);
     renderPage();
     expect(await screen.findByText("Reads documents from email and upload. You download Invoices CSV.")).toBeInTheDocument();
-    expect(strip().getAllByRole("listitem")).toHaveLength(4);
-    expect(strip().getByRole("link", { name: /^Documents in this flow/ })).toBeInTheDocument();
-    expect(strip().getByRole("link", { name: "History of changes" })).toBeInTheDocument();
+    const [steps, rest] = strip().getAllByRole("list");
+    expect(within(steps).getAllByRole("listitem")).toHaveLength(4);
+    expect(within(rest).getByRole("link", { name: /^Documents/ })).toHaveAttribute("aria-current", "page");
+    expect(within(rest).getByRole("link", { name: "History" })).toBeInTheDocument();
+    expect(strip().queryByRole("link", { name: "Documents in this flow" })).toBeNull();
   });
 
   it("an unconfirmed flow asks for its values above the phone's step list, with a button (B-11)", async () => {
@@ -107,7 +109,7 @@ describe("FlowPage", () => {
     const read = (await findStrip()).getByRole("link", { name: "We read" });
     expect(read).toHaveAttribute("aria-current", "page");
     expect(read).toHaveAccessibleDescription("6 values and 1 table");
-    expect(within(strip().getByRole("link", { name: /^Documents/ })).getByText("3")).toBeTruthy();
+    expect(strip().getByRole("link", { name: /^Documents/ })).toHaveTextContent("Documents · 3");
     expect(strip().getAllByRole("link").filter((l) => l.getAttribute("aria-current") === "page")).toEqual([read]);
   });
 

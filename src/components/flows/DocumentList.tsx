@@ -79,8 +79,8 @@ function Row({ d, showFlow, sendable, columns, onSent, onRemoved, selection }: {
         {d.number && <div className="truncate font-mono text-[12.5px] text-ink-muted">{d.number}</div>}
       </div>
       {showFlow && <div role="cell" className="min-w-0 truncate text-[13px] text-ink-muted">{d.flowName}</div>}
-      <div role="cell" aria-live="polite" className="min-w-0">
-        <Pill tone={need.tone}>{need.text}</Pill>
+      <div role="cell" aria-live="polite" className="flex min-w-0">
+        <Pill tone={need.tone} title={need.text}>{need.text}</Pill>
       </div>
       <div role="cell"><StatusJourney stage={documentStatus(d.status, d.statusReason).stage} compact /></div>
       <div role="cell" className="text-[13px] text-ink-muted">{received(d)}</div>
@@ -122,12 +122,13 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
   const drawn = documents.filter((d) => !removed.has(d.id)).map((d) => (sent[d.id] && d.status === "ready" ? sent[d.id] : d)).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
   // Every row ticks: the bar sends only what a row would send (an inbox one is answered on its own screen), removes
   // only what the server allows, and downloads the original, which every document has.
-  const columns = `${selection ? "44px " : ""}minmax(0,2fr) ${showFlow ? "minmax(0,1fr) " : ""}minmax(0,1.4fr) 104px 96px minmax(132px,auto)`;
+  const columns = `${selection ? "44px " : ""}minmax(0,2fr) ${showFlow ? "minmax(0,1fr) " : ""}minmax(0,1.4fr) 104px 96px 232px`; // one fixed last column, so every row lines up
 
   return (
-    <>
+    // The table from 1000px of the list's own width (the help panel narrows it), cards below: `.docs-list` in globals.css.
+    <div className="docs-list">
       <p role="status" className="m-0 px-3 py-2 text-[13px] text-ink-muted empty:hidden">{removedNote}</p>
-      <div ref={table} tabIndex={-1} role="table" aria-label={label} className="hidden outline-none lg:block">
+      <div ref={table} tabIndex={-1} role="table" aria-label={label} className="docs-table outline-none">
         <div role="row" className="grid gap-3 px-3 py-2 text-[12.5px] font-medium text-ink-muted" style={{ gridTemplateColumns: columns }}>
           {selection && (
             <div role="columnheader">
@@ -151,7 +152,7 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
           <Row key={d.id} d={d} showFlow={showFlow} sendable={sendable} columns={columns} selection={selection} onRemoved={onRemoved} onSent={(s) => setSent((m) => ({ ...m, [s.id]: s }))} />
         ))}
       </div>
-      <ul ref={phoneList} tabIndex={-1} data-testid="documents-phone-list" aria-label={label} className="m-0 list-none p-0 outline-none lg:hidden">
+      <ul ref={phoneList} tabIndex={-1} data-testid="documents-phone-list" aria-label={label} className="docs-cards m-0 list-none p-0 outline-none">
         {drawn.map((d) => {
           const need = rowNeed(d);
           // R17: one second line, what it is when known, otherwise where it is.
@@ -197,6 +198,6 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
           );
         })}
       </ul>
-    </>
+    </div>
   );
 }

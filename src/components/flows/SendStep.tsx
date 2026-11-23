@@ -183,30 +183,22 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
   const group = useRef<HTMLDivElement>(null);
   const newTiles = (list: typeof TILES) =>
     list.map((t) => ({ id: t.tile, title: t.title, sub: t.sub, checked: tile?.tile === t.tile, pick: () => pick({ kind: "new", tile: t.tile }) }));
-  const options = [
+  const common = [
     { id: "download", title: "Download", sub: "No setup needed", checked: choice.kind === "download", pick: () => pick({ kind: "download" }) },
     ...newTiles(TILES.filter((t) => !t.server && (google || !t.google))),
     ...(destinations.data?.length ? [{
       id: "existing", title: "Already set up", sub: "A place you saved before", checked: choice.kind === "existing",
       pick: () => pick({ kind: "existing", destinationId: choice.kind === "existing" ? choice.destinationId : destinations.data[0].id }),
     }] : []),
-    ...(servers ? newTiles(TILES.filter((t) => t.server)) : []),
   ];
-  // The fold stays open while one of its kinds is the choice: closing it would drop a destination just saved and tested.
-  const toggleServers = () => { moved.current = true; setServerOpen(!servers); };
-  const foldWords = (
-    <>
-      <span className="text-[14px] font-semibold text-ink">A server or another system</span>
-      <span className="text-[12.5px] text-ink-muted">SFTP, S3 or a web address</span>
-    </>
-  );
-  // Opening moves focus to the first server tile; closing returns it to the fold's button.
-  const fold = useRef<HTMLButtonElement>(null);
+  const serverTiles = servers ? newTiles(TILES.filter((t) => t.server)) : [];
+  const options = [...common, ...serverTiles];
+  // A-26: the fold is replaced, in place, by its three kinds in one row; it does not come back, so nothing just set up is dropped.
   const moved = useRef(false);
   useEffect(() => {
     if (!moved.current) return;
     moved.current = false;
-    (servers ? group.current?.querySelector<HTMLButtonElement>("[data-testid=send-tile-server]") : fold.current)?.focus();
+    group.current?.querySelector<HTMLButtonElement>("[data-testid=send-tile-server]")?.focus();
   }, [servers]);
   if (notFound(doc.error)) return <Gone text={COPY.document_not_found} />;
   const refused = send.error ?? finish.error ?? sample.error;
@@ -231,22 +223,29 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
 
       <section aria-labelledby="send-where" className="grid gap-3">
         <h2 id="send-where" className="m-0 text-[18px] font-semibold text-ink">Where should the file go?</h2>
-        <div ref={group} role="radiogroup" aria-labelledby="send-where" className="grid grid-cols-[repeat(auto-fill,minmax(min(200px,100%),1fr))] gap-2">
-          {options.map((o, i) => (
-            <Tile key={o.id} id={o.id} title={o.title} sub={o.sub} checked={o.checked} stop={o.checked || (i === 0 && !options.some((x) => x.checked))} onPick={o.pick} onKeyDown={(e) => {
-              const to = nextTabIndex(e.key, i, options.length);
-              if (to === undefined) return;
-              e.preventDefault();
-              options[to].pick();
-              group.current?.querySelectorAll<HTMLButtonElement>("[role=radio]")[to]?.focus();
-            }} />
+        <div ref={group} role="radiogroup" aria-labelledby="send-where" className="grid gap-2">
+          {[common, serverTiles].map((row, r) => row.length > 0 && (
+            <div key={r} className={r ? "grid gap-2 sm:grid-cols-3" : "grid grid-cols-[repeat(auto-fill,minmax(min(200px,100%),1fr))] gap-2"}>
+              {row.map((o, j) => {
+                const i = r ? common.length + j : j;
+                return (
+                  <Tile key={o.id} id={o.id} title={o.title} sub={o.sub} checked={o.checked} stop={o.checked || (i === 0 && !options.some((x) => x.checked))} onPick={o.pick} onKeyDown={(e) => {
+                    const to = nextTabIndex(e.key, i, options.length);
+                    if (to === undefined) return;
+                    e.preventDefault();
+                    options[to].pick();
+                    group.current?.querySelectorAll<HTMLButtonElement>("[role=radio]")[to]?.focus();
+                  }} />
+                );
+              })}
+            </div>
           ))}
         </div>
-        {/* While one of its kinds is the choice the fold cannot close, so it is a label, not a button. */}
-        {tile?.server ? (
-          <div className={FOLD}>{foldWords}</div>
-        ) : (
-          <button ref={fold} type="button" aria-expanded={servers} onClick={toggleServers} className={FOLD}>{foldWords}</button>
+        {!servers && (
+          <button type="button" onClick={() => { moved.current = true; setServerOpen(true); }} className={FOLD}>
+            <span className="text-[14px] font-semibold text-ink">A server or another system</span>
+            <span className="text-[12.5px] text-ink-muted">SFTP, S3 or a web address</span>
+          </button>
         )}
         {choice.kind === "download" && <p className="m-0 text-[14px] text-ink-muted">Nothing to set up. Each file waits in Documents, ready to download.</p>}
         {/* Rows stay through a failed refresh: only a list that never answered is replaced. */}
@@ -260,14 +259,9 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
             </Field>
           </div>
         )}
-        {tile && (
-          <DestinationForm
-            key={tile.tile} inline testAfterSave onSaved={(d) => { setSaved(d); setTested(null); }} onCancel={() => pick({ kind: "download" })}
-            chosen={{ protocols: tile.protocols, name: destinationNameFor(tile.protocols[0], flow.name), onTested: setTested, outlined: state !== "not-ready" }}
-          />
-        )}
       </section>
 
+      {/* A-26: which documents wait is asked before the destination's own form, so its test leads straight into Send. */}
       <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" disabled={mode.isPending}>
         <legend className="mb-1 text-[14px] font-semibold text-ink">Which documents wait for you</legend>
         {CHECK_MODES.map(({ id: value, title }) => (
@@ -279,6 +273,13 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
         <p className="m-0 text-[13px] text-ink-muted">You can change this later.</p>
         {mode.isError && <StatusNotice tone="error">{documentRefusalMessage(mode.error)}</StatusNotice>}
       </fieldset>
+
+      {tile && (
+        <DestinationForm
+          key={tile.tile} inline testAfterSave onSaved={(d) => { setSaved(d); setTested(null); }} onCancel={() => pick({ kind: "download" })}
+          chosen={{ protocols: tile.protocols, name: destinationNameFor(tile.protocols[0], flow.name), onTested: setTested, outlined: state !== "not-ready" }}
+        />
+      )}
 
       <section aria-label="Finish" className="sticky bottom-0 grid gap-2 border-t border-border bg-bg py-3">
         {outputs.isError && !outputs.data ? (

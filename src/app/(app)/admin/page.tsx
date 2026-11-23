@@ -54,8 +54,11 @@ import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
-import { Button } from "@/components/bridge/DSPrimitives";
+import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Loading } from "@/components/bridge/LogoLoader";
+
+const DANGER_ITEM = "text-danger-text focus:text-danger-text";
 
 // Stripe dashboard base URL. Defaults to live mode at go-live.
 // Set NEXT_PUBLIC_STRIPE_DASHBOARD_BASE=https://dashboard.stripe.com/test to
@@ -475,24 +478,24 @@ export default function AdminPage() {
                           <Button variant="secondary" size="sm" onClick={() => setLimitsOrg(org)}>
                             Adjust limits
                           </Button>
-                          <Button variant="secondary" size="sm" onClick={() => setRetentionOrg(org)}>
-                            Retention
-                          </Button>
-                          {/* Offered ONLY where the server would accept it. See
-                              canUnfreeze() — the endpoint 400s on four separate
-                              branches, and a button that usually refuses is how
-                              an operator learns to stop trusting this screen. */}
-                          {canUnfreeze(org) && (
-                            <Button variant="secondary" size="sm" onClick={() => setUnfreezeOrg(org)}>
-                              Unfreeze
-                            </Button>
-                          )}
-                          <Button variant="secondary" size="sm" onClick={() => openErase(org.id)}>
-                            Erase workspace
-                          </Button>
-                          <Button variant="secondary" size="sm" onClick={() => openDocs(org.id)}>
-                            Delete documents
-                          </Button>
+                          {/* One "More" menu keeps the row narrow; the two that destroy data sit last, in red. */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger className={buttonClass("secondary", "sm")} aria-label={`More actions for ${org.name}`}>
+                              More
+                              <ChevronDown size={14} aria-hidden />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onSelect={() => setRetentionOrg(org)}>Retention</DropdownMenuItem>
+                              {/* Offered ONLY where the server would accept it. See
+                                  canUnfreeze() — the endpoint 400s on four separate
+                                  branches, and a button that usually refuses is how
+                                  an operator learns to stop trusting this screen. */}
+                              {canUnfreeze(org) && <DropdownMenuItem onSelect={() => setUnfreezeOrg(org)}>Unfreeze</DropdownMenuItem>}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className={DANGER_ITEM} onSelect={() => openErase(org.id)}>Erase workspace…</DropdownMenuItem>
+                              <DropdownMenuItem className={DANGER_ITEM} onSelect={() => openDocs(org.id)}>Delete documents…</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </td>
                     </tr>
@@ -550,12 +553,6 @@ export default function AdminPage() {
                         Unfreeze
                       </Button>
                     )}
-                    <Button variant="secondary" size="sm" onClick={() => openErase(org.id)}>
-                      Erase workspace
-                    </Button>
-                    <Button variant="secondary" size="sm" onClick={() => openDocs(org.id)}>
-                      Delete documents
-                    </Button>
                     {org.stripeCustomerId && (
                       <a
                         href={`${STRIPE_CUSTOMER_BASE}${org.stripeCustomerId}`}
@@ -568,6 +565,15 @@ export default function AdminPage() {
                         <ExternalLink size={12} strokeWidth={2} aria-hidden />
                       </a>
                     )}
+                  </div>
+                  {/* The two that destroy data, on their own line and in red, so they never read as harmless. */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                    <Button variant="secondary" size="sm" className="text-danger-text" onClick={() => openErase(org.id)}>
+                      Erase workspace…
+                    </Button>
+                    <Button variant="secondary" size="sm" className="text-danger-text" onClick={() => openDocs(org.id)}>
+                      Delete documents…
+                    </Button>
                   </div>
                   {eraseOrgId === org.id && <EraseWorkspacePanel org={org} onClose={closeErase} />}
                   {docsOrgId === org.id && <EraseDocumentsPanel org={org} onClose={closeErase} />}

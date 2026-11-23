@@ -127,6 +127,18 @@ describe("DocumentScreen", () => {
     await waitFor(() => expect(api.retryDocumentRead).toHaveBeenCalledWith("d"));
   });
 
+  it("a held copy with values read says it is already here once, not again under the values", async () => {
+    const dup = detail("INV-1");
+    api.getDocument.mockResolvedValue({
+      ...dup, summary: { ...dup.summary, statusReason: "duplicate_file", failedChecks: 1 },
+      checks: [{ code: "duplicate", passed: false, fieldKey: null, message: "This file is already in your workspace." }],
+    });
+    renderScreen();
+    expect(await screen.findAllByText("This file is already in your workspace.")).toHaveLength(1);
+    // History is a text link with an icon, not a floating ghost button.
+    expect(screen.getByRole("button", { name: "History" }).className).toContain("text-brand-blue");
+  });
+
   it("says why the first document from an email address waits", async () => {
     api.getDocument.mockResolvedValue(withValues([["invoice_no", "INV-1", 0.99, false]],
       [{ code: "new_sender", passed: false, fieldKey: null, message: "First document from this email address. Check it before sending." }]));
@@ -218,7 +230,7 @@ describe("DocumentScreen", () => {
     const invalidate = vi.spyOn(qc, "invalidateQueries");
     renderScreen(qc);
     const header = within(await screen.findByTestId("review-header-actions"));
-    expect(header.getByText("2 of 3 that need you")).toBeInTheDocument();
+    expect(header.getByText("Document 2 of 3")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Invoice number"), { target: { value: "INV-2" } });
     const send = header.getByRole("button", { name: "Send and open next" });
     fireEvent.click(send);
@@ -338,7 +350,7 @@ describe("DocumentScreen", () => {
     api.sendDocument.mockResolvedValue([]);
     renderScreen(new QueryClient({ defaultOptions: { queries: { retry: false } } }));
     const header = within(await screen.findByTestId("review-header-actions"));
-    await header.findByText("2 of 3 that need you");
+    await header.findByText("Document 2 of 3");
     api.listDocumentPage.mockRejectedValue(new Error("offline"));
     fireEvent.click(header.getByRole("button", { name: "Send and open next" }));
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/documents?show=needs-you"));
@@ -382,7 +394,7 @@ describe("DocumentScreen", () => {
     api.sendDocument.mockImplementation(async () => { order.push("send"); return []; });
     renderScreen();
     const header = within(await screen.findByTestId("review-header-actions"));
-    await waitFor(() => expect(header.getByText("2 of 3 that need you")).toBeInTheDocument());
+    await waitFor(() => expect(header.getByText("Document 2 of 3")).toBeInTheDocument());
     expect(header.getByRole("button", { name: "Send and open next" })).toHaveAttribute("aria-keyshortcuts", ariaOf("send-and-next"));
     const box = screen.getByLabelText("Invoice number");
     fireEvent.change(box, { target: { value: "INV-2001" } });
@@ -397,7 +409,7 @@ describe("DocumentScreen", () => {
     api.sendDocument.mockImplementation(() => new Promise((ok) => { done = ok; }));
     renderScreen();
     const header = within(await screen.findByTestId("review-header-actions"));
-    await waitFor(() => expect(header.getByText("2 of 3 that need you")).toBeInTheDocument());
+    await waitFor(() => expect(header.getByText("Document 2 of 3")).toBeInTheDocument());
     const box = screen.getByLabelText("Invoice number");
     ctrlEnter(box);
     ctrlEnter(box, true);

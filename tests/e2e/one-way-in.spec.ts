@@ -56,9 +56,9 @@ test.describe("one way in", () => {
         el.dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true }));
       });
       const row = page.getByRole("region", { name: "Just added" }).getByRole("listitem").filter({ hasText: "statement-0412.pdf" });
-      await expect(row).toContainText("New kind", { timeout: 15_000 });
+      await expect(row).toContainText("First of its kind", { timeout: 15_000 });
       await expect(row).toContainText("A statement from Example Bank Ltd. The first of its kind here.");
-      await expect(row).toContainText("Open");
+      await expect(row).toContainText("Review");
       await expect(row.getByRole("button", { name: /^Send/ })).toHaveCount(0);
       await expect(row.getByRole("link", { name: "statement-0412.pdf" })).toHaveAttribute("href", /^\/flows\/flow-inbox\/documents\//);
     }
@@ -75,7 +75,7 @@ test.describe("one way in", () => {
     const waiting = page.getByRole("complementary", { name: "Documents that need you" });
     const listed = waiting.getByRole("listitem").filter({ hasText: "statement-0412.pdf" });
     await expect(listed).toContainText("A statement from Example Bank Ltd");
-    await expect(listed).toContainText("New kind");
+    await expect(listed).toContainText("First of its kind");
 
     await page.setViewportSize({ width: 1440, height: 900 });
     await expect(waiting).toBeHidden();
@@ -98,7 +98,7 @@ test.describe("one way in", () => {
     await expect(answers.getByRole("button", { name: "Set it up" })).toBeVisible();
     await expect(answers.getByRole("button", { name: "Download what we read as Excel" })).toBeVisible();
     await expect(answers.getByRole("button", { name: "Download what we read as CSV" })).toBeVisible();
-    await expect(answers.getByRole("combobox", { name: "Flow it belongs with" })).toBeVisible();
+    await expect(answers.getByRole("combobox", { name: "Handle it like" })).toBeVisible();
     await expect(answers.getByRole("button", { name: "Move it" })).toBeDisabled();
     await expect(page.getByRole("button", { name: /^Send/ })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Skip" })).toHaveCount(0);
@@ -128,19 +128,21 @@ test.describe("one way in", () => {
     await expect(answers.getByRole("heading", { name: "Which flow does this invoice belong with?" })).toBeVisible();
     const a = await box(answers);
     expect(a.y + a.height, "the answers are above the tabs").toBeLessThanOrEqual((await box(page.getByRole("tablist", { name: "Parts of this document" }))).y + 0.5);
-    // Several flows fit: Move it is the first answer and the filled one, and nothing is chosen for the person.
+    // Several flows fit: Move it is the first answer, and nothing is chosen for the person.
     const first = answers.getByRole("button").first();
     await expect(first).toHaveText("Move it");
     await expect(first).toBeDisabled();
-    const list = answers.getByRole("combobox", { name: "Flow it belongs with" });
+    const list = answers.getByRole("combobox", { name: "Handle it like" });
     await expect(list).toHaveValue("");
     expect(await sideways(page), "nothing scrolls sideways at 390").toBeLessThanOrEqual(1);
-    expect(await audit(page.locator("main")), "the review at 390").toEqual({ outside: [], small: [], short: [], filled: 1 });
+    // Disabled, Move it is the quiet button (A-32): nothing is filled until a flow is chosen.
+    expect(await audit(page.locator("main")), "the review at 390").toEqual({ outside: [], small: [], short: [], filled: 0 });
     await expect(page.getByTestId("action-bar").getByRole("button", { name: /Send/ })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^Send/ })).toHaveCount(0);
 
     await list.selectOption({ label: "Supplier invoices" });
     await expect(first).toBeEnabled();
+    expect((await audit(page.locator("main"))).filled, "chosen, Move it is the one filled button").toBe(1);
     await first.click();
     await expect(page).toHaveURL(/\/flows\/flow-1\/documents\/doc-in-2$/);
     expect(await sends(page), "moving it sends nothing").toEqual([]);
@@ -150,7 +152,7 @@ test.describe("one way in", () => {
     await open(page, 1440, "/upload", { inbox: false });
     await page.getByTestId("upload-files-input").setInputFiles(pdf("delivery-note-90.pdf"));
     const row = page.getByRole("region", { name: "Just added" }).getByRole("listitem").filter({ hasText: "delivery-note-90.pdf" });
-    await expect(row).toContainText("Check the flow", { timeout: 15_000 });
+    await expect(row).toContainText("Check where we put it", { timeout: 15_000 });
     await expect(row).toContainText("A delivery note from Example Freight Ltd");
     // Its way on is Review, never Send: the notice is on the review screen.
     await expect(row.getByText("Review", { exact: true })).toBeVisible();
@@ -159,10 +161,10 @@ test.describe("one way in", () => {
     await page.setViewportSize({ width: 2240, height: 1200 });
     await row.getByRole("link", { name: "delivery-note-90.pdf" }).click();
     await expect(page).toHaveURL(/\/flows\/flow-2\/documents\/[^/]+$/);
-    const words = page.getByText("We put this with Delivery notes. Check that is right.");
+    const words = page.getByText("We put this with Delivery notes. If that's right, carry on. If not, move it:");
     await expect(words).toBeVisible();
     const notice = words.locator("xpath=ancestor-or-self::*[@data-notice-tone][1]");
-    await expect(notice.getByRole("combobox", { name: "Another flow" })).toBeVisible();
+    await expect(notice.getByRole("combobox", { name: "Handle it like" })).toBeVisible();
     expect(await sends(page), "the notice shows before anything is pressed").toEqual([]);
     expect((await audit(notice)).outside, "the notice and its list fit in their card at 2240").toEqual([]);
     const lines = await words.evaluate((el) => {
@@ -176,12 +178,12 @@ test.describe("one way in", () => {
 
   test("a sort that is not certain: Make the file is the filled button, and making it confirms it", async ({ page }) => {
     await open(page, 1440, "/flows/flow-2/documents/doc-in-3");
-    await expect(page.getByText("We put this with Delivery notes. Check that is right.")).toBeVisible();
+    await expect(page.getByText("We put this with Delivery notes. If that's right, carry on. If not, move it:")).toBeVisible();
     const header = page.getByTestId("review-header-actions");
-    await expect(header).toContainText("Check the flow");
+    await expect(header).toContainText("Check where we put it");
     await expect(answersOf(page)).toHaveCount(0);
     // Another flow starts with nothing chosen, so Move it waits for a choice.
-    await expect(page.getByRole("combobox", { name: "Another flow" })).toHaveValue("");
+    await expect(page.getByRole("combobox", { name: "Handle it like" })).toHaveValue("");
     await expect(page.getByRole("button", { name: "Move it" })).toBeDisabled();
     // Delivery notes has no destination, so its way on is Make the file, and the made file waits on this screen.
     const send = header.getByRole("button", { name: "Make the file" });
@@ -196,7 +198,7 @@ test.describe("one way in", () => {
     await page.getByRole("tab", { name: /^All/ }).click();
     const sent = page.getByRole("table").getByRole("row", { name: /delivery-note-5521\.pdf/ });
     await expect(sent).toContainText("File ready");
-    await expect(sent).not.toContainText("Check the flow");
+    await expect(sent).not.toContainText("Check where we put it");
   });
 
   test("on a phone, a made file has one Download button, in a bar that is never empty", async ({ page }) => {

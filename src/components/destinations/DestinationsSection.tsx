@@ -16,6 +16,7 @@ import { deleteDestination, listDestinations, testDestination } from "@/lib/api/
 import type { Destination } from "@/lib/api/documents";
 import { destinationsAddress, destinationWhere, lastSendWords, readDestinationsAddress, usedByWords } from "@/lib/destinations";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
+import { activityAddress } from "@/lib/activityRows";
 import { GoogleAccounts } from "./GoogleAccounts";
 import { TestOutcome } from "./TestOutcome";
 
@@ -60,8 +61,8 @@ export function DestinationsSection() {
     );
 
   return (
-    // The board's width for the Destinations tab: 1,230px.
-    <div className="grid max-w-[1230px] gap-3">
+    // Width comes from the Settings page, so it matches the tab rule and the other tabs.
+    <div className="grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="m-0 text-[14px] text-ink-muted">Every place your files can be sent. Change a login or send a test here at any time.</p>
         <Button type="button" variant="secondary" aria-expanded={open === "new"} onClick={() => go(open === "new" ? undefined : "new")}>
@@ -129,10 +130,20 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
       <div className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 px-4 py-3 lg:items-center ${COLUMNS}`}>
         <span className="min-w-0 break-words text-[14.5px] font-semibold text-ink">{d.name}</span>
         <span className="min-w-0 break-words text-[13px] text-ink-muted">{destinationWhere(d)}</span>
-        <span className="col-span-full text-[13px] text-ink lg:col-span-1">{uses !== undefined && usedByWords(uses)}</span>
-        <span className={`col-span-full inline-flex items-center gap-1 text-[13px] lg:col-span-1 ${last ? TONE[last.tone] : ""}`}>
+        <span className="col-span-full min-w-0 break-words text-[13px] text-ink lg:col-span-1">
+          {/* Phones have no column heading, so the line names itself. */}
+          {!!uses && <span className="text-ink-muted lg:hidden">Used by </span>}
+          {d.usedBy && usedByWords(d.usedBy)}
+        </span>
+        <span className={`col-span-full inline-flex flex-wrap items-center gap-1 text-[13px] lg:col-span-1 ${last ? TONE[last.tone] : ""}`}>
           {last?.tone === "ok" && <Check aria-hidden size={14} />}
           {last?.text}
+          {last?.tone === "failed" && (
+            <>
+              <span aria-hidden>·</span>
+              <Link href={activityAddress("all")} className="font-semibold underline">See why</Link>
+            </>
+          )}
         </span>
         <span className="col-start-2 row-span-2 row-start-1 flex items-start justify-end gap-2 lg:col-start-5 lg:row-span-1 lg:items-center">
           {open ? (

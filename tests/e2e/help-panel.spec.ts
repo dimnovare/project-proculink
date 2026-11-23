@@ -231,7 +231,8 @@ test.describe("help panel", () => {
       { role: "tab", name: /^Needs you/ }, { role: "link", name: /^Review next/ },
       { role: "tab", name: /^Finished/ }, { role: "tab", name: /^All/ },
     ],
-    "/flows": [{ role: "link", name: /^Supplier invoices$/ }, { role: "button", name: /^New flow$/ }],
+    // The mock trial holds more flows than its plan allows, so the header offers See plans where New flow would be (B-06).
+    "/flows": [{ role: "link", name: /^Supplier invoices$/ }, { role: "link", name: /^See plans$/ }],
     "/settings": [
       { role: "button", name: /^Plan & billing$/ }, { role: "summary", name: /^For developers/ }, { role: "button", name: /^Workspace$/ },
     ],
@@ -254,7 +255,7 @@ test.describe("help panel", () => {
         const control = c.role === "summary" ? main.locator("summary").filter({ hasText: c.name }) : main.getByRole(c.role, { name: c.name });
         await expect(control.first(), `${path} has no ${c.role} ${c.name}`).toBeVisible();
       }
-      // Settings opens on Workspace, which saves as you type and has no filled button (plan 14.7b); on Flows "New flow" is outlined (plan 16b).
+      // Settings opens on Workspace, which saves as you type and has no filled button (plan 14.7b); on Flows the header action is outlined (plan 16b).
       expect(await filledButtons(page), "the screen's filled buttons with the panel open").toHaveLength(path === "/settings" || path === "/flows" ? 0 : 1);
     });
   }

@@ -44,7 +44,10 @@ describe("destination words", () => {
     expect(lastSendWords({ kind: "test", at: at(2026, 4, 31, 9, 0), ok: false }, now)).toEqual({ text: "Test failed yesterday", tone: "failed" });
     expect(lastSendWords({ kind: "replay", at: at(2026, 5, 1, 14, 5), ok: true }, now)).toEqual({ text: "Last used at 14:05", tone: "never" });
     expect(lastSendWords(null, now)).toEqual({ text: "Never sent", tone: "never" });
-    expect([0, 1, 2].map(usedByWords)).toEqual(["Not used", "1 file", "2 files"]);
+    const use = (flowName: string, outputName: string) => ({ flowId: "f", flowName, outputId: "o", outputName });
+    expect(usedByWords([])).toBe("Not used");
+    expect(usedByWords([use("Supplier invoices", "Invoice CSV"), use("Delivery notes", "Notes PDF")]))
+      .toBe("Supplier invoices (Invoice CSV), Delivery notes (Notes PDF)");
     expect([destinationsAddress(), destinationsAddress("dest-1"), destinationsAddress("new")])
       .toEqual(["/settings?tab=destinations", "/settings?tab=destinations&open=dest-1", "/settings?tab=destinations&open=new"]);
     const open = (q: string) => readDestinationsAddress(new URLSearchParams(q)).open;

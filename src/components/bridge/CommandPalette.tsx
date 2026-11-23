@@ -199,11 +199,14 @@ export function CommandPalette({ onClose, onShortcuts }: { onClose: () => void; 
                   const body = (
                     <>
                       {o.icon}
-                      <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="truncate text-[14px]"><Marked text={o.label} term={o.found ? s.term : ""} /></span>
-                        {o.sub && <span id={`${id}-d`} title={o.sub} className="truncate text-[12.5px] text-ink-muted">{o.sub}</span>}
+                      {/* Below sm the tag sits under the name, so a phone keeps the whole name. */}
+                      <span className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                        <span className="flex min-w-0 flex-1 flex-col">
+                          <span className="truncate text-[14px]"><Marked text={o.label} term={o.found ? s.term : ""} /></span>
+                          {o.sub && <span id={`${id}-d`} title={o.sub} className="truncate text-[12.5px] text-ink-muted">{o.sub}</span>}
+                        </span>
+                        {o.tag && <Pill tone={o.tag.tone} className="self-start sm:self-auto"><span id={`${id}-t`}>{o.tag.text}</span></Pill>}
                       </span>
-                      {o.tag && <Pill tone={o.tag.tone}><span id={`${id}-t`}>{o.tag.text}</span></Pill>}
                       {on && <kbd aria-hidden className={`${KEY} hidden sm:inline-flex`}>Enter</kbd>}
                     </>
                   );

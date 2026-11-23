@@ -10,6 +10,8 @@
 // Every sentence must be true on main when it ships: never describe a screen's
 // behaviour before it is live.
 
+import { DOCUMENT_TABS, type DocumentTab } from "@/lib/documentTabs";
+
 export interface HelpTask {
   title: string;
   line: string;
@@ -26,6 +28,7 @@ export interface SectionGuideEntry {
   startHere: string;
 }
 
+const tabLabel = (id: DocumentTab) => DOCUMENT_TABS.find((t) => t.id === id)!.label;
 const SET_UP_FIRST_FLOW = "/help/guides/set-up-your-first-flow";
 const FILES_WE_READ: HelpTask = { title: "Files we read", line: "The kinds of files we read, and what to expect from each.", href: "/help/what-we-read" };
 const BUILD_AN_OUTPUT: HelpTask = { title: "Make a file", line: "The file we make from each document, and its columns.", href: "/help/guides/build-an-output" };
@@ -40,7 +43,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
     tasks: [
       { title: "What \"Needs you\" means", line: "The documents waiting for you to check or send them.", href: "/help/documents-and-statuses" },
       { title: "Review and send a document", line: "Open one, check the marked values, then send it.", href: "/help/guides/check-and-send-a-document" },
-      { title: "Find an older document", line: "Look under Sent or All, or search by name or number.", href: "/help/documents-and-statuses" },
+      { title: "Find an older document", line: `Look under ${tabLabel("sent")} or ${tabLabel("all")}, or search by name or number.`, href: "/help/documents-and-statuses" },
     ],
     startHere: "Press Review next. It opens the first document that needs you.",
   },

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check } from "lucide-react";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
@@ -79,9 +80,10 @@ export function FirstFile({ flow, docId }: { flow: Flow; docId: string }) {
               {COMMON_TYPES.filter((t) => t !== "txt").map((id) => {
                 const on = !output.standard && output.format === id;
                 return (
-                  <Button key={id} variant={on ? "primary" : "secondary"} size="md" className="min-w-[84px]" aria-pressed={on}
+                  // The chosen type is blue-soft with a tick, never the navy of Download, the one filled button (A-33).
+                  <Button key={id} variant="secondary" size="md" className={`min-w-[84px] ${on ? "!border-brand-blue !bg-brand-blue-soft" : ""}`} aria-pressed={on}
                     disabled={change.isPending} onClick={() => { if (!on) change.mutate(id); }}>
-                    {FORMATS[id]}
+                    {on && <Check size={14} aria-hidden />}{FORMATS[id]}
                   </Button>
                 );
               })}
