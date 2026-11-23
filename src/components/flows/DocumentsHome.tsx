@@ -117,7 +117,7 @@ export function DocumentsHome() {
       if (!ids.delete(id)) ids.add(id);
       pick(ids);
     },
-    all: (on) => pick(new Set(on ? rows.filter((d) => !d.inInbox).map((d) => d.id) : [])),
+    all: (on) => pick(new Set(on ? rows.map((d) => d.id) : [])),
   };
   const go = (t: DocumentTab) => router.replace(documentsAddress(t));
   const onTabKey = (e: React.KeyboardEvent) => {

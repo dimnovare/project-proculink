@@ -34,7 +34,7 @@ export function rowNeed(d: ListedDocument): { text: string; tone: Tone } {
   if (s.label !== DOCUMENT_STATUSES[d.status]?.label) return { text: s.label, tone: STATUS_TONE[s.tone] };
   // Finished: what its own files did ("File ready", "Sent to …"), whatever the flow says now.
   if (d.status === "sent" && d.files?.length) return { text: finishedLabel(d.files), tone: "green" };
-  if (d.status === "ready") return { text: flowWords(d.downloadOnly).ready, tone: "green" };
+  if (d.status === "ready") return { text: d.isSample ? "Nothing to send" : flowWords(d.downloadOnly).ready, tone: "green" };
   if (d.status === "needs_review" && d.checks) {
     if (d.checks.includes("duplicate")) return { text: "Same number as an earlier document", tone: "amber" };
     if (d.checks.includes("new_sender")) return { text: "First document from this email address", tone: "amber" };
@@ -67,11 +67,11 @@ function Row({ d, showFlow, sendable, columns, onSent, onRemoved, selection }: {
   const name = "min-w-0 truncate text-[14.5px] font-semibold text-ink after:absolute after:inset-0";
   return (
     <div role="row" className={`relative grid min-h-[64px] items-center gap-3 border-t border-border px-3 py-2 ${ticked ? "bg-brand-blue-soft" : "hover:bg-surface-2"}`} style={{ gridTemplateColumns: columns }}>
-      {selection && <div role="cell">{!d.inInbox && <Tick d={d} selection={selection} id={tickId} className="h-11 w-11" />}</div>}
+      {selection && <div role="cell"><Tick d={d} selection={selection} id={tickId} className="h-11 w-11" /></div>}
       <div role="cell" className="min-w-0">
         <div className="flex min-w-0 items-center gap-2">
           {/* Selecting, the name's overlay is the tick's label: a click anywhere on the row ticks it and opens nothing. */}
-          {selection && !d.inInbox ? <label htmlFor={tickId} className={`${name} cursor-pointer`}>{d.fileName}</label>
+          {selection ? <label htmlFor={tickId} className={`${name} cursor-pointer`}>{d.fileName}</label>
             : <Link href={href(d)} className={name}>{d.fileName}</Link>}
           {d.isSample && <Pill>Sample</Pill>}
         </div>
@@ -120,8 +120,8 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
     focusAfterRemove([table.current, phoneList.current].find((el) => el?.offsetParent) ?? table.current);
   };
   const drawn = documents.filter((d) => !removed.has(d.id)).map((d) => (sent[d.id] && d.status === "ready" ? sent[d.id] : d)).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
-  // An inbox document is answered on its own screen: it has no tick (its row's "Open" is the way on).
-  const tickable = drawn.filter((d) => !d.inInbox);
+  // Every row ticks: the bar sends only what a row would send (an inbox one is answered on its own screen), removes
+  // only what the server allows, and downloads the original, which every document has.
   const columns = `${selection ? "44px " : ""}minmax(0,2fr) ${showFlow ? "minmax(0,1fr) " : ""}minmax(0,1.4fr) 104px 96px minmax(132px,auto)`;
 
   return (
@@ -131,11 +131,11 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
         <div role="row" className="grid gap-3 px-3 py-2 text-[12.5px] font-medium text-ink-muted" style={{ gridTemplateColumns: columns }}>
           {selection && (
             <div role="columnheader">
-              {tickable.length > 1 && (
+              {drawn.length > 1 && (
                 <label className="flex h-11 w-11 items-center justify-center">
-                  <input type="checkbox" aria-label={`Select all ${tickable.length} documents`} className="h-5 w-5"
-                    checked={tickable.every((d) => selection.ids.has(d.id))} onChange={(e) => selection.all(e.target.checked)}
-                    ref={(el) => { if (el) el.indeterminate = tickable.some((d) => selection.ids.has(d.id)) && !tickable.every((d) => selection.ids.has(d.id)); }} />
+                  <input type="checkbox" aria-label={`Select all ${drawn.length} documents`} className="h-5 w-5"
+                    checked={drawn.every((d) => selection.ids.has(d.id))} onChange={(e) => selection.all(e.target.checked)}
+                    ref={(el) => { if (el) el.indeterminate = drawn.some((d) => selection.ids.has(d.id)) && !drawn.every((d) => selection.ids.has(d.id)); }} />
                 </label>
               )}
             </div>
@@ -156,8 +156,8 @@ export function DocumentList({ documents, showFlow, label, needHeading = "Status
           const need = rowNeed(d);
           // R17: one second line, what it is when known, otherwise where it is.
           const line = rowSecondLine(d, kindSentence(d.kind, d.sender)) ?? (showFlow ? d.flowName : null);
-          // Selecting, a tap on a tickable row ticks it, so it carries no "opens" arrow.
-          const picks = selection && !d.inInbox;
+          // Selecting, a tap on a row ticks it, so it carries no "opens" arrow.
+          const picks = !!selection;
           const body = (
             <>
               <div className="grid min-w-0 flex-1 gap-1">
