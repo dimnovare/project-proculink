@@ -128,19 +128,21 @@ test.describe("one way in", () => {
     await expect(answers.getByRole("heading", { name: "Which flow does this invoice belong with?" })).toBeVisible();
     const a = await box(answers);
     expect(a.y + a.height, "the answers are above the tabs").toBeLessThanOrEqual((await box(page.getByRole("tablist", { name: "Parts of this document" }))).y + 0.5);
-    // Several flows fit: Move it is the first answer and the filled one, and nothing is chosen for the person.
+    // Several flows fit: Move it is the first answer, and nothing is chosen for the person.
     const first = answers.getByRole("button").first();
     await expect(first).toHaveText("Move it");
     await expect(first).toBeDisabled();
     const list = answers.getByRole("combobox", { name: "Handle it like" });
     await expect(list).toHaveValue("");
     expect(await sideways(page), "nothing scrolls sideways at 390").toBeLessThanOrEqual(1);
-    expect(await audit(page.locator("main")), "the review at 390").toEqual({ outside: [], small: [], short: [], filled: 1 });
+    // Disabled, Move it is the quiet button (A-32): nothing is filled until a flow is chosen.
+    expect(await audit(page.locator("main")), "the review at 390").toEqual({ outside: [], small: [], short: [], filled: 0 });
     await expect(page.getByTestId("action-bar").getByRole("button", { name: /Send/ })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^Send/ })).toHaveCount(0);
 
     await list.selectOption({ label: "Supplier invoices" });
     await expect(first).toBeEnabled();
+    expect((await audit(page.locator("main"))).filled, "chosen, Move it is the one filled button").toBe(1);
     await first.click();
     await expect(page).toHaveURL(/\/flows\/flow-1\/documents\/doc-in-2$/);
     expect(await sends(page), "moving it sends nothing").toEqual([]);

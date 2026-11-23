@@ -302,7 +302,7 @@ describe("DocumentsHome", () => {
     answers({ needs: 0, rows: [row(1)] });
     const first = mount();
     const line = (await screen.findByRole("link", { name: "History" })).closest("p")!;
-    expect(line.textContent).toBe("To download or remove several at once, press Select and tick them. Open any document to remove it from there. Older documents are under All. What happened to each one is in History.");
+    expect(line.textContent).toBe("To download or remove several at once, press Select and tick them. Open any document to remove it from there. Older documents are under All, or press Ctrl K to find any document. What happened to each one is in History.");
     expect(within(line).getByRole("link", { name: "History" })).toHaveAttribute("href", "/operations/log");
     first.unmount();
     getOrders.mockResolvedValue({ items: [{}], totalCount: 1, page: 1, pageSize: 1, sampleCount: 0 });
@@ -310,7 +310,7 @@ describe("DocumentsHome", () => {
     const old = await screen.findByRole("link", { name: "Old orders" });
     expect(old).toHaveAttribute("href", "/archive");
     expect(old.closest("p")!.textContent).toBe(
-      "To download or remove several at once, press Select and tick them. Open any document to remove it from there. Older documents are under All and Old orders. What happened to each one is in History.",
+      "To download or remove several at once, press Select and tick them. Open any document to remove it from there. Older documents are under All and Old orders, or press Ctrl K to find any document. What happened to each one is in History.",
     );
   });
   it("says flows are off on the engine refusal", async () => {

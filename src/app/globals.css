@@ -1017,13 +1017,6 @@ details[open] > summary [data-disclosure-chevron] {
     min-height: var(--tap-min) !important;
   }
 
-  /* A link or button inside a sentence is text (WCAG 2.5.8's inline exception): no floor, so the paragraph keeps
-     its line spacing. Listed with [aria-label] to outrank the icon rule below. */
-  p a, p button, p a[aria-label], p button[aria-label] {
-    min-height: 0 !important;
-    min-width: 0 !important;
-  }
-
   /* Icon-only controls. In this codebase an `aria-label` on a <button> or <a>
      means "there is no visible text to name it" — i.e. it is an icon control,
      and a 24×24 logo link or a 32×32 ✕ is the single most common tap-target

@@ -23,6 +23,8 @@ import {
 } from "@/lib/documentTabs";
 import { intoStrip } from "@/lib/intoStrip";
 import { nextTabIndex } from "@/lib/tabKeys";
+import { useApple } from "@/hooks/useShortcut";
+import { keyWord, openSearch } from "@/lib/shortcuts";
 import { DocumentList, type ListSelection } from "./DocumentList";
 import { SelectionBar, type BarReport } from "./SelectionBar";
 import { firstRunOf } from "@/lib/firstRun";
@@ -85,6 +87,7 @@ export function DocumentsHome() {
     queryFn: () => apiClient.getOrders({ page: 1, pageSize: 1 }),
     enabled: useTenantQueriesEnabled(),
   });
+  const apple = useApple();
   // Select mode, and the ticks: they belong to one tab and page, and only rows on screen count (R17).
   const [selecting, setSelecting] = useState(false);
   const [picked, setPicked] = useState<{ at: string; ids: Set<string> }>({ at: "", ids: new Set() });
@@ -210,13 +213,19 @@ export function DocumentsHome() {
               setPicked((p) => ({ ...p, ids: new Set([...p.ids].filter((x) => x !== id)) }));
             }} />
         ) : report && <StatusNotice tone={report.ok ? "success" : "error"}>{report.lines}</StatusNotice>}
-        {/* One line for everything older. History is not in the top bar; it is reached from here. Its links are plain text, so the lines stay even. */}
+        {/* One line for everything older. History is not in the top bar; it is reached from here. Its links keep a 44px tap height; the negative margin keeps the lines even (A-10). */}
         <p className="m-0 text-[13px] text-ink-muted">
           To download or remove several at once, press Select and tick them. Open any document to remove it from there.{" "}
           Older documents are under All
-          {pagePopulation(anyOldOrders.data).rows > 0 && <> and <Link href="/archive" className="font-medium text-brand-blue-deep underline">Old orders</Link></>}
+          {pagePopulation(anyOldOrders.data).rows > 0 && <> and <Link href="/archive" className="-my-3 inline-flex items-center font-medium text-brand-blue-deep underline">Old orders</Link></>}
+          <span className="hidden md:inline">
+            , or press{" "}
+            <button type="button" onClick={openSearch} aria-label={`Search all documents, ${keyWord("Mod", apple)} K`}
+              className="-my-3 inline-flex items-center font-medium text-brand-blue-deep underline">{`${keyWord("Mod", apple)} K`}</button>
+            {" "}to find any document
+          </span>
           . What happened to each one is in{" "}
-          <Link href="/operations/log" className="font-medium text-brand-blue-deep underline">History</Link>.
+          <Link href="/operations/log" className="-my-3 inline-flex items-center font-medium text-brand-blue-deep underline">History</Link>.
         </p>
       </div>
     );

@@ -68,7 +68,7 @@ function SettingsScreen() {
         </div>}
       />
       {/* The tab rule and every tab's content share one width. */}
-      <div className="w-full max-w-[1232px]">
+      <div className="w-full max-w-[1230px]">
       <nav aria-label="Settings sections" className="mb-5 flex gap-1 overflow-x-auto shadow-[inset_0_-1px_0_var(--border)]">
         {SETTINGS_TABS.map((t) => {
           const on = tab === t.id;

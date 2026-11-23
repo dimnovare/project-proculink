@@ -420,7 +420,8 @@ async function googleAndAFailedTest(browser: Browser) {
   await expect(page.getByRole("radio", { name: /^Google Sheets/ })).toBeVisible();
   await serverFold(page);
 
-  await pickServer(page);
+  // The fold is already replaced by its three kinds: pick SFTP or FTPS directly.
+  await page.getByTestId("send-tile-server").click();
   const flow = (await mockState(page))!.flows[0];
   const server = destinationNameFor("sftp", flow.name);
   await page.getByLabel("Server", { exact: true }).fill("sftp.example.test");
