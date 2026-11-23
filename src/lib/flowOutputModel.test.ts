@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OutputNode, OutputNodeTemplate } from "@/lib/api/types";
-import { describeSendWhen, excelSeparator, fromSimple, leafPaths, toSimple } from "@/lib/flowOutputModel";
+import { describeSendWhen, excelSeparator, fromSimple, leafPaths, toSimple, uniqueNames } from "@/lib/flowOutputModel";
 
 // Shaped like DefaultOutputTemplate.For(...) for csv: leaves named by label, one table "lines" of two columns.
 const leaf = (name: string, canonicalField: string): OutputNode => ({
@@ -96,4 +96,8 @@ describe("leafPaths", () => {
     expect(leaves.map((l) => l.path)).toEqual(["a", "b/c", "lines/row/q"]);
     expect(leaves.filter((l) => l.inTable).map((l) => l.path)).toEqual(["lines/row/q"]);
   });
+});
+
+it("uniqueNames numbers repeats like the backend: any case, from 2, blanks stay blank", () => {
+  expect(uniqueNames(["Müüja", "müüja", "", "Summa", "Summa"])).toEqual(["Müüja", "müüja 2", "", "Summa", "Summa 2"]);
 });

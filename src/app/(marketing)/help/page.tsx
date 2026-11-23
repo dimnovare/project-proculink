@@ -11,7 +11,7 @@ import {
 } from "@/lib/help-articles";
 import { START_HERE, getGuideBySlug, liveClientGuides } from "@/lib/guides";
 import { articleHit, buildSiteHelpFuse, searchHelpArticles, type HelpHit } from "@/lib/help-search";
-import { DOCUMENT_STATUSES } from "@/lib/documentStatusManifest";
+import { DOCUMENT_TABS } from "@/lib/documentTabs";
 import { Card } from "@/components/bridge/layout/Card";
 import { SITE, Tag } from "@/components/marketing/sitePictures";
 import { SITE_PAGE } from "@/components/marketing/LegalPage";
@@ -28,11 +28,10 @@ const CATEGORY_BLURB: Record<HelpCategory, string> = {
   API: "Send files in and get results out, with signed webhooks.",
 };
 
-/** The three statuses that stop a document, in the app's own words; what to do is ours. */
+/** The Documents tabs a stuck document sits under, named as the app names them. */
 const STUCK = [
-  ["needs_review", "Check the marked values, then send it."],
-  ["read_failed", "Try again if it is offered, or upload a clearer copy."],
-  ["send_failed", "Fix the destination, then send it again."],
+  ["needs-you", "Check the marked values, then send it."],
+  ["failed", "If it couldn't be read, try again or upload a clearer copy. If it couldn't be sent, fix the destination, then send it again."],
 ] as const;
 
 const H2 = "m-0 font-display text-[26px] font-semibold leading-[1.15] tracking-[-0.02em]";
@@ -117,11 +116,11 @@ export default function HelpIndex() {
             <h2 id="help-stuck" className="m-0 font-display text-[20px] font-semibold">
               Is a document stuck?
             </h2>
-            <p className={`${SITE.soft} mb-3 mt-1 text-[15px]`}>Find its status to see what to do.</p>
+            <p className={`${SITE.soft} mb-3 mt-1 text-[15px]`}>Find it under Documents to see what to do.</p>
             <ul className="m-0 flex list-none flex-col gap-3 p-0">
               {STUCK.map(([key, todo]) => (
                 <li key={key} className="flex flex-col items-start gap-1">
-                  <Tag tone={DOCUMENT_STATUSES[key].tone === "error" ? "bad" : "need"}>{DOCUMENT_STATUSES[key].label}</Tag>
+                  <Tag tone={key === "failed" ? "bad" : "need"}>{DOCUMENT_TABS.find((t) => t.id === key)!.label}</Tag>
                   <span className="text-[15px]">{todo}</span>
                 </li>
               ))}

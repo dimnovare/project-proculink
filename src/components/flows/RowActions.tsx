@@ -110,6 +110,9 @@ export function rowSecondLine(d: ListedDocument, said: string | null): string | 
   return made ? (said ? `${said.replace(/\.$/, "")}. ${made}` : made) : said;
 }
 
+/** A ready row sent from a list (the row's own Send and the selection bar): sorted, out of the inbox, and not our sample, which is never sent. */
+export const rowSends = (d: ListedDocument) => d.status === "ready" && d.inInbox === false && d.statusReason !== "check_sort" && !d.isSample;
+
 /** A row's next step (spec D2). Buttons sit above the row's link overlay. `phone`: the card is the link, so Review/Open are not drawn. */
 export function RowActions({ d, sendable, onSent, onRemoved, phone = false, className = "flex flex-wrap justify-end gap-2" }: {
   d: ListedDocument; sendable: boolean; onSent(): void; onRemoved(id: string): void; phone?: boolean; className?: string;
@@ -141,10 +144,10 @@ export function RowActions({ d, sendable, onSent, onRemoved, phone = false, clas
   else if (files.length > 1) items = [<Link key="open" href={href(d)} aria-label={`${copy} ${d.fileName}`} className={`${buttonClass("secondary", "sm")} ${z}`}>{copy}</Link>];
   else if (d.statusReason === "duplicate_file") items = [removeButton, button("Read it anyway", () => read.mutate(), read.isPending)];
   else if (d.status === "read_failed") items = [canRetryRead(d.statusReason, { scansOn }) && button("Try again", () => read.mutate(), read.isPending), removeButton];
-  else if (d.status === "ready" && sendable && d.inInbox === false && d.statusReason !== "check_sort")
+  else if (sendable && rowSends(d))
     items = [button(flowWords(d.downloadOnly).action, () => send.mutate(), send.isPending || bulk, "!border-brand-green-deep !text-brand-green-deep")];
   // An inbox document is answered on its own screen, never sent from a row; one not known to be sorted is not sent either.
-  else if (d.inInbox !== false && (d.status === "ready" || (d.inInbox && d.status === "needs_review"))) items = [drawn("Open")];
+  else if ((d.inInbox !== false || d.isSample) && (d.status === "ready" || (d.inInbox && d.status === "needs_review"))) items = [drawn("Open")];
   // A sort we were not sure of is reviewed, never sent from a row: its notice is on the review screen.
   else if (d.status === "needs_review" || d.statusReason === "check_sort") items = [drawn("Review")];
 

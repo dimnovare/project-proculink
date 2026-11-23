@@ -26,6 +26,7 @@ import { PartnerIds } from "@/components/flows/PartnerIds";
 import type { EnvelopeConfig } from "@/lib/api/types";
 import { Pencil } from "lucide-react";
 import { FirstDocumentDrop, useLatestRead } from "./FlowValues";
+import { renamed } from "./fileChoice";
 
 export const FORMATS = { csv: "CSV", xlsx: "Excel", json: "JSON", xml: "XML", pdf: "PDF", txt: "Text", fixed: "Fixed-width text" };
 /** What an output makes: its standard's name, else its file type. Never decided from `template.format`. */
@@ -333,7 +334,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
     <Field label="Standard"><input className={INPUT} readOnly value={standardName(standard)} /></Field>
   ) : (
     <Field label="File type">
-      <select className={INPUT} value={format} disabled={external} onChange={(e) => setFormat(e.target.value)}>
+      <select className={INPUT} value={format} disabled={external} onChange={(e) => { setName(renamed(name, outputTypeLabel({ format }), outputTypeLabel({ format: e.target.value }))); setFormat(e.target.value); }}>
         {!Object.hasOwn(FORMATS, format) && <option value={format}>{format}</option>}
         {Object.entries(FORMATS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
       </select>

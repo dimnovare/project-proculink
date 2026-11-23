@@ -239,6 +239,20 @@ describe("parseXlsxWorkbook", () => {
     expect(order.rows[2]).toEqual(["ACM-NUT-M8", "", "TRUE", ""]);
   });
 
+  it("reads a workbook whose parts use the x: prefix (OpenXML SDK / ClosedXML)", () => {
+    const ns = 'xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+    const wb = parseXlsxWorkbook(
+      zipSync({
+        "xl/sharedStrings.xml": strToU8(`<x:sst ${ns}><x:si><x:t>Summa</x:t></x:si></x:sst>`),
+        "xl/worksheets/sheet1.xml": strToU8(
+          `<x:worksheet ${ns}><x:sheetData><x:row r="1"><x:c r="A1" t="s"><x:v>0</x:v></x:c>` +
+            '<x:c r="B1"><x:v>12.5</x:v></x:c></x:row></x:sheetData></x:worksheet>',
+        ),
+      }),
+    );
+    expect(wb.tables[0].rows).toEqual([["Summa", "12.5"]]);
+  });
+
   it("throws on bytes that are not a readable workbook, rather than reporting an empty sheet", () => {
     expect(() => parseXlsxWorkbook(new Uint8Array([1, 2, 3, 4]))).toThrow();
   });

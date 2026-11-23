@@ -24,6 +24,8 @@ describe("fileChoice", () => {
   it("keeps the person's name and swaps a type it ends with", () => {
     expect(renamed("Invoices CSV", "CSV", "XML")).toBe("Invoices XML");
     expect(renamed("Accounting import", "CSV", "XML")).toBe("Accounting import");
+    expect(renamed("CSV file", "CSV", "XML")).toBe("XML file");             // the default name follows its type
+    expect(renamed("My CSV file", "CSV", "Excel")).toBe("My CSV file");
     expect(aFileOf({ format: "xml" })).toBe("an XML file");
     expect(aFileOf({ format: "txt" })).toBe("a text file");
   });

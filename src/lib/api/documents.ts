@@ -112,6 +112,8 @@ export interface DocumentDetail extends CountsThisMonth {
   senderLabel?: string | null;
   /** The caller may remove this document. */
   canRemove?: boolean;
+  /** Our built-in sample: never sent, so no Send is offered. */
+  isSample?: boolean;
 }
 /** Where a value sits on the original: a box on a page, or a sheet cell / text line with the value read there. */
 export interface TeachRequest { key?: string; newLabel?: string; page?: number; box?: Box; address?: string; value?: string }
