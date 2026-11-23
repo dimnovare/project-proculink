@@ -20,7 +20,7 @@ import { excelSeparator, shownLabels } from "@/lib/flowOutputModel";
 import { editKey, reviewMarks } from "@/lib/reviewMarks";
 import { Field, INPUT } from "./DestinationForm";
 import { Original, Pane, PaneTabs, UNDER_HEADER } from "./DocumentScreen";
-import { needsWords, SAVE_WORDS, ValueInput } from "./ReadValuesPanel";
+import { needsWords, SAVE_WORDS, VALUE_GRID, ValueInput } from "./ReadValuesPanel";
 import { Failed, Gone, ReadProblem, Loading } from "./states";
 
 export const notFound = (e: unknown) => e instanceof ApiHttpError && e.status === 404;
@@ -36,7 +36,7 @@ export function useRunDocument(flowId: string, docId: string | null) {
   return { row, isSample: row ? row.isSample : null, docId: id, isLoading: page.isLoading, error: page.error };
 }
 
-const PANES = [{ id: "original", title: "Original" }, { id: "read", title: "Here's what we found" }] as const;
+const PANES = [{ id: "original", title: "Original" }, { id: "read", title: "What we read" }] as const;
 const WAY_ON = "inline-flex min-h-[44px] items-center text-[14px] font-semibold text-brand-blue sm:min-h-0";
 
 /** Step 2 of first run: what we read beside the original (R11, R12); Next saves the name, the fields and a CSV output (R14). */
@@ -120,7 +120,7 @@ export function CheckStep({ flow, docId, first }: { flow: Flow; docId: string | 
           {(isLg || tab === "original") && <Original documentId={id} fileName={summary.fileName} marks={marks.places} />}
         </Pane>
         <Pane
-          id="read" title="Here's what we found" dot="navy" hidden={tab !== "read"}
+          id="read" title="What we read" dot="navy" hidden={tab !== "read"}
           aside={editable && <span aria-live="polite" className="text-[12.5px] text-ink-muted">{SAVE_WORDS[edits.state]}</span>}
         >
           <div className="grid gap-4">
@@ -138,6 +138,8 @@ export function CheckStep({ flow, docId, first }: { flow: Flow; docId: string | 
             {edits.refusal && <StatusNotice tone="error">{edits.refusal}</StatusNotice>}
             <fieldset className="m-0 grid min-w-0 gap-3 border-0 p-0" disabled={!editable}>
               <legend className="sr-only">What we read</legend>
+              {/* Side by side as on the review screen, so a long read is not one tall column (A-27). */}
+              <div className={VALUE_GRID}>
               {read.fields.map((f) => (
                 <div key={f.key} data-testid={`check-value-${f.key}`} className="flex items-start gap-3">
                   {keep(f.key, labels.get(f.key)!)}
@@ -148,6 +150,7 @@ export function CheckStep({ flow, docId, first }: { flow: Flow; docId: string | 
                   </div>
                 </div>
               ))}
+              </div>
               {read.tables.map((t) => (
                 <div key={t.key} data-testid={`check-table-${t.key}`} className="flex items-start gap-3">
                   {keep(t.key, t.label)}

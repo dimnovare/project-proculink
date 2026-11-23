@@ -30,6 +30,7 @@ import { RowActions, rowSecondLine } from "./RowActions";
 import { PhotoCheck, useCamera } from "./PhotoCheck";
 import { canRetryUpload, INBOX_TARGET, STOP_CODES, uploadRefusalMessage, useUploadQueue, type UploadItem } from "./UploadQueue";
 import { firstRunOf } from "@/lib/firstRun";
+import { documentHref } from "@/lib/reviewQueue";
 import { changeFileAddress } from "@/lib/flowSteps";
 import { aFileOf } from "./fileChoice";
 import { Failed, Loading } from "./states";
@@ -51,7 +52,7 @@ const seen = (i: UploadItem, data: Uploaded | undefined): ListedDocument | undef
   i.document && (data?.seen[i.document.id] ?? i.document);
 
 /** The one notice when uploads are refused by the plan or processing is paused: from the newest refusal that stops the queue, else the billing status. */
-function pausedBy(items: readonly UploadItem[], billing: BillingStatus | undefined): { code: string; body: unknown } | null {
+export function pausedBy(items: readonly UploadItem[], billing: BillingStatus | undefined): { code: string; body: unknown } | null {
   const stopped = items.find((i) => i.state === "refused" && STOP_CODES.has(refusalToken(i.error) ?? ""));
   if (stopped) return { code: refusalToken(stopped.error)!, body: stopped.error instanceof ApiHttpError ? stopped.error.body : null };
   if (!billing || billing.canProcessOrders) return null;
@@ -206,7 +207,7 @@ export function UploadToFlow() {
     const more = n > 0;
     // What the workspace reads comes from the inbox answer; an absent switch is off (P4).
     const target = inbox.data && INBOX_TARGET(inbox.data);
-    const pick = (files: FileList | null) => target && files && files.length > 0 && add([...files], target);
+    const pick = (files: FileList | null) => !paused && target && files && files.length > 0 && add([...files], target);
     // Only from an answer that has not failed since: a failed refresh never leaves a dead address with Copy.
     const address = !inbox.isError && inbox.data?.address;
     // Every done file is in one flow, and that flow makes one file: say which, with a way to change it.
@@ -214,6 +215,8 @@ export function UploadToFlow() {
     const one = docs.length > 0 && docs.every((d) => d && inInbox(d, inbox.data) === false && d.flowId === docs[0]!.flowId)
       ? flows.data.find((f) => f.id === docs[0]!.flowId) : undefined;
     const made = one?.summary?.outputs.length === 1 ? one.summary.outputs[0] : null;
+    // What was just added and needs a person: once there is one, reviewing it is the screen's one filled action (A-22).
+    const needing = docs.filter((d) => d && !working(d) && documentStatus(d.status, d.statusReason).needsYou);
     body = (
       <div className="grid gap-5">
         {notKeptNotice}
@@ -222,8 +225,13 @@ export function UploadToFlow() {
         {n > 0 && (
           <Card flush as="section" aria-label="Just added">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 sm:px-[18px]">
-              <h2 ref={listHeading} tabIndex={-1} className="m-0 scroll-mt-16 text-[16px] font-semibold text-ink outline-none focus-visible:outline-none">Just added</h2>
+              <h2 ref={listHeading} tabIndex={-1} className="m-0 scroll-mt-16 text-[16px] font-semibold text-ink outline-none focus:shadow-none focus-visible:outline-none">Just added</h2>
               <span className="text-[13px] text-ink-muted">{n === 1 ? "1 document" : `${n} documents`}</span>
+              {needing.length > 0 && (
+                <Link href={documentHref(needing[0]!)} className={`${buttonClass("primary", "sm")} ml-auto self-center`}>
+                  {needing.length === 1 ? "Review the 1 that needs you" : `Review the ${needing.length} that need you`}
+                </Link>
+              )}
             </div>
             {one && made && (
               <p className="m-0 px-4 pb-3 text-[13px] text-ink-muted sm:px-[18px]">
@@ -274,16 +282,16 @@ export function UploadToFlow() {
               <span className="sm:hidden">{more ? "Add more" : "Add your documents"}</span>
             </h2>
             <p className={`m-0 max-w-[480px] text-[14.5px] text-ink-muted ${more ? "max-sm:hidden" : ""}`}>
-              Invoices, orders, delivery notes, statements: any document. {anyDocumentLine(target)}
+              {paused ? "Processing is paused, so new documents can't be read right now." : <>Invoices, orders, delivery notes, statements: any document. {anyDocumentLine(target)}</>}
             </p>
             <div className="flex flex-col gap-2.5 justify-self-stretch sm:justify-self-center">
               {target.scansOn && (
-                <Button variant="blue" size="lg" className="!h-12 w-full px-6 text-[15px] sm:hidden" onClick={camera.open}>
+                <Button variant={needing.length > 0 ? "secondary" : "blue"} size="lg" className="!h-12 w-full px-6 text-[15px] sm:hidden" disabled={!!paused} onClick={camera.open}>
                   <Camera size={18} aria-hidden />Take a photo
                 </Button>
               )}
               {/* Outlined below 640px when Take a photo is the filled one: one filled button per width. */}
-              <Button variant="blue" size="lg" onClick={() => input.current?.click()}
+              <Button variant={needing.length > 0 ? "secondary" : "blue"} size="lg" disabled={!!paused} onClick={() => input.current?.click()}
                 className={`!h-12 w-full px-6 text-[15px] sm:w-auto ${target.scansOn ? OUTLINED_ON_PHONE : ""}`}>Choose files</Button>
             </div>
             {camera.input}

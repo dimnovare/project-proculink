@@ -67,7 +67,7 @@ describe("CheckStep", () => {
     api.saveFlowFields.mockResolvedValue({ ...unconfirmed, name: "Invoice", fieldsConfirmed: true });
     api.createOutput.mockResolvedValue(csvOutput);
     render(<CheckStep flow={unconfirmed} docId="d-1" first />, { wrapper });
-    const found = await screen.findByRole("region", { name: "Here's what we found" });
+    const found = await screen.findByRole("region", { name: "What we read" });
     expect(within(found).getByText("9 values and 1 table")).toBeInTheDocument();
     expect(within(found).getByLabelText("Flow name")).toHaveValue("Invoice");
     expect(within(screen.getByTestId("check-value-reference")).getByText(/Check this one\. We are 62% sure of it\./)).toBeInTheDocument();

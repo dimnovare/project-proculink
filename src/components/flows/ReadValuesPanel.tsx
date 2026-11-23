@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type ClipboardEvent, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 import { flushSync } from "react-dom";
-import { Crosshair, X } from "lucide-react";
+import { ChevronDown, Crosshair, X } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
@@ -139,7 +139,6 @@ function TeachPicker({ flow, onTeach }: { flow: Flow; onTeach(t: Teach): void })
 /** The save state, drawn beside the "What we read" heading. */
 export const SAVE_WORDS = { saved: "Saves as you type", saving: "Saving…", failed: "Not saved yet" } as const;
 export const needsWords = (n: number) => `${n} value${n === 1 ? " needs" : "s need"} a look.`;
-const toCheck = (n: number) => `${n} value${n === 1 ? "" : "s"} to check`;
 const rowsText = (n: number) => `${n} row${n === 1 ? "" : "s"}`;
 
 /** The amber sentence; a value not found ends with the way to point to it on the original. */
@@ -156,7 +155,7 @@ function lookText(look: Look | undefined, teach: (() => void) | undefined): Reac
 type Table = DocumentDetail["read"]["tables"][number];
 
 /** Values side by side, as many as fit the pane; one column on a phone. */
-const VALUE_GRID = "grid items-start gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr))]";
+export const VALUE_GRID = "grid items-start gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr))]";
 const NUMBER = /^[-+]?[\d\s.,]+$/;
 const KBD = "inline-flex h-[22px] items-center rounded border border-border bg-surface-2 px-1.5 font-sans text-[12.5px] font-semibold text-ink-muted";
 /** A paste never makes a table longer than this. */
@@ -193,18 +192,21 @@ function TableValues({ table: t, marks, edits, onLocate, sum, editable }: { tabl
         </div>
       ) : (
         <div className="grid gap-0.5">
-          <div><Button size="sm" variant="ghost" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>{t.label}</Button></div>
-          <p className="m-0 text-[12.5px] text-ink-muted">{rowsText(t.rows.length)}{marked > 0 && `, ${toCheck(marked)}`}</p>
+          <button type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}
+            className="flex min-h-12 w-full items-center justify-between gap-3 rounded-md border border-border-strong bg-surface px-4 text-left text-[14px] font-semibold text-ink">
+            <span>{t.label} · {rowsText(t.rows.length)}{marked > 0 && ` (${marked} to check)`}</span>
+            <ChevronDown size={18} aria-hidden className={`flex-none text-ink-muted transition-transform ${open ? "rotate-180" : ""}`} />
+          </button>
           {adds}
         </div>
       )}
       <div id={id} hidden={!isLg && !open} className="grid gap-2">
         <div className="overflow-x-auto rounded-md border border-border-strong">
-          <table className="w-full border-collapse text-[13px] [&_tbody_tr:last-child_td]:border-b-0">
+          <table className={`w-full border-collapse ${editable ? "" : "bg-surface-2"} text-[13px] [&_tbody_tr:last-child_td]:border-b-0`}>
             <thead>
               <tr className="bg-surface-2 text-left text-[12.5px] text-ink-muted">
                 {t.columns.map((c) => <th key={c.key} className={`border-b border-r border-border px-2.5 py-2 font-semibold ${shapes.get(c.key)!.numeric ? "text-right" : ""}`}>{c.label}</th>)}
-                <th className="sticky right-0 w-10 border-b border-border bg-surface-2"><span className="sr-only">Row actions</span></th>
+                {editable && <th className="sticky right-0 w-10 border-b border-border bg-surface-2"><span className="sr-only">Row actions</span></th>}
               </tr>
             </thead>
             <tbody>
@@ -223,23 +225,32 @@ function TableValues({ table: t, marks, edits, onLocate, sum, editable }: { tabl
                       </td>
                     );
                   })}
-                  <td className="sticky right-0 w-10 border-b border-border bg-surface p-0">
+                  {editable && <td className="sticky right-0 w-10 border-b border-border bg-surface p-0">
                     <button type="button" className={ICON_BUTTON} aria-label={`Remove row ${r + 1} of ${t.label}`} onClick={() => edits.rows({ removeRows: [{ table: t.key, row: r }] })}>
                       <X size={16} aria-hidden />
                     </button>
-                  </td>
+                  </td>}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <Button size="sm" variant="secondary" onClick={() => edits.rows({ addRowToTables: [t.key] })}>Add row</Button>
+          {editable && <Button size="sm" variant="secondary" onClick={() => edits.rows({ addRowToTables: [t.key] })}>Add row</Button>}
           {editable && <p className="m-0 hidden text-[12.5px] text-ink-muted lg:block">Arrow keys move between cells. You can paste rows from a spreadsheet.</p>}
         </div>
       </div>
     </div>
   );
+}
+
+/** A value shown, not offered: no box edge, on the grey surface (A-05). */
+const READ_ONLY = "h-10 w-full rounded-md border border-transparent bg-surface-2 px-3 text-[14px] font-medium text-ink";
+/** Why the values of a document that cannot be edited are fixed, by its real state. */
+function lockedWords(s: Pick<DocumentDetail["summary"], "status" | "statusReason">): string {
+  if (s.statusReason === "duplicate_file") return "This is a copy of a file already here, so its values can't be changed.";
+  const state = s.statusReason === "downloaded" ? "Downloaded. " : s.status === "sent" ? "Sent. " : s.status === "sending" ? "Sending. " : "";
+  return `${state}Values can't be changed now.`;
 }
 
 const emptyWords = (labels: string[]) =>
@@ -282,7 +293,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
     started.current = true;
     if (!values.current?.contains(document.activeElement)) values.current?.querySelector<HTMLInputElement>("input[data-look]")?.focus();
   }, [walk]);
-  const intro = !editable ? null
+  const intro = !editable ? lockedWords(detail.summary)
     : marks.count === 0 ? (marks.allClear ? "Everything was read clearly." : null)
     : `${needsWords(marks.count)}${marks.allClear ? " The rest were read clearly." : ""}`;
   const hasMore = !!flow && (flow.fieldsConfirmed || !!onTeach);
@@ -301,7 +312,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
         <div className="group/value relative">
           <ValueInput
             id={id} target={{ field: f.key }} value={f.value} edits={edits} aria-describedby={look ? `${id}-look` : undefined}
-            className={teach ? "lg:pr-10" : ""} {...(look && { "data-look": "" })}
+            base={editable ? INPUT : READ_ONLY} className={teach ? "lg:pr-10" : ""} {...(look && { "data-look": "" })}
           />
           {teach && (
             // Named by its own text, not aria-label: a label lookup for the value must find the box alone.
@@ -416,7 +427,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
       {(hasMore || history) && (
         <div className="flex flex-wrap items-start justify-between gap-2">
           {hasMore && (
-            <Button size="sm" variant="ghost" aria-expanded={more} aria-controls="read-more" onClick={() => {
+            <Button size="sm" variant="secondary" className="max-sm:w-full" aria-expanded={more} aria-controls="read-more" onClick={() => {
               // Opening: drawn now, so it can be scrolled clear of a phone's bottom bar and its first control focused.
               flushSync(() => setMore((m) => !m));
               const panel = !more && document.getElementById("read-more");

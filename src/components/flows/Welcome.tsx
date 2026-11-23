@@ -4,13 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Camera } from "lucide-react";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { capture } from "@/lib/analytics";
+import { getBillingStatus } from "@/lib/api-client";
 import { ApiHttpError } from "@/lib/api/core";
 import { createFlow, createSampleDocument, type Flow } from "@/lib/api/documents";
 import { COPY, refusalToken } from "@/lib/documentRefusals";
@@ -18,9 +19,10 @@ import { acceptFor, MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
 import { firstRunAddress, firstRunOf, isFirstFlow, PROVISIONAL_FLOW_NAME, welcomeKinds } from "@/lib/firstRun";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
 import { FileDrop } from "./FileDrop";
+import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useLinkedAccounts } from "./GoogleTargetFields";
 import { PhotoCheck, useCamera } from "./PhotoCheck";
-import { PausedNotice } from "./UploadToFlow";
+import { PausedNotice, pausedBy } from "./UploadToFlow";
 import { uploadRefusalMessage, useUploadQueue } from "./UploadQueue";
 
 const BILLING = "/settings?tab=billing";
@@ -64,6 +66,9 @@ export function Welcome({ flows, flowId }: { flows: readonly Flow[]; flowId?: st
   const [photo, setPhoto] = useState<File | null>(null);
   const camera = useCamera(setPhoto, "welcome-camera-input");
   const went = useRef(false);
+  // A trial that ended or a paused account: said under the title, and nothing here invites a file (A-02).
+  const billing = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000, enabled: useTenantQueriesEnabled() });
+  const paused = pausedBy([], billing.data);
 
   const finish = (flow: string, doc: string) => {
     if (went.current) return;
@@ -105,7 +110,7 @@ export function Welcome({ flows, flowId }: { flows: readonly Flow[]; flowId?: st
   });
   const uploading = item?.state === "waiting" || item?.state === "uploading";
   const busy = start.isPending || uploading;
-  const go = (what: File | "sample") => { if (!busy) start.mutate(what); };
+  const go = (what: File | "sample") => { if (!busy && !paused) start.mutate(what); };
   const fileError = start.variables !== "sample" && start.isError ? start.error : item?.state === "refused" ? item.error : null;
   const sampleError = start.variables === "sample" && start.isError ? start.error : null;
   const photos = known ? !!known.scansOn : true; // R6: with no flow, photos are assumed on
@@ -116,8 +121,10 @@ export function Welcome({ flows, flowId }: { flows: readonly Flow[]; flowId?: st
     <PageShell variant="narrow">
       <PageHeader
         title={title} back={onFirstRun ? { href: "/flows", label: "Flows" } : undefined}
-        sub={first ? "About two minutes. You see the file before anything is sent." : "Add one document like the ones this flow will read. We set the flow up from it."}
+        sub={paused ? "Processing is paused, so new documents can't be read right now."
+          : first ? "About two minutes. You see the file before anything is sent." : "Add one document like the ones this flow will read. We set the flow up from it."}
       />
+      {paused && <div className="mb-5"><PausedNotice {...paused} /></div>}
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="grid content-start gap-5">
           <section data-testid="welcome-drop" aria-labelledby="welcome-drop-heading" className="grid gap-3">
@@ -127,11 +134,11 @@ export function Welcome({ flows, flowId }: { flows: readonly Flow[]; flowId?: st
             </h2>
             <FileDrop
               accept={acceptFor(known ?? { scansOn: true })} maxBytes={MAX_UPLOAD_BYTES} prompt={welcomeKinds(known ?? undefined)} variant="blue"
-              busy={busy && start.variables !== "sample"} busyLabel={`Uploading ${item?.file.name ?? (start.variables instanceof File ? start.variables.name : "")}…`}
+              disabled={!!paused} busy={busy && start.variables !== "sample"} busyLabel={`Uploading ${item?.file.name ?? (start.variables instanceof File ? start.variables.name : "")}…`}
               onFile={go}
             />
             {photos && (
-              <Button variant="secondary" size="lg" className="!h-12 w-full sm:hidden" disabled={busy} onClick={camera.open}>
+              <Button variant="secondary" size="lg" className="!h-12 w-full sm:hidden" disabled={busy || !!paused} onClick={camera.open}>
                 <Camera size={18} aria-hidden />Take a photo
               </Button>
             )}
@@ -143,7 +150,7 @@ export function Welcome({ flows, flowId }: { flows: readonly Flow[]; flowId?: st
           <section data-testid="welcome-sample" aria-label="Our sample invoice" className="grid justify-items-start gap-1">
             <p className="m-0 flex flex-wrap items-center gap-x-2 text-[14px] text-ink">
               No document ready?
-              <button type="button" disabled={busy} onClick={() => go("sample")}
+              <button type="button" disabled={busy || !!paused} onClick={() => go("sample")}
                 className="inline-flex min-h-[44px] items-center font-semibold text-brand-blue underline disabled:opacity-50 sm:min-h-0">
                 Use our sample invoice
               </button>

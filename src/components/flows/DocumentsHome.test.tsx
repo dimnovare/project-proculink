@@ -21,7 +21,7 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => tru
 vi.mock("@clerk/nextjs", () => ({ useUser: () => ({ user: null, isLoaded: true }) }));
 vi.mock("@/lib/api/linkedAccounts", () => ({ listLinkedAccounts: () => Promise.resolve({ available: false, accounts: [] }) }));
 const getOrders = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/api-client", () => ({ apiClient: { getOrders } }));
+vi.mock("@/lib/api-client", () => ({ apiClient: { getOrders }, getBillingStatus: () => Promise.resolve({ canProcessOrders: true }) }));
 
 /** "pending" never settles: the request is still out. */
 type Count = number | Error | "pending";

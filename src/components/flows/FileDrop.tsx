@@ -7,8 +7,8 @@ import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { fileRefusal } from "@/lib/fileKinds";
 
 /** A drop zone with a hidden file input. Refuses the wrong type or an oversize file before `onFile`; `error` is the caller's own refusal to show. */
-export function FileDrop({ accept, maxBytes, prompt, busyLabel, busy, error, onFile, variant = "secondary" }: {
-  accept: string; maxBytes: number; prompt: React.ReactNode; busyLabel?: string; busy?: boolean; error?: string | null; onFile(file: File): void;
+export function FileDrop({ accept, maxBytes, prompt, busyLabel, busy, disabled, error, onFile, variant = "secondary" }: {
+  accept: string; maxBytes: number; prompt: React.ReactNode; busyLabel?: string; busy?: boolean; /** Takes no file, by drop or by button. */ disabled?: boolean; error?: string | null; onFile(file: File): void;
   /** The button's look: "blue" where choosing a file is the screen's one filled action. */
   variant?: "secondary" | "blue";
 }) {
@@ -17,7 +17,7 @@ export function FileDrop({ accept, maxBytes, prompt, busyLabel, busy, error, onF
   const [problem, setProblem] = useState<string | null>(null);
 
   function pick(file: File | undefined) {
-    if (!file || busy) return;
+    if (!file || busy || disabled) return;
     const refusal = fileRefusal(file, accept, maxBytes);
     if (refusal) return setProblem(documentRefusalMessage(refusal));
     setProblem(null);
@@ -33,7 +33,7 @@ export function FileDrop({ accept, maxBytes, prompt, busyLabel, busy, error, onF
         onDrop={(e) => { e.preventDefault(); setOver(false); pick(e.dataTransfer.files[0]); }}
       >
         <p className="text-[13px] text-ink-muted">{busy && busyLabel ? busyLabel : prompt}</p>
-        <Button type="button" variant={variant} loading={busy} onClick={() => input.current?.click()}>
+        <Button type="button" variant={variant} loading={busy} disabled={disabled} onClick={() => input.current?.click()}>
           Choose a file
         </Button>
         <input ref={input} type="file" hidden accept={accept} aria-label="Choose a file"
