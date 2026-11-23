@@ -11,6 +11,7 @@ import PricingPage from "./pricing/page";
 import BookDemoPage from "./book-demo/page";
 import InvoiceDataExtractionPage from "./invoice-data-extraction/page";
 import PurchaseOrderDataExtractionPage from "./purchase-order-data-extraction/page";
+import ComparePage from "./compare/page";
 import MarketingLayout from "./layout";
 import HomePage from "@/app/(home)/page";
 import SignInPage from "@/app/sign-in/[[...sign-in]]/page";
@@ -407,6 +408,7 @@ const PUBLIC_PAGES: Array<[string, () => React.ReactElement]> = [
   ["/pricing", () => <PricingPage />],
   ["/invoice-data-extraction", () => <InvoiceDataExtractionPage />],
   ["/purchase-order-data-extraction", () => <PurchaseOrderDataExtractionPage />],
+  ["/compare", () => <ComparePage />],
   ["/ (home)", () => <HomePage />],
   ["marketing layout", () => <MarketingLayout>{null}</MarketingLayout>],
   ["/sign-in", () => <SignInPage />],
