@@ -113,7 +113,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     title: "Files we make",
     blurb: "The formats a flow can produce, and how each field gets its value.",
     category: "Files and destinations",
-    keywords: ["output", "csv", "json", "xml", "excel", "xlsx", "pdf", "text", "fixed-width", "format"],
+    keywords: ["output", "csv", "json", "xml", "excel", "xlsx", "pdf", "text", "fixed-width", "format", "separator", "semicolon", "comma", "delimiter", "decimal", "date"],
     readMin: 5,
   },
   {

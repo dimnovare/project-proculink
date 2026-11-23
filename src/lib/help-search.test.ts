@@ -31,6 +31,12 @@ describe("help search (shared Fuse index)", () => {
     expect(searchHelpArticles(fuse, "order", 2).length).toBeLessThanOrEqual(2);
   });
 
+  it("finds how files are written, and words no article has together", () => {
+    expect(searchHelpArticles(fuse, "separator")[0]?.slug).toBe("outputs");
+    // No article has both words in one field: the one with the most of them comes first.
+    expect(searchHelpArticles(fuse, "excel semicolon")[0]?.slug).toBe("outputs");
+  });
+
   it("returns [] for gibberish", () => {
     expect(searchHelpArticles(fuse, "xqzvwk")).toEqual([]);
   });
