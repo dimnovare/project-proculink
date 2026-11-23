@@ -28,7 +28,6 @@ const CATEGORY_BLURB: Record<HelpCategory, string> = {
   API: "Send files in and get results out, with signed webhooks.",
 };
 
-/** The three statuses that stop a document, in the app's own words; what to do is ours. */
 /** The Documents tabs a stuck document sits under, named as the app names them. */
 const STUCK = [
   ["needs-you", "Check the marked values, then send it."],
