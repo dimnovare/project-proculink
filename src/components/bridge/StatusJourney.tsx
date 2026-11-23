@@ -8,7 +8,8 @@ export type FailedStage = 0 | 1 | 2 | 3 | 4;
 // A failure carries the node it failed AT (`{ failed: 3 }` = failed at Transform).
 // The old bare `"failed"` variant carried no stage, so every renderer hardcoded the
 // red X to node 2 (Validate) — a delivery failure drew as a validation failure.
-export type OrderStage = FailedStage | { failed: FailedStage };
+// `5` = every node done: a finished journey ends all green with ticks, never on an "active" dot.
+export type OrderStage = FailedStage | 5 | { failed: FailedStage };
 
 export const STAGES = ["In", "Read", "Check", "Transform", "Send"] as const;
 
@@ -47,20 +48,19 @@ interface StatusJourneyProps {
 
 export function StatusJourney({ stage, compact = false, crossingRef }: StatusJourneyProps) {
   // failedAt: the node the failure sits on (null when the order is progressing).
-  // numericStage: -1 on a failed journey so no node reads done/active.
+  // numericStage: on a failed journey, the node it failed at; the nodes before it stay done.
   const failedAt = typeof stage === "object" ? stage.failed : null;
-  const numericStage = typeof stage === "number" ? stage : -1;
+  const numericStage: number = typeof stage === "number" ? stage : stage.failed;
 
   if (compact) {
     // tokens.css .journey.compact .jn { width:11px; height:11px }
-    const at: number = failedAt ?? numericStage;
-    const where = `${at + 1} of 5: ${STAGES[at].toLowerCase()}`;
+    const where = numericStage < 5 && `${numericStage + 1} of 5: ${STAGES[numericStage].toLowerCase()}`;
     return (
-      <div role="img" aria-label={failedAt === null ? `Stage ${where}` : `Stopped at stage ${where}`} className="flex items-center">
+      <div role="img" aria-label={!where ? "All 5 stages done" : failedAt === null ? `Stage ${where}` : `Stopped at stage ${where}`} className="flex items-center">
         {STAGES.map((_, i) => {
           const done   = numericStage > i;
-          const active = numericStage === i;
           const errDot = failedAt === i;
+          const active = numericStage === i && !errDot;
           return (
             <div key={i} className="flex items-center">
               {i > 0 && (
@@ -69,7 +69,7 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
                     height: 1.5,
                     minWidth: 12,
                     flex: 1,
-                    background: i <= numericStage ? "#2E8E3A" : "#CBD0DA",
+                    background: i <= numericStage && i !== failedAt ? "#2E8E3A" : "#CBD0DA",
                   }}
                 />
               )}
@@ -98,7 +98,7 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
   }
 
   // Full — tokens.css .journey.full .jn { width:18px; height:18px }
-  const stageNum = (failedAt ?? numericStage) + 1; // 1-indexed for display
+  const stageNum = Math.min(numericStage + 1, 5); // 1-indexed for display
   return (
     <div className="w-full max-w-[720px] mx-auto">
       {/* Optional sub-label */}
@@ -112,8 +112,8 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
       <div className="flex items-center">
         {STAGES.map((label, i) => {
           const done   = numericStage > i;
-          const active = numericStage === i;
           const err    = failedAt === i;
+          const active = numericStage === i && !err;
           return (
             <div key={i} className="flex items-center flex-1 last:flex-none">
               {i > 0 && (
@@ -122,7 +122,7 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
                     flex: 1,
                     height: 1.5,
                     minWidth: 26,
-                    background: i <= numericStage ? "#2E8E3A" : "#CBD0DA",
+                    background: i <= numericStage && i !== failedAt ? "#2E8E3A" : "#CBD0DA",
                   }}
                 />
               )}

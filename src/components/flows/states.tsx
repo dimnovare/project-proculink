@@ -23,7 +23,7 @@ export const Gone = ({ text, back = "start" }: { text: string; back?: "start" | 
   <StatusNotice
     tone="error"
     action={back === "documents"
-      ? <Link href="/documents" className={buttonClass("secondary", "sm")}>Back to Documents</Link>
+      ? <Link href="/documents" className={buttonClass("secondary", "sm")}>Go to Documents</Link>
       : <Link href={firstRunAddress({})} className={buttonClass("secondary", "sm")}>Start again</Link>}
   >{text}</StatusNotice>
 );
@@ -136,7 +136,7 @@ export function Checks({ checks, inbox = false }: { checks: DocumentCheck[]; inb
 /** Why a document has nothing to edit, and the way forward: a failed read, or a file we had already. */
 export function ReadProblem({ summary, retry, scansOn, uploadHref, held }: {
   summary: DocumentSummary; scansOn?: boolean; retry: UseMutationResult<unknown, unknown, void>;
-  /** Where "Upload a clearer copy" goes: where this screen uploads to the document's flow. */
+  /** Where the upload (the way on, so the filled button) goes: where this screen uploads to the document's flow. */
   uploadHref: string;
   /** The server's sentence for a held duplicate ("This file is already in your workspace." in the inbox). */
   held?: string;
@@ -158,7 +158,7 @@ export function ReadProblem({ summary, retry, scansOn, uploadHref, held }: {
         <>
           <p className="m-0 text-[13px] text-ink-muted">It hasn't been sent anywhere, and it doesn't count as a document on your plan.</p>
           <div className="flex flex-wrap gap-2">
-            <Link href={uploadHref} className={buttonClass("secondary", "md")}>Upload a clearer copy</Link>
+            <Link href={uploadHref} className={buttonClass("primary", "md")}>{summary.statusReason === "unreadable_file" ? "Upload another copy" : "Upload a clearer copy"}</Link>
           </div>
         </>
       )}

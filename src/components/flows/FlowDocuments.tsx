@@ -10,9 +10,10 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { listDocumentPage, updateFlow } from "@/lib/api/documents";
 import type { Flow } from "@/lib/api/documents";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
-import { documentStatus } from "@/lib/documentStatusManifest";
+import { documentStatus, STATUS } from "@/lib/documentStatusManifest";
 import { documentsAddress, NEEDS_YOU_STATUSES } from "@/lib/documentTabs";
 import { acceptFor, kindsLine, MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
+import { flowAddress } from "@/lib/flowSteps";
 import { pageTotal } from "@/lib/pageTotal";
 import { DocumentList } from "./DocumentList";
 import { streakText } from "./FlowCheck";
@@ -41,6 +42,18 @@ export function StreakBand({ flow }: { flow: Flow }) {
   const saved = useFlowSaved(flow.id);
   const update = useMutation({ mutationFn: () => updateFlow(flow.id, { automation: "marked" }), onSuccess: saved });
   const streak = flow.noCorrectionStreak;
+  // Said after the switch, which also takes the flow off review (and so would hide the band).
+  if (update.isSuccess && hidden !== flow.id) return (
+    <Card dense className="flex flex-wrap items-center gap-3">
+      <p role="status" className="m-0 min-w-0 flex-[1_1_320px] text-[13.5px] text-ink">
+        Done. Documents with nothing marked now go out by themselves. Change this on You check.
+      </p>
+      <span className="flex flex-wrap gap-2">
+        <Link href={flowAddress(flow.id, "check")} className={buttonClass("secondary", "md")}>Open You check</Link>
+        <Button variant="ghost" onClick={() => setHidden(flow.id)}>Close</Button>
+      </span>
+    </Card>
+  );
   if (flow.automation !== "review" || typeof streak !== "number" || streak < 5 || hidden === flow.id || readDismissed(flow.id)) return null;
   const hide = () => {
     try { localStorage.setItem(dismissedKey(flow.id), "1"); } catch { /* blocked storage: hidden for this visit only */ }
@@ -56,7 +69,7 @@ export function StreakBand({ flow }: { flow: Flow }) {
           variant="secondary" className="border-brand-green text-brand-green-deep" loading={update.isPending}
           onClick={() => { if (!update.isPending) update.mutate(); }}
         >
-          Check only what we marked
+          Send unmarked documents automatically
         </Button>
         <Button variant="ghost" onClick={hide}>Not now</Button>
       </span>
@@ -78,6 +91,8 @@ export function FlowDocuments({ flow }: { flow: Flow }) {
   const needs = useQuery({ ...flowNeedsYouQuery(flow.id), enabled });
   const total = pageTotal(page.data);
   const need = pageTotal(needs.data);
+  const unsent = pageTotal(useQuery({ ...documentCountQuery([STATUS.send_failed], flow.id), enabled }).data);
+  const couldNotSend = unsent ? `${unsent} couldn't be sent. ` : "";
   const next = need ? needs.data?.items[0] : undefined;
 
   return (
@@ -91,7 +106,7 @@ export function FlowDocuments({ flow }: { flow: Flow }) {
           <div className="grid gap-0.5">
             <h2 className="m-0 text-[16px] font-semibold text-ink">Documents in this flow</h2>
             <p className="m-0 text-[13px] text-ink-muted">
-              {need === undefined ? "Newest first." : need === 0 ? "Nothing needs you. Newest first." : `${needsYouWords(need)}. Newest first.`}
+              {need === undefined ? "Newest first." : need === 0 ? `${couldNotSend}${couldNotSend ? "Nothing else needs" : "Nothing needs"} you. Newest first.` : `${couldNotSend}${needsYouWords(need)}. Newest first.`}
             </p>
           </div>
           {next && (

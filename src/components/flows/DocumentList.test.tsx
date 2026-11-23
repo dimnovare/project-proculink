@@ -37,9 +37,9 @@ describe("DocumentList", () => {
   });
 
   it("says what each row needs, from what is known about it", () => {
-    expect(rowNeed(row({ status: "ready" }))).toEqual({ text: "Ready to send", tone: "green" });
+    expect(rowNeed(row({ status: "ready" }))).toEqual({ text: "Ready to send", tone: "amber" });
     // Our sample is never sent, so its row never says it is ready to send.
-    expect(rowNeed(row({ status: "ready", isSample: true }))).toEqual({ text: "Nothing to send", tone: "green" });
+    expect(rowNeed(row({ status: "ready", isSample: true }))).toEqual({ text: "Nothing to send", tone: "amber" });
     expect(rowNeed(row({ failedChecks: 2, checks: ["low_confidence", "required_missing"] }))).toEqual({ text: "2 values to check", tone: "amber" });
     expect(rowNeed(row({ failedChecks: 1, checks: ["type_invalid"] })).text).toBe("1 value to check");
     expect(rowNeed(row({ failedChecks: 3, checks: ["low_confidence", "duplicate"] })).text).toBe("Same number as an earlier document");

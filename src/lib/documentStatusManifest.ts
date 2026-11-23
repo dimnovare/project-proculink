@@ -17,7 +17,7 @@ const ROWS = {
   needs_review: { label: "Needs review", tone: "warning", stage: 2, needsYou: true, editable: true },
   ready: { label: "Ready to send", tone: "warning", stage: 3, needsYou: true, editable: true },
   sending: { label: "Sending", tone: "working", stage: 4, needsYou: false, editable: false },
-  sent: { label: "Sent", tone: "success", stage: 4, needsYou: false, editable: false },
+  sent: { label: "Sent", tone: "success", stage: 5, needsYou: false, editable: false },
   send_failed: { label: "Couldn't send", tone: "error", stage: { failed: 4 }, needsYou: true, editable: true },
 } satisfies Record<string, DocumentStatusRow>;
 export const DOCUMENT_STATUSES: Record<string, DocumentStatusRow> = ROWS;

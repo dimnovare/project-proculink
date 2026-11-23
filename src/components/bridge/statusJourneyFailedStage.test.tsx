@@ -69,10 +69,20 @@ describe("StatusJourney render — the X sits on the failing node", () => {
       <StatusJourney stage={{ failed: 3 }} crossingRef="PO-1" />,
     );
     const d = dots(container);
-    // On a failed journey no node is "done", so the only svg is the X.
-    expect(d[3].querySelector("svg")).toBeTruthy();
-    expect(d[2].querySelector("svg")).toBeNull();
+    // The X is on node 3; the nodes that finished before it keep their tick.
+    expect(d[3]).toHaveStyle({ background: "#B43838" });
+    expect(d[2]).toHaveStyle({ background: "#2E8E3A" });
+    expect(d[4]).toHaveStyle({ background: "#FFFFFF" });
     expect(getByText(/Stage 4 of 5/)).toBeInTheDocument();
+  });
+
+  it("a finished journey (stage 5) is all green with ticks, no active dot", () => {
+    const { container, getByRole } = render(<><StatusJourney stage={5} /><StatusJourney stage={5} compact /></>);
+    const d = dots(container);
+    expect(d).toHaveLength(10);
+    for (const dot of d) expect(dot).toHaveStyle({ background: "#2E8E3A" });
+    expect(d.slice(0, 5).every((x) => x.querySelector("svg"))).toBe(true);
+    expect(getByRole("img", { name: "All 5 stages done" })).toBeInTheDocument();
   });
 
   it("failedStageFor wraps the map for producers", () => {

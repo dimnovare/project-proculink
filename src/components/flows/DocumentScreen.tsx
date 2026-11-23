@@ -24,7 +24,7 @@ import { documentHref, pickNext, positionText, queuePosition } from "@/lib/revie
 import { documentsAddress } from "@/lib/documentTabs";
 import { relativeTime } from "@/lib/relativeTime";
 import { nextTabIndex } from "@/lib/tabKeys";
-import { downloadDeliveryFile, fetchDocumentSource, getDocument, getFlow, getDocumentHistory, listDeliveries, retryDocumentRead, sendDocument, teachDocument } from "@/lib/api/documents";
+import { downloadDeliveryFile, fetchDocumentSource, getDocument, getFlow, getDocumentHistory, listDeliveries, listOutputs, retryDocumentRead, sendDocument, teachDocument } from "@/lib/api/documents";
 import { filesOf, finishedLabel, flowWords } from "@/lib/flowWords";
 import { saveBlob } from "@/lib/saveBlob";
 import { formatDateTime } from "@/lib/format-date";
@@ -38,6 +38,9 @@ import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { INPUT } from "./DestinationForm";
 import { ADDED_TO_CHANGES, ReadValuesPanel, SAVE_WORDS, type Teach } from "./ReadValuesPanel";
 import { Checks, Failed, Gone, Quiet, ReadProblem, Loading } from "./states";
+import { ApiHttpError } from "@/lib/api/core";
+
+const notFound = (e: unknown) => e instanceof ApiHttpError && e.status === 404;
 import { LogoLoader } from "@/components/bridge/LogoLoader";
 import { rowNeed } from "./DocumentList";
 import { onItsWay } from "./SelectionBar";
@@ -438,6 +441,12 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   };
   const busy = send.isPending || skip.isPending || leaving || answering;
   const words = flowWords(flow.data?.downloadOnly);
+  // The same request as the "What we'll send" pane. A flow that makes no file yet is set up first: the server would refuse the send.
+  const outputs = useQuery({ queryKey: ["outputs", docFlowId, "published"], queryFn: () => listOutputs(docFlowId, { published: true }), enabled: enabled && here === false });
+  const setUp = sends && outputs.data?.length === 0;
+  const sendFailed = summary?.status === "send_failed";
+  const primary = sendFailed ? "Send again" : words.primary;
+  const setUpLink = (cls: string) => <Link href={`/flows/${docFlowId}?tab=outputs`} className={`${buttonClass("primary", "md")} ${cls}`}>Set up the file</Link>;
   // The document's own queries are dropped once the screen has left, so it never draws "gone" on the way out.
   const removed = useRef(false);
   useEffect(() => () => {
@@ -449,8 +458,10 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
     <Button variant="secondary" className="!text-danger-text" disabled={busy} loading={remove.pendingId === documentId} onClick={() => void remove.ask({ ...summary, countsThisMonth: doc.data?.countsThisMonth })}>Remove</Button>
   );
   // A sent document whose files were all made to download: File ready, and Download is the way on.
-  const deliveries = useQuery({ queryKey: ["deliveries", documentId], queryFn: () => listDeliveries(documentId), enabled: enabled && here === false && summary?.status === "sent" });
+  const deliveries = useQuery({ queryKey: ["deliveries", documentId], queryFn: () => listDeliveries(documentId), enabled: enabled && here === false && (summary?.status === "sent" || sendFailed) });
   const files = filesOf(deliveries.data);
+  // Why sending stopped, said above the tabs below lg, where the deliveries are on the last tab.
+  const whyUnsent = sendFailed ? deliveries.data?.filter((d) => d.status === "dead_letter" || d.status === "failed").map((d) => `${d.outputName}: ${d.lastError ?? "it couldn't be delivered."}`) : undefined;
   const made = here === false && summary?.status === "sent" && files.length > 0 && files.every((f) => !f.delivered);
   const download = useMutation({ mutationFn: async () => saveBlob(await downloadDeliveryFile(documentId, files[0].deliveryId), files[0].fileName) });
   const madeActions = (cls: string) => made && (
@@ -459,13 +470,13 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
       {files.length === 1 && <Button variant="primary" className={cls} loading={download.isPending} onClick={() => download.mutate()}>{`Download ${files[0].fileName}`}</Button>}
     </>
   );
-  useShortcut("send-and-next", () => press(send), sends && !busy);
+  useShortcut("send-and-next", () => press(send), sends && !setUp && !busy);
   const canSkip = sends && !!nextNow;
   // Review next is the way on wherever nothing is sent from here; beside the inbox answers it is never the filled button.
   const next = here !== undefined && !sends && nextNow;
   // While an answer runs it is a disabled button: a link would still go on Enter.
   const reviewNext = (cls: string) => next && (answering ? <Button disabled className={cls}>Review next</Button>
-    : <Link replace href={documentHref(next)} className={`${buttonClass(here ? "secondary" : "send", "md")} ${cls}`}>Review next</Link>);
+    : <Link replace href={documentHref(next)} className={`${buttonClass(here || summary?.status === "read_failed" ? "secondary" : "send", "md")} ${cls}`}>Review next</Link>);
   const located = !!marks?.places.length || !!doc.data?.read.fields.some((f) => f.location?.box || f.location?.address)
     || !!doc.data?.read.tables.some((t) => t.rows.some((r) => Object.values(r.cells).some((c) => c.location?.box || c.location?.address)));
   const refused = send.error ?? skip.error ?? download.error;
@@ -475,7 +486,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   const tag = finished ? { text: deliveries.data && files.length ? finishedLabel(files) : "Finished", tone: "green" as const }
     : marks && marks.count > 0
     ? { text: marks.count === 1 ? "1 value to check" : `${marks.count} values to check`, tone: "amber" as const }
-    : summary && rowNeed({ ...summary, inInbox: here, checks: failedCodes, failedChecks: 0 });
+    : summary && rowNeed({ ...summary, inInbox: here, checks: failedCodes, failedChecks: 0, downloadOnly: flow.data?.downloadOnly });
   const ago = relativeTime(summary?.createdAt);
   const by = summary?.source ? `by ${SOURCES.get(summary.source) ?? summary.source}` : "";
   const when = `${summary?.sourceRef ? ` from ${summary.sourceRef}` : ""}${ago ? ` ${ago}` : ""}`;
@@ -499,10 +510,11 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
         back={{ href: "/documents", label: "Documents" }}
         actions={status && tag && (
           <div data-testid="review-header-actions" className="flex flex-wrap items-center gap-2">
-            <Pill tone={tag.tone}>{tag.text}</Pill>
+            {/* A failed read says so in its own notice below. */}
+            {summary?.status !== "read_failed" && <Pill tone={tag.tone}>{tag.text}</Pill>}
             {position && <span className="text-[12.5px] text-ink-muted">{position}</span>}
             {removeButton}
-            {made ? madeActions("hidden md:inline-flex") : sends ? (
+            {made ? madeActions("hidden md:inline-flex") : setUp ? setUpLink("hidden md:inline-flex") : sends ? (
               <>
                 {canSkip && <Button variant="secondary" className="hidden md:inline-flex" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
                 <Button id="review-send" variant="send" className="hidden md:inline-flex" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}
@@ -510,7 +522,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
                   onKeyDown={(e) => { noRepeat(e); if (walked.current && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) walked.current.focus(); }}
                   onBlur={() => { walked.current = null; }}
                 >
-                  {words.primary}
+                  {primary}
                   <kbd aria-hidden className="hidden h-[22px] items-center rounded bg-brand-green-deep px-1.5 font-sans text-[12.5px] font-semibold lg:inline-flex">{keyWord("Mod", apple)} Enter</kbd>
                 </Button>
               </>
@@ -531,7 +543,8 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
         </div>
       )}
       {!doc.data || !summary || !status ? (
-        doc.isError ? <Failed error={doc.error} retry={() => doc.refetch()} /> : <Loading>Loading document…</Loading>
+        doc.isError ? (notFound(doc.error) ? <Gone text="This document isn't here any more. It may have been removed." back="documents" />
+          : <Failed error={doc.error} retry={() => doc.refetch()} />) : <Loading>Loading document…</Loading>
       ) : (
         <div className="grid gap-4">
           {doc.isError && <Failed error={doc.error} retry={() => doc.refetch()} />}
@@ -555,6 +568,9 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
           </div>
           <div className={`grid items-start gap-4 lg:gap-x-1 lg:grid-cols-[minmax(280px,var(--split))_10px_minmax(0,1fr)] ${waiting ? "min-[1700px]:grid-cols-[264px_minmax(280px,var(--split))_10px_minmax(360px,1fr)]" : ""}`} style={{ "--split": `${split}%` } as CSSProperties}>
             {/* Inside the grid so that below lg the inbox answers can sit above the tabs (order-first). */}
+            {!!whyUnsent?.length && (
+              <div className="lg:hidden"><StatusNotice tone="error">{whyUnsent.map((w) => <span key={w} className="block">{w}</span>)}</StatusNotice></div>
+            )}
             <PaneTabs panes={panes} active={tab} onSelect={(id) => setTab(id as PaneId)} />
             {waiting && queue.data && (
               <div className={`hidden min-w-0 min-[1700px]:mr-3 min-[1700px]:block min-[1700px]:sticky ${UNDER_HEADER}`}>
@@ -608,10 +624,10 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
       {/* Made with several files and nothing next: no bar, never an empty one. */}
       {(sends || next || (made && files.length === 1)) && (
         <ActionBar>
-          {made ? madeActions("") : sends ? (
+          {made ? madeActions("") : setUp ? setUpLink("inline-flex items-center") : sends ? (
             <>
               {canSkip && <Button variant="secondary" className="!flex-none" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
-              <Button variant="send" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}>{words.primary}</Button>
+              <Button variant="send" disabled={busy} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}>{primary}</Button>
             </>
           ) : reviewNext("inline-flex items-center")}
         </ActionBar>
