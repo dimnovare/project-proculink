@@ -39,8 +39,9 @@ export function aFileOf(o: { format: string; standard?: string | null }): string
   return `${/^[AEIOX]/.test(said) ? "an" : "a"} ${said} file`;
 }
 
-/** A name that ends with the old type gets the new one ("Invoices CSV" → "Invoices XML"); a name the person typed is kept. */
+/** A name that ends with the old type gets the new one ("Invoices CSV" → "Invoices XML", "CSV file" → "XML file"); a name the person typed is kept. */
 export function renamed(name: string, from: string, to: string): string {
+  if (name === `${from} file`) return `${to} file`;
   if (!name.endsWith(` ${from}`)) return name;
   return `${name.slice(0, name.length - from.length - 1).slice(0, 120 - to.length - 1).trimEnd()} ${to}`;
 }
