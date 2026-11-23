@@ -81,7 +81,7 @@ export default function RootPage() {
                   "No integration needed to start",
                   "The people who send you documents change nothing",
                   "Try it with a test or anonymised document",
-                  "Nothing is sent until you say so",
+                  "Anything we're unsure of waits for you",
                 ]}
               />
             </div>
@@ -128,7 +128,7 @@ export default function RootPage() {
               </p>
               <p>
                 There is no template to build first. When a flow keeps going through without corrections, you can let it
-                send by itself.
+                send everything by itself.
               </p>
             </div>
           </div>
@@ -138,10 +138,11 @@ export default function RootPage() {
         <section aria-labelledby="home-decide" className={`${SITE.band} bg-surface`}>
           <div className={`${SITE.wrap} ${TWO}`}>
             <div className="flex flex-col gap-5">
-              <h2 id="home-decide" className={SITE.h2}>Nothing is sent until you say so.</h2>
+              <h2 id="home-decide" className={SITE.h2}>You decide what waits for you.</h2>
               <p className={SITE.lead}>
-                Every document waits for you by default. The original stays on screen beside what we read, and anything
-                missing or hard to read is marked.
+                Anything missing or hard to read is marked, and a document with a marked value waits for you, with the
+                original beside what we read. Every other document goes straight through, unless you set the flow to
+                wait on every one.
               </p>
               <Ticks
                 items={[
