@@ -51,23 +51,24 @@ test.describe("Book a 20-minute call — /book-demo", () => {
     await expect(form.getByLabel(/^company\b/i)).toBeVisible();
   });
 
-  test("submit stays disabled until required fields are filled; success notice appears AND receives focus", async ({ page }) => {
+  test("submit says what is missing instead of greying out; success notice appears AND receives focus", async ({ page }) => {
     await page.goto("/book-demo");
 
     const form = page.getByRole("form", { name: /request a 20-minute call/i });
     await expect(form).toBeVisible({ timeout: 15_000 });
 
+    // The button is never greyed out for an empty field: pressing it names what is missing.
     const submit = form.getByRole("button", { name: /request a call/i });
-    await expect(submit).toBeDisabled();
-
-    // Partial fill — still gated (all three of Name / Work email / Company are required).
-    await form.getByLabel(/^name\b/i).fill("Playwright Smoke");
-    await form.getByLabel(/work email/i).fill("smoke@example.com");
-    await expect(submit).toBeDisabled();
-
-    await form.getByLabel(/^company\b/i).fill("Example GmbH");
     await expect(submit).toBeEnabled();
 
+    // Partial fill: nothing is sent, the missing field is named and focused.
+    await form.getByLabel(/^name\b/i).fill("Playwright Smoke");
+    await form.getByLabel(/work email/i).fill("smoke@example.com");
+    await submit.click();
+    await expect(form.getByText("Enter your company")).toBeVisible();
+    await expect(form.getByLabel(/^company\b/i)).toBeFocused();
+
+    await form.getByLabel(/^company\b/i).fill("Example GmbH");
     await submit.click();
 
     // Mock submitSupportRequest resolves { delivered: true } after ~400ms; the
