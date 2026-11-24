@@ -22,32 +22,34 @@ export const metadata = pageMetadata({
 // cannot leave the previous one badged Latest.
 // The old values stay because src/test/changelog-append-only.test.ts freezes
 // those entries byte for byte.
+// **Name** marks a name on screen (a button, page or tab); it is drawn bold. Marking
+// one is formatting, not a rewrite: the words stay as they were.
 const ENTRIES = [
   {
     version: "v2.10",
     date: "20 November 2026",
     items: [
-      "Change the file a flow makes without adding a second one: pick a common type, copy a sample, build it from your system's documentation, or choose a standard. You see the new file first, and nothing changes until you press Use this file. Where it goes stays the same.",
-      "At the end of your first flow's setup, Your first file is ready shows the file, lets you change its type in one tap, and says what happens next.",
-      "A flow's page now says in one sentence what the flow does. Documents and History are buttons under the four steps, and a file's card shows its type, where it goes and its columns.",
-      "A ready document on a flow's own Documents tab now has its Make the file or Send button.",
+      "Change the file a flow makes without adding a second one: pick a common type, copy a sample, build it from your system's documentation, or choose a standard. You see the new file first, and nothing changes until you press **Use this file**. Where it goes stays the same.",
+      "At the end of your first flow's setup, **Your first file is ready** shows the file, lets you change its type in one tap, and says what happens next.",
+      "A flow's page now says in one sentence what the flow does. **Documents** and **History** are buttons under the four steps, and a file's card shows its type, where it goes and its columns.",
+      "A ready document on a flow's own **Documents** tab now has its **Make the file** or **Send** button.",
     ],
   },
   {
     version: "v2.9",
     date: "20 November 2026",
     items: [
-      "A new flow that an admin creates starts on “Check only what we marked”: a document with a marked value waits for you, and every other one has its file made or is sent straight away. Flows you already have keep their setting.",
-      "Every document in a list now shows its next step: Download, Download a copy, Review, Read it anyway or Try again.",
-      "You can remove a document you don't need, from its row, from its own screen, or several at once with Select. Once a file has been made or sent from a document, only an admin can remove it. A document we already read still counts toward your plan. A removed document whose file was already made or sent is still recognised if it arrives again.",
-      "On a flow whose file you download, the words say so: Make the file and File ready. The Documents tab Sent is now Finished.",
+      "A new flow that an admin creates starts on **Check only what we marked**: a document with a marked value waits for you, and every other one has its file made or is sent straight away. Flows you already have keep their setting.",
+      "Every document in a list now shows its next step: **Download**, **Download a copy**, **Review**, **Read it anyway** or **Try again**.",
+      "You can remove a document you don't need, from its row, from its own screen, or several at once with **Select**. Once a file has been made or sent from a document, only an admin can remove it. A document we already read still counts toward your plan. A removed document whose file was already made or sent is still recognised if it arrives again.",
+      "On a flow whose file you download, the words say so: **Make the file** and **File ready**. The **Documents** tab **Sent** is now **Finished**.",
     ],
   },
   {
     version: "v2.8",
     date: "19 November 2026",
     items: [
-      "Phone alerts: turn them on in Settings, and your phone tells you when a document needs you or couldn't be sent, with a short summary each day. Send a test alert to check it reaches you.",
+      "Phone alerts: turn them on in **Settings**, and your phone tells you when a document needs you or couldn't be sent, with a short summary each day. **Send a test alert** to check it reaches you.",
       "On an iPhone, phone alerts work once ProcuLink is on your home screen.",
     ],
   },
@@ -69,18 +71,18 @@ const ENTRIES = [
     version: "v2.5",
     date: "17 November 2026",
     items: [
-      "On Android, an installed ProcuLink is in the Share menu: share photos or PDFs from any app, then choose Add them in ProcuLink.",
-      "On a phone, Add documents shows how to send a file by Mail to your workspace's address.",
+      "On Android, an installed ProcuLink is in the **Share** menu: share photos or PDFs from any app, then choose **Add them in ProcuLink**.",
+      "On a phone, **Add documents** shows how to send a file by Mail to your workspace's address.",
     ],
   },
   {
     version: "v2.4",
     date: "17 November 2026",
     items: [
-      "The phone has four places: Documents, Flows, the round add button and Settings. Your account and Sign out are at the top of Settings.",
-      "Activity is now called History, with two tabs, All and Changes, and a way back to Documents.",
-      "Documents says how many are being read, and points once to everything older.",
-      "A flow's Arrives step starts with your workspace's address. Each flow's own address is one press away.",
+      "The phone has four places: **Documents**, **Flows**, the round add button and **Settings**. Your account and **Sign out** are at the top of **Settings**.",
+      "**Activity** is now called **History**, with two tabs, **All** and **Changes**, and a way back to **Documents**.",
+      "**Documents** says how many are being read, and points once to everything older.",
+      "A flow's **Arrives** step starts with your workspace's address. Each flow's own address is one press away.",
       "The first document from a new email address waits for you on a flow that sends automatically.",
     ],
   },
@@ -90,20 +92,20 @@ const ENTRIES = [
     items: [
       "Add documents without choosing a flow: drop in anything, or forward it to your workspace's email address, and we work out what it is.",
       "The first time a new kind of document arrives, one screen asks what to do with documents like it.",
-      "The top bar has three places: Documents, Flows and Settings. Lookups is on Flows, and History on Documents.",
+      "The top bar has three places: **Documents**, **Flows** and **Settings**. **Lookups** is on **Flows**, and **History** on **Documents**.",
     ],
   },
   {
     version: "v2.2",
     date: "16 November 2026",
     items: [
-      "On a flow's We send step, each file leads with where it goes and Send a test.",
-      "Make another file: one press of Create makes a CSV with every value we read.",
+      "On a flow's **We send** step, each file leads with where it goes and **Send a test**.",
+      "**Make another file**: one press of **Create** makes a CSV with every value we read.",
       "Standard formats are listed by family, the ones that fit your documents first.",
-      "We read shows one More for each value, holding its type, its meaning and whether it is required.",
+      "**We read** shows one **More** for each value, holding its type, its meaning and whether it is required.",
       "Your first flow offers the common places to send a file first, and a server is one press away.",
-      "Changes inside a flow say whether they are in use, with Use these changes and Undo my changes.",
-      "Settings has three tabs: Workspace, Destinations, and Plan & billing. API keys are under Workspace, in For developers.",
+      "Changes inside a flow say whether they are in use, with **Use these changes** and **Undo my changes**.",
+      "**Settings** has three tabs: **Workspace**, **Destinations**, and **Plan & billing**. API keys are under **Workspace**, in **For developers**.",
     ],
   },
   {
@@ -112,23 +114,23 @@ const ENTRIES = [
     items: [
       "A new look across the app and the website.",
       "On a phone, the main pages sit in a bar at the bottom of the screen, with a round button to add a document.",
-      "Documents opens on what needs you, and Review next takes you to the next one.",
-      "Activity: one page for everything that happened to your documents.",
-      "Flows: each flow says in one sentence what it does, what needs you and its last document.",
-      "Lookups: import a CSV or Excel file, change values in place, and every change saves as you type, with Undo.",
+      "**Documents** opens on what needs you, and **Review next** takes you to the next one.",
+      "**Activity**: one page for everything that happened to your documents.",
+      "**Flows**: each flow says in one sentence what it does, what needs you and its last document.",
+      "**Lookups**: import a CSV or Excel file, change values in place, and every change saves as you type, with **Undo**.",
       "The free trial now lasts 30 days.",
       "A long PDF is read ten pages at a time, up to 100 pages.",
-      "Review saves your changes as you type, marks what needs you in amber, and opens the next document when you send.",
-      "Upload takes several files at once and shows where each one is.",
-      "Destinations: test one before you use it, and send a waiting document again with Send it now.",
-      "A flow's page follows the document: Arrives, We read, You check, We send. Changes are a draft until you publish them.",
+      "**Review** saves your changes as you type, marks what needs you in amber, and opens the next document when you send.",
+      "**Upload** takes several files at once and shows where each one is.",
+      "**Destinations**: test one before you use it, and send a waiting document again with **Send it now**.",
+      "A flow's page follows the document: **Arrives**, **We read**, **You check**, **We send**. Changes are a draft until you publish them.",
       "A new workspace starts from a file: add one, see what was read, then choose where it goes.",
       "Search: press Ctrl K to find a document by its name or number.",
-      "Documents: select several and send or download them together.",
-      "Settings is one page with tabs for the workspace, destinations, plan and billing, and API keys.",
-      "Help opens beside your work, with the tasks for the screen you are on.",
-      "Pricing: choose how many documents you process a month and see which plan costs least.",
-      "ProcuLink can be installed like an app from Settings. It says when you are offline, and a file you add offline waits until the connection is back.",
+      "**Documents**: select several and send or download them together.",
+      "**Settings** is one page with tabs for the workspace, destinations, plan and billing, and API keys.",
+      "**Help** opens beside your work, with the tasks for the screen you are on.",
+      "**Pricing**: choose how many documents you process a month and see which plan costs least.",
+      "ProcuLink can be installed like an app from **Settings**. It says when you are offline, and a file you add offline waits until the connection is back.",
     ],
   },
   {
@@ -223,7 +225,7 @@ function Items({ items, big }: { items: readonly string[]; big?: boolean }) {
   return (
     <ul className={`m-0 flex min-w-0 flex-[1_1_420px] list-disc flex-col gap-3 pl-6 ${big ? "text-[clamp(19px,1.1vw+14.5px,22px)] leading-[1.45]" : ""}`}>
       {items.map((item, j) => (
-        <li key={j}>{item}</li>
+        <li key={j}>{item.split(/\*\*(.+?)\*\*/).map((part, k) => (k % 2 ? <strong key={k}>{part}</strong> : part))}</li>
       ))}
     </ul>
   );

@@ -8,7 +8,9 @@ import { Card } from "@/components/bridge/layout/Card";
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { Loading, LogoLoader } from "@/components/bridge/LogoLoader";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
-import type { DocumentCheck, DocumentSummary } from "@/lib/api/documents";
+import type { DocumentCheck, DocumentSummary, DuplicateOf } from "@/lib/api/documents";
+import { duplicateLine } from "@/lib/flowWords";
+import { EarlierLink } from "./RowActions";
 import { classifyApiFailure } from "@/lib/apiFailure";
 import { canRetryRead, COPY, documentRefusalMessage, readFailureMessage, refusalToken } from "@/lib/documentRefusals";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
@@ -122,12 +124,18 @@ export const Failed = ({ error, retry, what, lead = "We couldn't load this." }: 
 
 /** Failed checks are a heads-up; they never stop a send. In the inbox nothing is set up (so "fields not confirmed" is no news)
  *  and nothing is sent from the document, so neither is said. */
-export function Checks({ checks, inbox = false }: { checks: DocumentCheck[]; inbox?: boolean }) {
+export function Checks({ checks, inbox = false, flowId, duplicateOf }: {
+  checks: DocumentCheck[]; inbox?: boolean;
+  /** A repeated number's earlier copy: its check says when it came, with a way to it (when it is still there). */
+  flowId?: string; duplicateOf?: DuplicateOf | null;
+}) {
   const failed = checks.filter((c) => !c.passed && !(inbox && c.code === "fields_unconfirmed"));
   if (!failed.length) return null;
   return (
     <div className="grid gap-2">
-      {failed.map((c, i) => <StatusNotice key={`${c.code}-${i}`} tone="warning">{c.message}</StatusNotice>)}
+      {failed.map((c, i) => c.code === "duplicate" && duplicateOf
+        ? <StatusNotice key={`${c.code}-${i}`} tone="warning" action={flowId && <EarlierLink flowId={flowId} of={duplicateOf} className={buttonClass("secondary", "sm")} />}>{duplicateLine(duplicateOf)}</StatusNotice>
+        : <StatusNotice key={`${c.code}-${i}`} tone="warning">{c.message}</StatusNotice>)}
       {!inbox && <p className="m-0 text-[12.5px] text-ink-muted">Checks are a heads-up; they never stop you sending.</p>}
     </div>
   );

@@ -46,3 +46,7 @@ export function dayAt(iso: string, now: Date = new Date()): string {
     : `on ${d.toLocaleDateString("en-GB", { day: "numeric", month: "long", ...(d.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }) })}`;
   return `${day} at ${activityTime(iso)}`;
 }
+
+/** A repeated number in words: "INV-1001 was already received on 22 May at 09:00." */
+export const duplicateLine = (d: { number: string | null; receivedAt: string }) =>
+  `${d.number ?? "A document with this number"} was already received ${dayAt(d.receivedAt)}.`;

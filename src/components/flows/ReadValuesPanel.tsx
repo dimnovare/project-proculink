@@ -424,7 +424,8 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
       </fieldset>
       {pasteNote && <StatusNotice tone="warning">{pasteNote}</StatusNotice>}
       {/* A held copy says "already here" once, in its hold above the panel (A-12). */}
-      <Checks checks={detail.summary.statusReason === "duplicate_file" ? marks.unattached.filter((c) => c.code !== "duplicate") : marks.unattached} inbox={inbox} />
+      <Checks checks={detail.summary.statusReason === "duplicate_file" ? marks.unattached.filter((c) => c.code !== "duplicate") : marks.unattached} inbox={inbox}
+        flowId={detail.summary.flowId} duplicateOf={detail.duplicateOf} />
       {(hasMore || history) && (
         <div className="flex flex-wrap items-start justify-between gap-2">
           {hasMore && (

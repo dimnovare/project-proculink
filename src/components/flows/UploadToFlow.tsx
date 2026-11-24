@@ -26,7 +26,7 @@ import { PLAN_BY_ID } from "@/lib/plans";
 import { HELD_MAX_BYTES, HELD_MAX_FILES } from "@/lib/pwa/heldUploads";
 import type { BillingStatus } from "@/types/procurement";
 import { rowNeed, type ListedDocument } from "./DocumentList";
-import { RowActions, rowSecondLine } from "./RowActions";
+import { EarlierLink, RowActions, rowSecondLine } from "./RowActions";
 import { PhotoCheck, useCamera } from "./PhotoCheck";
 import { canRetryUpload, INBOX_TARGET, STOP_CODES, uploadRefusalMessage, useUploadQueue, type UploadItem } from "./UploadQueue";
 import { firstRunOf } from "@/lib/firstRun";
@@ -115,6 +115,7 @@ function UploadedRow({ item, listed, inbox, sent, onSent, retry, remove }: {
           ? <Link href={`/flows/${doc.flowId}/documents/${doc.id}`} className={`${NAME} after:absolute after:inset-0`}>{name}</Link>
           : <span className={NAME}>{name}</span>}
         {line && <span className="truncate text-[13px] text-ink-muted">{line}</span>}
+        {doc && <EarlierLink flowId={doc.flowId} of={doc.duplicateOf} className="justify-self-start text-[13px] font-medium text-brand-blue underline" />}
       </span>
       <span>
         {item.state === "waiting" ? <Pill>Waiting</Pill>
