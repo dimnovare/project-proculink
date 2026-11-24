@@ -6,7 +6,7 @@ export const metadata = guideMetadata({
   description: "First time in ProcuLink? Add a document or our sample, check what we read beside the original, and choose where the file goes. Three steps in all.",
 });
 
-import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+import { Step, Prereqs, IfThisFails, Outcome, GuideShot } from "@/components/help/guide";
 
 <Prereqs>
 - A ProcuLink workspace you can sign in to.
@@ -18,6 +18,8 @@ import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 
 Open ProcuLink. On an empty workspace the first screen asks for one document like the ones you get every week: drop it, choose it, or on a phone take a photo of a paper document. No document ready? Use our sample invoice. It is marked as a sample, never counts against your plan, and is never sent anywhere.
 
+<GuideShot name="add-a-document" alt="The welcome screen with a box to drop a document, a Choose a file button and a link to use our sample invoice." />
+
 <IfThisFails>
 If we could not read the file, the screen says why. Press **Try again** when it is offered, or use another file. See [Troubleshooting](/help/troubleshooting).
 </IfThisFails>
@@ -28,13 +30,17 @@ If we could not read the file, the screen says why. Press **Try again** when it 
 
 The original stays beside the values we found. A value we are unsure of is marked in amber with the reason; click it to correct it. Untick anything you don't need. We name the flow from the document; change the name if you like. Then press **Looks right, next**.
 
+<GuideShot name="check-what-we-read" alt="Step 2 of the setup: the sample invoice on the left, and on the right the flow name and the values we read, each with a tick box." />
+
 </Step>
 
 <Step n={3} title="Choose where it goes">
 
-Pick **Download** (nothing to set up: each file waits in Documents, ready to download), **Email**, **Google Drive** or **Google Sheets** (when your workspace offers Google), or a place you saved before under **Already set up**. A server (SFTP or FTPS), an S3 bucket and a web address are one press away, under **A server or another system**. A new destination is tested first: most get a small test file, and Google Sheets is only checked, with no rows added. Choose which new documents wait for you: **Check only what we marked**, **Check every document** or **Check nothing**. Then press **Finish**: with **Download**, your first file is made and the setup ends on **Your first file is ready**: download it, change its type in one tap, or show us a sample, documentation or a standard. The file also waits in Documents. With a destination, send your document now, or finish without sending and send it later from Documents.
+Pick **Download** (nothing to set up: each file waits in Documents), **Email**, **Google Drive** or **Google Sheets** (when your workspace offers Google), a place you saved before, or a server, S3 bucket or web address under **A server or another system**. A new destination is tested first. Then choose which new documents wait for you: **Check only what we marked**, **Check every document** or **Check nothing**.
 
-Destinations are explained in [Destinations](/help/destinations). To change the file we make, see [Make a file](/help/guides/build-an-output).
+Press **Finish**. With **Download**, your first file is made and waits in Documents. With a destination, send your document now or later from Documents. See [Destinations](/help/destinations) and [Make a file](/help/guides/build-an-output).
+
+<GuideShot name="choose-where-it-goes" alt="Step 3 of the setup: the read sample invoice at the top, then the choices Download, Email and A server or another system, and which documents wait for you." />
 
 </Step>
 

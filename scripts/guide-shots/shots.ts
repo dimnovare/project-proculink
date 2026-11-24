@@ -34,9 +34,14 @@ export interface Shot {
   /**
    * Visible text to click before framing the shot, in order. Use for
    * disclosures that hide the thing the guide is describing — a collapsed
-   * section photographs as an empty page.
+   * section photographs as an empty page. Prefix with `button:` to click the
+   * button with exactly that accessible name instead (e.g. an aria-label).
    */
   clickTexts?: string[];
+  /** Selects to set after the clicks, in order: [the select's label, the option's text]. */
+  selects?: [string, string][];
+  /** sessionStorage to set before the page loads, e.g. the empty-workspace mock. */
+  session?: Record<string, string>;
   /** Extra settle time in ms before the shutter (animations, lazy content). */
   settle?: number;
   /**
@@ -55,7 +60,47 @@ export interface Shot {
 /** The single mock supplier id seeded by the in-memory API client. */
 const MOCK_SUPPLIER = "11111111-1111-1111-1111-111111111111";
 
+/** The empty-workspace mock (src/lib/api/mockWorkspace.ts): no flow yet, so the first-run screen shows. */
+const NEW_WORKSPACE = { "proculink.mock.workspace": "new" };
+const FLOW = "/flows/flow-1";
+const SAMPLE = ["Use our sample invoice"];
+const NEW_DESTINATION: Pick<Shot, "path" | "clickTexts"> = {
+  path: `${FLOW}?tab=send`,
+  clickTexts: ["button:Change where the file goes"],
+};
+
 export const SHOTS: Shot[] = [
+  // ── Start here: set-up-your-first-flow ───────────────────────────────────
+  { guide: "set-up-your-first-flow", name: "add-a-document", path: "/documents", session: NEW_WORKSPACE, anchor: "Welcome", offset: 60, clipHeight: 560 },
+  { guide: "set-up-your-first-flow", name: "check-what-we-read", path: "/documents", session: NEW_WORKSPACE, clickTexts: SAMPLE, anchor: "values and 1 table", offset: 300, settle: 1600 },
+  {
+    guide: "set-up-your-first-flow", name: "choose-where-it-goes", path: "/documents", session: NEW_WORKSPACE,
+    clickTexts: [...SAMPLE, "Looks right, next"], anchor: "Step 3 of 3", offset: 120, settle: 800,
+  },
+
+  // ── Start here: check-and-send-a-document ────────────────────────────────
+  { guide: "check-and-send-a-document", name: "needs-you", path: "/documents", anchor: "Needs you", offset: 200, clipHeight: 600 },
+  { guide: "check-and-send-a-document", name: "compare", path: `${FLOW}/documents/doc-1`, anchor: "What we read", settle: 1200 },
+  { guide: "check-and-send-a-document", name: "fix", path: `${FLOW}/documents/doc-1`, clickTexts: ["button:History"], anchor: "Lines, 3 rows", offset: 120, settle: 1200 },
+  {
+    guide: "check-and-send-a-document", name: "files", path: `${FLOW}/documents/doc-1`,
+    clickTexts: ["button:Preview"], anchor: "What we'll send", offset: 40, settle: 1200,
+  },
+  { guide: "check-and-send-a-document", name: "sent", path: `${FLOW}/documents/doc-3`, anchor: "Deliveries", settle: 1200 },
+
+  // ── Start here: send-to-a-destination ────────────────────────────────────
+  { guide: "send-to-a-destination", name: "goes-to", ...NEW_DESTINATION, anchor: "Files we make", offset: 20 },
+  {
+    guide: "send-to-a-destination", name: "new-destination", ...NEW_DESTINATION,
+    selects: [["Goes to", "New destination…"]], anchor: "Files we make", offset: 20,
+  },
+  {
+    guide: "send-to-a-destination", name: "sign-in-and-save", ...NEW_DESTINATION,
+    selects: [["Goes to", "New destination…"], ["Send by", "SFTP"]], anchor: "Goes to", offset: 180,
+  },
+  { guide: "send-to-a-destination", name: "send-a-test", path: `${FLOW}?tab=send`, anchor: "Files we make", offset: 20 },
+  { guide: "send-to-a-destination", name: "deliveries", path: `${FLOW}/documents/doc-3`, anchor: "Deliveries", settle: 1200 },
+
   // ── onboard-a-new-client (admin) ─────────────────────────────────────────
   // The admin dashboard itself is NOT in this list: /api/admin/overview and
   // /api/admin/organisations have no mock implementation, so a capture in mock

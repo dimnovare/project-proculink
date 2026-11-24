@@ -13,6 +13,7 @@ import {
   START_HERE,
 } from "./guides";
 import { HELP_ARTICLES } from "./help-articles";
+import { GUIDE_SHOTS } from "./guide-shots.generated";
 import { guideMetadata } from "./seo";
 import sitemap from "@/app/sitemap";
 
@@ -172,6 +173,18 @@ describe("Start here and an article's guides", () => {
     }
     for (const g of liveClientGuides()) {
       for (const slug of g.related ?? []) expect(guidesForArticle(slug)).toContain(g);
+    }
+  });
+
+  it("every Start here step has a captured picture", () => {
+    for (const s of START_HERE) {
+      const mdx = readFileSync(join(REPO_ROOT, "src", "app", "(marketing)", "help", "guides", s, "page.mdx"), "utf8");
+      const steps = mdx.split("<Step ").slice(1);
+      expect(steps.length, s).toBeGreaterThan(0);
+      for (const step of steps) {
+        const name = step.match(/<GuideShot name="([^"]+)"/)?.[1];
+        expect(name && GUIDE_SHOTS[`${s}/${name}`], `${s}: ${step.slice(0, 40)}`).toBeTruthy();
+      }
     }
   });
 });

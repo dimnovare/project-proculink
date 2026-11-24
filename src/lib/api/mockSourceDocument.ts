@@ -72,19 +72,35 @@ UNZ+1+000000042'
  * with a correct cross-reference table. Offsets are computed rather than hard-coded so an edit
  * to the visible text cannot silently corrupt the file.
  */
-function buildDemoPdf(): Uint8Array {
-  const lines = [
-    "PURCHASE ORDER  PO-2026-0142",
-    "Buyer: Heinrich Industries GmbH",
-    "Supplier: Acme Components BV",
-    "",
-    "1  ACM-BLT-M8   Hex bolt M8x40, zinc     480 PCE   0.42 EUR",
-    "2  ACM-NUT-M8   Hex nut M8, zinc         480 PCE   0.11 EUR",
-    "3  ACM-WSH-M8   Flat washer M8 DIN 125   960 PCE   0.04 EUR",
-    "4  ACM-SLV-22   Bearing sleeve 22mm       36 PCE   7.90 EUR",
-    "",
-    "Total 539.64 EUR      Delivery 2026-06-18",
-  ];
+const DEMO_PDF_LINES = [
+  "PURCHASE ORDER  PO-2026-0142",
+  "Buyer: Heinrich Industries GmbH",
+  "Supplier: Acme Components BV",
+  "",
+  "1  ACM-BLT-M8   Hex bolt M8x40, zinc     480 PCE   0.42 EUR",
+  "2  ACM-NUT-M8   Hex nut M8, zinc         480 PCE   0.11 EUR",
+  "3  ACM-WSH-M8   Flat washer M8 DIN 125   960 PCE   0.04 EUR",
+  "4  ACM-SLV-22   Bearing sleeve 22mm       36 PCE   7.90 EUR",
+  "",
+  "Total 539.64 EUR      Delivery 2026-06-18",
+];
+
+/** The built-in sample (mockWorkspace MOCK_SAMPLE_FILE), so its original shows what was read from it. */
+const SAMPLE_PDF_LINES = [
+  "INVOICE  INV-2250                         Date 2026-11-21",
+  "Kestrel Supplies, Harbour Road 4, Turku",
+  "Bill to: Nordlys Trading",
+  "Reference: 2250-NT      Payment terms: 30 days",
+  "",
+  "Code     Item               Qty     Price     Amount",
+  "KS-100   Copy paper A4       20     24.50     490.00",
+  "KS-220   Toner cartridge      4    168.35     673.40",
+  "KS-310   Archive boxes       10     14.00     140.00",
+  "",
+  "Total 1303.40 EUR",
+];
+
+function buildDemoPdf(lines: string[]): Uint8Array {
   // `(` `)` and `\` are the only bytes that need escaping inside a PDF literal string.
   const escape = (s: string) => s.replace(/([\\()])/g, "\\$1");
   const text = lines
@@ -153,7 +169,7 @@ export function mockSourceBytesForKey(key: string | null | undefined): MockSourc
     case "txt":
       return make(DEMO_EDI, TEXT);
     case "pdf":
-      return make(buildDemoPdf(), PDF);
+      return make(buildDemoPdf(name === "invoice-2250.pdf" ? SAMPLE_PDF_LINES : DEMO_PDF_LINES), PDF);
     default:
       // XLSX and anything else: no honest demo bytes, so the UI shows its "no document" state.
       return null;

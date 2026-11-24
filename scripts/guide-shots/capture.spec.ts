@@ -83,17 +83,32 @@ async function prepareGuidePage(page: Page, hideTexts: string[] = []) {
 
 async function captureShot(page: Page, shot: Shot): Promise<void> {
   await prepareGuidePage(page, shot.hideTexts);
+  if (shot.session) {
+    await page.addInitScript((s: Record<string, string>) => {
+      for (const [k, v] of Object.entries(s)) sessionStorage.setItem(k, v);
+    }, shot.session);
+  }
   await page.goto(shot.path, { waitUntil: "domcontentloaded" });
 
   for (const label of shot.clickTexts ?? []) {
-    const target = page.getByText(label, { exact: false }).first();
+    const target = label.startsWith("button:")
+      ? page.getByRole("button", { name: label.slice(7), exact: true }).filter({ visible: true }).first()
+      : page.getByText(label, { exact: false }).filter({ visible: true }).first();
     await target.waitFor({ state: "visible", timeout: 30_000 });
     await target.click();
     await page.waitForTimeout(350);
   }
+  for (const [label, option] of shot.selects ?? []) {
+    await page.getByRole("combobox", { name: new RegExp(`^${label}`) }).selectOption({ label: option });
+    await page.waitForTimeout(350);
+  }
 
-  const anchor = page.getByText(shot.anchor, { exact: false }).first();
+  // Visible only: the document screen also mounts its phone tabs, hidden, with the same words.
+  const anchor = page.getByText(shot.anchor, { exact: false }).filter({ visible: true }).first();
   await anchor.waitFor({ state: "visible", timeout: 30_000 });
+  // Settle BEFORE framing: a screen that loads more below the anchor, or moves focus, after first paint
+  // would otherwise undo the scroll.
+  await page.waitForTimeout(shot.settle ?? 500);
 
   // Frame the shot: put the anchor at the top of the viewport, then pull back by
   // `offset` px so the reader sees the heading and card above it.
@@ -121,7 +136,7 @@ async function captureShot(page: Page, shot: Shot): Promise<void> {
   // Fonts must be swapped in before the shutter or the capture shows fallback
   // metrics — Bricolage/Inter/JetBrains all load as webfonts.
   await page.evaluate(() => document.fonts.ready);
-  await page.waitForTimeout(shot.settle ?? 500);
+  await page.waitForTimeout(300);
 
   const file = join(PUBLIC_GUIDES, shot.guide, `${shot.name}.png`);
   mkdirSync(dirname(file), { recursive: true });
@@ -197,11 +212,13 @@ export const GUIDE_SHOTS: Record<string, GuideShotMeta> = {${
   return files.length;
 }
 
-test("capture guide screenshots", async ({ page }) => {
+test("capture guide screenshots", async ({ context }) => {
   const failures: string[] = [];
 
   for (const shot of SHOTS) {
     const label = `${shot.guide}/${shot.name}`;
+    // A tab per shot: init scripts and sessionStorage (the mock's own state) never leak into the next one.
+    const page = await context.newPage();
     try {
       await captureShot(page, shot);
       console.log(`  captured  ${label}`);
@@ -209,6 +226,8 @@ test("capture guide screenshots", async ({ page }) => {
       const reason = err instanceof Error ? err.message.split("\n")[0] : String(err);
       failures.push(`${label} (${shot.path} — anchor "${shot.anchor}"): ${reason}`);
       console.log(`  FAILED    ${label}: ${reason}`);
+    } finally {
+      await page.close();
     }
   }
 
