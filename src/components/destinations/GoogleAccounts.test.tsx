@@ -58,7 +58,7 @@ describe("GoogleAccounts", () => {
     linked.deleteLinkedAccount.mockRejectedValueOnce(new ApiHttpError("in use", 409, { error: "account_in_use" }));
     fireEvent.click(within(first).getByRole("button", { name: "Disconnect accounts@example.test" }));
     fireEvent.click(await screen.findByRole("button", { name: "Disconnect" }));
-    expect(await within(first).findByRole("alert")).toHaveTextContent("A destination still sends to this account. Change that destination first.");
+    expect(await within(first).findByRole("alert")).toHaveTextContent("A destination or a pickup still uses this account. Change it first.");
     expect(linked.deleteLinkedAccount).toHaveBeenCalledWith("acc-1");
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["destinations"] }); // so the use line can name what holds it
     cleanup();

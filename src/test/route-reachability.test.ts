@@ -163,6 +163,11 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
     "Google's OAuth consent screen is the only referrer: the backend builds the redirect URI as " +
     "{origin}/settings/google-callback in ProcuLink.Api/Services/Google/GoogleConnectService.cs " +
     "(plan 9b, 2026-11-13), and a link to it from inside the app would start a callback with no code to exchange.",
+
+  "/settings/outlook-callback":
+    "Microsoft's sign-in is the only referrer: the backend builds the redirect URI as " +
+    "{origin}/settings/{provider}-callback in ProcuLink.Api/Services/Google/GoogleConnectService.cs " +
+    "(plan 30, 2026-11-24), the same as Google's.",
 };
 
 /**

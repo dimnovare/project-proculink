@@ -934,20 +934,20 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
   {
     action: "linked_account.connected",
     kind: "edited",
-    label: "Google account connected",
+    label: "Cloud account connected",
     reachable: true,
-    backendSite: "ProcuLink.Api/Services/Google/GoogleConnectService.cs:93",
+    backendSite: "ProcuLink.Api/Services/Google/GoogleConnectService.cs:94",
     reasonKeys: [],
-    note: "Also written when the same Google account is connected again, which renews its access.",
+    note: "A Google or Microsoft account (payload provider). Also written when the same account is connected again, which renews its access.",
   },
   {
     action: "linked_account.disconnected",
     kind: "edited",
-    label: "Google account disconnected",
+    label: "Cloud account disconnected",
     reachable: true,
-    backendSite: "ProcuLink.Api/Services/Google/GoogleConnectService.cs:114",
+    backendSite: "ProcuLink.Api/Services/Google/GoogleConnectService.cs:117",
     reasonKeys: [],
-    note: "ProcuLink's copy of the access is deleted; nothing is revoked at Google.",
+    note: "ProcuLink's copy of the access is deleted; nothing is revoked at Google or Microsoft.",
   },
 
   // ── Declared but unwritten ──────────────────────────────────────────────────

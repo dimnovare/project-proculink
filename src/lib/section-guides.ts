@@ -147,6 +147,7 @@ export const NO_SCREEN_HELP: Record<string, string> = {
   "/archive": OLD_ORDERS,
   "/archive/[orderId]": OLD_ORDERS,
   "/settings/google-callback": "Returns from Google and moves on by itself.",
+  "/settings/outlook-callback": "Returns from Microsoft and moves on by itself.",
   "/flows/[flowId]/outputs/[outputId]/advanced": "The field-by-field view for professionals; search and popular articles still show.",
   "/flows/[flowId]/change-file": "Change the file a flow makes: a common type, a sample, documentation or a standard; search and popular articles still show.",
   "/admin": FOUNDER_ONLY,

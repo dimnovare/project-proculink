@@ -42,7 +42,7 @@ export function GoogleAccounts({ destinations }: { destinations: Destination[] |
   });
 
   if (!linked.data?.available) return null;
-  const accounts = linked.data.accounts;
+  const accounts = linked.data.accounts.filter((a) => a.provider === "google");
   const said = (at: string | null) => problem?.at === at && <StatusNotice tone="error">{problem.text}</StatusNotice>;
 
   async function remove(id: string, email: string) {

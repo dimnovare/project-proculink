@@ -1,17 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { createIntake, testIntake, updateIntake } from "@/lib/api/documents";
 import type { FlowIntake } from "@/lib/api/documents";
-import { documentRefusalMessage } from "@/lib/documentRefusals";
+import { deleteLinkedAccount, startOutlookConnect } from "@/lib/api/linkedAccounts";
+import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { Field, INPUT } from "./DestinationForm";
+import { connectAccount, useGoogleConnectRefresh, useLinkedAccounts } from "./GoogleTargetFields";
 
 export const PICKUP_KINDS = {
-  imap: "Mailbox (IMAP)", sftp: "SFTP", ftps: "FTPS", ftp: "FTP", s3: "S3 bucket",
+  imap: "Mailbox (IMAP)", sftp: "SFTP", ftps: "FTPS", ftp: "FTP", s3: "S3 bucket", outlook: "Outlook or Microsoft 365 mailbox",
 } as const;
 type Kind = keyof typeof PICKUP_KINDS;
 
@@ -27,6 +29,8 @@ const FIELDS: Record<Kind, [key: string, label: string][]> = {
     ["bucket", "Bucket"], ["prefix", "Prefix"], ["region", "Region"],
     ["serviceUrl", "Custom S3 address (for R2 or MinIO)"], ["accessKeyId", "Access key ID"],
   ],
+  // accountId renders as the Microsoft account picker, not a text box.
+  outlook: [["accountId", "Microsoft account"], ["folder", "Folder"], ["fromFilter", "Only from (comma-separated)"], ["subjectFilter", "Subject contains"]],
 };
 const DEFAULTS: Record<Kind, Record<string, string>> = {
   imap: { port: "993", folder: "INBOX" },
@@ -34,6 +38,7 @@ const DEFAULTS: Record<Kind, Record<string, string>> = {
   ftps: { port: "21", directory: "/" },
   ftp: { port: "21", directory: "/" },
   s3: { region: "us-east-1" },
+  outlook: { folder: "Inbox" },
 };
 
 const isKind = (k: string): k is Kind => Object.hasOwn(PICKUP_KINDS, k);
@@ -48,6 +53,8 @@ export function PickupForm({ flowId, intake, onDone }: { flowId: string; intake?
   const [kind, setKind] = useState(intake?.kind ?? "sftp");
   const [values, setValues] = useState(() => startValues(kind, intake?.config));
   const [secret, setSecret] = useState("");
+  // The Microsoft mailbox is offered only where the backend says so; a saved one always shows its own kind.
+  const microsoft = useLinkedAccounts().data?.microsoftAvailable === true;
 
   const secretKey = kind === "s3" ? "secretKey" : "password";
   const test = useMutation({ mutationFn: () => testIntake(flowId, current!.id) });
@@ -76,7 +83,9 @@ export function PickupForm({ flowId, intake, onDone }: { flowId: string; intake?
             onChange={(e) => { setKind(e.target.value); setValues(startValues(e.target.value)); setSecret(""); }}
           >
             {!isKind(kind) && <option value={kind}>{kind}</option>}
-            {Object.entries(PICKUP_KINDS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+            {Object.entries(PICKUP_KINDS)
+              .filter(([id]) => id !== "outlook" || microsoft || kind === "outlook")
+              .map(([id, label]) => <option key={id} value={id}>{label}</option>)}
           </select>
         </Field>
         {kind === "ftp" && (
@@ -84,24 +93,37 @@ export function PickupForm({ flowId, intake, onDone }: { flowId: string; intake?
         )}
         {isKind(kind) && (
           <>
-            {FIELDS[kind].map(([key, label]) => (
-              <Field key={key} label={label}>
+            {FIELDS[kind].map(([key, label]) => key === "accountId" ? (
+              <MicrosoftAccountField key={key} value={values.accountId ?? ""} saved={String(current?.config?.accountId ?? "")} onChange={(id) => setValues((v) => ({ ...v, accountId: id }))} />
+            ) : (
+              <Fragment key={key}>
+                <Field label={label}>
+                  <input
+                    className={INPUT} type={key === "port" ? "number" : "text"} value={values[key] ?? ""}
+                    onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
+                  />
+                </Field>
+                {kind === "outlook" && key === "folder" && (
+                  <p className="m-0 -mt-1 text-[12.5px] text-ink-muted">Leave it as Inbox, or type the name of another folder. Folders inside Inbox work too.</p>
+                )}
+              </Fragment>
+            ))}
+            {kind !== "outlook" && (
+              <Field label={kind === "s3" ? "Secret access key" : "Password"}>
                 <input
-                  className={INPUT} type={key === "port" ? "number" : "text"} value={values[key] ?? ""}
-                  onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
+                  className={INPUT} type="password" autoComplete="new-password" value={secret}
+                  placeholder={current?.hasCredentials ? "Leave blank to keep the saved one" : ""}
+                  onChange={(e) => setSecret(e.target.value)}
                 />
               </Field>
-            ))}
-            <Field label={kind === "s3" ? "Secret access key" : "Password"}>
-              <input
-                className={INPUT} type="password" autoComplete="new-password" value={secret}
-                placeholder={current?.hasCredentials ? "Leave blank to keep the saved one" : ""}
-                onChange={(e) => setSecret(e.target.value)}
-              />
-            </Field>
+            )}
           </>
         )}
-        <p className="m-0 text-[12.5px] text-ink-muted">Each file is picked up once. A file that changes is picked up again. Files stay where they are. We check every five minutes.</p>
+        <p className="m-0 text-[12.5px] text-ink-muted">
+          {kind === "outlook"
+            ? "We check every five minutes for unread emails, pick up their files, and mark each email read. Your Microsoft 365 admin may need to approve ProcuLink first."
+            : "Each file is picked up once. A file that changes is picked up again. Files stay where they are. We check every five minutes."}
+        </p>
         {save.isError && <StatusNotice tone="error">{documentRefusalMessage(save.error)}</StatusNotice>}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" variant="secondary" disabled={!isKind(kind)} loading={save.isPending}>Save</Button>
@@ -118,5 +140,61 @@ export function PickupForm({ flowId, intake, onDone }: { flowId: string; intake?
         )}
       </form>
     </Card>
+  );
+}
+
+/** The org's Microsoft mailbox accounts (never its Google ones), with connect and disconnect. */
+function MicrosoftAccountField({ value, saved, onChange }: { value: string; saved: string; onChange(id: string): void }) {
+  const qc = useQueryClient();
+  const linked = useLinkedAccounts();
+  const [problem, setProblem] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  useGoogleConnectRefresh();
+  const fail = (e: unknown) => setProblem(documentRefusalMessage(e));
+  const disconnect = useMutation({
+    mutationFn: deleteLinkedAccount,
+    onSuccess: () => { onChange(""); void qc.invalidateQueries({ queryKey: ["linked-accounts"] }); },
+    onError: fail,
+    onSettled: () => setConfirming(false),
+  });
+
+  const accounts = (linked.data?.accounts ?? []).filter((a) => a.provider === "outlook");
+  const account = accounts.find((a) => a.id === value);
+  // The account this saved pickup uses can't be disconnected (the server answers account_in_use), so it isn't offered.
+  const removable = account?.id !== saved ? account : undefined;
+  return (
+    <div className="grid gap-2">
+      {value && linked.data && !account && <StatusNotice tone="warning">{COPY.account_not_found}</StatusNotice>}
+      {accounts.length > 0 && (
+        <Field label="Microsoft account">
+          <select className={INPUT} value={account ? value : ""} onChange={(e) => onChange(e.target.value)}>
+            <option value="" disabled>Choose an account</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>{a.status === "active" ? a.email : `${a.email} (Reconnect needed)`}</option>
+            ))}
+          </select>
+        </Field>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="secondary"
+          onClick={() => { setProblem(null); connectAccount(startOutlookConnect, "outlook-connect").catch(fail); }}>
+          Connect a Microsoft mailbox
+        </Button>
+        {removable && !confirming && <Button type="button" variant="ghost" onClick={() => setConfirming(true)}>Disconnect</Button>}
+      </div>
+      {removable && confirming && (
+        <StatusNotice tone="warning" action={
+          <span className="flex gap-2">
+            <Button type="button" variant="secondary" size="sm" loading={disconnect.isPending} className="border-danger text-danger"
+              onClick={() => disconnect.mutate(removable.id)}>Disconnect</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)}>Keep connected</Button>
+          </span>
+        }>
+          Disconnect this Microsoft account? ProcuLink deletes its access now. You can also remove ProcuLink from your
+          Microsoft account&apos;s app permissions.
+        </StatusNotice>
+      )}
+      {problem && <StatusNotice tone="error">{problem}</StatusNotice>}
+    </div>
   );
 }

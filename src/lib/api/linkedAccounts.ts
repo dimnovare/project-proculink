@@ -1,5 +1,5 @@
 /**
- * linkedAccounts.ts — the org's connected Google accounts (plan 9b).
+ * linkedAccounts.ts — the org's connected Google accounts (plan 9b) and Microsoft mailbox accounts (plan 30).
  *
  * Mirrors `ProcuLink.Api/Controllers/LinkedAccountsController.cs`. A token never passes through here
  * except the Picker's short-lived access token, which goes straight to `openGooglePicker`.
@@ -14,7 +14,10 @@ import { readRefusal } from "./refusal";
 /** `status` is "active" or "reconnect" (Google access was removed). Kept a string: a newer value is never coerced. */
 export interface LinkedAccount { id: string; provider: string; email: string; status: string; createdAt: string }
 // Named types, not inline ones: the backend's reachability scanner reads `apiFetch<T>(` only when T has no braces.
-export interface LinkedAccountList { available: boolean; accounts: LinkedAccount[] }
+/** `available` is Google's; `microsoftAvailable` is absent on an older backend, which means hidden. */
+export interface LinkedAccountList { available: boolean; microsoftAvailable?: boolean; accounts: LinkedAccount[] }
+/** The backend's `LinkedAccount.Provider` values; `microsoft` (files) arrives with OneDrive. */
+export type LinkedProvider = "google" | "outlook" | "microsoft";
 export interface GoogleConnected { account: LinkedAccount; returnTo: string | null }
 export interface GooglePickerToken { accessToken: string; apiKey: string; appId: string }
 export interface GoogleStart { authorizeUrl: string }
@@ -39,6 +42,12 @@ export const startGoogleConnect = (origin: string, returnTo?: string) =>
   apiFetch<GoogleStart>(`/linked-accounts/google/start`, { method: "POST", body: JSON.stringify({ origin, returnTo }) });
 export const completeGoogleConnect = (code: string, state: string) =>
   apiFetch<GoogleConnected>(`/linked-accounts/google/complete`, {
+    method: "POST", body: JSON.stringify({ code, state }),
+  });
+export const startOutlookConnect = (origin: string, returnTo?: string) =>
+  apiFetch<GoogleStart>(`/linked-accounts/outlook/start`, { method: "POST", body: JSON.stringify({ origin, returnTo }) });
+export const completeOutlookConnect = (code: string, state: string) =>
+  apiFetch<GoogleConnected>(`/linked-accounts/outlook/complete`, {
     method: "POST", body: JSON.stringify({ code, state }),
   });
 export const getGooglePicker = (accountId: string) =>
