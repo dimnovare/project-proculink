@@ -21,18 +21,18 @@ const renderBar = (ui: ReactElement) =>
   render(<QueryClientProvider client={new QueryClient()}><UploadQueueProvider>{ui}</UploadQueueProvider></QueryClientProvider>);
 
 describe("BottomTabBar", () => {
-  it("offers Documents, Flows, Add a document (centred), History and Settings, and no More", () => {
+  it("offers Documents, Flows, Add a document and Settings, and no More", () => {
     mockPath = "/lookups/l-1";
     const r = renderBar(<BottomTabBar />);
     const bar = within(r.container).getByRole("navigation", { name: "Main" });
-    expect(within(bar).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/documents", "/flows", "/upload", "/operations/log", "/settings"]);
+    expect(within(bar).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/documents", "/flows", "/upload", "/settings"]);
     expect(within(bar).getByRole("link", { name: "Flows" })).toHaveAttribute("aria-current", "page");
     expect(within(bar).getByRole("link", { name: "Add a document" })).toBeInTheDocument();
     expect(within(bar).queryByRole("button", { name: "More" })).toBeNull();
     r.unmount();
     mockPath = "/operations/log";
     const again = renderBar(<BottomTabBar />);
-    expect(within(again.container).getByRole("link", { name: "History" })).toHaveAttribute("aria-current", "page");
+    expect(within(again.container).getByRole("link", { name: "Documents" })).toHaveAttribute("aria-current", "page");
   });
 
   it("shows the needs-you count only when it is known", async () => {

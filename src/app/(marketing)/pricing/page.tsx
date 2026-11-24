@@ -117,7 +117,7 @@ export default function PricingPage() {
             </div>
             <div className="flex min-w-0 flex-[1_1_340px] flex-col gap-1.5">
               <p className="text-[19px] font-semibold leading-[1.35] [text-wrap:pretty]">
-                {`${TRIAL.orderLimit}\u00a0documents, ${TRIAL.flowLimit}\u00a0flows, no credit card.`}
+                {`${TRIAL.orderLimit}\u00a0documents, ${TRIAL.flowLimit}\u00a0flows, no\u00a0credit\u00a0card.`}
               </p>
               <p className={`${SITE.soft} text-[16px] [text-wrap:pretty]`}>
                 When the trial ends, your workspace becomes read-only until you choose a plan.
@@ -170,7 +170,7 @@ export default function PricingPage() {
           <div className="flex flex-[1_1_300px] flex-col gap-4">
             <h2 id="questions-title" className={SITE.h2}>Questions, answered</h2>
             <p className={SITE.soft}>
-              Something else on your mind? <Link href="/book-demo" className={LINK}>Talk to us</Link>
+              Something else on your mind? <Link href="/book-demo" className={`${LINK} whitespace-nowrap`}>Talk to us</Link>
             </p>
           </div>
           <div className="min-w-0 flex-[2.2_1_560px] border-t border-border">

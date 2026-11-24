@@ -25,7 +25,7 @@ export function PlanTable() {
   return (
     <div className={HELP_TABLE.wrap}>
       <TableScroller label="Plans">
-      <table className={HELP_TABLE.table}>
+      <table className={`${HELP_TABLE.table} min-w-[560px]`}>
         <thead>
           <tr>
             {["Plan", "Price", "Documents", "Flows", "Extra document"].map((h) => (

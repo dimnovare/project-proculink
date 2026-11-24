@@ -192,8 +192,9 @@ function GuideHeader({ guide, stepCount }: { guide: Guide; stepCount: number }) 
                 Step-by-step guides
               </Link>
             </li>
-            <li aria-hidden="true">/</li>
-            <li aria-current="page" className="text-ink">
+            {/* Phones: the title sits right below, so the trail stops at its parent. */}
+            <li aria-hidden="true" className="max-sm:hidden">/</li>
+            <li aria-current="page" className="text-ink max-sm:hidden">
               {guide.title}
             </li>
           </ol>

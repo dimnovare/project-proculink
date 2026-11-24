@@ -75,7 +75,7 @@ export default function BookDemoPage() {
                 Start your free trial
               </Link>
               <p className={`${SITE.soft} text-[15.5px]`}>
-                {`Free for ${TRIAL.priceCadence}, ${TRIAL.orderLimit} documents, no credit card.`}
+                {`Free for ${TRIAL.priceCadence}, ${TRIAL.orderLimit}\u00a0documents, no\u00a0credit\u00a0card.`}
               </p>
             </div>
           </div>
