@@ -144,7 +144,7 @@ describe("DocumentScreen", () => {
       [{ code: "new_sender", passed: false, fieldKey: null, message: "First document from this email address. Check it before sending." }]));
     renderScreen();
     expect(await screen.findByText("First document from this email address. Check it before sending.")).toBeTruthy();
-    expect(screen.getByText("First document from this email address")).toBeTruthy(); // the tag, as on its row
+    expect(screen.getByText("Email address not confirmed")).toBeTruthy(); // the tag, as on its row
   });
 
   it("refreshes deliveries and history when the status changes under it", async () => {
