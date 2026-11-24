@@ -94,7 +94,7 @@ export function PickupForm({ flowId, intake, onDone }: { flowId: string; intake?
         {isKind(kind) && (
           <>
             {FIELDS[kind].map(([key, label]) => key === "accountId" ? (
-              <MicrosoftAccountField key={key} value={values.accountId ?? ""} onChange={(id) => setValues((v) => ({ ...v, accountId: id }))} />
+              <MicrosoftAccountField key={key} value={values.accountId ?? ""} saved={String(current?.config?.accountId ?? "")} onChange={(id) => setValues((v) => ({ ...v, accountId: id }))} />
             ) : (
               <Fragment key={key}>
                 <Field label={label}>
@@ -144,7 +144,7 @@ export function PickupForm({ flowId, intake, onDone }: { flowId: string; intake?
 }
 
 /** The org's Microsoft mailbox accounts (never its Google ones), with connect and disconnect. */
-function MicrosoftAccountField({ value, onChange }: { value: string; onChange(id: string): void }) {
+function MicrosoftAccountField({ value, saved, onChange }: { value: string; saved: string; onChange(id: string): void }) {
   const qc = useQueryClient();
   const linked = useLinkedAccounts();
   const [problem, setProblem] = useState<string | null>(null);
@@ -160,6 +160,8 @@ function MicrosoftAccountField({ value, onChange }: { value: string; onChange(id
 
   const accounts = (linked.data?.accounts ?? []).filter((a) => a.provider === "outlook");
   const account = accounts.find((a) => a.id === value);
+  // The account this saved pickup uses can't be disconnected (the server answers account_in_use), so it isn't offered.
+  const removable = account?.id !== saved ? account : undefined;
   return (
     <div className="grid gap-2">
       {value && linked.data && !account && <StatusNotice tone="warning">{COPY.account_not_found}</StatusNotice>}
@@ -168,7 +170,7 @@ function MicrosoftAccountField({ value, onChange }: { value: string; onChange(id
           <select className={INPUT} value={account ? value : ""} onChange={(e) => onChange(e.target.value)}>
             <option value="" disabled>Choose an account</option>
             {accounts.map((a) => (
-              <option key={a.id} value={a.id}>{a.status === "reconnect" ? `${a.email} (Reconnect needed)` : a.email}</option>
+              <option key={a.id} value={a.id}>{a.status === "active" ? a.email : `${a.email} (Reconnect needed)`}</option>
             ))}
           </select>
         </Field>
@@ -178,13 +180,13 @@ function MicrosoftAccountField({ value, onChange }: { value: string; onChange(id
           onClick={() => { setProblem(null); connectAccount(startOutlookConnect, "outlook-connect").catch(fail); }}>
           Connect a Microsoft mailbox
         </Button>
-        {account && !confirming && <Button type="button" variant="ghost" onClick={() => setConfirming(true)}>Disconnect</Button>}
+        {removable && !confirming && <Button type="button" variant="ghost" onClick={() => setConfirming(true)}>Disconnect</Button>}
       </div>
-      {account && confirming && (
+      {removable && confirming && (
         <StatusNotice tone="warning" action={
           <span className="flex gap-2">
             <Button type="button" variant="secondary" size="sm" loading={disconnect.isPending} className="border-danger text-danger"
-              onClick={() => disconnect.mutate(account.id)}>Disconnect</Button>
+              onClick={() => disconnect.mutate(removable.id)}>Disconnect</Button>
             <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)}>Keep connected</Button>
           </span>
         }>

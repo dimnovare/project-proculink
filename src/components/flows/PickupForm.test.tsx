@@ -63,20 +63,25 @@ describe("PickupForm", () => {
     const account = { status: "active", createdAt: "2026-11-24T00:00:00Z" };
     linked.listLinkedAccounts.mockResolvedValue({
       available: false, microsoftAvailable: true,
-      accounts: [{ id: "ms-1", provider: "outlook", email: "user@example.com", ...account }, { id: "g-1", provider: "google", email: "other@example.com", ...account }],
+      accounts: [{ id: "ms-1", provider: "outlook", email: "user@example.com", ...account }, { id: "g-1", provider: "google", email: "other@example.com", ...account },
+        { id: "ms-2", provider: "outlook", email: "new@example.com", ...account, status: "later" }], // a status this build does not know
     });
-    api.createIntake.mockResolvedValue({ ...saved, kind: "outlook" });
+    api.createIntake.mockResolvedValue({ ...saved, kind: "outlook", config: { accountId: "ms-1", folder: "Inbox" } });
     const ui = wrap();
     const option = await screen.findByRole("option", { name: "Outlook or Microsoft 365 mailbox" });
     fireEvent.change(screen.getByLabelText("Type"), { target: { value: (option as HTMLOptionElement).value } });
     expect(await screen.findByRole("option", { name: "user@example.com" })).toBeTruthy();
     expect(screen.queryByText("other@example.com")).toBeNull();
+    expect(screen.getByRole("option", { name: "new@example.com (Reconnect needed)" })).toBeTruthy();
     expect(screen.queryByLabelText("Password")).toBeNull();
     fireEvent.change(screen.getByLabelText("Microsoft account"), { target: { value: "ms-1" } });
+    expect(screen.getByRole("button", { name: "Disconnect" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(api.createIntake).toHaveBeenCalledWith("f1", {
       kind: "outlook", config: { accountId: "ms-1", folder: "Inbox", fromFilter: "", subjectFilter: "" }, credentials: null,
     }));
+    // Saved, the pickup holds that account, so disconnecting it is not offered.
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Disconnect" })).toBeNull());
 
     ui.unmount();
     linked.listLinkedAccounts.mockResolvedValue({ available: false, microsoftAvailable: false, accounts: [] });
