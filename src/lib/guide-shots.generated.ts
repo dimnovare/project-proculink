@@ -21,5 +21,18 @@ export interface GuideShotMeta {
 
 /** Keyed `"<guide-slug>/<shot-name>"`. */
 export const GUIDE_SHOTS: Record<string, GuideShotMeta> = {
+  "check-and-send-a-document/compare": { w: 2360, h: 1640 },
+  "check-and-send-a-document/files": { w: 2360, h: 1640 },
+  "check-and-send-a-document/fix": { w: 2360, h: 1640 },
+  "check-and-send-a-document/needs-you": { w: 2360, h: 1200 },
+  "check-and-send-a-document/sent": { w: 2360, h: 1640 },
   "onboard-a-new-client/supplier-catalog-tab": { w: 2360, h: 1400 },
+  "send-to-a-destination/deliveries": { w: 2360, h: 1640 },
+  "send-to-a-destination/goes-to": { w: 2360, h: 1640 },
+  "send-to-a-destination/new-destination": { w: 2360, h: 1640 },
+  "send-to-a-destination/send-a-test": { w: 2360, h: 1640 },
+  "send-to-a-destination/sign-in-and-save": { w: 2360, h: 1640 },
+  "set-up-your-first-flow/add-a-document": { w: 2360, h: 1120 },
+  "set-up-your-first-flow/check-what-we-read": { w: 2360, h: 1640 },
+  "set-up-your-first-flow/choose-where-it-goes": { w: 2360, h: 1640 },
 };

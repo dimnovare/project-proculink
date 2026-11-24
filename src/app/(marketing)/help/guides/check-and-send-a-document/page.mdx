@@ -6,7 +6,7 @@ export const metadata = guideMetadata({
   description: "A document needs you? Open it, compare what we read with the original, fix anything wrong, look at the files it will make, and send it on, step by step.",
 });
 
-import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+import { Step, Prereqs, IfThisFails, Outcome, GuideShot } from "@/components/help/guide";
 
 <Prereqs>
 - A flow with at least one document in it. See [Set up your first flow](/help/guides/set-up-your-first-flow).
@@ -17,6 +17,8 @@ import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 
 Open **Documents** and choose the **Needs you** filter. Select a file name to open the document. For what each status means, see [Documents and their statuses](/help/documents-and-statuses).
 
+<GuideShot name="needs-you" alt="Documents with the Needs you filter chosen: three documents, each with what happened, its progress and a Review or Send button." />
+
 <Outcome>
 The document opens with **Original** on the left and **What we read** on the right, with **What we'll send** under it. You can drag the handle between them to give the original more or less room, and make the original larger or smaller with the buttons above it. On a wide screen the documents that still need you are listed on the left: choose one to open it. On a phone or a small screen, one of them shows at a time: choose **Original**, **What we read** or **What we'll send** above them.
 </Outcome>
@@ -25,13 +27,11 @@ The document opens with **Original** on the left and **What we read** on the rig
 
 <Step n={2} title="Compare what we read with the original">
 
-The values that need a look come first. A value we are not sure about is marked in amber and says how sure we are. Other values do not show a percentage. Beside each value's name, a small note says where on the original it was found, such as a page number or a cell. Hover over a value, or move to it with the keyboard, and its place is highlighted on the original. On a computer you can also click a value on the original to go to it in the list.
+The values that need a look come first. A value we are not sure about is marked in amber and says how sure we are, and one we could not find word for word in the page's text says **Not in the page's text**. A small note beside each value says where on the original it was found, and its place is highlighted on the original when you hover over the value.
 
-On a computer the cursor starts in the first value that needs a look. Press Enter to go to the next one. After the last one, Enter moves to **Send and open next**, and pressing it again sends. Values that are empty are folded into one line; choose **Show them** to see or fill them in.
+On a computer the cursor starts in the first value that needs a look: press Enter to go to the next one. Empty values are folded into one line; choose **Show them** to fill them in. Checks are shown in amber and never stop you sending. See [Checks](/help/checks).
 
-A value we could not find word for word in the page's text says **Not in the page's text**. Look at those first.
-
-A check about one value is shown in amber under that value. Other checks are listed under the values, with a reminder that checks never stop you sending. See [Checks](/help/checks).
+<GuideShot name="compare" alt="An open document: the original spreadsheet on the left, and on the right the two values that need a look, marked in amber, above the values that were read clearly." />
 
 <Outcome>
 You know which values are right and which need a change.
@@ -41,11 +41,11 @@ You know which values are right and which need a change.
 
 <Step n={3} title="Fix what is wrong">
 
-Select a value and type the right one. Changes save as you type: a moment after you stop typing, or at once when you press Enter or click away. There is no Save button. Beside **What we read** it says **Saves as you type**, **Saving…** or **Not saved yet**. In a table, you can change any cell, add a row with **Add row**, or remove one with the cross at the end of the row. The arrow keys move between cells, and rows copied from a spreadsheet can be pasted in. When we know which column holds the amounts, a line above the table says whether the rows add up to the net total. Each saved change runs the checks again.
+Select a value and type the right one. Changes save as you type, so there is no Save button: beside **What we read** it says **Saves as you type**, **Saving…** or **Not saved yet**. In a table, change any cell, add a row with **Add row**, remove one with the cross at the end of the row, or paste rows copied from a spreadsheet. Each saved change runs the checks again.
 
-There is no undo. Every saved change is listed under **History**. If a change can't be saved, the screen says **Not saved yet** and offers **Try again**.
+There is no undo: every saved change is listed under **History**, and a value you corrected is marked Edited. To fix a value by pointing at the page, so we find it next time, see [Teach a value by pointing at the page](/help/guides/teach-a-value).
 
-A value you have corrected is marked Edited. To fix a value by pointing at the page instead, so we find it next time, see [Teach a value by pointing at the page](/help/guides/teach-a-value).
+<GuideShot name="fix" alt="The values read from a document, with a table of three lines, an Add row button and a cross at the end of each row, and History open below it." />
 
 <Outcome>
 The flagged checks go away as you fix what they pointed at.
@@ -57,6 +57,8 @@ The flagged checks go away as you fix what they pointed at.
 
 Under **What we'll send**, each file shows its type and where it goes. Select **Preview** to see the exact file that will be sent. An open preview follows what you type, and it is open again on the next document until you choose **Hide preview**. If a file uses a lookup and a value had no match, the preview lists the values with no match and lets you add one.
 
+<GuideShot name="files" alt="What we'll send: the Invoice CSV file, going by email to the Accounting inbox, with its preview open below." />
+
 <Outcome>
 You have seen the file that will be sent.
 </Outcome>
@@ -65,13 +67,11 @@ You have seen the file that will be sent.
 
 <Step n={5} title="Send it">
 
-Select **Send and open next**. If a change is still saving, it waits for it, and the next document that needs you opens. A value marked in amber does not stop you sending. On a flow whose file you download, the button is **Make the file**: the file is made, the document stays open, and **Download** saves it.
+Select **Send and open next**. It waits for any change still saving, then the next document that needs you opens. A value marked in amber does not stop you sending. On a flow whose file you download, the button is **Make the file**, and **Download** saves the file. Ctrl Enter (Cmd Enter on a Mac) presses that button, and **Skip** leaves a document for later.
 
-At a keyboard, Ctrl Enter (Cmd Enter on a Mac) presses that button, after saving what you typed.
+To follow a document you sent, open it again from **Documents**. Under **What we'll send**, **Deliveries** shows each file's progress: **Waiting**, **Sending**, **Delivered**, **Ready to download**, **Will retry** or **Couldn't deliver**.
 
-**Skip** leaves a document for later and opens the next one. When nothing else needs you, Documents says so.
-
-To follow a document you sent, open it again from **Documents**. Under **What we'll send**, **Deliveries** shows each file's progress: **Waiting**, **Sending**, **Delivered**, **Ready to download**, **Will retry** or **Couldn't deliver**. A file with **Download** next to it is ready to save.
+<GuideShot name="sent" alt="A sent document: the header says Sent to Accounting inbox, and under Deliveries the Invoice CSV file shows Email, Delivered, 1 attempt, with a Download button." />
 
 <Outcome>
 The next document that needs you is open, or Documents says nothing else needs you. With a destination, the one you sent shows **Sending** first and becomes **Sent** once every delivery has finished. On a flow whose file you download, the document is done at once: it stays open and says **File ready**.

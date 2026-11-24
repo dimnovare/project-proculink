@@ -6,7 +6,7 @@ export const metadata = guideMetadata({
   description: "Need a flow's file delivered? Send it by email, to a web address, SFTP or FTPS, an S3 bucket, Google Drive or Sheets, or as a download, and test it first.",
 });
 
-import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+import { Step, Prereqs, IfThisFails, Outcome, GuideShot } from "@/components/help/guide";
 
 <Prereqs>
 - A flow with a file, or one you are about to make. See [Make a file](/help/guides/build-an-output).
@@ -17,6 +17,8 @@ import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 <Step n={1} title="Open the destination form">
 
 Open the file's form: on the flow's **We send** step, select **Make a second file** (**Make another file** when it already has two or more), then **Create**, or choose a file you already have. Under **Goes to**, press **Change**, then choose **New destination…** in the list.
+
+<GuideShot name="goes-to" alt="A flow's We send step: the Invoice CSV file, with the Goes to list open and set to Accounting inbox." />
 
 <Outcome>
 The **New destination** form opens under the list.
@@ -30,12 +32,12 @@ Type a **Name** that tells you where the file goes. Choose **Send by**:
 
 - **Email.** Fill in **Send to (separate addresses with commas)** with one or more addresses. Under **More options** you can add a **Reply-to address**, and a **Subject** and a **Message** of your own. Left blank, ProcuLink uses a default subject (the flow name and the file name). A test send puts `[TEST]` in front of the subject. The attachment is always named after the document, and there is no box for its name.
 - **Google Drive** or **Google Sheets**. If no Google account is connected yet, press **Connect a Google account**. Then press **Choose folder** or **Choose spreadsheet**. For Google Sheets use a CSV file with a header row: each send adds its rows to the end of the sheet, on the first tab unless you fill in **Tab (optional)**.
+- Under **A server or another system**:
+  - **SFTP** or **FTPS**. Fill in the **Server** and the **Folder on the server**. The **Port** is under **More options**, already set to 22 for SFTP and 21 for FTPS. SFTP can sign in with a password or a private key.
+  - **S3 bucket.** Fill in the **Bucket** and the **Folder**. It signs in with an **Access key ID** and a **Secret access key**. The **Region**, and for a service other than Amazon S3 the **Endpoint URL**, are under **More options**.
+  - **Web address (API).** Fill in the **Web address** (it must start with `https://`). The **Request method**, POST or PUT, is under **More options**.
 
-The kinds below are grouped under **A server or another system**:
-
-- **SFTP** or **FTPS**. Fill in the **Server** and the **Folder on the server**. The **Port** is under **More options**, already set to 22 for SFTP and 21 for FTPS. SFTP can sign in with a password or a private key.
-- **S3 bucket.** Fill in the **Bucket** and the **Folder**. It signs in with an **Access key ID** and a **Secret access key**. The **Region**, and for a service other than Amazon S3 the **Endpoint URL**, are under **More options**.
-- **Web address (API).** Fill in the **Web address** (it must start with `https://`). The **Request method**, POST or PUT, is under **More options**.
+<GuideShot name="new-destination" alt="The New destination form under Goes to, with boxes for a Name, Send by set to Email, and Send to." />
 
 <Outcome>
 The form shows the boxes for the way you chose.
@@ -46,6 +48,8 @@ The form shows the boxes for the way you chose.
 <Step n={3} title="Add the sign-in and save">
 
 Fill in the sign-in the place asks for. What each kind accepts is in [Destination sign-in, keys and signing](/help/destination-sign-in). Email needs none. Select **Save and send a test** (on **We send**) or **Save**: the form closes and the destination is chosen in **Goes to**.
+
+<GuideShot name="sign-in-and-save" alt="The New destination form with Send by set to SFTP: boxes for the server, folder, username and password, and a Save and send a test button." />
 
 <Outcome>
 The destination exists. Its login is encrypted and never shown again.
@@ -59,9 +63,11 @@ The message says why. A web address must start with `https://` and must not have
 
 <Step n={4} title="Use it in a file and test it">
 
-Back in the file's form, the new destination is already chosen in **Goes to**, and the file keeps it: there is nothing more to press there. To check it with a real document, select **Send a test**. Once the setup is saved, new sends use the destination after you select **Use these changes** at the bottom of the flow; before the first save, they use it straight away. See [Use changes and restore earlier versions](/help/guides/publish-a-flow-version).
+Back in the file's form, the new destination is already chosen in **Goes to**: there is nothing more to press. To check it with a real document, select **Send a test**. Once the setup is saved, new sends use the destination after you select **Use these changes** at the bottom of the flow; before the first save, they use it straight away. See [Use changes and restore earlier versions](/help/guides/publish-a-flow-version).
 
-You can test a destination at any time under **Settings**, then **Destinations**. A test is also sent when you press **Save and send a test** while you set up a new flow, and offered when you make a file from documentation. The new-flow test sends a small file marked `TEST_` that holds no document data. A Google Sheets test adds no rows: it checks that we can open the spreadsheet and the tab you chose. The documentation test sends the file made from a real document in the flow, so it holds that document's values. See [Destinations](/help/destinations).
+You can test a destination at any time under **Settings**, then **Destinations**. Most tests send a small file marked `TEST_` that holds no document data, and a Google Sheets test only checks that we can open the spreadsheet and the tab you chose. A test from documentation sends the file made from a real document in the flow. See [Destinations](/help/destinations).
+
+<GuideShot name="send-a-test" alt="The Invoice CSV file going to Accounting inbox, with a Send a test button and what the file looks like below it." />
 
 <Outcome>
 The file is tied to the destination.
@@ -72,6 +78,8 @@ The file is tied to the destination.
 <Step n={5} title="Send a document and watch it">
 
 Open a document that is ready and select **Send and open next**. The next document that needs you opens. To watch the one you sent, open it again from **Documents**: under **What we'll send**, **Deliveries** lists each file with its state and number of attempts. A failed delivery shows **Will retry** and the reason, and ends as **Couldn't deliver** if it keeps failing. How retries work is in [Destinations](/help/destinations).
+
+<GuideShot name="deliveries" alt="A sent document: the header says Sent to Accounting inbox, and under Deliveries the Invoice CSV file shows Email, Delivered, 1 attempt." />
 
 <Outcome>
 Every delivery is **Delivered** and the document is **Sent**.
