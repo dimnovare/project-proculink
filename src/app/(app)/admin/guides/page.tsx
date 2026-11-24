@@ -21,14 +21,9 @@ export default async function AdminGuidesIndexPage() {
   return (
     <PageShell>
       <header>
-        <span
-          className="inline-flex items-center rounded-full px-3 py-1 text-[11.5px] font-semibold uppercase"
-          style={{
-            color: "var(--amber-text)",
-            background: "var(--amber-soft)",
-            letterSpacing: "0.05em",
-          }}
-        >
+        {/* The same sentence-case label a guide page shows (GuideLayout). */}
+        <span className="inline-flex h-[26px] w-fit items-center rounded-full bg-amber-soft px-2.5 text-[13px] font-semibold text-amber-text">
+
           Internal · admins only
         </span>
         <h1

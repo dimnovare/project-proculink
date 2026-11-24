@@ -7,6 +7,7 @@ import Link from "next/link";
 // HelpArticleShellServer.tsx for the full rationale (the help SEO fix).
 import HelpArticleShell from "@/components/help/HelpArticleShellServer";
 import { CodeBlock } from "@/components/help/CodeBlock";
+import { TableScroller } from "@/components/marketing/TableScroller";
 
 /**
  * MDX renderer for the Help centre articles (the only `.mdx` pages in the app).
@@ -40,11 +41,11 @@ const linkClass =
 const BODY_TEXT = "leading-[1.65] text-ink";
 const HEADING = "font-display font-semibold text-ink scroll-mt-20";
 
-/** The help table's grammar, shared with tables a component builds (PlanTable). */
+/** The help table's grammar, shared with tables a component builds (PlanTable). Wide tables scroll in a TableScroller, with its cue. */
 export const HELP_TABLE = {
-  wrap: "my-5 overflow-x-auto",
+  wrap: "my-5",
   table: "w-full border-collapse text-[15.5px] leading-[1.45]",
-  th: "border-b border-border bg-bg px-3 py-2 text-left font-semibold text-ink",
+  th: "border-b border-border bg-bg px-3 py-2 text-left align-top font-semibold text-ink",
   td: "border-b border-border px-3 py-2 align-top text-ink",
 } as const;
 
@@ -111,7 +112,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     li: ({ children }) => <li className="my-1.5">{children}</li>,
 
     code: ({ children }) => (
-      <code className="rounded-[5px] border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[0.86em] font-medium text-ink">
+      <code className="rounded-[5px] border border-border bg-surface-2 px-1.5 py-0.5 font-mono box-decoration-clone text-[0.86em] font-medium text-ink">
         {children}
       </code>
     ),
@@ -139,8 +140,8 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     hr: () => <hr className="my-8 h-px border-0 bg-border" />,
 
     table: ({ children }) => (
-      <div tabIndex={0} className={HELP_TABLE.wrap}>
-        <table className={HELP_TABLE.table}>{children}</table>
+      <div className={HELP_TABLE.wrap}>
+        <TableScroller label="Table"><table className={HELP_TABLE.table}>{children}</table></TableScroller>
       </div>
     ),
 
