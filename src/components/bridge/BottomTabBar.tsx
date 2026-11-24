@@ -12,7 +12,7 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { pageTotal } from "@/lib/pageTotal";
 import { showBadge } from "@/lib/pwa/push";
 
-const FULL_SCREEN = [/^\/flows\/new$/, /^\/flows\/[^/]+\/documents\/[^/]+$/, /^\/flows\/[^/]+\/outputs\/[^/]+\/advanced$/];
+const FULL_SCREEN = [/^\/flows\/new$/, /^\/flows\/[^/]+\/change-file$/, /^\/flows\/[^/]+\/documents\/[^/]+$/, /^\/flows\/[^/]+\/outputs\/[^/]+\/advanced$/];
 
 /** Review, setup and the Advanced view fill a phone screen: no tab bar there. */
 export function isFullScreenStep(pathname: string | null): boolean {
@@ -26,9 +26,12 @@ export function needsYouBadge(total: number | undefined): string | null {
 }
 
 // "!" because the phone tap-floor rule in globals.css sets a 44px minimum with !important.
-// No side padding, so "Documents" fits a quarter of a 360px screen. The focus ring sits
-// inside the target so the screen edge cannot clip it on the first and last tab.
-const TAB = "relative flex !min-h-[50px] min-w-0 flex-col items-center justify-center gap-0.5 text-[12.5px] text-ink-muted focus-visible:[outline-offset:-3px]";
+// No side padding: "Documents" (about 66px at 12px) fits its 75px cell on a 360px screen. The focus
+// ring sits inside the target so the screen edge cannot clip it on the first and last tab.
+const TAB = "relative flex !min-h-[50px] min-w-0 flex-col items-center justify-center gap-0.5 text-[12.5px] max-[379px]:text-[12px] text-ink-muted focus-visible:[outline-offset:-3px]";
+// Three places and the round Add: two tabs | Add | Settings over the right half. Weighted
+// 5:5:4:10 so Add's column is the exact centre of the bar (and 60px wide at 360px).
+const COLUMNS = "grid-cols-[minmax(0,5fr)_minmax(0,5fr)_minmax(0,4fr)_minmax(0,10fr)]";
 
 export function BottomTabBar() {
   const pathname = usePathname();
@@ -58,7 +61,7 @@ export function BottomTabBar() {
         href={href}
         aria-current={active ? "page" : undefined}
         aria-label={count ? `${item.label}, ${total} ${total === 1 ? "needs" : "need"} you` : undefined}
-        className={`${TAB} ${active ? "font-semibold text-ink" : "font-medium"}`}
+        className={`${TAB} ${active ? "font-semibold !text-brand-blue-deep" : "font-medium"}`}
       >
         <span className="relative inline-flex">
           <Icon size={22} aria-hidden />
@@ -84,7 +87,7 @@ export function BottomTabBar() {
       <nav
         aria-label="Main"
         data-testid="tab-bar"
-        className="plk-tabbar fixed inset-x-0 bottom-0 z-drawer grid grid-cols-4 items-end border-t border-border bg-surface pt-1 md:hidden"
+        className={`plk-tabbar fixed inset-x-0 bottom-0 z-drawer grid ${COLUMNS} items-end border-t border-border bg-surface pt-1 md:hidden`}
         style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}
       >
         {link(first)}

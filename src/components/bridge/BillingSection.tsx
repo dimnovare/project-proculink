@@ -607,7 +607,7 @@ export function BillingSection() {
                     <p className="m-0 text-[13px] text-ink-muted">
                       {status.stripeSubscriptionId != null && "An upgrade starts straight away: a new billing period begins that day, and the unused part of your current plan is credited. "}
                       {isTrial ? "Need" : "Moving to a smaller plan, or need"} more than {top.toLocaleString(NUMBER_LOCALE)} documents a month?{" "}
-                      <a href="mailto:sales@proculink.eu" className="inline-flex min-h-[44px] items-center font-semibold sm:min-h-0">Contact us</a>.
+                      <a href="mailto:sales@proculink.eu" className="inline-flex min-h-[44px] items-center font-medium text-brand-blue-deep underline sm:min-h-0">Contact us</a>.
                     </p>
                   )}
                 </>

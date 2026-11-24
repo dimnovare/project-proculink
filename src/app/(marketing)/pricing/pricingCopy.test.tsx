@@ -16,7 +16,7 @@ describe("/pricing", () => {
     const ids = new Set([...html.matchAll(/data-plans="([^"]+)"/g)].flatMap((m) => m[1].split(" ")));
     expect(ids).toEqual(new Set(PUBLIC_LADDER.map((p) => p.id)));
     const pilot = PLAN_BY_ID.pilot;
-    expect(html).toContain(`${pilot.orderLimit} documents, ${pilot.flowLimit} flows, no credit card.`);
+    expect(html).toContain(`${pilot.orderLimit}\u00a0documents, ${pilot.flowLimit}\u00a0flows, no\u00a0credit\u00a0card.`);
     expect(PLAN_BY_ID.enterprise.priceCadence.replace(/\D/g, "")).toBe(String(ENTERPRISE_FLOOR_EUR));
     expect(html).toContain(`From €${ENTERPRISE_FLOOR_EUR.toLocaleString("en-GB")} a month.`);
     expect(html).not.toMatch(/→|·|Recommended plan|plk-price-card|per extra document|most popular|supplier-ready|See all tiers|Custom suppliers|ERP connectors/i);

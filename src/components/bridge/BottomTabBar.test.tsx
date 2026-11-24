@@ -72,7 +72,7 @@ describe("BottomTabBar", () => {
   });
 
   it("steps aside on full-screen steps", () => {
-    for (const p of ["/flows/new", "/flows/f-1/documents/d-1", "/flows/f-1/outputs/o-1/advanced"]) expect(isFullScreenStep(p)).toBe(true);
+    for (const p of ["/flows/new", "/flows/f-1/change-file", "/flows/f-1/documents/d-1", "/flows/f-1/outputs/o-1/advanced"]) expect(isFullScreenStep(p)).toBe(true);
     for (const p of ["/documents", "/flows", "/flows/f-1", "/lookups/l-1", "/settings", null]) expect(isFullScreenStep(p)).toBe(false);
     mockPath = "/flows/f-1/documents/d-1";
     const { container } = renderBar(<BottomTabBar />);

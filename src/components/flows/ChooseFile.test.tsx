@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ChooseFile } from "./ChooseFile";
 
@@ -24,6 +24,8 @@ const out = (id: string, name: string, format: string, destinationId: string | n
 });
 const summary = { id: "doc-1", flowId: "flow-1", flowName: "Invoices", fileName: "invoice-1042.pdf", status: "needs_review", statusReason: null, createdAt: "2026-01-01", source: "upload" };
 
+// jsdom draws the desktop row and the phone bar both; the bar is the one every screen size shares in the test.
+const bar = () => within(screen.getByTestId("action-bar"));
 const setSearch = (s: string) => { nav.search = s; };
 const mount = (f: Partial<typeof flow> = {}) => {
   api.getFlow.mockResolvedValue({ ...flow, ...f });
@@ -51,7 +53,7 @@ describe("ChooseFile", () => {
     fireEvent.click(await screen.findByRole("button", { name: "XML" }));
     await waitFor(() => expect(api.previewOutput).toHaveBeenLastCalledWith("doc-1", "out-2", { as: expect.objectContaining({ format: "xml", standard: null }) }));
     expect(screen.getByRole("button", { name: "XML" })).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(screen.getByRole("button", { name: "Use this file" }));
+    fireEvent.click(bar().getByRole("button", { name: "Use this file" }));
     await waitFor(() => expect(api.updateOutput).toHaveBeenCalledWith("flow-1", "out-2", expect.objectContaining({ replace: true, format: "xml" })));
     await waitFor(() => expect(nav.push).toHaveBeenCalledWith("/flows/flow-1"));
   });
@@ -62,14 +64,14 @@ describe("ChooseFile", () => {
     expect(await screen.findByText("There is no invoice standard yet. These four are for purchase orders, so only use one if your system asked for it.")).toBeInTheDocument();
     expect(screen.getByText("Pick a file type, a sample or a standard above.")).toBeInTheDocument();
     expect(screen.getByText("Building from documentation isn't on for this workspace yet.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Use this file" })).toBeDisabled();
+    expect(bar().getByRole("button", { name: "Use this file" })).toBeDisabled();
   });
 
   it("Cancel after a preview changes nothing", async () => {
     mount();
     fireEvent.click(await screen.findByRole("button", { name: "JSON" }));
-    expect(screen.getByRole("link", { name: "Cancel" })).toHaveAttribute("href", "/flows/flow-1?tab=send&output=out-1");
-    fireEvent.click(screen.getByRole("link", { name: "Cancel" }));
+    expect(bar().getByRole("link", { name: "Cancel" })).toHaveAttribute("href", "/flows/flow-1?tab=send&output=out-1");
+    fireEvent.click(bar().getByRole("link", { name: "Cancel" }));
     expect(api.updateOutput).not.toHaveBeenCalled();
     expect(api.publishFlow).not.toHaveBeenCalled();
   });
@@ -79,7 +81,7 @@ describe("ChooseFile", () => {
     mount({ docsOutputsOn: false });
     fireEvent.click(await screen.findByRole("button", { name: "PDF" }));
     expect(await screen.findByText("Google Sheets takes only a CSV file. Choose CSV, or change where this file goes first.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Use this file" })).toBeDisabled();
+    expect(bar().getByRole("button", { name: "Use this file" })).toBeDisabled();
     expect(screen.queryByRole("heading", { name: "From your system’s documentation" })).toBeNull();
   });
 });

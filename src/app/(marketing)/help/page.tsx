@@ -88,7 +88,7 @@ export default function HelpIndex() {
       <section className="pb-12 pt-12 sm:pt-16">
         <div className={`${SITE.wrap} grid items-start gap-10 min-[960px]:grid-cols-[minmax(0,1fr)_360px]`}>
           <div className="flex min-w-0 flex-col gap-4">
-            <h1 className="m-0 font-display text-[clamp(38px,4.2vw,56px)] font-semibold leading-[1.04] tracking-[-0.02em]">
+            <h1 className={SITE.docH1}>
               How can we help?
             </h1>
             <p className={`${SITE.soft} m-0 text-[19px]`}>

@@ -33,7 +33,7 @@ export default function GuidesIndexPage() {
           </nav>
 
           <header className="mt-4 flex flex-col gap-3">
-            <h1 className="m-0 font-display text-[clamp(34px,4vw,48px)] font-semibold leading-[1.06] tracking-[-0.02em]">
+            <h1 className={SITE.docH1}>
               Step-by-step guides
             </h1>
             <p className={`${SITE.soft} m-0 max-w-[72ch] text-[19px]`}>

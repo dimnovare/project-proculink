@@ -299,7 +299,7 @@ function LookupEditor({ lookup, lookupId, usedBy }: { lookup: Lookup; lookupId: 
             <thead>
               <tr className="border-t border-border text-left">
                 {[["From", "the value on the document"], ["To", "the value we send"]].map(([head, sub]) => (
-                  <th key={head} scope="col" className="px-[18px] py-2 align-bottom font-normal">
+                  <th key={head} scope="col" className="px-[18px] py-2 align-top font-normal">
                     <span className="block text-[13px] font-semibold text-ink">{head}</span>
                     <span className="block text-[13px] text-ink-muted">{sub}</span>
                   </th>

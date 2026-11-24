@@ -79,7 +79,7 @@ export default function HelpArticleShell({ children }: { children: React.ReactNo
 
         {article && (
           <header className="mt-4 flex flex-col gap-2">
-            <h1 className="m-0 font-display text-[clamp(34px,4vw,48px)] font-semibold leading-[1.06] tracking-[-0.02em] [text-wrap:balance]">
+            <h1 className={SITE.docH1}>
               {article.title}
             </h1>
             <p className={`${SITE.soft} m-0 text-[15px]`}>{article.readMin} minute read</p>

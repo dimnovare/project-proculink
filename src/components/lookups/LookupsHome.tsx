@@ -146,20 +146,17 @@ export function LookupsHome({ lookupId }: { lookupId?: string }) {
   return (
     <PageShell variant="wide">
       <PageHeader
+        // Phones with a lookup open start at its back link, like every other detail screen.
+        className={lookupId ? "hidden md:flex" : undefined}
         title="Lookups"
         sub="Tables that swap one value for another, for example a supplier's item code for your own."
         actions={engine === "on" ? (
           // A phone with one lookup open shows only that lookup: no header actions, hint or Import bar.
           <div className={`flex-col items-start gap-1 sm:items-end ${lookupId ? "hidden md:flex" : "flex"}`}>
             <div className="flex flex-wrap items-center gap-4">
-              <button
-                type="button"
-                className="min-h-[44px] text-[14px] font-semibold text-brand-blue"
-                disabled={startNew.isPending}
-                onClick={() => startNew.mutate()}
-              >
+              <Button variant="secondary" loading={startNew.isPending} onClick={() => startNew.mutate()}>
                 New empty lookup
-              </button>
+              </Button>
               {importButton("hidden md:inline-flex")}
             </div>
             <p className="m-0 hidden text-[13px] text-ink-muted md:block">{HINT}</p>

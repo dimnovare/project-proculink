@@ -5,7 +5,7 @@ import { Eye, History, KeyRound, ListChecks, Lock, MapPin } from "lucide-react";
 import { Card } from "@/components/bridge/layout/Card";
 import { TableScroller } from "@/components/marketing/TableScroller";
 import { SITE } from "@/components/marketing/sitePictures";
-import { GHOST_CTA, INK_CTA, SITE_PAGE } from "@/components/marketing/LegalPage";
+import { OnThisPage, SITE_PAGE } from "@/components/marketing/LegalPage";
 
 export const metadata = pageMetadata({
   path: "/security",
@@ -186,14 +186,7 @@ export default function SecurityPage() {
             ProcuLink handles the documents your business runs on. We treat that responsibility, and
             your data, with the seriousness it deserves.
           </p>
-          <nav aria-label="On this page" className="flex flex-wrap items-center gap-x-7">
-            <span className={`${SITE.soft} inline-flex min-h-[44px] items-center text-[15px]`}>On this page</span>
-            {SECTIONS.map(([id, label]) => (
-              <a key={id} href={`#${id}`} className={SITE.more}>
-                {label}
-              </a>
-            ))}
-          </nav>
+          <OnThisPage items={SECTIONS} className="w-full max-w-[460px]" />
         </div>
       </section>
 
@@ -288,11 +281,11 @@ export default function SecurityPage() {
               <a href="mailto:security@proculink.eu" className="text-brand-blue underline">security@proculink.eu</a>.
             </p>
           </div>
-          <div className="flex flex-wrap gap-3 [&>*]:flex-auto">
-            <a href="mailto:security@proculink.eu?subject=Security%20package%20request" className={INK_CTA}>
+          <div className="flex w-full flex-col gap-x-7 gap-y-2.5 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+            <a href="mailto:security@proculink.eu?subject=Security%20package%20request" className={SITE.cta}>
               Request security docs
             </a>
-            <Link href="/sign-up" className={GHOST_CTA}>
+            <Link href="/sign-up" className={SITE.more}>
               Start free
             </Link>
           </div>

@@ -38,7 +38,7 @@ export default function SupportPage() {
     <div className={SITE_PAGE}>
       <section className="pb-12 pt-16">
         <div className={`${SITE.wrap} flex flex-col gap-4`}>
-          <h1 className="m-0 font-display text-[clamp(38px,4.2vw,56px)] font-semibold leading-[1.04] tracking-[-0.02em]">
+          <h1 className={SITE.docH1}>
             Support
           </h1>
           <p className={`${SITE.lead} max-w-[720px]`}>

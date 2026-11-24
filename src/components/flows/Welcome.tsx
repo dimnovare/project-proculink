@@ -136,12 +136,13 @@ export function Welcome({ flows, flowId }: { flows: readonly Flow[]; flowId?: st
               accept={acceptFor(known ?? { scansOn: true })} maxBytes={MAX_UPLOAD_BYTES} prompt={welcomeKinds(known ?? undefined)} variant="blue"
               disabled={!!paused} busy={busy && start.variables !== "sample"} busyLabel={`Uploading ${item?.file.name ?? (start.variables instanceof File ? start.variables.name : "")}…`}
               onFile={go}
-            />
-            {photos && (
-              <Button variant="secondary" size="lg" className="!h-12 w-full sm:hidden" disabled={busy || !!paused} onClick={camera.open}>
-                <Camera size={18} aria-hidden />Take a photo
-              </Button>
-            )}
+            >
+              {photos && (
+                <Button variant="secondary" size="lg" className="!h-12 w-full sm:hidden" disabled={busy || !!paused} onClick={camera.open}>
+                  <Camera size={18} aria-hidden />Take a photo
+                </Button>
+              )}
+            </FileDrop>
             {camera.input}
             {!!fileError && <Refusal error={fileError} again="Choose another file." />}
             {/* Added offline: it waits on the device, and this step moves on once it has gone up. */}
@@ -180,7 +181,7 @@ export function Welcome({ flows, flowId }: { flows: readonly Flow[]; flowId?: st
               A flow is what happens to one kind of document, for example supplier invoices sent to your accounting system.{" "}
               {first ? "We create your first flow from this document." : "We set this flow up from this document."}
             </p>
-            <p className="m-0 sm:hidden">{first ? "We set up your first flow from it." : "We set this flow up from it."} A flow is what happens to one kind of document.</p>
+            <p className="m-0 sm:hidden">{first && "We set up your first flow from it. "}A flow is what happens to one kind of document.</p>
           </section>
         </aside>
       </div>

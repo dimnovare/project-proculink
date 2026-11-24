@@ -197,7 +197,7 @@ export function ActivityPage() {
           <StatusNotice tone="warning">The file has the newest {count(exporting.data.kept)} of {count(exporting.data.total)} events.</StatusNotice>
         )}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border">
-          <div role="tablist" aria-label="Show" className="flex min-w-0 flex-[1_1_360px] gap-1 overflow-x-auto">
+          <div role="tablist" aria-label="Show" className="no-scrollbar flex min-w-0 flex-[1_1_360px] gap-1 overflow-x-auto">
             {ACTIVITY_TABS.map((t) => {
               const selected = t.key === tab;
               return (

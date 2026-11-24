@@ -179,8 +179,9 @@ export function DocumentsHome() {
     body = (
       <div className="flex min-w-0 flex-col gap-3">
         <StoppedAlert page={stopped.data} />
-        <div className="flex items-center gap-2 border-b border-border">
-          <div role="tablist" aria-label="Show" className="flex min-w-0 flex-1 flex-nowrap overflow-x-auto">
+        {/* Phones: Select drops under the tabs so all four tabs fit at 360px. */}
+        <div className="flex flex-wrap items-center gap-x-2 sm:flex-nowrap sm:border-b sm:border-border">
+          <div role="tablist" aria-label="Show" className="no-scrollbar flex w-full min-w-0 flex-nowrap overflow-x-auto border-b border-border sm:w-auto sm:flex-1 sm:border-b-0">
             {DOCUMENT_TABS.map((t, i) => {
               const n = pageTotal(counts[i].data);
               const selected = t.id === tab;
@@ -189,7 +190,7 @@ export function DocumentsHome() {
                   key={t.id} type="button" role="tab" id={`documents-tab-${t.id}`} aria-controls="documents-panel" aria-selected={selected}
                   tabIndex={selected || (!tab && i === 0) ? 0 : -1} onKeyDown={onTabKey} onClick={() => go(t.id)}
                   ref={selected ? (el) => intoStrip(el) : undefined}
-                  className={`flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap px-3 text-[13px] ${selected ? "border-b-2 border-brand-blue font-semibold text-ink" : "text-ink-muted"}`}
+                  className={`flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap px-2 text-[13px] sm:px-3 ${selected ? "border-b-2 border-brand-blue font-semibold text-ink" : "text-ink-muted"}`}
                 >
                   {t.label}
                   {n !== undefined && <>{" "}<span>{n}</span></>}
@@ -198,7 +199,7 @@ export function DocumentsHome() {
             })}
           </div>
           {(rows.length > 0 || selecting) && (
-            <Button type="button" variant="ghost" size="sm" className="shrink-0"
+            <Button type="button" variant="ghost" size="sm" className="ml-auto shrink-0"
               title={selecting ? "Stop ticking documents" : "Tick several documents to send, download or remove them together"}
               onClick={() => { setSelecting(!selecting); clear(); }}>
               {selecting ? "Done" : "Select"}

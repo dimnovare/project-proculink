@@ -37,7 +37,7 @@ export default function BookDemoPage() {
         <div className={`${SITE.wrap} grid grid-cols-1 items-start gap-x-[72px] gap-y-10 min-[860px]:grid-cols-2`}>
           <div className="flex min-w-0 flex-col gap-8">
             <div className="flex flex-col gap-6">
-              <h1 className="m-0 font-display text-[clamp(38px,4.4vw,60px)] font-semibold leading-[1.02] tracking-[-0.02em] [text-wrap:balance]">
+              <h1 className={SITE.docH1}>
                 Show us one of your documents
               </h1>
               <p className={SITE.lead}>
@@ -75,7 +75,7 @@ export default function BookDemoPage() {
                 Start your free trial
               </Link>
               <p className={`${SITE.soft} text-[15.5px]`}>
-                {`Free for ${TRIAL.priceCadence}, ${TRIAL.orderLimit} documents, no credit card.`}
+                {`Free for ${TRIAL.priceCadence}, ${TRIAL.orderLimit}\u00a0documents, no\u00a0credit\u00a0card.`}
               </p>
             </div>
           </div>

@@ -151,11 +151,11 @@ describe("the site header", () => {
     expect(isCurrentSection(null, "/help")).toBe(false);
   });
 
-  it("fits at 320px: the word beside the logo gives way below 370px but stays its name, and the action never wraps", () => {
+  it("fits at 320px: the word beside the logo gives way below 350px but stays its name, and the action never wraps", () => {
     const { container } = render(<MarketingNav />);
     const banner = within(container).getByRole("banner");
     const home = banner.querySelector('a[href="/"]');
-    expect(home?.querySelector("span.max-\\[369px\\]\\:sr-only")?.textContent?.trim()).toBe("ProcuLink");
+    expect(home?.querySelector("span.max-\\[349px\\]\\:sr-only")?.textContent?.trim()).toBe("ProcuLink");
     expect(within(banner).getByRole("link", { name: "Start free" }).className).toContain("whitespace-nowrap");
   });
 

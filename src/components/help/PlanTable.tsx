@@ -2,6 +2,7 @@ import { euro, priceWords } from "@/lib/billingWords";
 import { NUMBER_LOCALE } from "@/lib/format-number";
 import { DOCUMENT_PLANS, PLAN_BY_ID } from "@/lib/plans";
 import { HELP_TABLE } from "@/mdx-components";
+import { TableScroller } from "@/components/marketing/TableScroller";
 
 // The billing article's plan list, built from src/lib/plans.ts so no price is typed by hand.
 // Server-safe: no hooks.
@@ -22,8 +23,9 @@ export function PlanTable() {
     ]),
   ];
   return (
-    <div tabIndex={0} className={HELP_TABLE.wrap}>
-      <table className={HELP_TABLE.table}>
+    <div className={HELP_TABLE.wrap}>
+      <TableScroller label="Plans">
+      <table className={`${HELP_TABLE.table} min-w-[560px]`}>
         <thead>
           <tr>
             {["Plan", "Price", "Documents", "Flows", "Extra document"].map((h) => (
@@ -40,6 +42,7 @@ export function PlanTable() {
           ))}
         </tbody>
       </table>
+      </TableScroller>
     </div>
   );
 }

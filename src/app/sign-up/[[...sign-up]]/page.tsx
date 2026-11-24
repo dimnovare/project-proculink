@@ -15,7 +15,8 @@ export const metadata = pageMetadata({
    promise a new buyer reads, on a screen no pricing change would ever bring anyone back to.
    `priceCadence` is the trial tier's window ("30 days"); `orderLimit` and `flowLimit` are its allowance (C8). */
 const TRIAL = PLAN_BY_ID.pilot;
-const TRIAL_OFFER = `Free for ${TRIAL.priceCadence} · ${TRIAL.orderLimit} documents · ${TRIAL.flowLimit} flows · no credit card`;
+// A non-breaking space before each dot, so a wrapped line never starts with one.
+const TRIAL_OFFER = `Free for ${TRIAL.priceCadence}\u00a0· ${TRIAL.orderLimit} documents\u00a0· ${TRIAL.flowLimit} flows\u00a0· no credit card`;
 
 /* The shell, the brand panel and the Clerk appearance object live in
    @/components/auth/AuthSurface and are shared with /sign-in — which is how the

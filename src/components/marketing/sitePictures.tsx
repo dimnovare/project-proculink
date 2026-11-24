@@ -15,7 +15,10 @@ export const SITE = {
   more: "inline-flex min-h-[44px] items-center font-semibold text-ink underline decoration-border-strong underline-offset-[5px] hover:text-brand-blue-deep",
   h3: "font-display text-[20px] font-semibold leading-[1.25] tracking-[-0.01em]",
   cta: "inline-flex h-[52px] items-center justify-center rounded-[10px] bg-brand-green-btn px-[26px] text-[17px] font-semibold text-white no-underline hover:bg-brand-green-deep hover:text-white",
-  h1: "m-0 font-display text-[clamp(42px,5.6vw,76px)] font-semibold leading-[.98] tracking-[-0.03em] [text-wrap:balance]",
+  // Phones scale with the width so "Any document in." keeps one line at 360px (312px of text, about 37px).
+  h1: "m-0 font-display text-[clamp(34px,10.4vw,42px)] sm:text-[clamp(42px,5.6vw,76px)] font-semibold leading-[.98] tracking-[-0.03em] [text-wrap:balance]",
+  /** The title of a document-like page: legal, help, support, changelog. Hero pages use h1. */
+  docH1: "m-0 font-display text-[clamp(38px,4.2vw,56px)] font-semibold leading-[1.04] tracking-[-0.02em] [text-wrap:balance]",
   onNavyLink: "inline-flex min-h-[44px] items-center font-semibold text-white underline underline-offset-[5px]",
 } as const;
 
@@ -168,10 +171,11 @@ export function CsvFile({ sent = false, head }: { sent?: boolean; head?: React.R
   );
 }
 
+// "Ready to send" is amber in the app (documentStatusManifest.ts `ready`: tone "warning"), so it is amber here too.
 const SENDER_DOCS = [
   { name: "invoice-1001.pdf", sub: "First document from this sender. You fixed one value and pointed at another on the page.", tag: "2 values to check", tone: "need" },
-  { name: "invoice-1002.pdf", sub: "Same sender, a week later.", tag: "Ready to send", tone: "ok" },
-  { name: "invoice-1003.pdf", sub: "And the one after.", tag: "Ready to send", tone: "ok" },
+  { name: "invoice-1002.pdf", sub: "Same sender, a week later.", tag: "Ready to send", tone: "need" },
+  { name: "invoice-1003.pdf", sub: "And the one after.", tag: "Ready to send", tone: "need" },
 ] as const;
 
 export function SecondDocumentPicture() {

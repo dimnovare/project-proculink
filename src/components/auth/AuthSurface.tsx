@@ -207,7 +207,7 @@ export function AuthHeading({ title, sub }: { title: string; sub: string }) {
       >
         {title}
       </h1>
-      <p style={{ fontSize: 13.5, marginTop: 6, color: "var(--ink-muted)" }}>{sub}</p>
+      <p className="text-balance" style={{ fontSize: 13.5, marginTop: 6, color: "var(--ink-muted)" }}>{sub}</p>
     </div>
   );
 }
@@ -275,7 +275,8 @@ export const clerkAppearance = {
     formFieldAction: "text-[11.5px] font-medium text-[color:var(--brand-blue-deep)] hover:underline",
     identityPreviewEditButton: "text-[color:var(--brand-blue-deep)]",
     footer: "mt-5",
-    footerAction: "justify-center",
+    // On phones the link is a 44px tap box; centring the row keeps "Sign up" on the question's line, not below it.
+    footerAction: "flex items-center justify-center gap-1",
     footerActionText: "text-[13px] text-[color:var(--ink-muted)]",
     footerActionLink: "text-[13px] font-medium text-[color:var(--brand-blue-deep)] hover:underline",
     formResendCodeLink: "text-[color:var(--brand-blue-deep)]",

@@ -90,7 +90,7 @@ export function OrderArchive() {
                     <span className="min-w-0 truncate font-mono text-[15px] font-semibold text-brand-blue">{o.poNumber}</span>
                     <span className="shrink-0 text-[13px] tabular-nums">{formatMoney(o.totalValue, o.currency)}</span>
                   </span>
-                  <span className="truncate text-[13px] text-ink-muted">{o.buyerName} → {o.supplierName}</span>
+                  <span className="truncate text-[13px] text-ink-muted">{o.supplierName ? `${o.buyerName} → ${o.supplierName}` : o.buyerName}</span>
                   <span className="text-[13px] text-ink-muted">{o.orderDate.slice(0, 10)} · {archiveStatus(o.status)}</span>
                 </span>
                 <ChevronRight size={16} aria-hidden className="shrink-0 text-ink-muted" />

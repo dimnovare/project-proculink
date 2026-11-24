@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
+import { ActionBar } from "@/components/bridge/layout/ActionBar";
 import { Card } from "@/components/bridge/layout/Card";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { PageShell } from "@/components/bridge/layout/PageShell";
@@ -121,14 +122,22 @@ export function ChooseFile({ flowId }: { flowId: string }) {
       </div>
     );
 
+  const actions = (
+    <>
+      <Link href={back} className={buttonClass("secondary", "md")}>Cancel</Link>
+      <Button variant="primary" size="md" loading={use.isPending} disabled={!choice || blocked || use.isPending || (!!output.destinationId && !destinations.data)} onClick={() => use.mutate()}>
+        Use this file
+      </Button>
+    </>
+  );
   return (
     <PageShell>
       {header(`This flow makes ${aFileOf(output)} from each document. Pick what it should make instead. You see the new file before anything changes.`)}
       <div className="grid gap-[18px]">
         <Way title="A common file type" line="The same values, in the type your system opens.">
-          <div role="group" aria-label="File type" className="flex w-full flex-wrap gap-2">
+          <div role="group" aria-label="File type" className="grid w-full grid-cols-3 gap-2 sm:grid-cols-6">
             {COMMON_TYPES.map((id) => (
-              <Button key={id} variant={pressedType(id) ? "primary" : "secondary"} size="md" className="min-w-[84px]" aria-pressed={pressedType(id)}
+              <Button key={id} variant={pressedType(id) ? "primary" : "secondary"} size="md" className="w-full" aria-pressed={pressedType(id)}
                 onClick={() => setPick(id === output.format && !output.standard ? null : { by: "type", choice: typeChoice(output, id) })}>
                 {FORMATS[id]}
               </Button>
@@ -173,14 +182,13 @@ export function ChooseFile({ flowId }: { flowId: string }) {
           </p>
           <div className="flex flex-wrap items-center gap-2">
             {!choice && <span className="text-[13px] text-ink-muted">Pick a file type, a sample or a standard above.</span>}
-            <Link href={back} className={buttonClass("secondary", "md")}>Cancel</Link>
-            <Button variant="primary" size="md" loading={use.isPending} disabled={!choice || blocked || use.isPending || (!!output.destinationId && !destinations.data)} onClick={() => use.mutate()}>
-              Use this file
-            </Button>
+            <div className="hidden items-center gap-2 md:flex">{actions}</div>
           </div>
         </div>
         {use.isError && <StatusNotice tone="error">{documentRefusalMessage(use.error)}</StatusNotice>}
       </div>
+      {/* Phones: the same two buttons in the sticky bar, like the other setup steps. */}
+      <ActionBar>{actions}</ActionBar>
     </PageShell>
   );
 }

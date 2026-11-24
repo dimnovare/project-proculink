@@ -58,7 +58,7 @@ function Name({ f, p }: { f: Flow; p: string }) {
   return (
     <div className="grid min-w-0 gap-0.5">
       <span className="text-[15px] font-semibold text-ink">{f.name}</span>
-      {line && <span id={`${p}-line`} className="text-[13px] text-ink-muted">{line}</span>}
+      {line && <span id={`${p}-line`} className="text-pretty text-[13px] text-ink-muted">{line}</span>}
     </div>
   );
 }
