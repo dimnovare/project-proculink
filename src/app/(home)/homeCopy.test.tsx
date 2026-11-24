@@ -2,6 +2,8 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, cleanup, within } from "@testing-library/react";
 import { PLAN_BY_ID, PUBLIC_LADDER } from "@/lib/plans";
 import { FLOW_SENTENCE } from "@/components/marketing/sitePictures";
+import { DEMO_VIDEO } from "@/lib/demoVideo";
+import nextConfig from "../../../next.config";
 
 vi.mock("@/components/marketing/MarketingNav", () => ({ MarketingNav: () => <nav /> }));
 
@@ -25,6 +27,18 @@ describe("landing page sells the document tool", () => {
     expect(cta?.getAttribute("href")).toBe("/sign-up");
     expect(body).toContain("Try it on your own documents");
     expect(body).toContain(FLOW_SENTENCE); // a flow is defined where the page first leans on it
+  });
+
+  it("plays the demo only when asked, from an origin the site's own CSP allows", async () => {
+    const video = render(<RootPage />).container.querySelector("video");
+    expect(video?.getAttribute("src")).toBe(DEMO_VIDEO.src);
+    expect(video?.getAttribute("preload")).toBe("none");
+
+    const headers = (await nextConfig.headers!())[0].headers;
+    const csp = headers.find((h) => h.key.startsWith("Content-Security-Policy") && h.value.includes("media-src"))!.value;
+    const origin = new URL(DEMO_VIDEO.src).origin;
+    expect(csp).toMatch(new RegExp(`media-src [^;]*${origin}`));
+    expect(csp).toMatch(new RegExp(`img-src [^;]*${origin}`)); // the poster
   });
 
   it("no longer carries the ROI calculator or order-era copy", () => {

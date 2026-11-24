@@ -332,11 +332,11 @@ export const RETIRED_ROUTES: RetiredRoute[] = [
   },
   {
     source: "/watch",
-    destination: "/how-it-works",
+    destination: "/",
     deletedDir: "src/app/(marketing)/watch",
     why:
-      "The walkthrough video shows the order product and cannot be re-shot yet. "
-      + "How it works carries the story until a new video exists.",
+      "The walkthrough video showed the order product. Its replacement, the narrated "
+      + "document demo, plays on the home page.",
   },
   {
     source: "/one-pager",

@@ -4,6 +4,7 @@ import createMDX from "@next/mdx";
 import remarkGfm from "remark-gfm";
 import { cspModeFromEnv, securityHeaders } from "./src/lib/security/csp";
 import { RETIRED_ROUTE_REDIRECTS } from "./src/lib/retired-routes";
+import { DEMO_VIDEO } from "./src/lib/demoVideo";
 
 // remark-gfm is what makes `| a | b |` a real <table>. Without it MDX parses
 // only CommonMark, and every pipe table in the help centre — the format-support
@@ -49,6 +50,7 @@ const nextConfig: NextConfig = {
           posthogHost: process.env.NEXT_PUBLIC_POSTHOG_HOST,
           sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
           vercelEnv: process.env.VERCEL_ENV,
+          mediaUrls: [DEMO_VIDEO.src],
         }),
       },
     ];

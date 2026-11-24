@@ -7,6 +7,7 @@ import { ClosingCta, FLOW_SENTENCE, ReviewPicture, SecondDocumentPicture, SITE, 
 import { LEGAL_ENTITY, REGISTERED_LOCALITY } from "@/lib/legal-entity";
 import { PLAN_BY_ID, PUBLIC_LADDER } from "@/lib/plans";
 import { SITE_DESCRIPTION } from "@/lib/seo";
+import { DEMO_VIDEO } from "@/lib/demoVideo";
 
 // Every number on this page is read off the plan table, never typed.
 const TRIAL = PLAN_BY_ID.pilot;
@@ -170,6 +171,17 @@ export default function RootPage() {
                 </li>
               ))}
             </ol>
+            <figure className="m-0 flex max-w-[960px] flex-col gap-3">
+              <video
+                src={DEMO_VIDEO.src} poster={DEMO_VIDEO.poster} width={1920} height={1080}
+                controls playsInline preload="none" className="h-auto w-full rounded-card-lg border border-border bg-navy"
+                aria-label="A made-up invoice is read, one marked value is corrected, and the file is sent"
+              />
+              <figcaption className={`${SITE.soft} text-[15px]`}>
+                One made-up invoice, from upload to sent. 58 seconds, with sound and captions. The waits while it was
+                read and sent are cut out.
+              </figcaption>
+            </figure>
           </div>
         </section>
 
