@@ -180,7 +180,7 @@ export function DocumentsHome() {
       <div className="flex min-w-0 flex-col gap-3">
         <StoppedAlert page={stopped.data} />
         {/* Phones: Select drops under the tabs so all four tabs fit at 360px. */}
-        <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:border-b sm:border-border">
+        <div className="flex flex-wrap items-center gap-x-2 sm:flex-nowrap sm:border-b sm:border-border">
           <div role="tablist" aria-label="Show" className="no-scrollbar flex w-full min-w-0 flex-nowrap overflow-x-auto border-b border-border sm:w-auto sm:flex-1 sm:border-b-0">
             {DOCUMENT_TABS.map((t, i) => {
               const n = pageTotal(counts[i].data);
