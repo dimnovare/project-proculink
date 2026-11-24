@@ -26,6 +26,18 @@ export const metadata = pageMetadata({
 // one is formatting, not a rewrite: the words stay as they were.
 const ENTRIES = [
   {
+    version: "v2.11",
+    date: "24 November 2026",
+    items: [
+      "On a flow that sends by itself, an emailed document now also waits for you when we couldn't confirm it really came from the address it shows. Sending it doesn't make that address trusted, so the next one from it waits too.",
+      "When a document's number was already received, the document says when, and **Open the earlier one** takes you to it.",
+      "When one printed label covers several values, such as an address, we name each part: street, city, postcode. A heading printed as several words, like UNIT PRICE, stays one column. Names we make up for unlabelled values are in the document's language.",
+      "In the XML file a flow builds from its values, a name that repeats is now numbered, as it already was in CSV and JSON.",
+      "A CSV you download from the **Advanced** view now keeps its accented letters in Excel, like every other download.",
+      "The three **Start here** guides now show a picture of each step.",
+    ],
+  },
+  {
     version: "v2.10",
     date: "20 November 2026",
     items: [
