@@ -8,7 +8,7 @@ const api = vi.hoisted(() => ({ createIntake: vi.fn(), updateIntake: vi.fn(), te
 vi.mock("@/lib/api/documents", () => api);
 const linked = vi.hoisted(() => ({
   GOOGLE_CONNECT_CHANNEL: "proculink:google-connect",
-  listLinkedAccounts: vi.fn(async () => ({ available: false, accounts: [] as unknown[] })),
+  listLinkedAccounts: vi.fn(async (): Promise<{ available: boolean; microsoftAvailable?: boolean; accounts: unknown[] }> => ({ available: false, accounts: [] })),
   startOutlookConnect: vi.fn(), startGoogleConnect: vi.fn(), deleteLinkedAccount: vi.fn(), getGooglePicker: vi.fn(),
 }));
 vi.mock("@/lib/api/linkedAccounts", () => linked);

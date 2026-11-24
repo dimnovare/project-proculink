@@ -13,5 +13,6 @@ export const HELD_BACK: Readonly<Record<string, string>> = {
   cxml: STANDARD_FILE,
   edi: STANDARD_FILE,
   x12: STANDARD_FILE,
+  outlook: "Microsoft mailbox pickup: behind the native-connectors switch until a real pickup from a real workspace (plan 30)",
   ...Object.fromEntries(STANDARD_OUTPUTS.filter((id) => FLAGGED.has(id)).map((id) => [id, STANDARD_OUTPUT])),
 };
