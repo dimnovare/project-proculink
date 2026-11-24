@@ -19,6 +19,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { OrderMappingOverride, OutputFormatId } from "@/lib/api/types";
+import { savePreview } from "@/lib/saveBlob";
 import { splitForHighlight } from "./previewHighlightModel";
 import { previewBodyStyle } from "./previewBodyStyle";
 import type { MapperAdapter } from "./types";
@@ -84,6 +85,7 @@ export function MapperPreviewPane({ override, lastTouched, supplierName, emptyHi
   // output format. Drives the header label and the copy/download extension+mime.
   const [deliveredFormat, setDeliveredFormat] = useState<OutputFormatId>(defaultFormat ?? "csv");
   const [content, setContent] = useState<string | null>(null);
+  const [byteOrderMark, setByteOrderMark] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -103,6 +105,7 @@ export function MapperPreviewPane({ override, lastTouched, supplierName, emptyHi
         const delivered = ((res.format ?? defaultFormat ?? "csv") as string).toLowerCase() as OutputFormatId;
         setDeliveredFormat(delivered);
         setContent(res.content);
+        setByteOrderMark(!!res.byteOrderMark);
         setErr(res.error ?? res.warning ?? null);
       } catch (e) {
         if (!cancelled) { setContent(null); setErr(e instanceof Error ? e.message : "Preview failed"); }
@@ -130,17 +133,9 @@ export function MapperPreviewPane({ override, lastTouched, supplierName, emptyHi
   const onDownload = useCallback(() => {
     if (!content) return;
     // Use the format the server actually rendered (deliveredFormat) so the file extension+mime
-    // match the bytes — never label JSON bytes as .csv.
-    const blob = new Blob([content], { type: FORMAT_MIME[deliveredFormat] });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `preview.${FORMAT_EXT[deliveredFormat]}`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }, [content, deliveredFormat]);
+    // match the bytes — never label JSON bytes as .csv. A CSV for Excel gets its byte-order mark back, as every other download does.
+    savePreview({ content, byteOrderMark, contentType: FORMAT_MIME[deliveredFormat], fileName: `preview.${FORMAT_EXT[deliveredFormat]}`, lookupMisses: [] });
+  }, [content, byteOrderMark, deliveredFormat]);
 
   // Build the highlighted render: isolate the OUTPUT LINE mentioning the hovered/last-touched
   // field so the user's edit + hover visibly land.
