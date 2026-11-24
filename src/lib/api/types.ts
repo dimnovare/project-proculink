@@ -338,6 +338,8 @@ export interface MappingOverridePreview {
   format: string;
   contentType?: string;
   content: string | null;
+  /** The file starts with a UTF-8 byte-order mark, which `content` leaves out (a CSV for Excel). */
+  byteOrderMark?: boolean;
   warning?: string;
   /**
    * Template-mode render error (Scriban compile/render failure). The endpoint returns

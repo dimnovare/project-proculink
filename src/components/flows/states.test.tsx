@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, within } from "@testing-library/react";
-import { Failed, Loading, LoadingPanel, ReadProblem } from "./states";
+import { Checks, Failed, Loading, LoadingPanel, ReadProblem } from "./states";
 import { COPY } from "@/lib/documentRefusals";
 import { ApiHttpError } from "@/lib/api/core";
 import { EmptyState } from "@/components/bridge/EmptyState";
@@ -11,6 +11,18 @@ describe("ReadProblem", () => {
     const summary = { id: "d", status: "needs_review", statusReason: "no_output_matches" };
     const { container } = render(<ReadProblem summary={summary as never} retry={{} as never} uploadHref="/flows/f?tab=documents" />);
     expect(within(container).getByText(COPY.no_output_matches)).toBeTruthy();
+  });
+});
+
+describe("Checks", () => {
+  it("a repeated number says when the earlier copy came and opens it, with no link when that copy was removed", () => {
+    const checks = [{ code: "duplicate", passed: false, fieldKey: null, message: "A document with this number was already received." }];
+    const at = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    const { container, rerender } = render(<Checks checks={checks} flowId="f1" duplicateOf={{ id: "d0", receivedAt: at, number: "INV-1001" }} />);
+    expect(within(container).getByText(/^INV-1001 was already received on /)).toBeTruthy();
+    expect(within(container).getByRole("link", { name: "Open the earlier one" }).getAttribute("href")).toBe("/flows/f1/documents/d0");
+    rerender(<Checks checks={checks} flowId="f1" duplicateOf={{ id: null, receivedAt: at, number: "INV-1001" }} />);
+    expect(within(container).queryByRole("link")).toBeNull();
   });
 });
 

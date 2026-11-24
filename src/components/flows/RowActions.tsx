@@ -6,12 +6,12 @@ import { useIsMutating, useMutation, useQuery, useQueryClient, type QueryClient,
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { useConfirm } from "@/components/ui/confirm";
 import { inboxQuery } from "@/hooks/useDocumentEngine";
-import { downloadDeliveryFile, retryDocumentRead, sendDocument, type DocumentFile } from "@/lib/api/documents";
+import { downloadDeliveryFile, retryDocumentRead, sendDocument, type DocumentFile, type DuplicateOf } from "@/lib/api/documents";
 import { fixDestinationHref } from "@/lib/activityRows";
 import { canRetryRead, documentRefusalMessage } from "@/lib/documentRefusals";
 import { removeOne } from "@/lib/eachDocument";
 import { useUploadQueueIfMounted } from "./UploadQueue";
-import { dayAt, flowWords, madeLine } from "@/lib/flowWords";
+import { dayAt, duplicateLine, flowWords, madeLine } from "@/lib/flowWords";
 import { saveBlob } from "@/lib/saveBlob";
 import type { ListedDocument } from "./DocumentList";
 import { BULK_SEND_KEY } from "./SelectionBar";
@@ -106,10 +106,15 @@ export function useRemove(onRemoved: (id: string) => void, leaving = false): { a
 /** A row's second line after what it is: a duplicate says when the earlier copy came, a made file is named. */
 export function rowSecondLine(d: ListedDocument, said: string | null): string | null {
   if (d.statusReason === "duplicate_file") return d.duplicateOfAt ? `You added this same file ${dayAt(d.duplicateOfAt)}` : "You added this same file before.";
+  if (d.duplicateOf) return duplicateLine(d.duplicateOf);
   const made = madeLine(d.files ?? []);
   // A sender may end in its own full stop ("Example Bank Ltd."): one stop between the two sentences.
   return made ? (said ? `${said.replace(/\.$/, "")}. ${made}` : made) : said;
 }
+
+/** The way to the earlier copy of a repeated number; none when that copy was removed. Above a row's link overlay. */
+export const EarlierLink = ({ flowId, of, className = "" }: { flowId: string; of?: DuplicateOf | null; className?: string }) =>
+  of?.id ? <Link href={href({ flowId, id: of.id })} className={`relative z-[1] ${className}`}>Open the earlier one</Link> : null;
 
 /** A ready row sent from a list (the row's own Send and the selection bar): sorted, out of the inbox, and not our sample, which is never sent. */
 export const rowSends = (d: ListedDocument) => d.status === "ready" && d.inInbox === false && d.statusReason !== "check_sort" && !d.isSample;
