@@ -6,7 +6,7 @@ import { FlowDraftProvider } from "./flowDraft";
 import { FirstDocumentDrop, FlowValues } from "./FlowValues";
 
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
-const api = vi.hoisted(() => ({ listDocuments: vi.fn(), getDocument: vi.fn(), saveFlowFields: vi.fn() }));
+const api = vi.hoisted(() => ({ listDocuments: vi.fn(), getDocument: vi.fn(), saveFlowFields: vi.fn(), listLookups: vi.fn() }));
 vi.mock("@/lib/api/documents", () => api);
 const queue = vi.hoisted(() => ({ add: vi.fn() }));
 vi.mock("./UploadQueue", () => ({ useUploadQueue: () => queue }));
@@ -135,4 +135,33 @@ describe("FlowValues", () => {
     render(<FirstDocumentDrop flow={flow} newest={failed} prompt="Add a document." reading="" sends={false} dropOnFail="Add another document to see the file." />);
     expect(screen.getByText("We couldn't read invoice-1006.csv. Add another document to see the file.")).toBeTruthy();
     expect(screen.getByText("Add a document.")).toBeTruthy();
-  });});
+  });
+
+  it("Also check sits in a value's More, saves one allowed value per line, and is not offered for a table column", async () => {
+    mount({ ...flow, publishedVersion: null });
+    fireEvent.click(screen.getByRole("button", { name: "More for VAT" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Also check" }), { target: { value: "one_of" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Allowed values" }), { target: { value: "Acme, Inc.\nGlobex" } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(800); });
+    await waitFor(() => expect(api.saveFlowFields).toHaveBeenCalled());
+    const list = api.saveFlowFields.mock.calls.at(-1)![1] as FlowFieldList;
+    expect(list.fields.find((f) => f.key === "vat")!.check).toEqual({ op: "one_of", values: ["Acme, Inc.", "Globex"] });
+    fireEvent.click(screen.getByRole("button", { name: "More for Item" }));
+    expect(screen.getAllByRole("combobox", { name: "Also check" })).toHaveLength(1);
+  });
+
+  it("a check missing its values says so and is not saved", async () => {
+    mount({ ...flow, publishedVersion: null });
+    fireEvent.click(screen.getByRole("button", { name: "More for VAT" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Also check" }), { target: { value: "between" } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    expect(screen.getByRole("alert").textContent).toBe("Add a lowest or highest number for VAT.");
+    expect(api.saveFlowFields).not.toHaveBeenCalled();
+  });
+
+  it("a check this build does not know keeps the fold open and shows its op", () => {
+    const vat = { ...fields.fields[1], check: { op: "matches_pattern" } };
+    mount({ ...flow, fields: { ...fields, fields: [fields.fields[0], vat, fields.fields[2]] } });
+    expect((screen.getByRole("combobox", { name: "Also check" }) as HTMLSelectElement).value).toBe("matches_pattern");
+  });
+});
