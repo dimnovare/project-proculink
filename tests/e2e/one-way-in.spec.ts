@@ -142,7 +142,8 @@ test.describe("one way in", () => {
 
     await list.selectOption({ label: "Supplier invoices" });
     await expect(first).toBeEnabled();
-    expect((await audit(page.locator("main"))).filled, "chosen, Move it is the one filled button").toBe(1);
+    // Polled: the button turns navy through a 150 ms transition-colors, so one read right after it enables can land mid-fade.
+    await expect.poll(async () => (await audit(page.locator("main"))).filled, { message: "chosen, Move it is the one filled button" }).toBe(1);
     await first.click();
     await expect(page).toHaveURL(/\/flows\/flow-1\/documents\/doc-in-2$/);
     expect(await sends(page), "moving it sends nothing").toEqual([]);
@@ -188,7 +189,7 @@ test.describe("one way in", () => {
     // Delivery notes has no destination, so its way on is Make the file, and the made file waits on this screen.
     const send = header.getByRole("button", { name: "Make the file" });
     await expect(send).toBeEnabled();
-    expect((await audit(page.locator("main"))).filled, "Make the file is the one filled button").toBe(1);
+    await expect.poll(async () => (await audit(page.locator("main"))).filled, { message: "Make the file is the one filled button" }).toBe(1);
     await send.click();
     await expect(header.getByRole("button", { name: /^Download / })).toBeVisible();
     await expect(page).toHaveURL(/doc-in-3$/);
