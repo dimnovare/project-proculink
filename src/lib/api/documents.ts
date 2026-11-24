@@ -29,7 +29,10 @@ export interface ReadRow { cells: Record<string, ReadCell> }
 export interface ReadTable { key: string; label: string; columns: ReadColumn[]; rows: ReadRow[]; listed: boolean }
 export interface ReadResult { kindLabel: string | null; fields: ReadField[]; tables: ReadTable[]; truncated: boolean }
 
-export interface FlowField { key: string; label: string; type: string; meaning: string | null; required: boolean }
+export type FieldCheckOp = "one_of" | "between" | "in_lookup" | "not_after_today";
+/** A customer's own check on a single value (`FieldCheck`). `op` stays a string: a newer backend may store one this build doesn't know. */
+export interface FieldCheck { op: string; values?: string[] | null; min?: string | null; max?: string | null; lookupId?: string | null }
+export interface FlowField { key: string; label: string; type: string; meaning: string | null; required: boolean; check?: FieldCheck | null }
 export interface FlowTable { key: string; label: string; columns: FlowField[] }
 export interface FlowFieldList { fields: FlowField[]; tables: FlowTable[] }
 export interface Flow {

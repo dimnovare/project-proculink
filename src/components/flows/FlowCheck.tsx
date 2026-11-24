@@ -68,6 +68,7 @@ export function FlowCheck({ flow }: { flow: Flow }) {
           <li>A document we couldn&apos;t read.</li>
         </ul>
       </Card>
+      <p className="m-0 text-[13px] text-ink-muted">You can add your own check to a value: on We read, open More next to it.</p>
 
       {typeof streak === "number" && (
         <Card as="aside" dense>

@@ -23,6 +23,7 @@ import { REVIEW_CONFIDENCE } from "@/lib/reviewMarks";
 import { LOOKUP_LIMITS } from "@/lib/lookupCsv";
 import { SEARCH_TERM_MAX } from "@/lib/api/mockEngine";
 import { CHECK_MODES } from "@/lib/deliveryMode";
+import { FIELD_CHECK_OPS } from "@/lib/flowFieldModel";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The cross-repo mirror check.
@@ -1336,6 +1337,13 @@ describe("document statuses mirror the backend", () => {
     const backend = Object.values(parseStatusConstants(cs));
     expect(backend.length).toBeGreaterThan(0);
     expect(CHECK_MODES.map((m) => m.id).sort()).toEqual([...backend].sort());
+  });
+
+  test.skipIf(!BACKEND)("FIELD_CHECK_OPS keys equal FieldCheckOps' constants", () => {
+    const cs = readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/FieldCheck.cs"), "utf8");
+    const backend = Object.values(parseStatusConstants(cs));
+    expect(backend.length, "FieldCheck.cs parsed to no constants, so this would prove nothing").toBeGreaterThan(0);
+    expect(Object.keys(FIELD_CHECK_OPS).sort()).toEqual([...backend].sort());
   });
 
   test.skipIf(!BACKEND)("the check codes the documents list reads exist in DocumentChecks", () => {

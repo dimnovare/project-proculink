@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { ReadResult } from "@/lib/api/documents";
-import { addReadExtra, fieldListFromRead, withReadExtras } from "@/lib/flowFieldModel";
+import type { FieldCheck, ReadResult } from "@/lib/api/documents";
+import { addReadExtra, fieldCheckProblem, fieldListFromRead, withReadExtras } from "@/lib/flowFieldModel";
 
 const f = (key: string, label: string, type: string) => ({
   key, label, value: "x", type, meaning: null, confidence: 1, location: null, notOnPage: false, listed: true, edited: false,
@@ -61,5 +61,16 @@ describe("addReadExtra", () => {
     const read: ReadResult = { kindLabel: null, truncated: false, fields: [f("po", "PO number", "code"), f("total", "Total", "money"), f("date", "Date", "date")], tables: [] };
     const own = { key: "po", label: "Order", type: "code", meaning: null, required: true };
     expect(addReadExtra({ fields: [own], tables: [] }, read, "total").fields.map((x) => [x.key, x.label])).toEqual([["po", "Order"], ["total", "Total"]]);
+  });
+});
+
+describe("fieldCheckProblem", () => {
+  it("says what a check is missing, in the server's words", () => {
+    const f = (check: FieldCheck) => ({ key: "amount", label: "Amount", type: "number", meaning: null, required: false, check });
+    expect(fieldCheckProblem(f({ op: "one_of", values: ["", "  "] }))).toBe("Add at least one allowed value for Amount.");
+    expect(fieldCheckProblem(f({ op: "between", min: "10", max: "2" }))).toBe("For Amount, the lowest number is above the highest.");
+    expect(fieldCheckProblem(f({ op: "between", min: "1,5" }))).toBe("For Amount, write the numbers with digits only, like 1000 or 12.5.");
+    expect(fieldCheckProblem(f({ op: "in_lookup" }))).toBe("Choose a lookup for Amount.");
+    expect(fieldCheckProblem(f({ op: "not_after_today" }))).toBeNull();
   });
 });
