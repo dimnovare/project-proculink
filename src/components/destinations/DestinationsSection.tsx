@@ -141,7 +141,7 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
           {last?.tone === "failed" && (
             <>
               <span aria-hidden>{" · "}</span>
-              <Link href={activityAddress("all")} className="font-semibold underline">See why</Link>
+              <Link href={activityAddress("all")} className="inline-flex items-center font-semibold underline max-lg:min-h-[44px]">See why</Link>
             </>
           )}
         </span>

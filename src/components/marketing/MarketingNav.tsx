@@ -36,7 +36,7 @@ export function isCurrentSection(pathname: string | null, href: string): boolean
 
 const WIDE = "(min-width: 900px)";
 const FILLED =
-  "inline-flex h-11 min-w-[9.5rem] items-center justify-center whitespace-nowrap rounded-lg bg-brand-green-btn px-4 text-[15px] max-[399px]:min-w-0 max-[399px]:px-3.5 font-semibold text-white hover:bg-brand-green-deep";
+  "inline-flex h-11 min-w-[9.5rem] items-center justify-center whitespace-nowrap rounded-lg bg-brand-green-btn px-4 text-[15px] max-[389px]:min-w-[7rem] max-[389px]:px-3.5 font-semibold text-white hover:bg-brand-green-deep";
 
 export function MarketingNav() {
   const pathname = usePathname();
@@ -92,10 +92,9 @@ export function MarketingNav() {
           <span className="inline-flex [&>svg]:size-[26px] min-[900px]:[&>svg]:size-7">
             <ProcuLinkMark size={28} />
           </span>
-          {/* At 360px (312px inside px-6): word ~131 + "Start free" ~110 + Menu 44 + gaps fit, so the word gives way only
-              below 350px. Signed in, "Open ProcuLink" already says the name and is wider, so it gives way below 400px.
-              It stays the link's name either way. */}
-          <span className={`font-display text-[19px] font-bold tracking-[-0.02em] text-white ${signedIn ? "max-[399px]:sr-only" : "max-[349px]:sr-only"} min-[900px]:text-[20px]`}>
+          {/* At 360px (312px inside px-6): mark + word ~125, the 112px filled box and Menu 44 fit, so the word gives way
+              only below 350px, signed in or not. It stays the link's name either way. */}
+          <span className="font-display text-[19px] font-bold tracking-[-0.02em] text-white max-[349px]:sr-only min-[900px]:text-[20px]">
             ProcuLink
           </span>
         </Link>
@@ -131,7 +130,14 @@ export function MarketingNav() {
             Sign in
           </Link>
           <Link href={action.href} className={FILLED}>
-            {action.label}
+            {/* Below 390px the box keeps one width for both labels (nothing moves when sign-in resolves): it shows
+                "Open" and still reads out "Open ProcuLink". */}
+            {signedIn ? (
+              <>
+                <span aria-hidden className="min-[390px]:hidden">Open</span>
+                <span className="max-[389px]:sr-only">{action.label}</span>
+              </>
+            ) : action.label}
           </Link>
           {clerkEnabled && <MarketingClerkLinks onSignedInChange={setSignedIn} />}
           <button

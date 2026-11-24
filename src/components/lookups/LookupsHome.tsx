@@ -72,7 +72,7 @@ export function LookupsHome({ lookupId }: { lookupId?: string }) {
   });
   const chooseFile = () => fileInput.current?.click();
   const importButton = (className?: string) => (
-    <Button variant="blue" className={className} loading={importTable.isPending} onClick={chooseFile}>
+    <Button variant="secondary" className={className} loading={importTable.isPending} onClick={chooseFile}>
       <Upload size={16} aria-hidden />
       Import a table
     </Button>
