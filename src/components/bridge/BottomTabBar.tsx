@@ -12,7 +12,7 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { pageTotal } from "@/lib/pageTotal";
 import { showBadge } from "@/lib/pwa/push";
 
-const FULL_SCREEN = [/^\/flows\/new$/, /^\/flows\/[^/]+\/documents\/[^/]+$/, /^\/flows\/[^/]+\/outputs\/[^/]+\/advanced$/];
+const FULL_SCREEN = [/^\/flows\/new$/, /^\/flows\/[^/]+\/change-file$/, /^\/flows\/[^/]+\/documents\/[^/]+$/, /^\/flows\/[^/]+\/outputs\/[^/]+\/advanced$/];
 
 /** Review, setup and the Advanced view fill a phone screen: no tab bar there. */
 export function isFullScreenStep(pathname: string | null): boolean {
@@ -26,7 +26,7 @@ export function needsYouBadge(total: number | undefined): string | null {
 }
 
 // "!" because the phone tap-floor rule in globals.css sets a 44px minimum with !important.
-// No side padding, so "Documents" fits a quarter of a 360px screen. The focus ring sits
+// No side padding, so "Documents" (about 62px) fits a fifth of a 360px screen (72px). The focus ring sits
 // inside the target so the screen edge cannot clip it on the first and last tab.
 const TAB = "relative flex !min-h-[50px] min-w-0 flex-col items-center justify-center gap-0.5 text-[12.5px] text-ink-muted focus-visible:[outline-offset:-3px]";
 
@@ -45,11 +45,11 @@ export function BottomTabBar() {
   const total = pageTotal(needsYou.data);
   const badge = needsYouBadge(total);
   const navItems = buildVisibleNav(false).main[0].items;
-  const [first, second, third] = PHONE_TAB_HREFS.flatMap((h) => navItems.filter((i) => i.href === h));
+  const [first, second, third, fourth] = PHONE_TAB_HREFS.flatMap((h) => navItems.filter((i) => i.href === h));
   const link = (item?: SidebarNavItem) => {
     if (!item) return null;
     const href = item.href;
-    const active = !!pathname && currentPlace(pathname) === href;
+    const active = !!pathname && currentPlace(pathname, PHONE_TAB_HREFS) === href;
     const Icon = item.icon;
     const count = href === PHONE_TAB_HREFS[0] ? badge : null;
     return (
@@ -84,7 +84,7 @@ export function BottomTabBar() {
       <nav
         aria-label="Main"
         data-testid="tab-bar"
-        className="plk-tabbar fixed inset-x-0 bottom-0 z-drawer grid grid-cols-4 items-end border-t border-border bg-surface pt-1 md:hidden"
+        className="plk-tabbar fixed inset-x-0 bottom-0 z-drawer grid grid-cols-5 items-end border-t border-border bg-surface pt-1 md:hidden"
         style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}
       >
         {link(first)}
@@ -106,6 +106,7 @@ export function BottomTabBar() {
           </Link>
         )}
         {link(third)}
+        {link(fourth)}
       </nav>
       {adding && <AddSheet onClose={() => setAdding(false)} />}
     </>

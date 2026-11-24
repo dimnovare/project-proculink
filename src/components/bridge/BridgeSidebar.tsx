@@ -38,7 +38,7 @@ export type SidebarNavSection = { group?: string; items: SidebarNavItem[] };
 export const PINNED_ACTION_HREF = "/upload";
 
 /** The pages the phone tab bar carries. The navigation panel hides them on phones. */
-export const PHONE_TAB_HREFS: readonly string[] = ["/documents", "/flows", "/settings"];
+export const PHONE_TAB_HREFS: readonly string[] = ["/documents", "/flows", "/operations/log", "/settings"];
 /** The pages the desktop top bar carries (R19). The rest of NAV_MAIN is reached from these and from Ctrl K. */
 export const TOP_BAR_HREFS: readonly string[] = ["/documents", "/flows", "/settings"];
 /** A page not in the top bar lights the place it is reached from. */
@@ -101,10 +101,10 @@ export function isItemActive(pathname: string, item: SidebarNavItem): boolean {
 /** The one top-bar place an address lights, or null for none (Upload and Admin have their own controls).
  *  A document's review lights Documents first: its address also starts with /flows/. */
 export const isReviewAddress = (pathname: string) => /^\/flows\/[^/]+\/documents\/[^/]+/.test(pathname);
-export function currentPlace(pathname: string): string | null {
+export function currentPlace(pathname: string, tabs: readonly string[] = TOP_BAR_HREFS): string | null {
   if (isReviewAddress(pathname)) return "/documents";
   const lit = (href: string) => isItemActive(pathname, { label: "", href, icon: FileText });
-  return TOP_BAR_HREFS.find(lit) ?? Object.entries(TOP_BAR_PARENT).find(([child]) => lit(child))?.[1] ?? null;
+  return tabs.find(lit) ?? Object.entries(TOP_BAR_PARENT).find(([child]) => lit(child))?.[1] ?? null;
 }
 
 /** The top bar's lit place: its own page, or a page it does not carry that is reached from it. */
