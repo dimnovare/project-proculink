@@ -607,7 +607,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
                   {summary.status === "sending" ? <Loading>Sending…</Loading>
                     : status.tone === "working" ? <Loading>Reading the document…</Loading>
                     : <Quiet>Nothing was read from this document.</Quiet>}
-                  {summary.statusReason !== "duplicate_file" && <Checks checks={doc.data.checks} inbox={here !== false} />}
+                  {summary.statusReason !== "duplicate_file" && <Checks checks={doc.data.checks} inbox={here !== false} flowId={summary.flowId} duplicateOf={doc.data.duplicateOf} />}
                   <div className="mt-1">{history}</div>
                 </div>
               ) : (

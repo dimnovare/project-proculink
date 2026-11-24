@@ -75,6 +75,9 @@ type CountsThisMonth = { countsThisMonth?: boolean };
 export interface DocumentFile { deliveryId: string; fileName: string; delivered: boolean; destination: string | null }
 /** Where sending stopped. `destination` is null when it has no name left to give. */
 export interface DocumentStop { destinationId: string | null; destination: string | null; error: string | null }
+/** The copy that makes a document's number a repeat. `id` is null when only a removed copy is left (nothing to open);
+ *  `number` is the number as read on this document. */
+export interface DuplicateOf { id: string | null; receivedAt: string; number: string | null }
 /** A row of the paged documents list: the summary plus what only the app shows. Only pages carry these. */
 export interface DocumentRow extends DocumentSummary, CountsThisMonth {
   number: string | null; sender: string | null; checks: string[];
@@ -93,6 +96,8 @@ export interface DocumentRow extends DocumentSummary, CountsThisMonth {
   files?: DocumentFile[];
   /** Only on a `duplicate_file`: when the earlier copy was added. */
   duplicateOfAt?: string | null;
+  /** Only on a repeated number (a failed `duplicate` check). Absent on an older backend. */
+  duplicateOf?: DuplicateOf | null;
   /** The flow's current download-only answer. */
   downloadOnly?: boolean;
   /** The caller may remove this document. */
@@ -114,6 +119,8 @@ export interface DocumentDetail extends CountsThisMonth {
   canRemove?: boolean;
   /** Our built-in sample: never sent, so no Send is offered. */
   isSample?: boolean;
+  /** Only on a repeated number (a failed `duplicate` check). Absent on an older backend. */
+  duplicateOf?: DuplicateOf | null;
 }
 /** Where a value sits on the original: a box on a page, or a sheet cell / text line with the value read there. */
 export interface TeachRequest { key?: string; newLabel?: string; page?: number; box?: Box; address?: string; value?: string }
