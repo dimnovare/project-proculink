@@ -6,7 +6,7 @@ import { Button } from "@/components/bridge/DSPrimitives";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import {
-  GOOGLE_CONNECT_CHANNEL, deleteLinkedAccount, getGooglePicker, listLinkedAccounts, startGoogleConnect,
+  GOOGLE_CONNECT_CHANNEL, deleteLinkedAccount, getGooglePicker, listLinkedAccounts, startGoogleConnect, type GoogleStart,
 } from "@/lib/api/linkedAccounts";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { openGooglePicker } from "@/lib/googlePicker";
@@ -23,10 +23,12 @@ export const useLinkedAccounts = () =>
  * Opens the popup synchronously in the click, so a blocker allows it. A popup needs no way back — the callback
  * closes it — so only the full-page fallback sends `returnTo`.
  */
-export async function connectGoogle(): Promise<void> {
-  const popup = window.open("about:blank", "google-connect", "width=520,height=640");
+export async function connectAccount(
+  start: (origin: string, returnTo?: string) => Promise<GoogleStart>, popupName: string,
+): Promise<void> {
+  const popup = window.open("about:blank", popupName, "width=520,height=640");
   try {
-    const { authorizeUrl } = await startGoogleConnect(location.origin, popup ? undefined : location.pathname + location.search);
+    const { authorizeUrl } = await start(location.origin, popup ? undefined : location.pathname + location.search);
     if (popup) popup.location.href = authorizeUrl;
     else location.assign(authorizeUrl);
   } catch (e) {
@@ -34,6 +36,8 @@ export async function connectGoogle(): Promise<void> {
     throw e;
   }
 }
+
+export const connectGoogle = () => connectAccount(startGoogleConnect, "google-connect");
 
 /** Refreshes the account list when the callback page says an account was saved. */
 export function useGoogleConnectRefresh(): void {
@@ -81,7 +85,7 @@ export function GoogleTargetFields({ protocol, config, onChange }: {
   });
 
   if (!linked.data) return null;
-  const accounts = linked.data.accounts;
+  const accounts = linked.data.accounts.filter((a) => a.provider === "google");
   const saved = typeof config.accountId === "string" && config.accountId ? config.accountId : null;
   // A saved account that is no longer connected is said so, never shown as another account's email.
   const account = saved ? accounts.find((a) => a.id === saved) : accounts[0];

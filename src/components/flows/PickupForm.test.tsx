@@ -6,6 +6,13 @@ import { PickupForm } from "./PickupForm";
 
 const api = vi.hoisted(() => ({ createIntake: vi.fn(), updateIntake: vi.fn(), testIntake: vi.fn() }));
 vi.mock("@/lib/api/documents", () => api);
+const linked = vi.hoisted(() => ({
+  GOOGLE_CONNECT_CHANNEL: "proculink:google-connect",
+  listLinkedAccounts: vi.fn(async () => ({ available: false, accounts: [] as unknown[] })),
+  startOutlookConnect: vi.fn(), startGoogleConnect: vi.fn(), deleteLinkedAccount: vi.fn(), getGooglePicker: vi.fn(),
+}));
+vi.mock("@/lib/api/linkedAccounts", () => linked);
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 
 const wrap = (intake?: FlowIntake) =>
   render(
@@ -50,5 +57,33 @@ describe("PickupForm", () => {
     expect(screen.queryByText(/sends your password unencrypted/)).toBeNull();
     fireEvent.change(screen.getByLabelText("Type"), { target: { value: "ftp" } });
     expect(screen.getByText(/FTP sends your password unencrypted/)).toBeTruthy();
+  });
+
+  it("offers the Outlook mailbox only when Microsoft is on, lists only Outlook accounts, and saves the account and folder", async () => {
+    const account = { status: "active", createdAt: "2026-11-24T00:00:00Z" };
+    linked.listLinkedAccounts.mockResolvedValue({
+      available: false, microsoftAvailable: true,
+      accounts: [{ id: "ms-1", provider: "outlook", email: "user@example.com", ...account }, { id: "g-1", provider: "google", email: "other@example.com", ...account }],
+    });
+    api.createIntake.mockResolvedValue({ ...saved, kind: "outlook" });
+    const ui = wrap();
+    const option = await screen.findByRole("option", { name: "Outlook or Microsoft 365 mailbox" });
+    fireEvent.change(screen.getByLabelText("Type"), { target: { value: (option as HTMLOptionElement).value } });
+    expect(await screen.findByRole("option", { name: "user@example.com" })).toBeTruthy();
+    expect(screen.queryByText("other@example.com")).toBeNull();
+    expect(screen.queryByLabelText("Password")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Microsoft account"), { target: { value: "ms-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(api.createIntake).toHaveBeenCalledWith("f1", {
+      kind: "outlook", config: { accountId: "ms-1", folder: "Inbox", fromFilter: "", subjectFilter: "" }, credentials: null,
+    }));
+
+    ui.unmount();
+    linked.listLinkedAccounts.mockResolvedValue({ available: false, microsoftAvailable: false, accounts: [] });
+    const calls = linked.listLinkedAccounts.mock.calls.length;
+    wrap();
+    await waitFor(() => expect(linked.listLinkedAccounts.mock.calls.length).toBeGreaterThan(calls));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByRole("option", { name: "Outlook or Microsoft 365 mailbox" })).toBeNull();
   });
 });

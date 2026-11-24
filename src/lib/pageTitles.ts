@@ -36,6 +36,7 @@ export const APP_PAGE_TITLES: Record<string, string> = {
   "/operations/log": "History",
   "/settings": "Settings",
   "/settings/google-callback": "Google account",
+  "/settings/outlook-callback": "Microsoft mailbox",
   "/admin": "Admin",
 };
 

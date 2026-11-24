@@ -90,7 +90,7 @@ function targetLabel(target: string): string | undefined {
 }
 
 const RECEIVED = new Map([
-  ["upload", " was uploaded"], ["email", " arrived by email"], ["imap", " arrived from a mailbox"], ["api", " arrived through the API"],
+  ["upload", " was uploaded"], ["email", " arrived by email"], ["imap", " arrived from a mailbox"], ["outlook", " arrived from a mailbox"], ["api", " arrived through the API"],
   ["sftp", " was picked up from SFTP"], ["ftp", " was picked up from FTP"], ["ftps", " was picked up from FTPS"], ["s3", " was picked up from S3"],
 ]);
 const KIND_TAGS: Partial<Record<string, { label: string; tone: ActivityTone }>> = {

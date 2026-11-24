@@ -2,7 +2,7 @@ import type { Flow, FlowSummaryOutput } from "@/lib/api/documents";
 
 /** How a flow row names each intake kind. Keys mirror `IntakeKind.cs` (pinned by backendMirror.test.ts); order is the sentence's. */
 export const WAY_IN_WORDS: Record<string, string> = {
-  email: "email", imap: "a mailbox", sftp: "a server", ftp: "a server", ftps: "a server", s3: "an S3 bucket", api: "the API",
+  email: "email", imap: "a mailbox", outlook: "a mailbox", sftp: "a server", ftp: "a server", ftps: "a server", s3: "an S3 bucket", api: "the API",
 };
 
 /** "a, b and c". */

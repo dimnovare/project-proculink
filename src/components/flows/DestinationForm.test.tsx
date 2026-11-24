@@ -194,7 +194,7 @@ describe("DestinationForm", () => {
         <DestinationForm destination={gone} onSaved={() => {}} onCancel={() => {}} />
       </QueryClientProvider>,
     ).container);
-    expect(await ui.findByText("That Google account is no longer connected.")).toBeTruthy();
+    expect(await ui.findByText("That account is no longer connected.")).toBeTruthy();
     expect((ui.getByLabelText("Google account") as HTMLSelectElement).value).toBe("");
     expect(ui.queryByText("Old folder")).toBeNull();
     expect(ui.queryByRole("button", { name: "Choose folder" })).toBeNull();
