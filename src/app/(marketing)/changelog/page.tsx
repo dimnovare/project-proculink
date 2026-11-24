@@ -236,14 +236,14 @@ export default function ChangelogPage() {
     <div className={SITE_PAGE}>
       <section className="pb-12 pt-16">
         <div className={`${SITE.wrap} flex flex-col gap-4`}>
-          <h1 className="m-0 font-display text-[clamp(38px,4.2vw,56px)] font-semibold leading-[1.04] tracking-[-0.02em]">
+          <h1 className={SITE.docH1}>
             Changelog
           </h1>
           <p className={`${SITE.lead} max-w-[640px]`}>What&apos;s new in ProcuLink, newest first.</p>
         </div>
       </section>
 
-      <section className="border-b border-border bg-surface pb-24 pt-14">
+      <section className="border-b border-border bg-surface pb-10 pt-14">
         <div className={SITE.wrap}>
           <div className="max-w-[920px]">
             <article className="flex flex-wrap gap-x-14 gap-y-4 pb-11 pt-2">

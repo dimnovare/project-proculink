@@ -36,7 +36,7 @@ export function isCurrentSection(pathname: string | null, href: string): boolean
 
 const WIDE = "(min-width: 900px)";
 const FILLED =
-  "inline-flex h-11 min-w-[9.5rem] items-center justify-center whitespace-nowrap rounded-lg bg-brand-green-btn px-4 text-[15px] font-semibold text-white hover:bg-brand-green-deep";
+  "inline-flex h-11 min-w-[9.5rem] items-center justify-center whitespace-nowrap rounded-lg bg-brand-green-btn px-4 text-[15px] max-[399px]:min-w-0 max-[399px]:px-3.5 font-semibold text-white hover:bg-brand-green-deep";
 
 export function MarketingNav() {
   const pathname = usePathname();
@@ -50,7 +50,8 @@ export function MarketingNav() {
 
   // The sheet is navigation by content but an opaque `fixed inset-0` layer by
   // behaviour, so it is a modal: trap, Escape, focus back to the Menu button.
-  useDialogA11y({ open, onClose: closeMenu, panelRef: menuRef });
+  // Focus lands on the sheet itself (no ring), not its first link: a tap must not light up the logo. Tab goes on from there.
+  useDialogA11y({ open, onClose: closeMenu, panelRef: menuRef, initialFocusRef: menuRef });
 
   // A sheet left open while the window widens past 900px closes. jsdom has no matchMedia.
   useEffect(() => {
@@ -86,13 +87,15 @@ export function MarketingNav() {
 
   return (
     <header className="on-navy sticky top-0 z-40 bg-navy">
-      <div className="mx-auto flex h-[60px] max-w-[1160px] items-center gap-2 px-[clamp(14px,2vw,24px)] min-[900px]:h-16">
+      <div className="mx-auto flex h-[60px] max-w-[1160px] items-center gap-2 px-6 min-[900px]:h-16">
         <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2.5">
           <span className="inline-flex [&>svg]:size-[26px] min-[900px]:[&>svg]:size-7">
             <ProcuLinkMark size={28} />
           </span>
-          {/* Below 370px the word gives way so the header fits at 320px; it stays the link's name. */}
-          <span className="font-display text-[19px] font-bold tracking-[-0.02em] text-white max-[369px]:sr-only min-[900px]:text-[20px]">
+          {/* At 360px (312px inside px-6): word ~131 + "Start free" ~110 + Menu 44 + gaps fit, so the word gives way only
+              below 350px. Signed in, "Open ProcuLink" already says the name and is wider, so it gives way below 400px.
+              It stays the link's name either way. */}
+          <span className={`font-display text-[19px] font-bold tracking-[-0.02em] text-white ${signedIn ? "max-[399px]:sr-only" : "max-[349px]:sr-only"} min-[900px]:text-[20px]`}>
             ProcuLink
           </span>
         </Link>
@@ -155,7 +158,7 @@ export function MarketingNav() {
           aria-label="Menu"
           className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-navy outline-none min-[900px]:hidden"
         >
-          <div className="flex h-[60px] shrink-0 items-center justify-between border-b border-navy-line px-[clamp(14px,2vw,24px)]">
+          <div className="flex h-[60px] shrink-0 items-center justify-between border-b border-navy-line px-6">
             <Link href="/" onClick={closeMenu} className="flex items-center gap-2.5">
               <ProcuLinkMark size={26} />
               <span className="font-display text-[19px] font-bold tracking-[-0.02em] text-white">ProcuLink</span>

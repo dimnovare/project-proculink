@@ -116,10 +116,10 @@ export default function PricingPage() {
               </p>
             </div>
             <div className="flex min-w-0 flex-[1_1_340px] flex-col gap-1.5">
-              <p className="text-[19px] font-semibold leading-[1.35] [text-wrap:balance]">
-                {`${TRIAL.orderLimit} documents, ${TRIAL.flowLimit} flows, no credit card.`}
+              <p className="text-[19px] font-semibold leading-[1.35] [text-wrap:pretty]">
+                {`${TRIAL.orderLimit}\u00a0documents, ${TRIAL.flowLimit}\u00a0flows, no credit card.`}
               </p>
-              <p className={`${SITE.soft} text-[16px] [text-wrap:balance]`}>
+              <p className={`${SITE.soft} text-[16px] [text-wrap:pretty]`}>
                 When the trial ends, your workspace becomes read-only until you choose a plan.
               </p>
             </div>
@@ -177,7 +177,7 @@ export default function PricingPage() {
             {FAQ.map(([q, a], i) => (
               <details key={q} className="group border-b border-border" open={i === 0}>
                 <summary className="flex min-h-[68px] cursor-pointer list-none items-center gap-4 py-2 font-display text-[21px] font-semibold leading-[1.25] tracking-[-0.01em] [&::-webkit-details-marker]:hidden">
-                  <span className="min-w-0 flex-1 [text-wrap:balance]">{q}</span>
+                  <span className="min-w-0 flex-1 [text-wrap:pretty]">{q}</span>
                   <ChevronDown aria-hidden="true" className="size-5 shrink-0 text-ink-muted group-open:rotate-180 motion-safe:transition-transform" />
                 </summary>
                 <div className="max-w-[740px] pb-6 pr-10 text-ink-muted">{a}</div>

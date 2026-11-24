@@ -45,9 +45,21 @@ export const SITE_PAGE = "bg-bgWarm text-[17px] leading-[1.55] text-ink";
 export const INK_CTA =
   "inline-flex h-[52px] items-center justify-center gap-2 rounded-[10px] bg-navy px-[26px] text-[17px] font-semibold text-white no-underline hover:bg-navy-surface hover:text-white disabled:cursor-not-allowed disabled:opacity-60";
 
-/** The outlined button beside it. */
-export const GHOST_CTA =
-  "inline-flex h-[52px] items-center justify-center rounded-[10px] border border-border-strong px-6 text-[17px] font-semibold text-ink no-underline hover:border-ink hover:text-ink";
+/** The one "On this page" box of the public pages: collapsed, a row per section. `items` are [anchor id, label]. */
+export function OnThisPage({ items, className = "" }: { items: readonly (readonly [id: string, label: string])[]; className?: string }) {
+  return (
+    <nav aria-label="On this page" className={className}>
+      <details className="rounded-[10px] border border-border px-4">
+        <summary className="flex min-h-[52px] cursor-pointer items-center font-semibold">On this page</summary>
+        {items.map(([id, label]) => (
+          <a key={id} href={`#${id}`} className="flex min-h-[44px] items-center border-t border-border-faint text-[16px] text-ink no-underline">
+            {label}
+          </a>
+        ))}
+      </details>
+    </nav>
+  );
+}
 
 const BODY =
   "min-w-0 max-w-[72ch] text-[17px] leading-[1.65] [&_a]:text-brand-blue-deep [&_a]:underline [&_h3]:mb-2 [&_h3]:mt-6 [&_h3]:font-display [&_h3]:text-[20px] [&_h3]:font-semibold [&_li]:mb-2 [&_p]:mb-4 [&_strong]:font-semibold [&_table]:mb-5 [&_table]:w-full [&_table]:border-collapse [&_table]:text-[15.5px] [&_table]:leading-[1.4] [&_td:first-child]:font-semibold [&_td]:border-b [&_td]:border-border-faint [&_td]:px-4 [&_td]:py-3 [&_td]:align-top [&_th]:border-b [&_th]:border-border [&_th]:bg-bg [&_th]:px-4 [&_th]:py-3 [&_th]:text-left [&_th]:font-semibold [&_ul]:mb-4 [&_ul]:list-disc [&_ul]:pl-6";
@@ -77,7 +89,7 @@ export function LegalPage({
       <section className="pb-7 pt-12 sm:pt-16">
         <div className={`${SITE.wrap} flex flex-col gap-4`}>
           <nav aria-label="Related legal pages">
-            <ul className="m-0 flex list-none flex-wrap gap-x-7 p-0">
+            <ul className="m-0 grid list-none grid-cols-2 gap-x-6 gap-y-2 p-0 sm:flex sm:flex-wrap sm:gap-x-7 sm:gap-y-0">
               {LEGAL_PAGES.map(([label, href]) => (
                 <li key={href}>
                   <Link
@@ -91,7 +103,7 @@ export function LegalPage({
               ))}
             </ul>
           </nav>
-          <h1 className="m-0 font-display text-[clamp(38px,4.2vw,56px)] font-semibold leading-[1.04] tracking-[-0.02em] [text-wrap:balance]">
+          <h1 className={SITE.docH1}>
             {title}
           </h1>
           <div className={`${SITE.soft} text-[16px]`}>
@@ -118,14 +130,7 @@ export function LegalPage({
           </nav>
 
           <div className="min-w-0 flex-1">
-            <nav aria-label="On this page" className="mb-8 min-[900px]:hidden">
-              <details className="rounded-[10px] border border-border px-4">
-                <summary className="flex min-h-[52px] cursor-pointer items-center font-semibold">On this page</summary>
-                {toc.map((t) =>
-                  tocLink(t, "flex min-h-[44px] items-center border-t border-border-faint text-[16px] text-ink no-underline"),
-                )}
-              </details>
-            </nav>
+            <OnThisPage items={toc.map((t) => [legalAnchor(t), t] as const)} className="mb-8 min-[900px]:hidden" />
 
             <div data-testid="legal-body" className={BODY}>
               {children}

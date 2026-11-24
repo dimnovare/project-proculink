@@ -316,7 +316,7 @@ export default function PrivacyPage() {
           at a 375px viewport — it used to push the whole document sideways. See
           TableScroller for why the columns are scrolled rather than dropped. */}
       <TableScroller label="Subprocessors">
-        <table>
+        <table className="min-w-[640px]">
           <thead>
             <tr>
               <th>Processor</th>
