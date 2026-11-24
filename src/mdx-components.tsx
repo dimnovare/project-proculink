@@ -112,7 +112,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     li: ({ children }) => <li className="my-1.5">{children}</li>,
 
     code: ({ children }) => (
-      <code className="rounded-[5px] border border-border bg-surface-2 px-1.5 py-0.5 font-mono box-decoration-clone text-[0.86em] font-medium text-ink">
+      <code className="rounded-[5px] border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[0.86em] font-medium text-ink">
         {children}
       </code>
     ),
