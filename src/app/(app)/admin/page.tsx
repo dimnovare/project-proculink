@@ -568,10 +568,10 @@ export default function AdminPage() {
                   </div>
                   {/* The two that destroy data, on their own line and in red, so they never read as harmless. */}
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-                    <Button variant="secondary" size="sm" className="text-danger-text" onClick={() => openErase(org.id)}>
+                    <Button variant="danger" size="sm" onClick={() => openErase(org.id)}>
                       Erase workspace…
                     </Button>
-                    <Button variant="secondary" size="sm" className="text-danger-text" onClick={() => openDocs(org.id)}>
+                    <Button variant="danger" size="sm" onClick={() => openDocs(org.id)}>
                       Delete documents…
                     </Button>
                   </div>

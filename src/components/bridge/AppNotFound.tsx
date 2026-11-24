@@ -20,7 +20,7 @@ export function AppNotFound() {
             <path d="M13 5h15l9 9v26a3 3 0 0 1-3 3H13a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3Z" stroke="currentColor" strokeWidth="2.2" strokeDasharray="4 4" strokeLinejoin="round" />
             <path d="M28 5v9h9" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" />
           </svg>
-          <h1 id="app-not-found-title" className="m-0 font-display text-[30px] font-semibold text-ink">We can&apos;t find that page</h1>
+          <h1 id="app-not-found-title" className="m-0 text-balance font-display text-[30px] font-semibold text-ink">We can&apos;t find that page</h1>
           <p className="m-0 mt-2 max-w-[400px] text-[15px] text-ink-muted">
             The address may be mistyped, or the page may have moved. Your documents and flows are safe.
           </p>

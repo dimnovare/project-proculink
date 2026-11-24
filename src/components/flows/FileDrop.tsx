@@ -33,7 +33,7 @@ export function FileDrop({ accept, maxBytes, prompt, busyLabel, busy, disabled, 
         onDrop={(e) => { e.preventDefault(); setOver(false); pick(e.dataTransfer.files[0]); }}
       >
         <p className="text-[13px] text-ink-muted">{busy && busyLabel ? busyLabel : prompt}</p>
-        <Button type="button" variant={variant} loading={busy} disabled={disabled} onClick={() => input.current?.click()}>
+        <Button type="button" variant={variant} loading={busy} disabled={disabled} className="w-full max-sm:!h-12 sm:w-auto" onClick={() => input.current?.click()}>
           Choose a file
         </Button>
         <input ref={input} type="file" hidden accept={accept} aria-label="Choose a file"

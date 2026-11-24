@@ -135,12 +135,12 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
           {!!uses && <span className="text-ink-muted lg:hidden">Used by </span>}
           {d.usedBy && usedByWords(d.usedBy)}
         </span>
-        <span className={`col-span-full inline-flex flex-wrap items-center gap-1 text-[13px] lg:col-span-1 ${last ? TONE[last.tone] : ""}`}>
-          {last?.tone === "ok" && <Check aria-hidden size={14} />}
+        <span className={`col-span-full text-[13px] lg:col-span-1 ${last ? TONE[last.tone] : ""}`}>
+          {last?.tone === "ok" && <Check aria-hidden size={14} className="mr-1 inline align-[-2px]" />}
           {last?.text}
           {last?.tone === "failed" && (
             <>
-              <span aria-hidden>·</span>
+              <span aria-hidden>{" · "}</span>
               <Link href={activityAddress("all")} className="font-semibold underline">See why</Link>
             </>
           )}

@@ -84,7 +84,7 @@ function UsageLine({ billing }: { billing: BillingStatus | undefined }) {
     <p className="m-0 flex flex-wrap items-center gap-x-2 text-[13px] text-ink-muted">
       {billing.ordersThisMonth.toLocaleString(NUMBER_LOCALE)} of {billing.orderLimit.toLocaleString(NUMBER_LOCALE)}{" "}
       {plan.orderLimitIsMonthly ? "documents used this month." : "trial documents used."}
-      <Link href={BILLING} className="inline-flex min-h-[44px] items-center font-semibold sm:min-h-0">Plan and billing</Link>
+      <Link href={BILLING} className="inline-flex min-h-[44px] items-center font-medium text-brand-blue-deep underline sm:min-h-0">Plan and billing</Link>
     </p>
   );
 }
@@ -307,7 +307,7 @@ export function UploadToFlow() {
               <div className="grid min-w-0 flex-[1_1_280px] gap-0.5">
                 <h2 className="m-0 text-[14.5px] font-semibold text-ink">Or send them by email</h2>
                 <p className="m-0 text-[14px] text-ink-muted">
-                  Forward any email with documents attached to <span className="break-all font-mono text-[13px] text-ink">{address}</span>
+                  Forward any email with documents attached to <span className="block font-mono text-[13px] text-ink [overflow-wrap:anywhere]">{address}</span>
                 </p>
                 <p className="m-0 text-[13px] text-ink-muted sm:hidden">On a phone: in any app, tap Share, choose Mail, and send the file to this address.</p>
               </div>

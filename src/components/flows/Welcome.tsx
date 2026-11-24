@@ -180,7 +180,7 @@ export function Welcome({ flows, flowId }: { flows: readonly Flow[]; flowId?: st
               A flow is what happens to one kind of document, for example supplier invoices sent to your accounting system.{" "}
               {first ? "We create your first flow from this document." : "We set this flow up from this document."}
             </p>
-            <p className="m-0 sm:hidden">{first ? "We set up your first flow from it." : "We set this flow up from it."} A flow is what happens to one kind of document.</p>
+            <p className="m-0 sm:hidden">{first && "We set up your first flow from it. "}A flow is what happens to one kind of document.</p>
           </section>
         </aside>
       </div>

@@ -44,7 +44,8 @@ export function ActivityRow({ event: e, view, who, open, onToggle }: {
           {view.why && <p className="m-0 mt-0.5 text-[13px] text-ink-muted [overflow-wrap:anywhere]">{view.why}</p>}
         </div>
         <span className="col-start-2 row-start-2 flex min-w-0 flex-wrap gap-x-1 text-[13px] lg:contents">
-          <span className={`min-w-0 truncate text-ink-muted ${e.flowName ? "after:content-[','] lg:after:content-none" : ""}`}>{e.flowName}</span>
+          {/* No flow: the empty cell still holds the desktop column, but gives phones no stray gap. */}
+          <span className={`min-w-0 truncate text-ink-muted ${e.flowName ? "after:content-[','] lg:after:content-none" : "hidden lg:inline"}`}>{e.flowName}</span>
           <span className="min-w-0 truncate text-ink">{who}</span>
         </span>
         <span className={`col-start-2 row-start-3 mt-1.5 lg:mt-0 ${AT_LG}`}><Pill tone={view.tag.tone}>{view.tag.label}</Pill></span>
