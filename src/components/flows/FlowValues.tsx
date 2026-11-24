@@ -13,10 +13,11 @@ import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { sendsByItself } from "@/lib/deliveryMode";
 import { DOCUMENT_STATUSES, STATUS, documentStatus } from "@/lib/documentStatusManifest";
 import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
-import { addReadExtra, FIELD_TYPES, fieldListFromRead, replaceField, withReadExtras } from "@/lib/flowFieldModel";
+import { addReadExtra, FIELD_CHECK_OPS, FIELD_TYPES, fieldCheckProblem, fieldListFromRead, replaceField, withReadExtras } from "@/lib/flowFieldModel";
 import { acceptFor, MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
 import { flowAddress } from "@/lib/flowSteps";
 import { Field, INPUT } from "./DestinationForm";
+import { FieldCheckEditor } from "./FieldCheckEditor";
 import { FileDrop } from "./FileDrop";
 import { DraftState, useDraftPart } from "./flowDraft";
 import { useFlowSaved } from "./PublishBar";
@@ -55,7 +56,8 @@ const chosen = ({ list, off }: Rows): FlowFieldList => ({
 const problemWith = (body: FlowFieldList) => {
   const named = [...body.fields, ...body.tables.flatMap((t) => [t, ...t.columns])];
   if (!named.length) return "Keep at least one value.";
-  return named.some((x) => !x.label.trim()) ? "Give every value a name." : null;
+  if (named.some((x) => !x.label.trim())) return "Give every value a name.";
+  return body.fields.map(fieldCheckProblem).find(Boolean) ?? null;
 };
 const toggled = (off: Set<string>, id: string, on: boolean) => { const n = new Set(off); if (on) n.delete(id); else n.add(id); return n; };
 
@@ -80,8 +82,9 @@ function ValueRow({ field, scope, on, example, columns, indent, failed, onInclud
   const id = useId();
   const [open, setOpen] = useState(false);
   const meaning = field.meaning ? FIELD_MEANINGS[field.meaning as keyof typeof FIELD_MEANINGS] : undefined;
-  // A fold never hides a problem: a type or meaning we do not know for this row, or a change that did not save.
-  const forced = !!failed || !(field.type in FIELD_TYPES) || (!!field.meaning && meaning?.scope !== scope);
+  // A fold never hides a problem: a type, meaning or check we do not know for this row, or a change that did not save.
+  const forced = !!failed || !(field.type in FIELD_TYPES) || (!!field.meaning && meaning?.scope !== scope)
+    || (scope === "header" && !!field.check && !(field.check.op in FIELD_CHECK_OPS));
   // Forced open, it stays open (nothing remembers it): fixing the problem never closes it under the person's focus.
   if (forced && !open) setOpen(true);
   const shown = open || forced;
@@ -147,6 +150,7 @@ function ValueRow({ field, scope, on, example, columns, indent, failed, onInclud
               <p className="m-0 text-[12.5px] text-ink-muted min-[720px]:col-span-2">
                 Type lets us mark a value that is in the wrong shape. Meaning tells a standard file which value this is. Most flows never need to change either.
               </p>
+              {scope === "header" && <FieldCheckEditor field={field} disabled={!on} onChange={(check) => onChange({ ...field, check }, true)} />}
             </div>
           </td>
         </tr>
