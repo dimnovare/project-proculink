@@ -40,7 +40,7 @@ The first document is never marked as the duplicate of a later one.
 
 ## The two checks that hold a send
 
-A flow can send documents automatically once they are read. Even then, failed checks do not stop a send, with two exceptions. A document with a number we have already received always waits for you. Sending the same number twice on an unattended flow could post it twice, so we ask first. And the first document from a new email address waits for you. Send it once and later documents from that address go by themselves.
+A flow can send documents automatically once they are read. Even then, failed checks do not stop a send, with two exceptions. A document with a number we have already received always waits for you. Sending the same number twice on an unattended flow could post it twice, so we ask first. And an emailed document waits for you when it is the first from a new email address, or when we couldn't confirm it really came from the address it shows. Once you send a document from an address, later documents from it go by themselves, as long as we can confirm each one really came from it.
 
 ## Fixing a flag
 

@@ -64,7 +64,7 @@ export function FlowCheck({ flow }: { flow: Flow }) {
       <Card title="What always waits for a person" sub="Whatever you choose, these never go through by themselves.">
         <ul className="m-0 grid gap-1 pl-5 text-[13px] text-ink">
           <li>A document number we have already received, so nothing goes out twice.</li>
-          <li>The first document from a new email address.</li>
+          <li>A document from an email address we haven't confirmed.</li>
           <li>A document we couldn&apos;t read.</li>
         </ul>
       </Card>

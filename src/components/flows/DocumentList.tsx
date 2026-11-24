@@ -37,7 +37,7 @@ export function rowNeed(d: ListedDocument): { text: string; tone: Tone } {
   if (d.status === "ready") return { text: d.isSample ? "Nothing to send" : flowWords(d.downloadOnly).ready, tone: "amber" };   // waits on a person: green is only for finished
   if (d.status === "needs_review" && d.checks) {
     if (d.checks.includes("duplicate")) return { text: "Same number as an earlier document", tone: "amber" };
-    if (d.checks.includes("new_sender")) return { text: "First document from this email address", tone: "amber" };
+    if (d.checks.includes("new_sender")) return { text: "Email address not confirmed", tone: "amber" };
     const values = d.failedChecks - d.checks.filter((c) => WHOLE.includes(c)).length;
     if (values >= 1) return { text: values === 1 ? "1 value to check" : `${values} values to check`, tone: "amber" };
   }
