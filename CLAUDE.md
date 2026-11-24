@@ -1,111 +1,53 @@
 # ProcuLink — Frontend Implementation Guide
 
-This file is the single source of truth for every Claude Code session on this repo. Read it in full before touching any file.
+Read this in full before touching any file. **Code wins over this file**: every claim here was
+checked against the tree on 2026-11-24, and where you find a disagreement, trust the code and fix
+the doc. Section numbers are stable because code comments cite them (§2, §3, §6, §9, §11.5, §12);
+§7 was removed rather than renumbered.
 
 ---
 
 ## 1. What ProcuLink is
 
-An AI-assisted **outbound procurement bridge** between buyer/procurement teams, suppliers, ERPs, and procurement systems. Ingests buyer-side PO sources (manual upload first, later email/API/SFTP/FTP), normalizes into a canonical PO model, validates against supplier-specific rules, lets a human review only exceptions, and emits clean supplier-ready output.
+A simple document tool: **any document in → read → checked → transformed → sent**.
 
-**Tagline:** *"Connecting Procurement — the missing link between buyers and suppliers."*
+- **One way in.** A person drops any document (or it arrives by email, mailbox, SFTP, FTP, S3 or
+  the API). Nobody is asked "which flow is this for?" — the machine reads it and sorts it into the
+  flow it resembles. A first-of-its-kind document asks one question (do the same every time / just
+  this one / it belongs with one you already have). Upload with no flow chosen is
+  `POST /api/documents` (backend `InboxController` → `InboxFlow`).
+- **Flows** are the repeat setup: what to read, the output files to make (CSV, JSON, XML, Excel,
+  PDF, text, fixed-width — `FlowOutputFormats` — plus the standards in `StandardOutputs.cs`: cXML,
+  UBL Order, X12 850, EDIFACT ORDERS, and Peppol / EN 16931 / XRechnung invoices behind a
+  per-workspace switch),
+  and where to send them (destinations: email, SFTP, FTPS, S3, web address, Google Drive / Sheets).
+  **Lookups** swap values on the way out.
+- **No document kinds as product structure.** No "orders vs invoices" split in anything a user
+  reads: it is "document" and "flow" (founder, 2026-11-05 and 2026-11-16).
+- **Checks never block a send** (founder, 2026-11-06), with one founder-approved exception: on an
+  automatic flow, a failed `duplicate` check (same document number) holds the document for a person.
+- Built for bookkeepers and people who are not good with computers: one question per screen, one
+  filled button, a sentence under the title saying what to do next, plain words, more only on
+  request. Design and test at 390, 1440, 1920 and 2560 px.
+- Also an installed app (PWA: `public/sw.js`, `public/site.webmanifest`, `src/lib/pwa/`,
+  `src/components/pwa/`) with phone alerts over Web Push (`src/lib/pwa/push.ts`,
+  `PhoneAlerts.tsx`; backend `PushDevicesController`).
 
-**Not:** a chatbot, a PDF parser, a Zapier clone, a marketplace, a CRM.  
-**Is:** a vertical integration workbench for B2B order documents and supplier-specific transformation rules.
+The old purchase-order product (supplier docks, item-code mapping workbench, `/bridge` dashboard)
+was removed in plan 13b (2026-11-13). Old orders stay readable at `/archive`.
 
-**Core workflow:** `Parse → Normalize → Validate → Review → Transform → Deliver → Learn`
-
-**First ICP / next-6-week wedge:** buyer/procurement teams sending purchase orders out to many suppliers. They care about supplier acceptance, item-code correctness, delivery channel reliability, audit trail, and reducing manual reformatting.
-
-**Primary users:** procurement operators, purchasing coordinators, and integration specialists who manage supplier-specific PO formats, mappings, and delivery errors. Power users know supplier SKUs, cXML/EDI/API quirks, and approval workflows.
+**Benchmark (founder):** DocParser — be better, clearer, simpler, smarter, cheaper, quicker.
 
 ---
 
-## 1.5 Current direction — production hardening
+## 1.5 Current state
 
-Deep-research review on May 26 2026 confirmed: ProcuLink should now be treated
-as a real working product, not a throwaway MVP. Do not add broad engine features
-on top of visibly rough UI.
-
-Next work is grouped in the backend repo roadmap:
-`C:\Users\Dmitri.MARKIT\source\repos\ProcuLink\docs\superpowers\plans\2026-05-26-production-hardening-roadmap.md`.
-
-Frontend-relevant groups:
-
-| Group | Workstream | Status |
-|---|---|---|
-| **I** | UI/UX production polish + responsive QA | **In progress — pass 10 complete** |
-| **J** | Live end-to-end QA + deployment hardening | Planned after I |
-| **K** | Standards + engine hardening surfaces | Planned after I/J scoping |
-| **L** | Trust, onboarding + commercial readiness | **In progress — Wave 1 (Ph 1, 2, 4.1, 4.2, 8, 10.1, 10.2) on main; Wave 2 (Ph 3, 4.4–5.2) on feature branches** |
-
-Group I must continue unless the user explicitly reprioritizes:
-- QA desktop, tablet, and mobile.
-- Keep fixing visible Bridge Layer defects with Playwright screenshots before moving to broad engine work.
-- Make core flows feel complete: sign-in, first upload, inbox/review, mapping, transform, delivery, settings/billing/email, and error states.
-- Only after that, add broader engine surfaces for more standards and output templates.
-
-2026-06-02 PO reliability state: Task 6 is closed locally. The primary browser path is verified by
-`PLAYWRIGHT_API_URL=http://localhost:5223 bun run test:e2e:live -- tests/e2e/live-po-loop.spec.ts`.
-That live-only test drives CSV upload -> `/upload/preview/<id>` -> manual
-supplier-code entry -> save mapping -> `/inbox/<id>` -> send/transform/deliver
--> missing delivery-config failure panel -> retry feedback. Mapping preview
-returns `orderStatus` and `resolvedSupplierCode`; the preview UI polls while
-parsing. The review "send" action calls transform/delivery instead of only
-advancing local state. Failure-state browser QA is verified by
-`PLAYWRIGHT_API_URL=http://localhost:5223 bun run test:e2e:live -- tests/e2e/live-po-failure-states.spec.ts`:
-no-supplier upload blocking, unsupported-format guidance, scanned/textless PDF
-parse-failure routing when OCR is disabled, and supplier HTTP 4xx rejection copy.
-Next frontend gate is Group J/live deployment QA against Railway/Vercel.
-
-Group J edge-fix slice started 2026-06-02: live `https://proculink.eu/` and
-`https://www.proculink.eu/` returned 200, and `https://api.proculink.eu/health`
-returned 200. Live `/upload` returned a signed-out protected-route 404 and live
-`/sitemap.xml` returned 404. Fix pushed and verified live: `src/middleware.ts` now
-explicitly redirects signed-out protected app routes to
-`/sign-in?redirect_url=...`; `src/app/sitemap.ts` and `public/robots.txt` expose
-public marketing/help pages and disallow protected workspace paths. Local
-production verification passed: `bun run build`, `/upload` -> 307 sign-in
-redirect, `/sitemap.xml` -> 200 XML, `robots.txt` includes the sitemap URL. Live
-verification after push: `https://proculink.eu/upload` -> 307 sign-in redirect,
-`https://proculink.eu/sitemap.xml` -> 200 XML.
-
-Group J auth boundary update 2026-06-03: `src/middleware.ts` now allows Clerk
-handshake requests (`__clerk_handshake` / `__clerk_db_jwt`) on protected routes
-before applying the local signed-out redirect. This fixes temporary agent/test
-session handshakes on production HTTPS while keeping ordinary signed-out
-`/upload`, `/bridge`, etc. requests redirected to `/sign-in?redirect_url=...`.
-`bun run build` passed and Vercel production deploy
-`project-proculink-j02z9qtwg...` is Ready. Production Clerk secret was provided
-for the session (never commit or print it) and `@clerk/testing` is installed as
-a dev dependency for production-like browser QA. Clerk Testing Tokens can be
-created, and disposable production Clerk users can be created/deleted. Do not
-try to use `clerk.sessions.createSession` for production QA: Clerk rejects it
-with `request_invalid_for_environment` because Backend API session creation is
-development-only. The valid path is a browser/client session via
-`@clerk/testing/playwright` sign-in-token flow or a real signed-in browser
-session. Current Codex desktop environment cannot launch Playwright Chromium,
-Chrome, or Edge (browser launches time out before DevTools opens; DevTools-port
-manual launch is denied by Windows permissions), so authenticated deployed PO QA
-must be run from a browser-capable environment. Public edge checks are healthy:
-`https://api.proculink.eu/health` -> 200; protected `/upload` and `/bridge` ->
-307 local sign-in redirect; `/sign-in` -> 200.
-
-Group J live API/storage update 2026-06-03: the Clerk FAPI sign-in-token flow
-can mint a real production session JWT for a disposable user + organisation,
-and Railway accepts authenticated API calls with that JWT:
-`GET /api/billing/status`, `POST /api/suppliers`, and `GET /api/suppliers` are
-green. Railway production R2 variables were updated with a Cloudflare R2 S3
-access key pair for bucket `proculink`; after redeploy, sample order now returns
-200 and direct multipart `POST /api/orders/upload` returns 200 with an R2
-`sourceFileKey`. Do not chase sample-order/upload as a frontend/CORS issue.
-The current live blocker is parse job execution: uploaded orders remain
-`parsing` for 30+ seconds. API logs show `ParseOrderJob` is enqueued, but the
-linked Railway service is only `ProcuLink` and the API intentionally does not
-run `AddHangfireServer`. Production needs a separate `ProcuLink.Worker` Railway
-service deployed from `Dockerfile.worker` with the same DB/storage/AI/delivery
-env vars. After that Worker consumes jobs, rerun upload -> preview -> review ->
-transform -> delivery against the live domain.
+- Relaunched as the document tool 2026-11-14. Every workspace runs on the document engine.
+- Where plans live: `docs/superpowers/plans/` and `docs/superpowers/specs/` in this repo — local,
+  **never committed**. Program ledgers live under `.superpowers/` (gitignored, never staged). The
+  backend's `STATUS.md` and `docs/superpowers/plans/2026-07-27-v1-master-plan/05-PROGRESS.md`
+  carry the older correction log and numbered traps.
+- History is `git log`. Do not re-execute old checklists.
 
 ---
 
@@ -117,203 +59,155 @@ and list five non-negotiable spatial signatures. Three of those five were never
 built, and one of them had no component in `src/` at all — so for months every
 new screen was being designed against a spec that the product did not implement,
 and no guard could catch it because the fiction lived in a document, not in code.
+`src/test/struckSignatures.test.ts` reads this section; keep it true.
 
 **Read this table before designing any screen. It is the whole point of §2.**
 
 | Signature | Built? | Where it renders |
 |---|---|---|
 | **1. Edge rails** — 4px buyer-blue left / supplier-green right, port markers | **NO — STRUCK 2026-08-13** | Nowhere. See below. |
-| **2. Wire Topology** — buyer ports left, supplier ports right, animated wires | **DELETED 2026-11-14 (plan 13b)** | Nowhere. It was the `/bridge` "System map" tab; `/bridge` went with the order screens and the component was deleted in the orphan sweep. |
+| **2. Wire Topology** — buyer ports left, supplier ports right, animated wires | **DELETED 2026-11-14 (plan 13b)** | Nowhere. Its only host, the `/bridge` "System map" tab, went with the order screens. |
 | **3. Canonical Spine review** — 3-column source · spine · output | **NO — DELETED 2026-08-13** | Nowhere. The shipped review is a different layout; see below. |
 | **4. Document Anatomy** — source document pane | **PARTLY** | `src/components/bridge/document/` renders the pane. The **per-zone confidence overlay does not exist** and needs backend provenance first. |
-| **5. Cross-section card edge** — 3px brand strip on a card edge | **YES, and now applied by rule** | `<Card>`, `src/components/bridge/layout/Card.tsx`. Five card paths converged into it 2026-08-13; the edge is semantic and its rule is in that file's header. |
+| **5. Cross-section card edge** — 3px brand strip on a card edge | **YES, and applied by rule** | `<Card>`, `src/components/bridge/layout/Card.tsx`. The edge is semantic; its rule is in that file's header. |
 
 ### 1. Edge rails — STRUCK
 
-The `<EdgeRails>` component was never built into `src/`. The CSS that was written
-for it — `.railed`, `.rail`, `.rail.buyer`, `.rail.supplier`, `.rail-port`,
-`.rail-label` in `src/app/globals.css` — carried **zero consumers** for its entire
-life: no element in the app ever applied one of those classes. The matching
-Tailwind tokens (`rail: 4px` spacing, `z-rails` z-index, `bg-rail-buyer`,
-`bg-rail-supplier`) were equally unused. All of it was deleted 2026-08-13.
-
-One token survived the strike because it renders something real:
-`--gradient-rail-buyer` was **renamed `--gradient-line-buyer`** and still draws the
-vertical connector running through a help guide's numbered step badges
-(`src/components/help/guide/Step.tsx`). It is a step connector, not a rail.
-`--gradient-rail-supplier` was deleted outright.
-
-**Do not reinstate the rails as decoration.** They were struck because a 4px strip
-at the window edge is not how anyone reads direction.
+The `<EdgeRails>` component was never built into `src/`. Its CSS (`.railed`, `.rail`,
+`.rail-port`, `.rail-label`) and Tailwind tokens (`rail`, `z-rails`, `bg-rail-buyer`,
+`bg-rail-supplier`) had **zero consumers** and were deleted 2026-08-13. One token survived because
+it renders something real: `--gradient-rail-buyer` was **renamed `--gradient-line-buyer`** and draws
+the vertical connector through a help guide's numbered step badges
+(`src/components/help/guide/Step.tsx`). **Do not reinstate the rails as decoration.**
 
 ### What carries buyer-left / supplier-right now
 
-This matters more than the rails did, so it is stated explicitly rather than left
-implicit. Orientation is carried by **layout and colour**, in two places (a third, the
-queue's labelled column, went with the order screens — see 2 below):
+Orientation is carried by **layout and colour**:
 
-1. **Panel order in the mapper.** `/flows/[flowId]/outputs/[outputId]/advanced` →
+1. **The document screen.** `/flows/[flowId]/documents/[documentId]` →
+   `src/components/flows/DocumentScreen.tsx`: **"Original"** (blue dot) on the left, then
+   **"What we read"** (navy dot) and **"What we'll send"** (green dot) on the right. Below `lg` the
+   same three become tabs in the same order.
+2. **The mapper.** `/flows/[flowId]/outputs/[outputId]/advanced` →
    `src/components/flows/advanced/AdvancedView.tsx` →
-   `src/components/bridge/mapper/MapperWorkbench.tsx` (`variant="flow"`), a
-   two-level grid running left → right. (Until plan 13b, 2026-11-13, the host was the
-   order review, `/inbox/[orderId]` → `OrderWorkshop`.)
+   `src/components/bridge/mapper/MapperWorkbench.tsx` (`variant="flow"`): `IncomingPane`
+   **"What we received"** (blue) → `OutgoingPane` **"What we'll send"** (green) →
+   `MapperPreviewPane` **"Live preview · {FORMAT}"** (green).
+3. **Colour.** Incoming = `#1E66C9`. Outgoing = `#2E8E3A`; on text it darkens to `#1E6D29` for
+   contrast (a WCAG fix, not a different colour).
 
-   | Position | Pane | Heading | Dot |
-   |---|---|---|---|
-   | Left | `IncomingPane` | **"What we received"** / "Original document" | blue `#1E66C9` |
-   | Middle | `OutgoingPane` | **"What we'll send"** | green `#2E8E3A` |
-   | Right | `MapperPreviewPane` | **"Live preview"** — "exactly what {supplier} receives" | green `#2E8E3A` |
-
-   Note it is **not** a symmetric blue-left / green-right pair: it is one buyer
-   column followed by two supplier columns. **Source stays left of output. Do not
-   reorder these panes** — that ordering is the orientation. (`MobileTriage`, which
-   stacked the same three below `lg`, went with the order workshop.)
-
-2. **GONE 2026-11-13 — the labelled direction column in the queue.** It lived in
-   `InboxView.tsx` (`id: "lane"`), with its header text from `useOrderDirection.ts` —
-   `"Buyer → Supplier"` outbound, `"Customer → You"` inbound. Both files went with the
-   order screens in plan 13b; nothing has replaced the column.
-
-3. **Colour, unchanged.** Buyer / incoming = `#1E66C9`. Supplier / outgoing =
-   `#2E8E3A`. Where the green sits on text it darkens to
-   `#1E6D29` for contrast — that is a WCAG fix, not a different colour.
+**Source stays left of output. Do not reorder these panes** — the ordering is the orientation.
+(The queue's labelled "Buyer → Supplier" column went with the order screens on 2026-11-13.)
 
 ### 3. Canonical Spine review — DELETED
 
-`src/components/bridge/CanonicalSpine.tsx` (`<CanonicalSpine>` + `<SpineNode>`)
-had **zero importers** and was deleted 2026-08-13, along with its `spine: 3px`
-spacing token, whose only consumer was that file. `SpineReview` was deleted
-earlier, in commit `3520ed4`.
+`src/components/bridge/CanonicalSpine.tsx` (`<CanonicalSpine>` + `<SpineNode>`) had **zero
+importers** and was deleted 2026-08-13 with its `spine: 3px` token. `SpineReview` went earlier
+(commit `3520ed4`). **The one rule that survives: the source document stays visible on the left
+during review.** Never hide it behind a modal or a wizard step.
 
-The shipped review is the three-pane workbench in the table above. It is a
-different and better shape than the spec's source · spine · output triptych: the
-middle column is the editable field mapping, not a read-only canonical spine, and
-the right column is a live preview of the actual outgoing payload.
-
-**The one rule from the old spec that survives, because it is true and load-bearing:
-the source document stays visible on the left during review.** Never hide the source
-behind a modal or a wizard step.
-
-### Supporting signatures — real unless marked
+### Supporting signatures
 
 - **Navy app chrome / light work area.** Chrome = `#0B1A2F`. Main content = `#F6F7FA`.
-- **Link-spine.** 2px blue→green gradient line across the bottom of the topbar
-  (`bg-link-spine` / `--gradient-link-spine`). Distinct from the deleted canonical
-  spine — this one ships.
-- **Status as a journey.** Document status = 5-node mini-track
-  (In · Read · Check · Transform · Send), not a static pill.
-  `<StatusJourney>`, rendered by `DocumentList` and `DocumentScreen`.
-- **Monumental numbers — GONE 2026-11-13.** KPIs in Bricolage Grotesque 600, tight
-  letterspacing; the `.monument` CSS went with its only consumer, the supplier screen (§6).
-- **System Identity mark.** SVG glyph: an arc with a blue circle on the left end and
-  a green circle on the right. Same geometry in loading states and pipeline icons.
-  (It no longer has rail markers or spine nodes to share geometry with.)
+- **Link-spine.** 2px blue→green gradient line under the top bar (`bg-link-spine` /
+  `--gradient-link-spine`). Distinct from the deleted canonical spine — this one ships.
+- **Status as a journey.** 5-node mini-track (In · Read · Check · Transform · Send),
+  `<StatusJourney>`, rendered by `DocumentList`, `ActivityRow` and `OrderArchive`.
+- **System Identity mark.** An arc with a blue circle on the left end and a green circle on the
+  right. Same geometry in loading states and pipeline icons.
+- **Monumental numbers — GONE 2026-11-13** with their only consumer, the supplier screen (§6).
 
 ### Design workflow
 
-Do not use Lovable for ProcuLink. All UI/UX decisions run through the local design
-system, `/frontend-design`, and Claude Design/reference images.
+Do not use Lovable. UI/UX decisions run through the local design system, `/frontend-design`,
+`ui-ux-pro-max` and Claude Design/reference images. `/frontend-design` sharpens what ships; it does
+not invent a new aesthetic or resurrect a struck signature.
 
 ⚠ **`docs/design-system/handoff-v2/` in THIS repo is a superseded 2026-05 handoff
-snapshot, not a spec.** It still contains the struck signatures — including
-reference `EdgeRails.tsx` / `CanonicalSpine.tsx` files and a `showcase.html` that
-renders edge rails as a live demo. Every file in it now carries a dated strike
-banner pointing back here. **This section outranks it.** The sibling backend repo's
-`docs/design-system/` (`C:\Users\Dmitri.MARKIT\source\repos\ProcuLink\docs\design-system`)
-is a different, current set — note the name collision.
-
-`/frontend-design` is a quality and execution lens. It sharpens what ships; it does
-not invent a new aesthetic, and it does not resurrect a struck signature.
+snapshot, not a spec.** It still contains the struck signatures (reference `EdgeRails.tsx` /
+`CanonicalSpine.tsx`, a `showcase.html` with edge rails). **This section outranks it.** The
+backend repo's `docs/design-system/` is a different, current set — note the name collision.
 
 ---
 
 ## 3. Design tokens
 
-All Bridge Layer tokens live as flat Tailwind classes. The `brand.*`, `navy.*`, `bg`, `surface`, `border*`, `ink.*`, `amber*`, `danger*`, `ai*` prefixes are defined in `tailwind.config.ts`.
+Flat Tailwind keys in `tailwind.config.ts`, mirrored as CSS variables in `src/app/globals.css`
+(`scripts/check-tokens.mjs` keeps them in step). Values verified 2026-11-24.
 
 ```
-brand.blue     #1E66C9   buyer / incoming / structure / trust
-brand.blue-deep #0F4FA8
-brand.blue-soft #EAF0F8
-brand.green    #2E8E3A   supplier / outgoing / completion
-brand.green-deep #1E6D29
-brand.green-soft #E9F1EA
-navy.DEFAULT   #0B1A2F   sidebar + topbar
-navy.surface   #10243E   raised within chrome
-navy.border    #1C2F49
-navy.text      #C5D2E4
-navy.muted     #7C8DA6
-bg             #F6F7FA   app background
-bgWarm         #F8F6F1   marketing surfaces
-surface        #FFFFFF
-surface2       #EFF2F7
-border         #E2E6EE
-borderStrong   #C6CDDA
-ink.DEFAULT    #0B1A2F
-ink.muted      #56627A
-ink.faint      #8A93A5
-amber          #C97A14
-amberSoft      #FAEFD6
-danger         #C53A3A
-dangerSoft     #FBE3E3
-ai             #6F4FCE   ONLY for AI-generated content
-aiSoft         #EEE7FB
+brand.blue          #1E66C9   incoming / structure / trust
+brand.blue-deep     #0F4FA8
+brand.blue-soft     #EAF0F8
+brand.blue-bright   #6BA5F0   blue legible on navy
+brand.green         #2E8E3A   outgoing / completion (text, icons, dots, borders)
+brand.green-btn     #297F34   solid green fill under white text (AA)
+brand.green-deep    #1E6D29
+brand.green-soft    #E9F1EA
+brand.green-bright  #5FC06B   green legible on navy
+navy.DEFAULT        #0B1A2F   top bar + navigation panel
+navy.surface        #14253D   raised within chrome
+navy.border         #1F3252
+navy.text           #C8D1E0
+navy.muted          #7C8DA6
+bg                  #F6F7FA   app background
+bgWarm              #F8F6F1   marketing surfaces
+surface             #FFFFFF
+surface.2           #F1F3F7
+border              #E5E8EE
+border.strong       #CBD0DA
+ink.DEFAULT         #0B1A2F
+ink.muted           #5E6779
+ink.faint           #667085
+amber               #B36D14   (amber.text #8A5310 for text)
+amber.soft          #FAF1DD
+danger              #B43838   (danger.text #A42F2F)
+danger.soft         #FAE6E6
+ai                  #6F4FCE   ONLY for AI-generated content
+ai.soft             #F0EAFB
 ```
 
-Tailwind class names for these keys are kebab-case: `bg-brand-blue-soft`, not `bg-brand-blueSoft` (an unknown class compiles to nothing).
+Tailwind class names are kebab-case: `bg-brand-blue-soft`, not `bg-brand-blueSoft` (an unknown
+class compiles to nothing).
 
-**Fonts:**
-- `font-sans` → Inter (body, UI, 13/14px)
-- `font-display` → Bricolage Grotesque (KPIs, page titles, marketing)
-- `font-mono` → JetBrains Mono (SKUs, code refs, PO numbers)
+**Fonts:** `font-sans` Inter (body, UI) · `font-display` Bricolage Grotesque (titles, marketing) ·
+`font-mono` JetBrains Mono (codes, ids, document numbers).
 
-**Background images (gradients):**
-- `bg-link-spine` → `linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%)`
-- `bg-bridge-deck` → `linear-gradient(90deg, #1E66C9, #2E8E3A)`
-- `bg-mark-gradient` → `linear-gradient(90deg, #1E66C9, #2E8E3A)`
+**Background images:** `bg-link-spine` (`#1E66C9` 0–35%, `#2E8E3A` 65–100%) · `bg-bridge-deck` and
+`bg-mark-gradient` (`#1E66C9` → `#2E8E3A`). `bg-rail-buyer` / `bg-rail-supplier` were deleted with
+the edge rails (§2).
 
-> `bg-rail-buyer` and `bg-rail-supplier` were deleted 2026-08-13 with the edge-rail
-> signature (§2) — both had zero consumers. The `--gradient-line-buyer` CSS variable
-> in `globals.css` is what remains, and it is a help-guide step connector, not a rail.
-
-**Spacing:** 4px base. **Radii:** card-sm 6px / card 8px / card-lg 12px. **Shadows:** avoid heavy drops. Cards use borders + `0 1px 2px rgba(11,26,47,0.04)`.
-
-**Type scale:** body 13/14px · table rows 12/12.5px · KPI display 32–48px · marketing display 60–78px.
+**Spacing:** 4px base. **Radii:** card-sm 6px / card 8px / card-lg 12px. **Shadows:** avoid heavy
+drops; cards use borders + `0 1px 2px rgba(11,26,47,0.04)`. **Type scale:** `fontSize` in
+`tailwind.config.ts` (body 13px, body-l 14px, h1 32px, display 48px, display-l 78px).
 
 ---
 
-## 4. App shell architecture
+## 4. App shell
 
-**One navy row on top; how you move between pages depends on the width.**
+One navy row on top (`BridgeTopbar`, 52px on phones, 56px from `md`), the link-spine under it, and
+three places: **Documents, Flows, Settings**. No breadcrumb row: every page shows its own title,
+one helper line and, when it sits under another page, a back link (`PageHeader` `title` / `sub` /
+`back`).
 
-| Width | Top bar (navy, 2px blue-to-green line under it) | Moving between pages |
+| Width | Top bar | Moving between pages |
 |---|---|---|
-| 1024px and up | mark and wordmark, workspace switcher, Documents / Flows / Lookups / Activity / Settings, Upload (blue), search, help, account | the links in the bar |
-| 768 to 1023px | the same without the links, plus a menu button | the menu button opens the navigation panel |
-| under 768px | mark, workspace switcher, search, help | bottom tab bar: Documents (with the needs-you count), Flows, round blue Add, Activity, More. More opens the navigation panel |
+| 1024px and up (`lg`) | mark + wordmark, workspace switcher (`OrgSwitcher`), Documents / Flows / Settings, Upload, Search (Ctrl/Cmd K), Admin (allowlisted only), Help, account | the links in the bar |
+| 768 to 1023px | the same without the links, plus a menu button | the menu opens the navigation panel |
+| under 768px | mark, workspace switcher, Search, Help | `BottomTabBar`: Documents (needs-you count), Flows, round Add, Settings |
 
-- `BridgeTopbar` is the bar: 56px, 52px on phones. There is no breadcrumb row. Every page shows its own title, one helper line and, when it sits under another page, a back link (`PageHeader` `title` / `sub` / `back`).
-- `BottomTabBar` sits under `<main>` on phones and steps aside on full-screen steps (a document, the new-flow guide, the Advanced view): `isFullScreenStep()`.
-- `BridgeSidebar` renders only inside the navigation panel (the layout's dialog): the tablet menu and the phone "More". It is not desktop chrome.
-- The nav registry is `NAV_MAIN` in `BridgeSidebar.tsx`: Documents `/documents`, Flows `/flows`, Lookups `/lookups`, Activity `/operations/log`, Settings `/settings`; Upload `/upload` is the pinned action.
-
-> The order-pipeline nav (Bridge, the Inbox filters, Drafts, the Library pages) went with
-> the order screens in plan 13b (2026-11-13). Every one of those URLs 308s via
-> `src/lib/retired-routes.ts` — the order URLs to `/archive`, the rest to their engine
-> equivalent (`/documents`, `/flows`, `/lookups`).
-
-> `/operations/webhooks` was deleted (2026-08-08): a duplicate of Settings ▸
-> Connectors that nothing navigated to. The URL 308s to `/settings?tab=connectors`
-> via `src/lib/retired-routes.ts`.
-
-> `/operations/connectors` was deleted (2026-08-13): a read-only page nothing
-> navigated to, whose rows were hardcoded to one channel type because
-> `GET /api/suppliers` carries no delivery-config signal. The suppliers list
-> prints each supplier's real channel and the supplier Delivery tab owns the
-> config. The URL 308s to `/settings` via `src/lib/retired-routes.ts` (it pointed at
-> `/library/suppliers` until plan 13b deleted that page).
-
-**Active nav item style:** 2px link-gradient strip on left, slightly raised navy surface (`navy.surface`), white text.
+- The nav registry is `NAV_MAIN` in `src/components/bridge/BridgeSidebar.tsx`: Documents
+  `/documents`, Flows `/flows`, Lookups `/lookups`, History `/operations/log`, Settings `/settings`.
+  `TOP_BAR_HREFS` and `PHONE_TAB_HREFS` are the three places; `TOP_BAR_PARENT` lights Flows for
+  `/lookups` and Documents for `/operations/log` and `/archive`. Upload `/upload` is
+  `PINNED_ACTION_HREF`. `NAV_TAIL`: Admin (allowlist) and Help & support (`/help`, new tab).
+- `BridgeSidebar` renders only inside the navigation panel (the layout's dialog). It is not
+  desktop chrome.
+- `BottomTabBar` steps aside on full-screen steps (a document, the new-flow guide, change file,
+  the Advanced view): `isFullScreenStep()`. Its Add opens `AddSheet`.
+- Help opens beside the page (`HelpPanel`); the full help centre is the marketing `/help`.
+- Retired URLs never 404: they 308 through `src/lib/retired-routes.ts` (pinned by
+  `src/test/retired-routes.test.ts`).
 
 ---
 
@@ -321,148 +215,114 @@ Tailwind class names for these keys are kebab-case: `bg-brand-blue-soft`, not `b
 
 ```
 src/app/
-  (home)/page.tsx         # `/` — the public landing page
-  (marketing)/            ← bgWarm background
-    pricing/page.tsx      # also formats, how-it-works, security, help/…
-  sign-in/[[...sign-in]]/page.tsx
-  sign-up/[[...sign-up]]/page.tsx
-  onboarding/select-organization/page.tsx
+  (home)/page.tsx                 # `/` — public landing page
+  (marketing)/                    # pricing, formats, how-it-works, compare, security, help/…, legal pages
+  sign-in/[[...sign-in]]/  sign-up/[[...sign-up]]/  onboarding/select-organization/
   (app)/
-    layout.tsx            # BridgeSidebar + BridgeTopbar + children
-    documents/page.tsx    # DocumentsHome — every document
-    flows/page.tsx
-    flows/new/page.tsx
-    flows/[flowId]/page.tsx                              # FlowPage
+    layout.tsx                    # BridgeTopbar + navigation panel (BridgeSidebar) + BottomTabBar
+    documents/page.tsx            # DocumentsHome — every document, needs-you first
+    flows/page.tsx                # FlowsHome
+    flows/new/page.tsx            # FirstRun — the new-flow guide
+    flows/[flowId]/page.tsx       # FlowPage
     flows/[flowId]/documents/[documentId]/page.tsx       # DocumentScreen
     flows/[flowId]/outputs/[outputId]/advanced/page.tsx  # AdvancedView → MapperWorkbench
-    lookups/page.tsx
-    lookups/[lookupId]/page.tsx
-    upload/page.tsx       # UploadToFlow
-    archive/page.tsx      # OrderArchive — read-only legacy orders
-    archive/[orderId]/page.tsx
-    operations/log/page.tsx   # Activity
-    settings/page.tsx
+    flows/[flowId]/change-file/page.tsx                  # ChooseFile
+    lookups/page.tsx  lookups/[lookupId]/page.tsx        # LookupsHome
+    upload/page.tsx               # UploadToFlow — one way in
+    operations/log/page.tsx       # ActivityPage — "History" in the nav
+    archive/page.tsx  archive/[orderId]/page.tsx         # OrderArchive — read-only old orders
+    settings/page.tsx             # people, plan & billing, destinations, API keys, notifications, installed app
     settings/google-callback/page.tsx
-    admin/page.tsx        # plus admin/guides/…
+    admin/page.tsx  admin/guides/…
 ```
 
-Middleware (`src/middleware.ts`) protects all `(app)` routes via Clerk.
-
-> Until plan 13b (2026-11-13) this tree also held `bridge/`, `inbox/`, `inbox/[orderId]/`,
-> `drafts/`, `library/*` and `operations/connectors|webhooks/`. They are gone; their URLs
-> 308 via `src/lib/retired-routes.ts`.
+Each `(app)` area also has a `[...missing]` catch-all. `src/middleware.ts` protects the `(app)`
+routes via Clerk; `PROCULINK_QA_BYPASS_AUTH=true` bypasses it for local QA only (off in production).
 
 ---
 
 ## 6. Component library
 
-All Bridge-specific components live in `src/components/bridge/`.
+Shared chrome and primitives live in `src/components/bridge/`; product screens in
+`src/components/flows/`, `lookups/`, `activity/`, `archive/`, `pwa/`, `help/`.
 
 ### Signature components
 
 | Component | File | Description |
 |---|---|---|
-| `<Card>` | `bridge/layout/Card.tsx` | **The one card.** 3px cross-section edge strip, applied by a semantic rule written in the file's header: `edge="blue"` buyer/incoming · `"green"` supplier/outgoing · `"bridge"` spans both · `"none"` neutral **or undeterminable** (the default, and the majority). Also `pad` / `radius` / `flush` / `as` for migrated geometry. Server-component safe. |
+| `<Card>` | `bridge/layout/Card.tsx` | **The one card.** 3px cross-section edge by a semantic rule in the file header: `edge="blue"` incoming · `"green"` outgoing · `"bridge"` spans both · `"none"` neutral **or undeterminable** (the default, and the majority). Also `pad` / `radius` / `flush` / `as`. Server-component safe. |
 | `<StatusJourney>` | `bridge/StatusJourney.tsx` | 5-node mini-track: In · Read · Check · Transform · Send. Props: `stage` (0–4), `compact?`. |
-| `<MarkSystem>` | `bridge/MarkSystem.tsx` | System Identity mark SVG in 3 sizes. Props: `size`, `white?`. (Also exports a dead `RailPort` — see §2.) |
-| `<BridgeSidebar>` | `bridge/BridgeSidebar.tsx` | The navigation panel's content: tablet menu and phone More. Not desktop chrome. |
-| `<BridgeTopbar>` | `bridge/BridgeTopbar.tsx` | One navy row: nav links from 1024px, menu button 768 to 1023, search, help, account, link-spine. Props: `onMenuClick`, `menuOpen`. |
-| `<BottomTabBar>` | `bridge/BottomTabBar.tsx` | Phone tab bar: Documents (needs-you count), Flows, Add, Activity, More. Props: `onMore`, `moreOpen`. |
+| `<MarkSystem>` | `bridge/MarkSystem.tsx` | System Identity mark SVG. Also exports a dead `RailPort` (§2). |
+| `<BridgeTopbar>` | `bridge/BridgeTopbar.tsx` | The one navy row (§4). Props: `onMenuClick`, `menuOpen`. |
+| `<BridgeSidebar>` | `bridge/BridgeSidebar.tsx` | Navigation panel content + the nav registry (§4). Not desktop chrome. |
+| `<BottomTabBar>` | `bridge/BottomTabBar.tsx` | Phone tab bar: Documents, Flows, Add, Settings. |
 | `<ConfidenceChip>` | `bridge/ConfidenceChip.tsx` | `pct%` badge — ≥90 green, 75–89 amber, <75 red. |
 
-**One signature ships as a CSS class, not a component.** This table used to give it
-a component and a file path; that file has never existed. The thing itself is
-real — only the component was fiction. (It listed two until plan 13b; monumental
-numbers moved to the table below.)
+**One signature ships as a CSS class, not a component.**
 
 | Signature | How it actually ships |
 |---|---|
-| Link-spine | `.link-spine` in `globals.css`, applied by `bridge/BridgeTopbar.tsx`. Gradient: `--gradient-link-spine` / `bg-link-spine`, also used by `layout/Card.tsx`, `BillingSection.tsx` and the help guide pages. There is no `<LinkSpine>`. |
+| Link-spine | `.link-spine` in `globals.css`, applied by `bridge/BridgeTopbar.tsx`. Gradient `--gradient-link-spine` / `bg-link-spine`, also used by `layout/Card.tsx`, auth and marketing surfaces. There is no `<LinkSpine>`. |
 
 **Removed or never built — do not write code against these:**
 
 | Component | Status |
 |---|---|
-| `<WireTopology>` | **DELETED 2026-11-14** (plan 13b orphan sweep). Its only host, the `/bridge` System map tab, went with the order screens. |
-| `<FileChip>` | **DELETED 2026-11-14** (plan 13b orphan sweep). No production importer after the order screens went. |
-| `<EdgeRails>` | **STRUCK 2026-08-13** (§2). Never existed in `src/`; its CSS and tokens had zero consumers and were deleted. |
-| `<XCard>` | **FOLDED into `<Card>` 2026-08-13.** It had TWO importers, not the ~6 this table claimed, and both passed `color="amber"` — a tone, not a side — which is how the edge came to mean nothing. Its `.xcard`/`.xc-*` CSS had zero consumers and the `card-edge` Tailwind spacing token went to zero with it (the 3px is now `--card-edge`, consumed by `Card`). A **third** `XCard` was defined privately inside `UploadWorkbench.tsx`; it is gone too. |
-| shadcn `ui/card.tsx` | **DELETED 2026-08-13.** Zero importers and not a dependency of any other `ui/*` primitive. §14's "keep shadcn primitives" rule does not cover a card that competes with the one card. |
-| `<CanonicalSpine>` / `<SpineNode>` | **DELETED 2026-08-13** (§2). `bridge/CanonicalSpine.tsx` had zero importers. |
-| `<SpineReview>` | Deleted earlier, commit `3520ed4`. Its successor, `workshop/OrderWorkshop.tsx`, went with the order screens in plan 13b (2026-11-13); `mapper/MapperWorkbench.tsx` is now hosted by the flow's Advanced view. |
-| Monumental numbers (`.monument`) | **DELETED 2026-11-13** with its only consumer, `SupplierDockProfile.tsx` (plan 13b removed the supplier screens). There is no `<MonumentNumber>`. |
-| `<DocumentAnatomy>` | Never built. The document pane is `bridge/document/` (e.g. `PdfDocumentView.tsx`); the per-zone confidence overlay does not exist and needs backend provenance first. |
-| `<DataField>` | Never built. Zero references anywhere in `src/`. It was listed under Primitives below for months. |
+| `<WireTopology>`, `<FileChip>` | **DELETED 2026-11-14** (plan 13b orphan sweep). |
+| `<EdgeRails>` | **STRUCK 2026-08-13** (§2). Never existed in `src/`. |
+| `<XCard>` | **FOLDED into `<Card>` 2026-08-13.** Both of its call sites passed `color="amber"` — a tone, not a side — which is how the edge came to mean nothing. |
+| shadcn `ui/card.tsx` | **DELETED 2026-08-13.** It competed with the one card. |
+| `<CanonicalSpine>` / `<SpineNode>` / `<SpineReview>` | **DELETED** (§2). |
+| `OrderWorkshop`, `MobileTriage`, `InboxView`, `SupplierDockProfile`, `UploadWorkbench`, `DashboardContextLine` | Went with the order screens in plan 13b (2026-11-13). |
+| Monumental numbers (`.monument`) / `<MonumentNumber>` | **DELETED 2026-11-13** with their only consumer. |
+| `<DocumentAnatomy>` | Never built. The document pane is `bridge/document/` (e.g. `PdfDocumentView.tsx`); no per-zone overlay. |
+| `<DataField>` | Never built. |
 
-### Primitives (extend shadcn/ui, Bridge-styled)
+### Primitives
 
-- `<Button>` — `bridge/DSPrimitives.tsx`. Variants: `primary` (navy: makes a change real) / `send` (green: sends a document) / `blue` (brings something in) / `secondary` / `ghost` (quiet) / `danger` / `ai` (violet). One filled button per screen. Never gradient.
-- `<AiSuggestion>` — `bridge/DSPrimitives.tsx`. Violet left-bar, "AI" tag, Accept / Edit / Reject. Confidence always visible.
-- `<CommandPalette>` — `bridge/CommandPalette.tsx`. cmd+K filter over navigation actions and the Advanced view's mapper commands. (The order, supplier, buyer and sample-order groups went with the order product, 2026-11-13.)
-- `<EmptyState>` — `bridge/EmptyState.tsx`. Illustration-free. Headline + sub + primary action.
+- `<Button>` — `bridge/DSPrimitives.tsx`. Variants: `primary` (navy: makes a change real) / `send`
+  (green: sends a document) / `blue` (brings something in) / `secondary` / `ghost` / `danger` /
+  `ai` (violet). One filled button per screen. Never gradient.
+- `<AiSuggestion>` — `bridge/DSPrimitives.tsx`. Violet left bar, "AI" tag, Accept / Edit / Reject;
+  confidence always visible.
+- `<StatusNotice>` — `bridge/layout/StatusNotice.tsx`. Four tones (`success` / `error` /
+  `working` / `warning`) with their own 3px left border; the ARIA is derived from the tone.
+- `<PageHeader>` — `bridge/layout/PageHeader.tsx`. Title, helper line, back link.
+- `<CommandPalette>` — `bridge/CommandPalette.tsx`. Ctrl/Cmd K over navigation and the Advanced
+  view's mapper commands.
+- `<EmptyState>` — `bridge/EmptyState.tsx`. Headline + sub + primary action, no illustration.
+- `useConfirm()` — `src/components/ui/confirm.tsx`. Never `window.confirm`.
 
-> `<DataField>` was listed here and does not exist — see the removed table above.
-> Every path in §6 was re-verified against the tree on 2026-08-13 and again for plan 13b
-> on 2026-11-14. If you add a
-> component to these tables, `git ls-files` the path first.
-
----
-
-## 7. Build order — HISTORICAL, superseded
-
-This was the original v2 build order. It is kept only so the numbering in older
-plans still resolves. **It is not a to-do list**: every item is either shipped or
-struck, and steps 1 and 4 named components that no longer exist. Current work is
-tracked by the Group I/J/K/L roadmap in §1.5, not here.
-
-1. ✅ **Tokens + shell** — `tailwind.config.ts`, `<BridgeSidebar>`, `<BridgeTopbar>`, `<MarkSystem>`. (`<EdgeRails>` was in this step and was **struck** — see §2.)
-2. ✅ **System Identity mark**
-3. ✅ **Inbox** — TanStack Table, StatusJourney in rows, filter chips
-4. ~~**Canonical Spine Review**~~ — **STRUCK.** Shipped instead as `OrderWorkshop` → `MapperWorkbench` at `/inbox/[orderId]`. No CanonicalSpine, no anatomy zone overlay.
-5. ✅ **Bridge dashboard** at `/bridge` — KPI strip + queue; WireTopology demoted to the "System map" tab
-6. ✅ **Upload Workbench, Mapping Editor, Validation Rules, delivery log**
-7. ✅ **Marketing pages** (separate route group)
-8. ✅ **Motion layer** — see §8
+If you add a component to these tables, `git ls-files` the path first.
 
 ---
 
-## 8. Motion patterns (implement last, §12 step 8)
+## 8. Motion
 
-| Pattern | When | Behavior |
-|---|---|---|
-| Link-spine activation | Order advances a stage | 2px topbar spine fills left→right, 1.2s |
-| Wire travellers | Always (subtle) | White-dot pulses along wires, `offset-path`, 6s loop |
-| Status node pulse | Stage activates | Active node in StatusJourney pulses once with brand ring |
-| Connector draw | Mapping saved | Buyer↔supplier line draws blue→green via stroke-dashoffset, 0.8s |
-| Validate-to-deliver flush | "Send to supplier" clicked | StatusJourney advances stages in 40ms stagger |
-| Empty-state link-close | Hover on placeholder | Mark's link completes its loop |
-
-All motion: respect `prefers-reduced-motion: reduce`. Disable wire-topology animation under reduce.
+The link-spine fills left → right in 1.2s (`animate-link-spine`, keyframes `link-spine-fill`). All
+motion respects `prefers-reduced-motion: reduce`.
 
 ---
 
 ## 9. Copy / vocabulary
 
-The founder purged the bridge-metaphor jargon (dock / crossing / lane / spine,
-and "Cross the bridge") from all **user-facing** copy. Use plain procurement
-terms in anything a user reads.
+Plain words, sentence case, for bookkeepers. The founder purged the bridge metaphor from all
+**user-facing** copy (2026-05-30) and the document-kind split from the product structure
+(2026-11-05 / 2026-11-16).
 
-| Term | User-facing meaning |
-|---|---|
-| order | A single PO transit (was "crossing") |
-| supplier / buyer | A supplier or buyer endpoint (was "dock") |
-| supplier flow | A buyer↔supplier pairing (was "lane") |
-| canonical PO model | The normalized order model (was "spine") |
-| anatomy | Source document zone overlay (internal label only) |
+- The product's nouns are **document** and **flow** (plus destination, lookup, output). Document
+  kinds (order, invoice, ship notice) are never product structure, though marketing may name them as
+  examples of what can be read.
+- Nav names: Documents, Flows, Lookups, History, Settings; the pinned action is Upload / Add.
+- **Banned in user-facing text** — the lists in `scripts/lib/vocabularyTerms.mjs`, enforced by
+  `scripts/check-vocabulary.mjs` and `src/lib/vocabulary.test.ts`: the bridge metaphor (`METAPHOR`:
+  bridge, crossing, dock, lane, spine, wire, traveller, topology) and engineering jargon (`JARGON`:
+  revision, canonical, artifact, replay, dead-letter, idempotent, tenant, provenance, payload,
+  exception, normalised, …). Read the file for the full lists.
+- These words survive **only** as code identifiers, CSS tokens and route names.
 
-**Dashboard title:** "Orders" (plain). Do not ship "Order topology" as a
-user-facing heading.  
-**Primary action:** "Send to supplier" (shipped copy; not "Cross the bridge →").  
-**Stages:** In · Read · Check · Transform · Send.  
-**AI CTAs:** Accept / Edit / Reject — never "Apply magic" or sparkles.
-
-> Note: `dock`, `crossing`, `lane`, and `spine` now survive **only** as code
-> identifiers, CSS/design tokens, and route names — never in user-facing text.
+**Stages:** In · Read · Check · Transform · Send. **AI CTAs:** Accept / Edit / Reject — never "Apply
+magic", "AI magic" or sparkles.
 
 ---
 
@@ -470,19 +330,19 @@ user-facing heading.
 
 | Concern | Choice |
 |---|---|
-| Framework | Next.js 15 App Router. NO Pages Router. |
-| Language | TypeScript |
-| Styling | Tailwind CSS + shadcn/ui (restyled to Bridge Layer) |
-| State | TanStack Query (all server state). NO `useEffect` for data fetching. |
-| Table | TanStack Table (virtualized Inbox) |
+| Framework | Next.js 15 App Router (`next` 15.5). NO Pages Router. |
+| Language | TypeScript, React 18 |
+| Styling | Tailwind CSS 3 + shadcn/ui (restyled) |
+| State | TanStack Query v5 (all server state). NO `useEffect` for data fetching. |
 | Auth | Clerk (`@clerk/nextjs`). Secret keys in `.env.local` only. |
-| Monitoring | Sentry (`@sentry/nextjs`) |
-| PDF rendering | `pdfjs-dist` — the order review screen's document view (`src/components/bridge/document/PdfDocumentView.tsx`). A JS renderer, not an iframe: `frame-src` in `src/lib/security/csp.ts` allows neither `blob:` nor the API origin, and widening it was considered and rejected. |
-| Spreadsheets | **No grid library.** CSV and XLSX are read in-browser by `src/lib/sheetPreview.ts` — `fflate` for the OOXML unzip, the platform `DOMParser` for the three XML parts — and laid out as a plain table. |
-| Syntax highlighting | **None.** The live output preview marks the just-changed line via `src/components/bridge/mapper/previewHighlightModel.ts`; the document view renders numbered monospace lines. |
-| Mock data | `USE_MOCK` in `src/lib/api/core.ts` — an in-memory fixture set in `src/lib/api-client.ts` (5 orders, `ord-001`…`ord-005`). The separate, off-by-default MSW layer that lived under `src/mocks/` (`NEXT_PUBLIC_MSW=true`) is gone: `src/mocks/` has no tracked files and nothing in `src/` reads `NEXT_PUBLIC_MSW` (checked 2026-11-14). |
-| Package manager | **bun** (never npm install) |
-| Hosting | Vercel (frontend) + Railway (backend, .NET 8) |
+| Monitoring / analytics | Sentry (`@sentry/nextjs`); PostHog (`posthog-js`, consent-gated, `src/lib/analytics.ts`) |
+| PDF rendering | `pdfjs-dist` (`bridge/document/PdfDocumentView.tsx`). A JS renderer, not an iframe: `frame-src` in `src/lib/security/csp.ts` allows neither `blob:` nor the API origin, and widening it was considered and rejected. |
+| Spreadsheets | **No grid library.** CSV and XLSX are read in-browser by `src/lib/sheetPreview.ts` (`fflate` + `DOMParser`). |
+| Tables | Plain tables. `@tanstack/react-table` is still in `package.json` but nothing in `src/` imports it. |
+| Mock data | `isApiMockMode` in `src/lib/api/core.ts` (`NEXT_PUBLIC_USE_MOCK=true`, never in production); fixtures in `src/lib/api/mock*.ts` and `src/lib/api-client.ts`. |
+| Installed app | `public/sw.js`, `public/site.webmanifest`, `src/lib/pwa/` (install, push, held uploads, offline) |
+| Package manager | **bun** (never npm install, never npx — bunx is fine) |
+| Hosting | Vercel (frontend) + Railway (backend, .NET 8: API + Worker) |
 
 ---
 
@@ -505,168 +365,76 @@ user-facing heading.
 
 ---
 
-## 11.5 Billing model (locked)
+## 11.5 Billing model
 
-**Source of truth is CODE, not this section.** `src/lib/plans.ts` (frontend) mirrors
-`ProcuLink.Core/Constants/PlanConstants.cs` (backend) exactly. This section drifted from
-both — it was still showing Integration at 1,000 orders and had no Distributor tier at all —
-so treat it as a summary that must be re-derived from `plans.ts`, never as the authority.
-If they disagree, the code is right.
+**Source of truth is CODE, not this section.** `src/lib/plans.ts` mirrors
+`ProcuLink.Core/Constants/PlanConstants.cs`, diffed by `src/test/backendMirror.test.ts`. Re-derive
+from there; this summary was verified 2026-11-24.
 
-Plan ladder (verified against `plans.ts` + `PlanConstants.cs`, 2026-07-30):
+**Two ladders live in `plans.ts`:**
 
-Public ladder (`PUBLIC_LADDER` in `plans.ts`) — shown on `/pricing`:
+1. **`PUBLIC_LADDER`** — the only one offered (`/pricing`, sign-up, upgrades): the trial,
+   `DOCUMENT_PLANS`, then Enterprise. Backend: `PlanConstants.DocumentLadder`.
 
-| Plan | Price | Documents | Flows |
-|---|---:|---:|---:|
-| Trial (wire id `pilot`) | Free for 30 days | 20 total during trial | 2 |
-| Starter | €35/mo | 150/month | 5 |
-| Pro | €69/mo | 400/month | 20 |
-| Business | €149/mo | 1,500/month | 100 |
-| Scale | €399/mo | 5,000/month | unlimited |
-| Enterprise | Custom | Custom | Custom |
+   | Plan | Price | Documents | Flows | Extra document |
+   |---|---:|---:|---:|---:|
+   | Trial (wire id `pilot`) | Free, 30 days (`TRIAL_DAYS`, `PilotDuration`) | 20 total | 2 | — |
+   | Starter | €35/mo | 150/month | 5 | €0.24 |
+   | Pro | €69/mo | 400/month | 20 | €0.18 |
+   | Business | €149/mo | 1,500/month | 100 | €0.10 |
+   | Scale | €399/mo | 5,000/month | unlimited | €0.08 |
+   | Enterprise | Custom, from €2,500/mo | Custom | Custom | — |
 
-Legacy plans — **existing payers only**, `hidden: true`, never offered publicly:
+   Every paid document plan has every way in, every output, every check and unlimited users
+   (`DOCUMENT_PLAN_FEATURES`); they differ only by documents and flows. Yearly = 10 × monthly. A
+   document is one file of up to 10 pages; longer files count once per 10 pages
+   (`DOCUMENT_UNIT_SENTENCE`, backend `ReadLimits`).
 
-| Plan | Price | Orders | Suppliers |
-|---|---:|---:|---:|
-| Growth | €149/mo | 150/month | 5 |
-| Operations | €399/mo | 500/month | 10 |
-| Integration | €999/mo | 1,500/month | 20 |
-| Distributor | €1,499/mo | 2,500/month | 30 |
+2. **`PLANS`** — the legacy order-era ladder: Growth €149 / Operations €399 / Integration €999 /
+   Distributor €1,499, all `hidden: true`, `LEGACY_PAID_PLANS`. **Existing payers only**; they keep
+   their price until they change plan. Never offer them. `PLANS` also holds the trial (`pilot`)
+   and Enterprise rows the public ladder reuses. Legacy overage is €0.50/order
+   (`OVERAGE_PER_ORDER_EUR`).
 
-Integration is **1,500** orders, not 1,000: the limit was raised so €/order stays monotonic
-down the ladder (Operations €0.80 → Integration €0.67 → Distributor €0.60).
+Rules:
 
-**Distributor is a real, self-serve tier** — it appears on `/pricing`, its Stripe monthly and
-yearly prices are live, and the backend checkout maps it like any other paid plan.
+- The trial is not free forever. After 30 days or 20 documents it is view-only: previous documents,
+  outputs and billing stay readable, nothing new is processed.
+- The document limit is a **soft cap on paid plans**: going over never blocks; extra documents
+  accrue the plan's rate, capped at the cheapest plan covering the volume
+  (`bestPriceOverageUnits` = `PlanConstants.BestPriceOverageOrders`). Only the trial's cap is hard.
+- The next plan to offer comes from `nextPlanFor()` / `PLANS[plan].next` — a trial on the document
+  ladder is offered Starter. **A tier name or an allowance typed into a banner is the defect**:
+  derive it. `next` is null at the top of a ladder and on Enterprise; that is a real branch (contact
+  us), never a cheaper tier.
+- **Cancelling or a failed payment stops intake**, and `/pricing` must say so. The blocking surface
+  is gated on **`!status.canProcessOrders`** from the server — never on a plan name (a plan-name
+  check once hid a `past_due` paid workspace's pause). Copy lives in `src/lib/billingPause.ts` and
+  `BillingSection.tsx`; `read_only` stays vague on purpose because the backend folds Stripe
+  `paused`, `canceled` and a deleted subscription into it.
 
-Frontend must reflect:
+**Refusal payloads.**
 
-- Pilot is not free forever. It becomes view-only after 30 days or 20 orders.
-- A view-only Pilot can still read previous orders/mappings/outputs and billing,
-  but cannot upload, transform, deliver, or add flows.
-- **Cancelling a paid plan has the same effect, and `/pricing` must say so.** Every ingest
-  path refuses once the subscription ends — uploads, inbound email, IMAP, SFTP, S3, and the
-  REST ingress API — and nothing is queued for later, so orders simply stop arriving.
-- Stripe Checkout is self-serve for Growth, Operations, Integration, **and Distributor**.
-  Annual billing is live for all four.
-- Enterprise is contact sales/manual.
-- The order limit is a **soft cap on paid plans**: going over never blocks, it accrues
-  €0.50/order overage (`OVERAGE_PER_ORDER_EUR`), capped so a customer is never charged more
-  than the cheapest tier covering their volume. Only Pilot's cap is hard.
-- Pricing, settings billing UI, upload 429 refusals, and flow-limit errors
-  must use this model and copy.
+- **Quota 429** — `{ error, plan, limit, upgradeUrl }`. Document intake (`POST /api/documents`,
+  `POST /api/flows/{flowId}/documents`, `POST /api/v1/flows/{flowId}/documents`, all through
+  `IntakeResults.cs`) answers `pilot_expired`, `order_limit_reached` or `processing_paused`.
+  `flow_limit_reached` comes from flow creation (`FlowsController`, and `InboxController` set-up).
+  Match codes **whole**, never by substring; copy is in `src/lib/documentRefusals.ts`. The one
+  exception is the global rate limiter (`Program.cs`), which writes a prose sentence with no code
+  (`"Rate limit exceeded. Please slow down and retry shortly."`) — prose sniffing is legitimate
+  there and nowhere else.
+- **Plan-gate 403** — `{ error: "<capability>_requires_<plan>", upgradeUrl }`, built by
+  `BillingGateErrors`. **Nothing in production emits one today**: since plan 14
+  `PlanConstants.MinimumPlan` holds one presentation-only row (`Sso` = Enterprise) that refuses
+  nothing. The parser stays (`isPlanGateError` / `planGateMessage` in `src/lib/planGate.ts`); if a
+  gate comes back, never match its code by full literal — the plan segment is derived server-side.
 
-Plan-gate 403s carry `{ error: "<capability>_requires_<plan>", upgradeUrl }`. The plan
-segment is derived server-side from the gate table, so **never match these codes by full
-literal** — use `isPlanGateError` / `planGateMessage` from `src/lib/planGate.ts`.
-
-**Quota 429s are a different, also-structured payload — do not confuse the two.** A refused
-upload or flow-create answers `429` with `{ error, plan, limit, upgradeUrl }`, where
-`error` is one of the machine tokens `pilot_expired` / `order_limit_reached` /
-`processing_paused` / `flow_limit_reached`, `plan` is the org's tier, and `limit` is the **effective** cap
-(`admin override ?? plan default`, `LimitCheckResult.Limit`). Match those codes **whole** —
-never by substring. The exception, and the only one, is the global rate limiter
-(`ProcuLink.Api/Program.cs`), which writes a prose sentence with no code in it
-(`"Rate limit exceeded. Please slow down and retry shortly."`); prose sniffing is legitimate
-there and nowhere else on this path.
-
-Which endpoint emits which code is load-bearing: `flow_limit_reached` comes from
-`POST /api/flows` **only** (`FlowsController.cs`). The two document intake endpoints,
-`POST /api/flows/{flowId}/documents` (`DocumentsController.cs`) and
-`POST /api/v1/flows/{flowId}/documents` (`FlowFilesController.cs`), answer `pilot_expired`,
-`order_limit_reached` or `processing_paused` and nothing else (both through `IntakeResults.cs`).
-The frontend's copy for each is in `src/lib/documentRefusals.ts`. Until plan 13b (2026-11-13)
-`supplier_limit_reached` came from `POST /api/suppliers` and the order codes from
-`POST /api/orders/upload`; both endpoints are gone, and nothing emits `supplier_limit_reached` now.
-
-Required billing copy. (2026-11-14, plan 13b: the rest of this paragraph and the next
-describe the supplier-limit banner, which is gone — see its entry in the list below. The
-document-limit refusal in the list is a literal in `src/lib/documentRefusals.ts`; only the
-trial-expired CTA still names a tier. The rule still holds for any banner that names a tier
-or an allowance.) **A banner that names a tier or an allowance is DERIVED, not a literal.** This list used
-to print `Your plan includes 1 supplier. Upgrade to Growth to add more supplier flows.` as
-mandated copy, and `UploadWorkbench.tsx` shipped it hardcoded for every tier: a €1,499/mo
-Distributor org with 30 supplier flows was told it had one and should upgrade to the €149
-tier. **A tier name or an allowance typed into a banner is the defect** — read the allowance
-from the refusal's `limit` (falling back to `PLANS[plan].supplierLimit`) and the tier to name
-from `PLANS[plan].next`, the same way `requiresPlan()` in `src/lib/gatedCapabilities.ts`
-derives tier names for marketing copy.
-
-`next` is **null at the top of the self-serve ladder** (Distributor) and on Enterprise. That
-null is a real branch, not a missing value: there is no upgrade to offer, so the copy must
-say `Contact us to add more supplier flows.` with a `Contact support` route — never name a
-cheaper tier. Enterprise supplier counts are set by agreement (`supplierLimit: null`).
-
-- Trial active badge: `Trial · 30 days` (the plan is still the `pilot` wire id; its display name is `PLAN_BY_ID.pilot.name`)
-- Trial expired badge: `Trial ended · Processing paused`
-- Trial expired banner: `Your trial has ended. You can still view previous documents, but new processing is paused.` + a CTA naming `PLANS.pilot.next` (on the document engine a Trial names Starter, `Upgrade to Starter`; legacy orders-era orgs name `PLANS.pilot.next`)
-- Document limit refusal: `You've reached your plan's document limit for this month.` (`documentRefusals.ts`; the order-era banner was `You've reached your plan's order limit. Upgrade to continue processing new orders this month.`)
-- Supplier limit banner — **GONE with plan 13b (2026-11-13).** It read `Your plan includes {limit} supplier(s).` + `Upgrade to {next} to add more supplier flows.`, derived in `src/lib/limitRefusal.ts`; that derivation survives but nothing emits `supplier_limit_reached`, and `UploadWorkbench.tsx` and its copy test went with the order screens.
-
-**Paid-plan processing-paused banner (added 2026-08-14).** This list had nothing for the
-state that actually costs money: a paying customer whose card was declined. Every blocking
-surface in `BillingSection.tsx` was gated on `status.plan === "pilot"`, so a `past_due`
-Operations workspace saw a healthy blue plan card, no banner, and — as the only trace — the
-raw account status printed at 11px in `--ink-faint`, while every ingest path refused. The
-banner is gated on **`!status.canProcessOrders`**, derived from the server. Never re-gate a
-blocking surface on a plan name; that check is what caused this.
-
-- Paused plan badge (non-Pilot): `<Plan> · Processing paused` (the trial keeps `Trial ended · Processing paused` above)
-- Headline, by `accountStatus`:
-  - `past_due` → `Your last payment didn't go through.`
-  - `cancelled` → `Your subscription has ended.`
-  - `read_only` → `Your subscription isn't active.` — stays vague ON PURPOSE: `StripeBillingMapping.MapStatusToAccountStatus` folds Stripe `paused`, `canceled`, **and** a deleted subscription into this one value, so naming a cause would be a guess
-  - `trial_expired` → `Your trial has ended.`
-  - anything else, including a status this build does not know → `Order processing is paused on your account.`
-- Consequence (shared by every cause, and deliberately the same claims as the `/pricing`
-  cancellation disclosure): `New documents aren't being accepted — uploads, emailed documents and the file API all refuse, and mailbox, SFTP, FTP, FTPS and S3 pickups pause and leave your files where they are. Tell your senders if this will take a while. Everything already processed stays readable and exportable.`
-- Route back: `Manage in Stripe` (self-serve paid plans) / `Contact support` (Enterprise —
-  a manual agreement has no portal). Only `past_due` and `read_only` may promise processing
-  restarts by itself; a cancelled subscription needs a new one.
-
-Pricing cards — **do not hand-maintain a copy of them here.** The bullets and CTAs live in
-`PLANS` and `DOCUMENT_PLANS` in `src/lib/plans.ts`. This list drifted twice: first it described
-Integration as 1,000 orders and put channels at Integration, then — until plan 13b
-(2026-11-13) — it listed webhook delivery, email/SFTP/S3 ingestion, bulk mapping, cXML and ERP
-connectors on the legacy cards, behind gates that plan 13b deleted. Two rules survive, both
-enforced by `src/test/gatedCapabilityClaims.test.ts`:
-
-- The workspace-wide activity list and a document's own history are **both open on every plan**,
-  the trial included (founder decision, 2026-11-14). `GET /api/audit` (`AuditController.GetAuditLog`,
-  `/operations/log`) and `GET /api/documents/{id}/history` (`DocumentsController.History`) are
-  ungated, so no card may sell either as a tier differentiator. The Operations card's "Advanced
-  audit trail" bullet went with the gate. 2026-11-15: the cross-order activity list (`GET /api/audit`)
-  has been open on every plan since plan 14 (`PlanConstants.cs`: AdvancedAudit deleted), and
-  `/operations/log` is now the Activity page (plan 14.9), which reads it.
-- SSO is **not** on the Enterprise card and must not be added back until a Settings SSO surface
-  exists — `BillingFeature.Sso` refuses nothing and `ssoAvailable` has zero frontend consumers.
-
-**Offer ⇔ works applies to the ladder itself:** a capability may only be listed on a tier if the
-backend really gates it there. `BillingFeature` + `PlanConstants.MinimumPlan` are the source of
-truth — since plan 14 (2026-11-14) `MinimumPlan` holds one row, presentation-only `Sso` =
-Enterprise, so nothing is refused by plan on the server; the guard that keeps them honest is
-`ProcuLink.Api.Tests/Architecture/BillingGateEnforcementIsRealTests.cs`, which reads **compiled IL**
-(via `BillingGateIlScanner`) and asserts per feature that the named production method provably
-reaches the gate primitive — `IBillingService.HasFeatureAsync`, or `PlanConstants.PlanHasFeature`
-for the single presentation-only case (SSO — Clerk *can* deliver it, but ProcuLink exposes no
-surface for it and no longer sells it; see the note on the Enterprise card above). It also walks the reverse
-direction, so a gate call in production that no tier declares fails the build, and it ships a
-negative control pinning `DocumentsController.History` and `AuditController.GetAuditLog` as
-deliberately ungated (it pinned `OrdersController.GetAudit` until plan 13b). Verify a gate by
-running that test — never by reading a method name off a list.
-
-`BillingFeatureGateCoverageTests` is **not** that guard and cannot be: its `EnforcedBy` map is
-hand-typed free text asserted only by `ContainKey`, a live-keys check, and a member count, so
-deleting an enforcement call out of the method it names would leave every one of its tests green
-(no such call exists today: the one row left, `Sso`, refuses nothing). It is not dead, though — it
-pins the ladder table itself (each feature has a minimum plan, is off on the tier directly below
-that minimum, stays on for every tier above, and is off on Pilot) and fails the build when an enum
-member is added with no map entry. `BillingFeatureEnforcementTests` is the behavioural half: it
-pins `Sso` as presentation metadata, not a server refusal.
-
-Do not add a bullet for a capability nothing enforces.
+**Offer ⇔ works.** A capability may be listed on a tier only if the backend really gates it there.
+History (`GET /api/audit`) and a document's own history (`GET /api/documents/{id}/history`) are
+open on every plan, the trial included, so no card may sell either. SSO is **not** sold until a
+Settings SSO surface exists. Enforced by `src/test/gatedCapabilityClaims.test.ts` here and, in the
+backend, `BillingGateEnforcementIsRealTests` (reads compiled IL). Do not add a bullet for a
+capability nothing enforces.
 
 ---
 
@@ -677,20 +445,16 @@ Do not add a bullet for a capability nothing enforces.
 - Modals when a drawer or inline editor will do
 - Modal wizards that hide the source file during review
 - ~~"Good morning, Maria" greetings on the dashboard~~ — **OVERRIDDEN by the founder, 2026-07.**
-  The dashboard does greet by first name, and it stays. `DashboardContextLine.tsx` is the
-  founder-approved mock: the topbar tab already says "Dashboard", so the row that used to hold the
-  H1 became a 36px context line carrying greeting + date + the one thing needing action, with a
-  jump link to it. The original rule's point survives in how it is built — the line is compact, the
-  queue is not pushed down by a hero, and the blockers count is `null` while loading so it never
-  fabricates a number. **Do not "fix" this by deleting it**; it ships with tests
-  (`DashboardContextLine.test.tsx`). Verified live 2026-08-06.
+  A compact first-name greeting is allowed. Its implementation, `DashboardContextLine.tsx`, went
+  with the order dashboard in plan 13b; nothing greets today. If one is rebuilt, keep the point of
+  the original rule: compact, never pushes the list down, and never shows a number before it has
+  loaded.
 - Auto-applying AI corrections without a visible accept step
 - Notched corners everywhere — use `<Card>`'s cross-section edge instead
-- **A card edge used as a status colour.** The edge says which SIDE of the bridge a
-  card is on (buyer / supplier / both / neither). Tone — amber, danger, violet-AI —
-  belongs to `<StatusNotice>`, which signals it with its own 3px left border. Both
-  real `<XCard>` call sites in the tree before 2026-08-13 passed `color="amber"`,
-  which is precisely why the signature carried no information.
+- **A card edge used as a status colour.** The edge says which SIDE a card is on (incoming /
+  outgoing / both / neither). Tone — amber, danger, violet-AI — belongs to `<StatusNotice>`, which
+  signals it with its own 3px left border. Both real `<XCard>` call sites before 2026-08-13 passed
+  `color="amber"`, which is precisely why the signature carried no information.
 - **Edging every card.** `edge="none"` is the default and the majority answer. A card
   whose side you cannot determine gets no edge — do not guess, and do not reach for
   `"bridge"` to avoid deciding. Pinned by `src/test/cardEdgeRule.test.tsx`.
@@ -706,71 +470,29 @@ Do not add a bullet for a capability nothing enforces.
 ```
 NEXT_PUBLIC_API_BASE_URL   = http://localhost:5223 (dev) / Railway URL (prod)
 NEXT_PUBLIC_USE_MOCK       = false
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY  → .env
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY  → .env.local
 CLERK_SECRET_KEY           → .env.local only (gitignored)
-NEXT_PUBLIC_SENTRY_DSN     → .env
+NEXT_PUBLIC_SENTRY_DSN, NEXT_PUBLIC_POSTHOG_KEY → .env / Vercel
 ```
 
-Frontend port: **8082** unless another local port is chosen. API port: **5223** (ASP.NET HTTP profile).
+Frontend port: **8082** (Playwright and CI use it; `PLAYWRIGHT_PORT` overrides). API port: **5223**.
 
 ---
 
 ## 14. Implementation notes
 
-### Prototype reference — HISTORICAL, do not build from
-
-The v2 prototype in `C:\Users\Dmitri.MARKIT\Downloads\v2-bridge-review\` is the
-2026-05 exploration these docs came from. It predates the 2026-08-13 signature
-audit (§2) and still implements the struck signatures — `v2-bridge.jsx` contains
-`EdgeRails`, and `v2-bridge-review.jsx` is the whole Canonical Spine Review
-(`SpineWorkbench`, `SpineNode`, `DocumentAnatomy`). **Do not port those.**
-`v2-kit.jsx` (MarkSystem, LinkSpine, StatusJourney, MonumentNumber, FileChip,
-ConfidenceChip) is still an accurate reference for components that shipped.
-
-### Current implementation state
-
-- Next.js 15 App Router migration ✅ complete
-- Bridge Layer app shell exists with `BridgeSidebar` + `BridgeTopbar`.
-- Until plan 13b (2026-11-13) the canonical Bridge routes were `/bridge`, `/inbox`, `/inbox/[orderId]`, `/upload`, `/library/mappings`, `/library/suppliers`, `/operations/*`, and `/settings`. The current routes are in §5.
-- **Plan 13b removed the purchase-order pipeline (2026-11-13, both repos).** Gone: the order screens (`/bridge`, the `/inbox` queue, the `/inbox/[orderId]` review and its `OrderWorkshop`, `/upload/preview/[orderId]`, `/drafts`, every `/library/*` page, `/connections`, and `/operations/connectors`, `exceptions`, `health` and `webhooks`), the order API's write endpoints, and the eight billing gates whose only surfaces those were (`BulkMapping`, `Cxml`, `WebhookDelivery`, `EmailIngestion`, `ErpConnectors`, `CustomSupplierRules`, `SftpIngestion`, `S3Ingestion`). What is left is the document engine — `/documents`, `/flows` (a flow's documents and its Advanced view, which hosts `MapperWorkbench`), `/lookups`, `/upload` (`UploadToFlow`), `/operations/log`, `/settings` and `/admin` — plus a read-only order archive at `/archive`. The retired URLs 308 via `src/lib/retired-routes.ts`. After it `PlanConstants.MinimumPlan` held two rows; plan 14 (2026-11-14) removed the advanced-audit one, leaving presentation-only `Sso` = Enterprise. The components this orphaned (`bridge/WireTopology.tsx`, `bridge/FileChip.tsx`, `StatusCell` in `bridge/StatusJourney.tsx`), the `supplier_limit_reached` arm of `limitRefusal.ts` and the `show-standards` mapper command were deleted in the orphan sweep (2026-11-14). The bullets below this one are dated history; most of the screens they name no longer exist.
-- Legacy compatibility routes such as `/dashboard`, `/orders`, `/orders/[id]`, `/suppliers`, and `/mappings` may still exist; do not use them as the product direction unless deliberately preserving redirects/compatibility.
-- Phase 4 Groups C-H ✅ implemented:
-  - C/C2 billing and final Pilot/Growth/Operations/Integration/Enterprise plan ladder.
-  - D PO field mapping engine.
-  - D2 HTTP-first supplier delivery config.
-  - E AI mapping suggestions.
-  - F text-based PDF ingestion.
-  - G Erply/Directo ERP delivery adapters.
-  - H IMAP email polling settings UI.
-- Delivery UI must not imply an order is sent just because a transform artifact exists. Use explicit states such as `ready_to_deliver`, `delivering`, `delivered`, and `delivery_failed`.
-- Current implementation group is **Group I — UI/UX production polish + responsive QA**.
-- Playwright is installed for UI QA. Local screenshots go in `.qa-screenshots/` (gitignored).
-- For local protected-route QA only, start dev with `PROCULINK_QA_BYPASS_AUTH=true bun run dev -- --hostname 127.0.0.1 --port 8082`. The middleware bypass is disabled in production by `NODE_ENV`.
-- Wire Topology rules are now explicit: same-lane wires may be straight, but every wire must use the same visible gradient stroke; shared ports fan out; alert counters are tethered to their route; the legend must not overlap supplier/buyer pills.
-- Group I pass 3 is complete: `/upload` and `/settings` were screenshot-tested on desktop/mobile. Upload stacks on mobile and uses recent-order route cards instead of forcing a desktop table; settings uses horizontal mobile tabs and responsive email-polling grids.
-- Group I pass 4 is complete: `/inbox`, `/library/suppliers`, `/library/buyers`, `/operations/log`, and `/operations/webhooks` were screenshot-tested and fixed for mobile. Inbox now renders visible mobile cards plus a desktop table; `@tanstack/react-virtual` was removed because the virtualized table was rendering an empty body.
-- Group I pass 5 is complete: supplier detail, mapping editor, supplier PO Mapping tab, and supplier Delivery tab were screenshot-tested and fixed for mobile. Supplier KPIs no longer collide with the title, mapping rows use mobile route cards, and PO/delivery form controls now stack safely.
-- Group I pass 6 is complete: settings billing/email tabs now have explicit loading/error states with retry actions and bounded billing/email API fetch timeouts; `/operations/connectors` uses mobile cards instead of a squeezed table; connector and webhook add/edit buttons open lightweight configuration panels so the UI path is visible before live save/test-fire QA.
-- Group I pass 7 is complete: `/library/mappings` import/export/add/edit, `/library/rules` new/edit/list, and `/library/templates` new/edit now have visible panels; rules list view uses mobile cards instead of a clipped desktop table; dense order-review inline edit and confirm states were rechecked.
-- Group I pass 8 is complete: `/upload` now has selected-file browse/drop state, plan usage/read-only context, and structured 429 handling through `ApiHttpError`; `/library/suppliers` now separates supplier-limit state from billing-unavailable state and opens a lightweight supplier setup panel when adding is allowed.
-- Group I pass 9 is complete: connector/webhook draft test and save actions, mapping import/export/add/edit saves, validation-rule toggle/edit saves, and output-template validate/save actions now show visible local QA feedback instead of closing silently. Mapping and rules notices use wrapped rows so they do not squeeze filters or clip on mobile.
-- Group I pass 10 is complete: `/upload` now redirects to the returned order id instead of hardcoded `/inbox/008412`; `/inbox/[orderId]` Save draft, output Copy/Download, and delivered states show visible local feedback; the mobile review action bar no longer squeezes total/template/exception/actions.
-- Continue Group I QA before starting Group J: live API/deployment first-upload-to-delivery happy/error paths still need the same desktop/tablet/mobile pass. Group J should convert the local connector/webhook/mapping/rule/template QA affordances into real persistence/test-fire verification.
-- **Group J2 — fabricated/demo-data purge (P0 trust, 2026-05-29):** removed staged content that rendered for real (non-mock) users or misled prospects. (a) `UploadWorkbench` "Recent uploads" now drives from `apiClient.getOrders()` and is hidden when empty; the demo `RECENT` array is gated to `isApiMockMode` (renamed `DEMO_RECENT`); the non-functional hardcoded buyer-dock dropdown (Heinrich/Nordmark/…) was replaced with a "Detected from the uploaded document" note (buyer is auto-detected at parse time, never sent on upload). (b) `SpineReview` `DocumentAnatomy`, `OutputPreview`, and the desktop sticky bar are now fully driven by the live `order` (PO/date/buyer/supplier/currency/lines/total) — all hardcoded `PO-DEMO-001`/`HEINRICH`/`Acme Components`/`ACM-BLT`/`€ 4,436.73`/`1m 42s` strings and `INITIAL_NODES`/`ANATOMY_ZONES` removed; "Save draft" and post-send notices rewritten as honest user-facing copy (no "Group J" jargon). (c) `CrossingsLog` `MOCK_LOG` stays gated to `isApiMockMode`; the hardcoded `"Today · 24 May 2026"` label is replaced with a date derived from the latest real event (hidden when there are no live events). (d) `/drafts` shows an honest empty state for real users; the demo array is gated to `isApiMockMode`. (e) landing page (`src/app/page.tsx`) "Real results from teams" + "60% fewer reformatting tasks" replaced with honest capability copy (no fabricated stats), consistent with `/customers` "early pilots". (f) confirmed `BridgeDashboard` `IN_TRANSIT_MOCK_FALLBACK` and `InboxView` `MOCK_ORDERS` are already `isApiMockMode`-gated (no change). MSW mock layer (`src/mocks/`) left intact (dev-only). Verified: `bun run build` green (42/42 pages); Playwright `no-mock-residue` + 33 specs green (the 8 marketing/magic-mapping failures in the full run were dev-server-under-load connection drops — green in isolation); mock-mode `/inbox/ord-002` and non-mock `/upload`,`/drafts`,`/operations/log` confirmed free of fabricated company names/stats.
-- **Known residual fabrication (not in J2 scope, flagged for follow-up):** ~~`SupplierDockProfile.tsx` renders a hardcoded `MOCK` supplier ("Acme Components") unconditionally on `/library/suppliers/{id}`~~ — **STALE, corrected 2026-08-08.** That was fixed; the array is now `DEMO_MOCK` and every one of its ~20 reads sits inside an `isApiMockMode` guard, which is itself build-time false in production (`NEXT_PUBLIC_USE_MOCK === "true" && NODE_ENV !== "production"`, `src/lib/api/core.ts`). Verify before acting on any claim in this bullet — the note outlived the defect by months and was still being handed to sessions as current.
-  The file's real problem is the opposite shape and is tracked separately: it *asserts absences it never fetched*. The "Recent orders" panel is fixed (see `RecentOrdersPanel` + `SupplierDockProfile.recentOrders.test.tsx`); still open on that screen are the four `—`/"no data yet" KPI cards (no metrics query exists), the "Configure this supplier in the Delivery tab to populate this summary." card (never checks whether delivery is already configured), `CatalogTab`'s "No products yet." (query's `isError` unbranched, so a failed fetch reads as an empty catalog), "No versions yet" (same, on the `["connections"]` query), the saved PO mapping never being read back, and `normalizeSource`'s `default:` arm labelling unattributed mappings "Manual".
-  `LaneDrawer.tsx` `MOCK_CROSSINGS` is ungated but currently unreachable in non-mock (topology is empty). The marketing hero `BridgeIllustration.tsx` uses "Heinrich Industries"/"Acme Components" as illustrative schematic labels (decorative, low risk).
-- Group L Wave 2 (Phases 3 + 4.4) is complete on `feat/group-l-phase-3-and-4.4` (pushed, not yet merged to main): `useCookieConsent` hook (`src/lib/cookie-consent.ts`, localStorage + cross-tab event), `CookieConsentBanner` (fixed-position, functional-only / analytics-allowed), `posthog-js@1.376.3` (`src/lib/analytics.ts` consent-gated, no-op when `NEXT_PUBLIC_POSTHOG_KEY` empty), `AnalyticsBoot` (Clerk identify + org group + path-only `$pageview`, mounted inside ClerkProvider branch only to guard against prerender crash). Commits: `3705964` `560cf8c` `384745d`.
-- Group L Wave 2 phases 4.5 + 5.1 + 5.2 are complete on branches (not yet merged to main):
-  - **Phase 5.1 backend** (`feat/group-l-phase-5.1-onboarding-has-resolved-mapping`): `GET /api/onboarding/status` now returns `hasResolvedMapping` (fourth field between `hasUpload` and `hasDelivery`). Query: `_db.PurchaseOrderLines.AnyAsync(l => l.Order.OrgId == orgId && l.SupplierItemCode != null, ct)`. 195/195 tests pass.
-  - **Phase 5.1 frontend** (`feat/group-l-phase-4.5-5.1-5.2-onboarding-wizard`): `OnboardingStatus` interface in `src/types/procurement.ts` has `hasResolvedMapping: boolean` between `hasUpload` and `hasDelivery`. `mockGetOnboardingStatus` in `src/lib/api-client.ts` derives it from order lines.
-  - **Phase 5.2 frontend**: `OnboardingWizard.tsx` rewritten as a 4-step wizard (add supplier → upload PO → resolve mapping → configure delivery) driven by `useQuery(["onboarding-status"])`. Entry step is server-derived. `StepIndicator` shows `current/4`. Uses `apiClient.uploadPurchaseOrder(file, supplierId)`; routes to `/inbox/{orderId}` after upload and `/library/suppliers/{id}?tab=delivery` after mapping.
-  - **Phase 4.5 frontend**: `capture()` calls from `@/lib/analytics` added to `OnboardingWizard.tsx` (`wizard_opened` on mount, `wizard_step_completed` on each step success, `wizard_dismissed` on close) and `UploadWorkbench.tsx` (`first_upload_started` with `file_kind` only when `!onboardingStatus.hasUpload`).
-  - Frontend branch is based on `feat/group-l-phase-3-and-4.4` (cookie consent + PostHog SDK), not main — must be merged in the correct order.
-
-### shadcn/ui
-
-Keep shadcn primitives in `src/components/ui/` — they are dependency infrastructure. The Bridge Layer wraps or reskins them; it does not delete them. Custom Bridge components in `src/components/bridge/`.
+- Local protected-route QA: `PROCULINK_QA_BYPASS_AUTH=true bun run dev -- --hostname 127.0.0.1 --port 8082`
+  (the API needs it too, and `NEXT_PUBLIC_QA_BYPASS_AUTH=true` or tenant queries never fire).
+  Disabled in production by `NODE_ENV`.
+- Playwright for UI QA; local screenshots go in `.qa-screenshots/` (gitignored). Vitest + RTL for
+  behaviour. jsdom mounts both breakpoint trees (no Tailwind), so scope queries with `within(...)`.
+- Delivery UI must never imply a document was sent because an output file exists. Statuses are the
+  backend's (`received`, `reading`, `read_failed`, `needs_review`, `ready`, `sending`, `sent`,
+  `send_failed`), mirrored in `src/lib/documentStatusManifest.ts`.
+- Old v2 prototype (`Downloads\v2-bridge-review\`) predates the 2026-08-13 audit and implements the
+  struck signatures. **Do not port from it.**
+- Keep shadcn primitives in `src/components/ui/` — they are dependency infrastructure. The Bridge
+  Layer wraps or reskins them; it does not delete them.
 
 ---
 
