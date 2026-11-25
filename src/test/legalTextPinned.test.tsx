@@ -37,7 +37,7 @@ const PINNED: Record<"/privacy" | "/terms" | "/aup" | "/dpa" | "/subprocessors" 
   // Re-pinned 2026-11-25: new "Microsoft accounts you connect" section (Outlook pickup) and date line.
   // Re-pinned 2026-11-25 (plan 30 Part B): that section also covers saving files to a OneDrive folder.
   "/privacy": "ebf3de27e3028925e1af25bd82f6d27bc3974df93de99dbdb20c594c3f55014e",
-  "/terms": "ae25fb8cb42c3fcc5d053c5b0c3f630bca58751810227182747d711cbb148478",
+  "/terms": "a85ed4affde78a10ef0566eea7e67f89a4b9d53848f7b73979469dddbe538c45",
   "/aup": "917a1e45c7f3775aad05ae6d74275ee63f522e4a2db5012bdecca0702f4c0fbf",
   "/dpa": "a86971bb79039f2a9403ebef616bf194cd955d36d4fe3cd3b20a5fe903a72e39",
   "/subprocessors": "e4bd03fe1c61f9709e8a396e8070351c8ec6991a0b202b3b2dc7d47a89956122",
