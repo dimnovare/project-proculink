@@ -201,6 +201,32 @@ describe("DestinationForm", () => {
     });
   });
 
+  it("offers B2Brouter only when the server says Peppol is available", async () => {
+    linked.listLinkedAccounts.mockResolvedValue({ available: false, accounts: [] });
+    const hidden = newForm();
+    await waitFor(() => expect(linked.listLinkedAccounts).toHaveBeenCalled());
+    expect(kinds(hidden)).not.toContain("B2Brouter (e-invoice network)");
+    linked.listLinkedAccounts.mockResolvedValue({ available: false, peppolAvailable: true, accounts: [] });
+    const shown = newForm();
+    await waitFor(() => expect(kinds(shown)).toContain("B2Brouter (e-invoice network)"));
+  });
+
+  it("saves B2Brouter with the key as a credential, never in config", async () => {
+    linked.listLinkedAccounts.mockResolvedValue({ available: false, peppolAvailable: true, accounts: [] });
+    api.createDestination.mockClear().mockResolvedValue({ ...saved, id: "b1", name: "E-invoices", protocol: "b2brouter", config: { account: "acc-1", sandbox: true } });
+    const ui = newForm();
+    await waitFor(() => expect(kinds(ui)).toContain("B2Brouter (e-invoice network)"));
+    fireEvent.change(ui.getByLabelText("Send by"), { target: { value: "b2brouter" } });
+    for (const [label, value] of [["Name", "E-invoices"], ["B2Brouter account ID", "acc-1"], ["API key", "test_k"]])
+      fireEvent.change(ui.getByLabelText(label), { target: { value } });
+    expect(ui.getByText("Sending invoices in France")).toBeTruthy();
+    fireEvent.click(ui.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(api.createDestination).toHaveBeenCalledTimes(1));
+    expect(api.createDestination.mock.calls[0][0]).toEqual({
+      name: "E-invoices", protocol: "b2brouter", config: { account: "acc-1" }, credentials: { apiKey: "test_k" },
+    });
+  });
+
   it("KSeF destination starts on Test and needs the issuer tick for Production", async () => {
     linked.listLinkedAccounts.mockResolvedValue({ available: false, ksefAvailable: true, accounts: [] });
     const created: Destination = { ...saved, id: "k1", name: "KSeF", protocol: "ksef", config: { environment: "test", nip: "1111111111" } };

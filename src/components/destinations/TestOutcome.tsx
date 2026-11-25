@@ -75,7 +75,7 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place,
   return shown(
     <>
       <StatusNotice tone="success">
-        {protocol === "ksef" ? reason : <>
+        {protocol === "ksef" || protocol === "b2brouter" ? reason : <>
           {protocol === "google_sheets"
             ? `We could open the spreadsheet and the tab${moment ? ` ${moment}` : ""}. No rows were added.`
             : `Test file arrived${moment ? ` ${moment}` : ""}.`}

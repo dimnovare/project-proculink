@@ -15,5 +15,6 @@ export const HELD_BACK: Readonly<Record<string, string>> = {
   x12: STANDARD_FILE,
   outlook: "Microsoft mailbox pickup: behind the native-connectors switch until a real pickup from a real workspace (plan 30)",
   ksef: "KSeF destination: behind the per-org KSeF switch, and named on the site only after a real send (decision 7, plan 33)",
+  b2brouter: "e-invoice network destination: behind the Peppol switch, named on the site only after a real send from a real workspace (decision 7)",
   ...Object.fromEntries(STANDARD_OUTPUTS.filter((id) => FLAGGED.has(id) || KSEF.has(id)).map((id) => [id, STANDARD_OUTPUT])),
 };

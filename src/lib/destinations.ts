@@ -35,6 +35,8 @@ const WHERE: Record<string, (c: Record<string, unknown>) => string> = {
   google_sheets: (c) => parts("Google Sheets", text(c.spreadsheetName), text(c.sheetName) ? `tab ${text(c.sheetName)}` : null),
   ksef: (c) => [["KSeF", Object.hasOwn(KSEF_ENV, String(c.environment)) ? KSEF_ENV[String(c.environment)] : null].filter(Boolean).join(" "),
     text(c.nip) && `NIP ${text(c.nip)}`].filter(Boolean).join(" · "),
+  // Only a true sandbox flag is named; its absence never asserts production.
+  b2brouter: (c) => parts("B2Brouter", text(c.account) && `account ${text(c.account)}`, c.sandbox === true ? "sandbox" : null),
 };
 
 export function destinationWhere(d: Pick<Destination, "protocol" | "config">): string {

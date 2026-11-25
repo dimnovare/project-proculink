@@ -34,6 +34,7 @@ const CONFIG_FIELDS: Record<string, [label: string, kind: Kind]> = {
   accessKeyId: ["Access key ID", "text"],
   nip: ["NIP", "text"],
   environment: ["KSeF environment", "environment"],
+  account: ["B2Brouter account ID", "text"],
   // No attachmentFileName box: a flow send always names the attachment after the document.
 };
 
@@ -41,6 +42,7 @@ const CONFIG_FIELDS: Record<string, [label: string, kind: Kind]> = {
 const PROTOCOLS = {
   email: "Email", google_drive: "Google Drive", google_sheets: "Google Sheets", microsoft_onedrive: "OneDrive",
   sftp: "SFTP", ftps: "FTPS", s3: "S3 bucket", http: "Web address (API)", ksef: "KSeF",
+  b2brouter: "B2Brouter (e-invoice network)",
 } as const;
 const SERVER = new Set(["sftp", "ftps", "s3", "http", "ksef"]);
 type Protocol = keyof typeof PROTOCOLS;
@@ -57,6 +59,7 @@ const DEFAULTS: Record<Protocol, Record<string, unknown>> = {
   google_sheets: {},
   microsoft_onedrive: {},
   ksef: { environment: "test" },
+  b2brouter: {},
 };
 /** Production is offered only on an edit; an unknown or absent environment checks no option (plan 33). */
 const KSEF_ENVIRONMENTS = {
@@ -66,6 +69,12 @@ const KSEF_ENVIRONMENTS = {
 };
 const ISSUER_TICK = "I confirm that every invoice sent from this destination is issued in KSeF in my company's name. My company is the issuer and is responsible for each invoice's content and for checking it before it is sent. Each one is sent only when a person confirms it.";
 const KSEF_TOKEN_HELP = "Paste a KSeF token made for this NIP in Aplikacja Podatnika KSeF, with permission to issue invoices. We keep it encrypted and use it only to test the sign-in and to send invoices a person confirms. It is never shown again. Tokens expire; when yours does, sends stop with a message and you paste a new one. If you give your buyer a printed or PDF copy of an invoice issued in KSeF, it must carry the KSeF QR code; ProcuLink doesn't add it.";
+const B2BROUTER_HELP = "B2Brouter is your e-invoice provider: a Peppol access point and a French approved platform. ProcuLink hands it your file using your own B2Brouter account, and B2Brouter delivers the invoice. \"Sent\" here means B2Brouter accepted it and didn't report a problem in the first few seconds; your B2Brouter account shows the buyer's delivery. For now this takes a B2Brouter sandbox API key (it starts with test_).";
+const FRANCE = [
+  "From 1 September 2026, French companies receive invoices through an approved platform. B2Brouter is on the French tax authority's list of approved platforms.",
+  "Your invoices need your SIREN and your buyer's SIREN.",
+  "France accepts UBL, CII and Factur-X. ProcuLink's EN 16931 CII, UBL and Factur-X outputs are among them.",
+];
 
 type CredField = [key: string, label: string];
 const LOGIN: CredField[] = [["username", "Username"], ["password", "Password"]];
@@ -77,9 +86,10 @@ const HTTP_AUTH: Record<string, CredField[]> = {
 };
 const S3_SECRET: CredField[] = [["secretKey", "Secret access key"]];
 const KSEF_TOKEN: CredField[] = [["token", "KSeF token"]];
+const B2BROUTER_KEY: CredField[] = [["apiKey", "API key"]];
 const AUTH_LABEL = { bearer: "Bearer token", apikey: "API key", basic: "Username and password" };
 /** Secrets: with a login saved, the box asks for a new one. */
-const SECRETS = new Set(["password", "token", "value", "secretKey", "privateKey"]);
+const SECRETS = new Set(["password", "token", "value", "secretKey", "privateKey", "apiKey"]);
 
 /** What is rarely changed sits behind "More options"; the hint says what is there. */
 const FOLDED = new Set(["port", "timeoutSeconds", "makeDirectories", "overwriteExisting", "allowInvalidCertificate", "method",
@@ -95,6 +105,7 @@ const TEST_NOTE: Record<string, string> = {
   http: "The test request carries the header X-ProcuLink-Test, so it is easy to spot.",
   google_sheets: "The test checks that ProcuLink can open the spreadsheet and the tab you chose. It adds no rows.",
   ksef: "A test only signs in to KSeF with your token. It never sends an invoice.",
+  b2brouter: "The test checks that B2Brouter accepts your API key and account. It sends no invoice.",
 };
 
 export const INPUT_BASE = "w-full rounded-md border border-border-strong bg-surface px-3 text-[14px] font-medium text-ink";
@@ -152,16 +163,17 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
   const googleOn = linked?.available === true;
   const microsoftOn = linked?.microsoftAvailable === true;
   const ksefOn = linked?.ksefAvailable === true;
+  const peppolOn = linked?.peppolAvailable === true;
   const [issuer, setIssuer] = useState(false);
 
   const credFields: CredField[] =
-    protocol === "http" ? HTTP_AUTH[auth] : protocol === "email" || isLinked(protocol) ? [] : protocol === "s3" ? S3_SECRET : protocol === "ksef" ? KSEF_TOKEN : protocol === "sftp" ? SFTP_LOGIN : LOGIN;
+    protocol === "http" ? HTTP_AUTH[auth] : protocol === "email" || isLinked(protocol) ? [] : protocol === "s3" ? S3_SECRET : protocol === "ksef" ? KSEF_TOKEN : protocol === "b2brouter" ? B2BROUTER_KEY : protocol === "sftp" ? SFTP_LOGIN : LOGIN;
   const keys = MANAGED_CONFIG_KEYS[protocol] ?? [];
 
   const typed = Object.fromEntries(credFields.filter(([k]) => creds[k]?.trim()).map(([k]) => [k, creds[k]]));
   if (typed.privateKey) delete typed.password;
   // Saving replaces the stored login wholesale, so a half-filled one must never be sent.
-  const required = protocol === "http" || protocol === "s3" || protocol === "ksef" ? credFields.map(([k]) => k) : typed.privateKey ? ["username", "privateKey"] : ["username", "password"];
+  const required = protocol === "http" || protocol === "s3" || protocol === "ksef" || protocol === "b2brouter" ? credFields.map(([k]) => k) : typed.privateKey ? ["username", "privateKey"] : ["username", "password"];
   const loginIncomplete = Object.keys(typed).length > 0 && required.some((k) => !typed[k]);
   // Switching a KSeF destination to Production, or changing a Production one's NIP, needs the issuer tick, which the save carries (plan 33, C5.4).
   const nipDigits = (v: unknown) => String(v ?? "").replace(/\D/g, "");
@@ -286,7 +298,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
   const folded = [...fields.filter((k) => FOLDED.has(k)).map(configField), ...credFields.filter(([k]) => FOLDED.has(k)).map(credField)];
   const note = TEST_NOTE[protocol];
   const offered = Object.entries(PROTOCOLS).filter(([id]) => (chosen ? chosen.protocols.includes(id)
-    : (isGoogle(id) ? googleOn : id === "microsoft_onedrive" ? microsoftOn : id !== "ksef" || ksefOn) || id === protocol));
+    : (isGoogle(id) ? googleOn : id === "microsoft_onedrive" ? microsoftOn : id === "ksef" ? ksefOn : id !== "b2brouter" || peppolOn) || id === protocol));
 
   const body = (
     // Not a <form>: this sits inside the output and draft-review forms, and a nested form's Save
@@ -336,6 +348,15 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
       {credFields.filter(([k]) => !FOLDED.has(k)).map(credField)}
       {protocol === "http" && <p className="col-span-full text-[13px] text-ink-muted">Leave blank if the address needs no login.</p>}
       {protocol === "ksef" && <p className="col-span-full text-[13px] text-ink-muted">{KSEF_TOKEN_HELP}</p>}
+      {protocol === "b2brouter" && (
+        <div className="col-span-full grid gap-1.5 text-[13px] text-ink-muted">
+          <p className="m-0">{B2BROUTER_HELP}</p>
+          <details>
+            <summary className="cursor-pointer font-semibold text-ink">Sending invoices in France</summary>
+            {FRANCE.map((line) => <p key={line} className="m-0 mt-1">{line}</p>)}
+          </details>
+        </div>
+      )}
       {current?.hasCredentials && credFields.length > 0 && (
         <p className="col-span-full text-[13px] text-ink-muted">A login is saved. Leave the login boxes blank to keep it.</p>
       )}
