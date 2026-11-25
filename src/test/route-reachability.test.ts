@@ -168,6 +168,10 @@ export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
     "Microsoft's sign-in is the only referrer: the backend builds the redirect URI as " +
     "{origin}/settings/{provider}-callback in ProcuLink.Api/Services/Google/GoogleConnectService.cs " +
     "(plan 30, 2026-11-24), the same as Google's.",
+
+  "/settings/microsoft-callback":
+    "Microsoft's sign-in is the only referrer, for a OneDrive account: the same {provider}-callback redirect URI " +
+    "(plan 30 Part B, 2026-11-25).",
 };
 
 /**

@@ -1,5 +1,5 @@
 /**
- * linkedAccounts.ts — the org's connected Google accounts (plan 9b) and Microsoft mailbox accounts (plan 30).
+ * linkedAccounts.ts — the org's connected Google accounts (plan 9b) and Microsoft mailbox and OneDrive accounts (plan 30).
  *
  * Mirrors `ProcuLink.Api/Controllers/LinkedAccountsController.cs`. A token never passes through here
  * except the Picker's short-lived access token, which goes straight to `openGooglePicker`.
@@ -16,7 +16,7 @@ export interface LinkedAccount { id: string; provider: string; email: string; st
 // Named types, not inline ones: the backend's reachability scanner reads `apiFetch<T>(` only when T has no braces.
 /** `available` is Google's; `microsoftAvailable` is absent on an older backend, which means hidden. */
 export interface LinkedAccountList { available: boolean; microsoftAvailable?: boolean; accounts: LinkedAccount[] }
-/** The backend's `LinkedAccount.Provider` values; `microsoft` (files) arrives with OneDrive. */
+/** The backend's `LinkedAccount.Provider` values: `outlook` is a mailbox, `microsoft` saves files to OneDrive. */
 export type LinkedProvider = "google" | "outlook" | "microsoft";
 export interface GoogleConnected { account: LinkedAccount; returnTo: string | null }
 export interface GooglePickerToken { accessToken: string; apiKey: string; appId: string }
@@ -50,7 +50,13 @@ export const completeOutlookConnect = (code: string, state: string) =>
   apiFetch<GoogleConnected>(`/linked-accounts/outlook/complete`, {
     method: "POST", body: JSON.stringify({ code, state }),
   });
-export const getGooglePicker = (accountId: string) =>
+export const startMicrosoftConnect = (origin: string, returnTo?: string) =>
+  apiFetch<GoogleStart>(`/linked-accounts/microsoft/start`, { method: "POST", body: JSON.stringify({ origin, returnTo }) });
+export const completeMicrosoftConnect = (code: string, state: string) =>
+  apiFetch<GoogleConnected>(`/linked-accounts/microsoft/complete`, {
+    method: "POST", body: JSON.stringify({ code, state }),
+  });
+export const getGooglePicker =(accountId: string) =>
   apiFetch<GooglePickerToken>(`/linked-accounts/${seg(accountId)}/picker`, { method: "POST" });
 export const deleteLinkedAccount = (accountId: string) =>
   apiFetch<void>(`/linked-accounts/${seg(accountId)}`, { method: "DELETE" });

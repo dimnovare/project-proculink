@@ -20,6 +20,9 @@ import { isAppPath } from "@/lib/appPath";
 /** A same-site path (`isAppPath`, the same check as GoogleConnectService.Start), else /flows. */
 const safePath = (p: string) => (isAppPath(p) ? p : "/flows");
 
+/** Any Microsoft ?error= reads the same: in most work tenants the refusal is "an admin must approve", which the user cannot fix alone. */
+export const MICROSOFT_DENIED = "Microsoft access was not granted. If your organization's Microsoft 365 admin must approve new apps, ask them to approve ProcuLink, then try again.";
+
 /** Each pair is [in a popup, in a whole tab]. */
 export interface ConnectCopy {
   denied: readonly [string, string];

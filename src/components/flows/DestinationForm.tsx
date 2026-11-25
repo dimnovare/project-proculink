@@ -37,12 +37,14 @@ const CONFIG_FIELDS: Record<string, [label: string, kind: Kind]> = {
 
 /** The common places first; the server kinds are grouped under "A server or another system" (plan 16a R17). */
 const PROTOCOLS = {
-  email: "Email", google_drive: "Google Drive", google_sheets: "Google Sheets",
+  email: "Email", google_drive: "Google Drive", google_sheets: "Google Sheets", microsoft_onedrive: "OneDrive",
   sftp: "SFTP", ftps: "FTPS", s3: "S3 bucket", http: "Web address (API)",
 } as const;
 const SERVER = new Set(["sftp", "ftps", "s3", "http"]);
 type Protocol = keyof typeof PROTOCOLS;
 const isGoogle = (p: string): p is "google_drive" | "google_sheets" => p === "google_drive" || p === "google_sheets";
+/** Sends through a connected account (Google, or Microsoft for OneDrive), so it has no login of its own. */
+const isLinked = (p: string): p is "google_drive" | "google_sheets" | "microsoft_onedrive" => isGoogle(p) || p === "microsoft_onedrive";
 const DEFAULTS: Record<Protocol, Record<string, unknown>> = {
   http: { method: "POST", timeoutSeconds: 30 },
   sftp: { port: 22, makeDirectories: true, overwriteExisting: true, timeoutSeconds: 30 },
@@ -51,6 +53,7 @@ const DEFAULTS: Record<Protocol, Record<string, unknown>> = {
   s3: {},
   google_drive: {},
   google_sheets: {},
+  microsoft_onedrive: {},
 };
 
 type CredField = [key: string, label: string];
@@ -75,7 +78,7 @@ const FOLD_HINT: Record<string, string> = {
 };
 const FILES = "The test file's name starts with TEST_, so it is easy to spot.";
 const TEST_NOTE: Record<string, string> = {
-  sftp: FILES, ftps: FILES, s3: FILES, google_drive: FILES,
+  sftp: FILES, ftps: FILES, s3: FILES, google_drive: FILES, microsoft_onedrive: FILES,
   email: "The test email's subject starts with [TEST], so it is easy to spot.",
   http: "The test request carries the header X-ProcuLink-Test, so it is easy to spot.",
   google_sheets: "The test checks that ProcuLink can open the spreadsheet and the tab you chose. It adds no rows.",
@@ -132,10 +135,12 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
   const hintId = useId();
   const [saved, setSaved] = useState(false);
   // Google kinds are offered only when the server says so; a failed list counts as "not available".
-  const googleOn = useLinkedAccounts().data?.available === true;
+  const linked = useLinkedAccounts().data;
+  const googleOn = linked?.available === true;
+  const microsoftOn = linked?.microsoftAvailable === true;
 
   const credFields: CredField[] =
-    protocol === "http" ? HTTP_AUTH[auth] : protocol === "email" || isGoogle(protocol) ? [] : protocol === "s3" ? S3_SECRET : protocol === "sftp" ? SFTP_LOGIN : LOGIN;
+    protocol === "http" ? HTTP_AUTH[auth] : protocol === "email" || isLinked(protocol) ? [] : protocol === "s3" ? S3_SECRET : protocol === "sftp" ? SFTP_LOGIN : LOGIN;
   const keys = MANAGED_CONFIG_KEYS[protocol] ?? [];
 
   const typed = Object.fromEntries(credFields.filter(([k]) => creds[k]?.trim()).map(([k]) => [k, creds[k]]));
@@ -159,6 +164,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
     // Clearing the typed login keeps the saved credentials write-only: they are never shown again.
     onSuccess: (d) => {
       setCurrent(d); setCreds({}); setProblem(null); setSaved(true); test.reset(); onSaved(d);
+      if (protocol === "microsoft_onedrive") setConfig(d.config); // the pasted link is gone; the resolved folder shows
       if (testAfterSave) test.mutate(d.id);
     },
     onError: (e) => setProblem(documentRefusalMessage(e)),
@@ -241,7 +247,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
   const fields = keys.filter((k) => k in CONFIG_FIELDS);
   const folded = [...fields.filter((k) => FOLDED.has(k)).map(configField), ...credFields.filter(([k]) => FOLDED.has(k)).map(credField)];
   const note = TEST_NOTE[protocol];
-  const offered = Object.entries(PROTOCOLS).filter(([id]) => (chosen ? chosen.protocols.includes(id) : googleOn || !isGoogle(id) || id === protocol));
+  const offered = Object.entries(PROTOCOLS).filter(([id]) => (chosen ? chosen.protocols.includes(id) : (isGoogle(id) ? googleOn : id !== "microsoft_onedrive" || microsoftOn) || id === protocol));
 
   const body = (
     // Not a <form>: this sits inside the output and draft-review forms, and a nested form's Save
@@ -278,7 +284,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
         </Field>
       )}
       {fields.filter((k) => !FOLDED.has(k)).map(configField)}
-      {isGoogle(protocol) && (
+      {isLinked(protocol) && (
         <GoogleTargetFields protocol={protocol} config={config} onChange={(patch) => { edited(); setConfig((c) => ({ ...c, ...patch })); }} />
       )}
       {protocol === "http" && (

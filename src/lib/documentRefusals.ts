@@ -82,6 +82,7 @@ export const COPY: Record<string, string> = {
   outlook_scope_missing: "ProcuLink needs permission to read and mark mail in this mailbox. Connect again and accept the permissions, or ask your Microsoft 365 admin to approve ProcuLink.",
   outlook_unavailable: "Microsoft didn't answer. Try again in a minute.",
   microsoft_unavailable: "Microsoft didn't answer. Try again in a minute.",
+  microsoft_scope_missing: "ProcuLink needs permission to save files in your OneDrive. Connect again and accept the permissions.",
   not_movable: "This document can't be moved right now. Reload to see its latest state.",
   not_in_inbox: "This document has already been put with a flow. Reload to see where.",
   not_read: "We haven't finished reading this document yet.",
