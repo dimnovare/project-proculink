@@ -57,7 +57,10 @@ export function memberNames(
 
 const UPLOAD_CREDITED = new Set(["document.received", "document.read", "document.read_failed"]);
 export function activityWho(e: ActivityEvent, members: Members): string {
-  if (e.actorId) return members.get(e.actorId) ?? "A workspace member";
+  if (e.actorId) {
+    const who = members.get(e.actorId) ?? (e.actorId.startsWith("apikey:") ? "An API key" : "A workspace member");
+    return e.action === "document.sent" && field(e.payload, "mode") === "assistant" ? `${who} (AI assistant)` : who;
+  }
   if (!e.action.startsWith("document.")) return "System";
   if (!e.documentId) return "Not recorded";
   if ((e.action === "document.delivered" || e.action === "document.delivery_failed") && !e.startedAt) return "Not recorded";
@@ -91,6 +94,7 @@ function targetLabel(target: string): string | undefined {
 
 const RECEIVED = new Map([
   ["upload", " was uploaded"], ["email", " arrived by email"], ["imap", " arrived from a mailbox"], ["outlook", " arrived from a mailbox"], ["api", " arrived through the API"],
+  ["assistant", " arrived from an AI assistant"],
   ["sftp", " was picked up from SFTP"], ["ftp", " was picked up from FTP"], ["ftps", " was picked up from FTPS"], ["s3", " was picked up from S3"],
 ]);
 const KIND_TAGS: Partial<Record<string, { label: string; tone: ActivityTone }>> = {

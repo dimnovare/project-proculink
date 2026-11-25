@@ -389,6 +389,8 @@ export interface ApiKey {
   createdAt: string;
   lastUsedAt: string | null;
   expiresAt: string | null;
+  /** The key may send documents (the AI assistant's send). Off unless chosen when the key is made. */
+  canSend: boolean;
 }
 
 export interface CreateApiKeyResponse extends ApiKey {
@@ -411,7 +413,7 @@ export async function getApiKeys(): Promise<ApiKey[]> {
   return res.json();
 }
 
-export async function createApiKey(label: string): Promise<CreateApiKeyResponse> {
+export async function createApiKey(label: string, canSend = false): Promise<CreateApiKeyResponse> {
   if (USE_MOCK) {
     await delay(500);
     const rawKey = `example-not-a-real-key-${++_mockKeyCount}`;
@@ -423,6 +425,7 @@ export async function createApiKey(label: string): Promise<CreateApiKeyResponse>
       createdAt: new Date().toISOString(),
       lastUsedAt: null,
       expiresAt: null,
+      canSend,
     };
     _mockApiKeys.unshift(key);
     return { ...key, rawKey };
@@ -431,7 +434,7 @@ export async function createApiKey(label: string): Promise<CreateApiKeyResponse>
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/api-keys`, {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({ label }),
+    body: JSON.stringify({ label, canSend }),
   }, 30000);
   // Minting a bearer credential with org-wide machine access is organisation-admin-gated.
   // This threw the raw `requires_org_admin` token at whoever pressed the button.

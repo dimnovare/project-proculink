@@ -27,9 +27,13 @@ describe("activityRows", () => {
       [ev({ action: "document.delivered", documentId: null, documentName: null, source: null }), members, "Not recorded"],
       [ev({ action: "document.delivery_failed", actorId: null, startedAt: null }), members, "Not recorded"],
       [ev({ action: "admin.org.limits_changed", documentId: null, flowId: null, documentName: null, source: null }), members, "System"],
+      [ev({ action: "document.sent", actorId: "apikey:0000", payload: { mode: "assistant" } }), members, "An API key (AI assistant)"],
+      [ev({ action: "document.sent", actorId: "user_member_a", payload: { mode: "assistant" } }), members, "Alex Example (AI assistant)"],
+      [ev({ action: "document.received", actorId: "apikey:0000", source: "assistant" }), members, "An API key"],
     ];
     for (const [e, m, who] of cases) expect(activityWho(e, m), e.action).toBe(who);
     expect(activityWho(ev({ action: "inbound_email.rejected_orders_retired", documentId: null, source: null }), members)).not.toBe("Extraction engine");
+    expect(plainSentence(view(ev({ source: "assistant", documentName: "a.pdf" })).sentence)).toBe("a.pdf arrived from an AI assistant");
 
     const read = (x: string) => readActivityAddress(new URLSearchParams(x));
     expect(read("show=failed&page=2")).toEqual({ tab: "all", page: 2 }); // the old tabs' addresses read as All (R14)
