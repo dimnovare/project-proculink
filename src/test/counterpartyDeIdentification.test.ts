@@ -86,6 +86,8 @@ const APPROVED_PARTY_TOKENS: ReadonlySet<string> = new Set([
   "steelhouse", "vanderberg", "westmark",
   // Explicit placeholder vocabulary.
   "example", "demo", "sample", "test", "some", "this", "the",
+  // Polish placeholders from plan 33's synthetic KSeF fixtures ("Fikcyjny Odbiorca S.A." = "Fictitious Recipient").
+  "fikcyjny", "odbiorca",
   // Own product / workspace naming.
   "proculink",
   // Generic role, sector and descriptor words.
@@ -94,7 +96,7 @@ const APPROVED_PARTY_TOKENS: ReadonlySet<string> = new Set([
   "pharma", "steel", "steelworks", "supplies", "tools", "trading", "transit", "tyre", "it",
   // Legal-form suffixes. A suffix says nothing about whether the name in front
   // of it belongs to anybody, so these are allowed on their own merits.
-  "ag", "bv", "co", "gmbh", "inc", "ltd", "oy", "oü",
+  "ag", "bv", "co", "gmbh", "inc", "ltd", "oy", "oü", "a", // "a" is the second letter of S.A.
   // Short code fragments from item-code and id values that the party-field net
   // also catches (e.g. "ACM-BR-55", "HX-4410", "sup-1"). Not party names.
   "acm", "br", "fl", "hx", "nt", "pl", "sup", "s", "b",

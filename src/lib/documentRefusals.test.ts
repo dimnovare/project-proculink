@@ -12,6 +12,12 @@ describe("documentRefusalMessage", () => {
   it("words an output_invalid machine token", () => {
     expect(documentRefusalMessage(refusal({ error: "output_invalid", detail: "send_when" }))).toBe(COPY.send_when);
   });
+  it("names the KSeF number of an already issued document, and words it without one", () => {
+    expect(documentRefusalMessage(refusal({ error: "ksef_already_issued", ksefNumber: "1111111111-20261126-ABCDEF123456-7A" })))
+      .toBe("This document has already been issued in KSeF (number 1111111111-20261126-ABCDEF123456-7A), so it isn't sent again.");
+    expect(documentRefusalMessage(refusal({ error: "ksef_already_issued" })))
+      .toBe("This document may already have been issued in KSeF, so it isn't sent again. Check it in Aplikacja Podatnika KSeF.");
+  });
   it("words an empty output step", () => {
     expect(documentRefusalMessage(refusal({ error: "output_invalid", detail: "template" })))
       .toBe("This file has an empty step. Remove it or finish setting it up.");

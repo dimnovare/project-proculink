@@ -75,10 +75,12 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place,
   return shown(
     <>
       <StatusNotice tone="success">
-        {protocol === "google_sheets"
-          ? `We could open the spreadsheet and the tab${moment ? ` ${moment}` : ""}. No rows were added.`
-          : `Test file arrived${moment ? ` ${moment}` : ""}.`}
-        {reason && <> <span>{reason}</span></>}
+        {protocol === "ksef" ? reason : <>
+          {protocol === "google_sheets"
+            ? `We could open the spreadsheet and the tab${moment ? ` ${moment}` : ""}. No rows were added.`
+            : `Test file arrived${moment ? ` ${moment}` : ""}.`}
+          {reason && <> <span>{reason}</span></>}
+        </>}
       </StatusNotice>
       {/* After a run, only a list fetched since it ended is offered. During the run the band stays, its button loading. */}
       {offerResend && n > 0 && (send.isPending || waiting.dataUpdatedAt > ranAt) && (

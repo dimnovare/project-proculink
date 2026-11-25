@@ -325,6 +325,19 @@ export const STANDARDS: StandardSupport[] = [
     referenceUrl: "https://www.ferd-net.de/en/standards/zugferd",
   },
   {
+    id: "ksef-fa-3",
+    name: "KSeF invoice file",
+    version: "FA(3) 1-0E",
+    family: "xml",
+    parse: "none",
+    transform: "partial",
+    transport: "Upload in Aplikacja Podatnika KSeF, or a KSeF destination with the customer's own token",
+    conformance:
+      "Outbound: written by the flow standard output behind the per-org KSeF switch, PLN and 23/8/5 % VAT only, and checked " +
+      "against the official FA(3) schema before it is offered or sent. No invoice has been issued in KSeF Production.",
+    referenceUrl: "https://ksef.podatki.gov.pl/informacje-ogolne-ksef-20/struktura-logiczna-fa-3/",
+  },
+  {
     id: "sap-idoc-orders05",
     name: "SAP IDoc ORDERS05",
     version: "ORDERS05 (basic type)",

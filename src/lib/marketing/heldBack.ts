@@ -1,4 +1,4 @@
-import { FLAGGED, STANDARD_OUTPUTS } from "@/lib/standardOutputs";
+import { FLAGGED, KSEF, STANDARD_OUTPUTS } from "@/lib/standardOutputs";
 
 // What the app's registries hold that /formats does not list, and why. Read by
 // src/components/marketing/formatsRows.ts. It lives here, outside components/marketing, because
@@ -14,5 +14,6 @@ export const HELD_BACK: Readonly<Record<string, string>> = {
   edi: STANDARD_FILE,
   x12: STANDARD_FILE,
   outlook: "Microsoft mailbox pickup: behind the native-connectors switch until a real pickup from a real workspace (plan 30)",
-  ...Object.fromEntries(STANDARD_OUTPUTS.filter((id) => FLAGGED.has(id)).map((id) => [id, STANDARD_OUTPUT])),
+  ksef: "KSeF destination: behind the per-org KSeF switch, and named on the site only after a real send (decision 7, plan 33)",
+  ...Object.fromEntries(STANDARD_OUTPUTS.filter((id) => FLAGGED.has(id) || KSEF.has(id)).map((id) => [id, STANDARD_OUTPUT])),
 };

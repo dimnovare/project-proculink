@@ -22,7 +22,7 @@ export const metadata = pageMetadata({
 export default function TermsPage() {
   return (
     // FOUNDER DECISION: set this date to the day the page is published.
-    <LegalPage title="Terms of Service" updated="Last updated: 17 November 2026" path="/terms">
+    <LegalPage title="Terms of Service" updated="Last updated: 25 November 2026" path="/terms">
 
       <LegalH2>1. Agreement</LegalH2>
       <p>
@@ -62,6 +62,24 @@ export default function TermsPage() {
         not replace your own review. You are responsible for checking a document, and the file
         made from it, before you rely on them, including where you have set a flow to send
         documents on without a person checking them first.
+      </p>
+      {/*
+        FOUNDER DECISION (2026-11-25). Plan 33 adds a file for, and an optional send to, a public
+        authority's e-invoicing system. This paragraph and the last one in section 7 record
+        that the customer is the issuer. Counsel (Estonian, and ideally a Polish tax adviser)
+        should check both before production use.
+      */}
+      <p>
+        Some outputs make files for, or send files to, systems run by public authorities, such
+        as national e-invoicing systems. When you use them, you are the issuer of the document.
+        You remain responsible for its content, for checking it before it is issued or sent, for
+        the credentials you give us, and for meeting your own legal and tax obligations.
+        ProcuLink provides the software and its checks and acts only on your instructions: a
+        file is sent to such a system only through a destination you set up with your own
+        credentials, and to a live (production) system only when a person in your organisation
+        confirms it. Our checks reduce mistakes but do not guarantee that a document is correct
+        or complete or that the authority will accept it, and passing them is not tax or legal
+        advice.
       </p>
 
       <LegalH2>3. Acceptable use</LegalH2>
@@ -162,6 +180,13 @@ export default function TermsPage() {
         (b) EUR 5,000. This limit does not apply to your obligation to pay fees that are due.
         Neither party is liable for indirect or consequential loss, or for loss of profit,
         revenue or business opportunity.
+      </p>
+      {/* FOUNDER DECISION (2026-11-25), plan 33: see the note in section 2. Counsel should check it. */}
+      <p>
+        Subject to the first paragraph of this section, we are not liable for the content of a
+        document you issue or send through the service, for taxes, interest or penalties
+        relating to it, or for the acts, decisions or availability of a public authority&apos;s
+        system, except to the extent that the loss is caused by our breach of these Terms.
       </p>
 
       <LegalH2>8. Governing law</LegalH2>

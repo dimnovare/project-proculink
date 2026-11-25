@@ -18,7 +18,7 @@ import { documentsAddress, type DocumentTab } from "@/lib/documentTabs";
 import { firstRunAddress } from "@/lib/firstRun";
 
 /** Reasons the engine parks a document for review on its own, each worded in COPY. */
-const AUTOMATIC_HOLDS = new Set(["no_output_matches", "output_invalid"]);
+const AUTOMATIC_HOLDS = new Set(["no_output_matches", "output_invalid", "ksef_confirm"]);
 
 /** Gone: the server's words and the way on: back to the start of a first run, or back to Documents from the review screen. */
 export const Gone = ({ text, back = "start" }: { text: string; back?: "start" | "documents" }) => (

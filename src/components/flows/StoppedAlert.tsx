@@ -41,6 +41,10 @@ export function StoppedAlert({ page }: { page: DocumentPage | undefined }) {
       </>
     );
     link = <Link href={fixDestinationHref(first.destinationId)} className="inline-flex items-center font-semibold underline">Fix the destination</Link>;
+  } else if (one && rows.length === 1 && !first?.destinationId && serverReasonOrNull(first?.error)) {
+    // Held where it was sent (a KSeF duplicate): its answer is the whole story; there is no destination to fix.
+    detail = serverReasonOrNull(first!.error);
+    link = <Link href={documentsAddress("failed")} className="inline-flex items-center font-semibold underline">Show what couldn&apos;t be sent</Link>;
   } else {
     detail = one
       ? "The document is safe. Open it to see what happened, then send it again."

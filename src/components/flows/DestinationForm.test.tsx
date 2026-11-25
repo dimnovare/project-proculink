@@ -201,6 +201,64 @@ describe("DestinationForm", () => {
     });
   });
 
+  it("KSeF destination starts on Test and needs the issuer tick for Production", async () => {
+    linked.listLinkedAccounts.mockResolvedValue({ available: false, ksefAvailable: true, accounts: [] });
+    const created: Destination = { ...saved, id: "k1", name: "KSeF", protocol: "ksef", config: { environment: "test", nip: "1111111111" } };
+    api.createDestination.mockClear().mockResolvedValue(created);
+    const ui = newForm();
+    await waitFor(() => expect(kinds(ui)).toContain("KSeF"));
+    fireEvent.change(ui.getByLabelText("Send by"), { target: { value: "ksef" } });
+    expect(ui.queryByRole("radio", { name: /^Production/ })).toBeNull();
+    expect(ui.getByRole("radio", { name: /^Test:/ })).toBeChecked();
+    for (const [label, value] of [["Name", "KSeF"], ["NIP", "1111111111"], ["KSeF token", "t"]])
+      fireEvent.change(ui.getByLabelText(label), { target: { value } });
+    fireEvent.click(ui.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(api.createDestination).toHaveBeenCalledTimes(1));
+    expect(api.createDestination.mock.calls[0][0]).toEqual({
+      name: "KSeF", protocol: "ksef", config: { environment: "test", nip: "1111111111" }, credentials: { token: "t" },
+    });
+    // the saved destination is now edited: Production is offered, and Save waits for the issuer tick
+    api.updateDestination.mockClear().mockResolvedValue({ ...created, config: { environment: "production", nip: "1111111111" } });
+    fireEvent.click(ui.getByRole("radio", { name: /^Production/ }));
+    const save = ui.getByRole("button", { name: "Save" });
+    expect(save).toBeDisabled();
+    fireEvent.click(save);
+    expect(api.updateDestination).not.toHaveBeenCalled();
+    fireEvent.click(ui.getByRole("checkbox", { name: /^I confirm that every invoice sent from this destination/ }));
+    fireEvent.click(save);
+    await waitFor(() => expect(api.updateDestination).toHaveBeenCalledTimes(1));
+    expect(api.updateDestination.mock.calls[0][1].config).toEqual({ environment: "production", nip: "1111111111", acceptedIssuerTerms: true });
+  });
+
+  it("asks for the issuer tick again when a Production KSeF destination's NIP changes", async () => {
+    linked.listLinkedAccounts.mockResolvedValue({ available: false, ksefAvailable: true, accounts: [] });
+    const prod: Destination = { ...saved, id: "k2", name: "KSeF", protocol: "ksef", hasCredentials: true, config: { environment: "production", nip: "1111111111" } };
+    const ui = within(render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DestinationForm destination={prod} onSaved={() => {}} onCancel={() => {}} />
+      </QueryClientProvider>,
+    ).container);
+    await waitFor(() => expect(ui.getByRole("radio", { name: /^Production/ })).toBeChecked());
+    expect(ui.queryByRole("checkbox", { name: /^I confirm that every invoice sent from this destination/ })).toBeNull();
+    fireEvent.change(ui.getByLabelText("NIP"), { target: { value: "PL 999-999-99-99" } });
+    expect(ui.getByRole("checkbox", { name: /^I confirm that every invoice sent from this destination/ })).toBeTruthy();
+    expect(ui.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
+  it("holds Save and send a test until the issuer tick, on a destination switched to Production", async () => {
+    linked.listLinkedAccounts.mockResolvedValue({ available: false, ksefAvailable: true, accounts: [] });
+    const k: Destination = { ...saved, id: "k3", name: "KSeF", protocol: "ksef", hasCredentials: true, config: { environment: "test", nip: "1111111111" } };
+    const ui = within(render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DestinationForm destination={k} testAfterSave onSaved={() => {}} onCancel={() => {}} />
+      </QueryClientProvider>,
+    ).container);
+    await waitFor(() => expect(ui.getByRole("radio", { name: /^Production/ })).toBeTruthy());
+    expect(ui.getByLabelText("New KSeF token")).toBeTruthy();
+    fireEvent.click(ui.getByRole("radio", { name: /^Production/ }));
+    expect(ui.getByRole("button", { name: "Save and send a test" })).toBeDisabled();
+  });
+
   it("offers Reconnect for an account whose Google access was removed", async () => {
     linked.listLinkedAccounts.mockResolvedValue({ available: true, accounts: [{ ...account, status: "reconnect" }] });
     const ui = newForm();

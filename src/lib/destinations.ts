@@ -21,6 +21,9 @@ function webAddress(v: unknown): string | null {
   }
 }
 
+/** An environment this build does not know is left out, never shown as one it knows. */
+const KSEF_ENV: Record<string, string> = { test: "Test", demo: "Demo", production: "Production" };
+
 const WHERE: Record<string, (c: Record<string, unknown>) => string> = {
   sftp: (c) => parts("SFTP", text(c.host), folder(c.remotePath)),
   ftps: (c) => parts("FTPS", text(c.host), folder(c.remotePath)),
@@ -30,6 +33,8 @@ const WHERE: Record<string, (c: Record<string, unknown>) => string> = {
   google_drive: (c) => parts("Google Drive", folder(c.folderName)),
   microsoft_onedrive: (c) => parts("OneDrive", folder(c.itemName)),
   google_sheets: (c) => parts("Google Sheets", text(c.spreadsheetName), text(c.sheetName) ? `tab ${text(c.sheetName)}` : null),
+  ksef: (c) => [["KSeF", Object.hasOwn(KSEF_ENV, String(c.environment)) ? KSEF_ENV[String(c.environment)] : null].filter(Boolean).join(" "),
+    text(c.nip) && `NIP ${text(c.nip)}`].filter(Boolean).join(" · "),
 };
 
 export function destinationWhere(d: Pick<Destination, "protocol" | "config">): string {

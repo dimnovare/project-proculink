@@ -80,7 +80,7 @@ export function keepsSummary(kept: number, total: number, tables = 0): string {
 }
 
 const DESTINATION_NOUNS: Record<string, string> = {
-  email: "email", sftp: "server", ftps: "server", s3: "bucket", http: "web address", google_drive: "Drive folder", google_sheets: "sheet", microsoft_onedrive: "OneDrive folder",
+  email: "email", sftp: "server", ftps: "server", s3: "bucket", http: "web address", google_drive: "Drive folder", google_sheets: "sheet", microsoft_onedrive: "OneDrive folder", ksef: "KSeF",
 };
 /** "{flow} email" … per protocol; `{flow} destination` for a protocol not listed. */
 export function destinationNameFor(protocol: string, flowName: string): string {

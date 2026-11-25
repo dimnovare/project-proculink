@@ -126,6 +126,14 @@ describe("DocumentOutputsPanel", () => {
     expect(panel.queryByRole("link", { name: "Open in Advanced" })).toBeNull();
   });
 
+  it("a KSeF delivery KSeF holds shows KSeF's answer and no destination to fix", async () => {
+    api.listOutputs.mockResolvedValue([{ id: "o", flowId: "f", name: "Totals", format: "xml", tableKey: null, destinationId: "dest-1", template: {}, createdAt: "" }]);
+    api.listDeliveries.mockResolvedValue([{ id: "x", outputName: "Totals", protocol: "ksef", status: "dead_letter", attempts: 1, lastError: "KSeF already has this invoice.", fileName: null, deliveredAt: null, remoteMayHold: true }]);
+    const panel = within(renderPanel().container);
+    expect(await panel.findByText("KSeF already has this invoice.")).toBeInTheDocument();
+    expect(panel.queryByRole("link", { name: "Fix the destination" })).toBeNull();
+  });
+
   it("does not promise a send on a document that can no longer be sent", async () => {
     api.listDeliveries.mockResolvedValue([]);
     const panel = within(render(<QueryClientProvider client={new QueryClient()}>

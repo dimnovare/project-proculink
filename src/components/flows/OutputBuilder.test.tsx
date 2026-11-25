@@ -3,7 +3,7 @@ import { act, render, screen, fireEvent, waitFor, within } from "@testing-librar
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { OutputNode, OutputNodeTemplate } from "@/lib/api/types";
 import { OutputBuilder } from "./OutputBuilder";
-import { FLAGGED, STANDARD_OUTPUTS, kindGroup, standardFamilies } from "@/lib/standardOutputs";
+import { FLAGGED, KSEF, STANDARD_OUTPUTS, kindGroup, standardFamilies } from "@/lib/standardOutputs";
 
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 const api = vi.hoisted(() => ({
@@ -139,9 +139,11 @@ describe("OutputBuilder", () => {
     expect(credit.getAttribute("aria-expanded")).toBe("true");
     expect(document.activeElement?.getAttribute("aria-label")).toBe("Use Peppol BIS Billing (credit note)");
     fireEvent.click(screen.getByRole("button", { name: "Other standards (4)" }));
-    expect(screen.getAllByRole("button", { name: /^Use / })).toHaveLength(STANDARD_OUTPUTS.length);
+    // KSeF is behind its own switch, off on this flow
+    const peppolOnly = STANDARD_OUTPUTS.filter((id) => !KSEF.has(id));
+    expect(screen.getAllByRole("button", { name: /^Use / })).toHaveLength(peppolOnly.length);
     const all = [...standardFamilies(true).invoices.flatMap((f) => [f.id, f.creditNote]), ...standardFamilies(true).orders.map((f) => f.id)];
-    expect(all.sort()).toEqual([...STANDARD_OUTPUTS].sort());
+    expect(all.sort()).toEqual(peppolOnly.sort());
     r.unmount();
     // an orders flow: the credit-note versions sit inside "Other standards", after the invoice families they belong to
     const o = renderBuilder({ flow: { ...invoiceFlow, peppolOn: true }, kind: "Purchase order" });
@@ -174,15 +176,15 @@ describe("OutputBuilder", () => {
   });
 
   it("every offered standard is listed exactly once, whatever the flow's kind and e-invoice switch", () => {
-    for (const peppolOn of [true, false])
+    for (const [peppolOn, ksefOn] of [[true, false], [false, true]])
       for (const kind of ["Invoice", "Purchase order", null]) {
-        const r = renderBuilder({ flow: { ...invoiceFlow, peppolOn }, kind });
+        const r = renderBuilder({ flow: { ...invoiceFlow, peppolOn, ksefOn }, kind });
         fireEvent.click(screen.getByRole("button", { name: "A standard format" }));
         let closed: HTMLElement | undefined;
         while ((closed = screen.queryAllByRole("button", { expanded: false })[0])) fireEvent.click(closed);
         // Each row read back to the standard it makes, so one id under two names plus one missing cannot pass.
         const ids = screen.getAllByRole("button", { name: /^Use / }).map((b) => b.getAttribute("data-standard"));
-        const offered = STANDARD_OUTPUTS.filter((id) => peppolOn || !FLAGGED.has(id));
+        const offered = STANDARD_OUTPUTS.filter((id) => (peppolOn || !FLAGGED.has(id)) && (ksefOn || !KSEF.has(id)));
         expect([...ids].sort(), `${kind} ${peppolOn}`).toEqual([...offered].sort());
         r.unmount();
       }

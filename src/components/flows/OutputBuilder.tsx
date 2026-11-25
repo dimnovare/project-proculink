@@ -55,7 +55,7 @@ function Fold({ label, line, children }: { label: string; line: string; children
 export function StandardList({ flow, kind, onUse, busyId, pickedId }: {
   flow: Flow; kind: string | null; onUse(s: StandardSupport): void; busyId: string | null; pickedId?: string | null;
 }) {
-  const fams = standardFamilies(flow.peppolOn);
+  const fams = standardFamilies(flow.peppolOn, flow.ksefOn);
   // The documents' own group even when it has no standard here: the other group then stays folded and named,
   // so an invoice is never offered an order format as if it fit.
   const fit = kindGroup(kind);

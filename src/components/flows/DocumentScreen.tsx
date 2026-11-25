@@ -32,7 +32,8 @@ import { COPY, documentRefusalMessage, rateLimited, refusalToken } from "@/lib/d
 import { LIMIT_CODES } from "@/lib/limitRefusal";
 import { isPlanGateError } from "@/lib/planGate";
 import { DOCUMENT_STATUSES, documentStatus } from "@/lib/documentStatusManifest";
-import type { DocumentDetail, DocumentPage, Flow, SourceLocation, TeachRequest } from "@/lib/api/documents";
+import type { DocumentDetail, DocumentPage, Flow, KsefSummary, SourceLocation, TeachRequest } from "@/lib/api/documents";
+import { useConfirm } from "@/components/ui/confirm";
 import { DocumentOutputsPanel } from "./DocumentOutputsPanel";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { INPUT } from "./DestinationForm";
@@ -287,6 +288,34 @@ function sendRefusal(e: unknown, flowId: string): { text: string; wayOn: ReactNo
   return { text: documentRefusalMessage(e), wayOn: null };
 }
 
+/** A KSeF Production send waiting for a person (plan 33): the summaries and the confirmation, or null when the refusal is not one
+ *  or its body is not the shape this build knows (then the refusal is said as words, and nothing is issued). */
+function ksefAsk(e: unknown): { summaries: KsefSummary[]; confirm: string } | null {
+  const b = e instanceof ApiHttpError && refusalToken(e) === "ksef_confirm" ? (e.body as { summaries?: unknown; confirm?: unknown }) : null;
+  return b && Array.isArray(b.summaries) && b.summaries.length > 0 && typeof b.confirm === "string" && b.confirm
+    ? { summaries: b.summaries as KsefSummary[], confirm: b.confirm } : null;
+}
+
+/** C5.7: the values a person checks against the document before it is issued. */
+function KsefRows({ s }: { s: KsefSummary }) {
+  const rows: [string, string][] = [
+    ["Seller", `${s.sellerName}, NIP ${s.sellerNip}`],
+    ["Buyer", [s.buyerName, s.buyerId].filter(Boolean).join(", ")],
+    ["Invoice number", s.number],
+    ["Issue date", s.issueDate],
+    ...(s.saleDate ? [["Sale date", s.saleDate] as [string, string]] : []),
+    ...s.rates.map((r): [string, string] => [`VAT ${r.rate}%`, `net ${r.net} / VAT ${r.vat} ${s.currency}`]),
+    ["Total", `${s.gross} ${s.currency}`],
+    ["Number of lines", String(s.lines)],
+    ["Buyer is a local government unit or VAT group member", "No"],
+  ];
+  return (
+    <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[13px]">
+      {rows.map(([k, v]) => <div key={k} className="contents"><dt className="text-ink-muted">{k}</dt><dd className="m-0 font-medium text-ink">{v}</dd></div>)}
+    </dl>
+  );
+}
+
 /** The route's component: everything below is keyed by the document, so nothing carries over to the next one. */
 export function DocumentScreen(p: { flowId: string; documentId: string }) {
   return <Review key={p.documentId} {...p} />;
@@ -397,11 +426,12 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
     const n = qc.getQueryData<string>(REVIEW_NOTE_KEY);
     if (n) { qc.removeQueries({ queryKey: REVIEW_NOTE_KEY }); setSentNote(n); }
   }, [qc]);
+  const confirm = useConfirm();
   const send = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (ksefConfirm?: string) => {
       const before = qc.getQueryData<DocumentPage>(reviewQueueQuery.queryKey)?.items;
       await saved();
-      return { before, went: await sendDocument(documentId) };
+      return { before, went: await (ksefConfirm ? sendDocument(documentId, ksefConfirm) : sendDocument(documentId)) };
     },
     onSuccess: async ({ before, went }) => {
       // Only made files to download, sent nowhere: stay, and the screen shows the file and the way on.
@@ -426,6 +456,22 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
       router.replace(next ? documentHref(next) : documentsAddress("needs-you"));
     },
     onError: (e) => {
+      // A KSeF Production send: a person checks what is issued, and only a yes sends it, with that confirmation.
+      const ask = ksefAsk(e);
+      if (ask) {
+        void confirm({
+          title: "Issue this invoice in KSeF?",
+          description: `You are issuing this invoice in the National e-Invoice System (KSeF) in the name of ${ask.summaries[0].sellerName}, NIP ${ask.summaries[0].sellerNip}. Once KSeF accepts it, it is an issued invoice: it can't be withdrawn, only corrected with a correcting invoice. Check these values against your document:`,
+          details: <div className="grid gap-3">{ask.summaries.map((s, i) => <KsefRows key={i} s={s} />)}</div>,
+          confirmLabel: "Issue in KSeF",
+          cancelLabel: "Not now",
+        }).then((yes) => {
+          if (!yes || pressed.current) return;
+          pressed.current = true;
+          send.mutate(ask.confirm, { onError: () => { pressed.current = false; } });
+        });
+        return;
+      }
       // A refusal may mean the document moved under us: it and the lists are refreshed. A rate limit leaves it ready.
       if (e === UNSAVED || refusalToken(e) === null || rateLimited(e)) return;
       for (const queryKey of [["document", documentId], ["documents"]]) qc.invalidateQueries({ queryKey });
@@ -436,7 +482,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   });
   // A second press before the first one re-renders does nothing; after a success the screen is leaving, so none does.
   const pressed = useRef(false);
-  const press = (m: typeof send | typeof skip) => {
+  const press = (m: { mutate(v: undefined, o: { onError(): void }): void }) => {
     if (pressed.current) return;
     pressed.current = true;
     send.reset();
@@ -484,7 +530,8 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
     : <Link replace href={documentHref(next)} className={`${buttonClass(here || summary?.status === "read_failed" ? "secondary" : "send", "md")} ${cls}`}>Review next</Link>);
   const located = !!marks?.places.length || !!doc.data?.read.fields.some((f) => f.location?.box || f.location?.address)
     || !!doc.data?.read.tables.some((t) => t.rows.some((r) => Object.values(r.cells).some((c) => c.location?.box || c.location?.address)));
-  const refused = send.error ?? skip.error ?? download.error;
+  // A KSeF confirmation is asked in its dialog, not said as a refusal.
+  const refused = (ksefAsk(send.error) ? null : send.error) ?? skip.error ?? download.error;
   const failedCodes = doc.data?.checks.filter((c) => !c.passed).map((c) => c.code) ?? [];
   // A sent document says what its own files did once they are known; until then only that it is finished, never "Sent".
   const finished = summary?.status === "sent" && status?.label === DOCUMENT_STATUSES.sent.label;

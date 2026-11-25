@@ -35,6 +35,8 @@ import { buttonClass } from "@/components/bridge/DSPrimitives";
 export interface ConfirmOptions {
   title: string;
   description?: ReactNode;
+  /** Shown under the description, outside its paragraph: a list or a table. */
+  details?: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   /** Destructive actions (delete / revoke / clear) get a red confirm button. */
@@ -82,6 +84,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
               <AlertDialogDescription>{opts.description}</AlertDialogDescription>
             )}
           </AlertDialogHeader>
+          {opts.details}
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => settle(false)} className={buttonClass("secondary", "md")}>
               {opts.cancelLabel ?? "Cancel"}

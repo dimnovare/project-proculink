@@ -92,7 +92,7 @@ export function ChooseFile({ flowId }: { flowId: string }) {
 
   const type = outputTypeLabel(output);
   // B-13: the standards line follows the documents' kind, as the list below it does.
-  const fams = standardFamilies(f.peppolOn);
+  const fams = standardFamilies(f.peppolOn, f.ksefOn);
   const fit = kindGroup(doc.data?.read?.kindLabel ?? null);
   const fitting = fit ? fams[fit] : [...fams.invoices, ...fams.orders];
   // Neither group is ever empty: the Factur-X invoice and the order standards ship to every workspace.
