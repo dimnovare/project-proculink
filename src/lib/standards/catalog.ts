@@ -269,6 +269,62 @@ export const STANDARDS: StandardSupport[] = [
     referenceUrl: "https://xeinkauf.de/xrechnung/",
   },
   {
+    id: "factur-x-en16931",
+    name: "ZUGFeRD / Factur-X EN 16931 (invoice)",
+    version: "2.x",
+    family: "xml",
+    parse: "none",
+    transform: "partial",
+    transport: "Email or direct exchange — ProcuLink does not provide the transport",
+    conformance:
+      "Outbound: a PDF/A-3 we draw from the values read, with the EN 16931 CII file inside, behind the per-org flag. " +
+      "The file inside is checked on demand against the EN 16931 rules by the validator sidecar — a rule check, not network acceptance. " +
+      "No document has been accepted by a trading partner.",
+    referenceUrl: "https://www.ferd-net.de/en/standards/zugferd",
+  },
+  {
+    id: "factur-x-en16931-credit-note",
+    name: "ZUGFeRD / Factur-X EN 16931 (credit note)",
+    version: "2.x",
+    family: "xml",
+    parse: "none",
+    transform: "partial",
+    transport: "Email or direct exchange — ProcuLink does not provide the transport",
+    conformance:
+      "Outbound: a PDF/A-3 we draw from the values read, with the EN 16931 CII file inside, behind the per-org flag. " +
+      "The file inside is checked on demand against the EN 16931 rules by the validator sidecar — a rule check, not network acceptance. " +
+      "No document has been accepted by a trading partner.",
+    referenceUrl: "https://www.ferd-net.de/en/standards/zugferd",
+  },
+  {
+    id: "zugferd-xrechnung",
+    name: "ZUGFeRD XRechnung (invoice)",
+    version: "3.0",
+    family: "xml",
+    parse: "none",
+    transform: "partial",
+    transport: "Email or direct exchange — ProcuLink does not provide the transport",
+    conformance:
+      "Outbound: a PDF/A-3 we draw from the values read, with the XRechnung CII file inside, behind the per-org flag. " +
+      "The file inside is checked on demand against the XRechnung rules by the validator sidecar — a rule check, not network acceptance. " +
+      "No document has been accepted by a trading partner.",
+    referenceUrl: "https://www.ferd-net.de/en/standards/zugferd",
+  },
+  {
+    id: "zugferd-xrechnung-credit-note",
+    name: "ZUGFeRD XRechnung (credit note)",
+    version: "3.0",
+    family: "xml",
+    parse: "none",
+    transform: "partial",
+    transport: "Email or direct exchange — ProcuLink does not provide the transport",
+    conformance:
+      "Outbound: a PDF/A-3 we draw from the values read, with the XRechnung CII file inside, behind the per-org flag. " +
+      "The file inside is checked on demand against the XRechnung rules by the validator sidecar — a rule check, not network acceptance. " +
+      "No document has been accepted by a trading partner.",
+    referenceUrl: "https://www.ferd-net.de/en/standards/zugferd",
+  },
+  {
     id: "sap-idoc-orders05",
     name: "SAP IDoc ORDERS05",
     version: "ORDERS05 (basic type)",

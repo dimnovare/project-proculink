@@ -129,10 +129,10 @@ describe("OutputBuilder", () => {
     fireEvent.click(screen.getByRole("button", { name: "A standard format" }));
     const uses = (el: HTMLElement) => within(el).getAllByRole("button", { name: /^Use / }).map((b) => b.getAttribute("aria-label"));
     const fit = screen.getByRole("heading", { name: "For invoices and credit notes, like the documents in this flow" }).parentElement!;
-    expect(uses(fit)).toEqual(["Use Peppol BIS Billing", "Use EN 16931 CII", "Use XRechnung UBL", "Use XRechnung CII"]);
-    expect(screen.getByText("The same four, for credit notes.")).toBeTruthy();
+    expect(uses(fit)).toEqual(["Use Peppol BIS Billing", "Use EN 16931 CII", "Use XRechnung UBL", "Use XRechnung CII", "Use ZUGFeRD / Factur-X EN 16931", "Use ZUGFeRD XRechnung"]);
+    expect(screen.getByText("The same six, for credit notes.")).toBeTruthy();
     expect(screen.getByText("For orders: cXML, UBL Order, EDIFACT ORDERS and ANSI X12 850.")).toBeTruthy();
-    const credit = screen.getByRole("button", { name: "Credit note versions (4)" });
+    const credit = screen.getByRole("button", { name: "Credit note versions (6)" });
     expect(credit.getAttribute("aria-expanded")).toBe("false");
     expect(screen.queryByRole("button", { name: /credit note\)$/ })).toBeNull();
     fireEvent.click(credit);
@@ -146,12 +146,12 @@ describe("OutputBuilder", () => {
     // an orders flow: the credit-note versions sit inside "Other standards", after the invoice families they belong to
     const o = renderBuilder({ flow: { ...invoiceFlow, peppolOn: true }, kind: "Purchase order" });
     fireEvent.click(screen.getByRole("button", { name: "A standard format" }));
-    expect(screen.queryByRole("button", { name: "Credit note versions (4)" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Other standards (4)" }));
-    const others = screen.getByRole("button", { name: "Other standards (4)" }).parentElement!.parentElement!;
-    expect(uses(others)).toEqual(["Use Peppol BIS Billing", "Use EN 16931 CII", "Use XRechnung UBL", "Use XRechnung CII"]);
-    fireEvent.click(within(others).getByRole("button", { name: "Credit note versions (4)" }));
-    expect(uses(others)).toHaveLength(8);
+    expect(screen.queryByRole("button", { name: "Credit note versions (6)" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Other standards (6)" }));
+    const others = screen.getByRole("button", { name: "Other standards (6)" }).parentElement!.parentElement!;
+    expect(uses(others)).toEqual(["Use Peppol BIS Billing", "Use EN 16931 CII", "Use XRechnung UBL", "Use XRechnung CII", "Use ZUGFeRD / Factur-X EN 16931", "Use ZUGFeRD XRechnung"]);
+    fireEvent.click(within(others).getByRole("button", { name: "Credit note versions (6)" }));
+    expect(uses(others)).toHaveLength(12);
     o.unmount();
     // e-invoices off: the fitting group is empty, so the order standards stay folded and named as such, never offered
     // to an invoice flow as if they fit it
