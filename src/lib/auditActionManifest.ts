@@ -846,6 +846,16 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     note: "",
   },
   {
+    action: "document.ksef_issue_confirmed",
+    // A person confirmed issuing the invoice in KSeF Production (plan 33): their decision, recorded before the send.
+    kind: "validated",
+    label: "KSeF issue confirmed",
+    reachable: true,
+    backendSite: "ProcuLink.Api/Services/Documents/DocumentSender.cs:119",
+    reasonKeys: [],
+    note: "",
+  },
+  {
     action: "document.delivered",
     kind: "delivered",
     label: "Delivered",
