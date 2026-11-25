@@ -201,6 +201,35 @@ describe("DestinationForm", () => {
     });
   });
 
+  it("KSeF destination starts on Test and needs the issuer tick for Production", async () => {
+    linked.listLinkedAccounts.mockResolvedValue({ available: false, ksefAvailable: true, accounts: [] });
+    const created: Destination = { ...saved, id: "k1", name: "KSeF", protocol: "ksef", config: { environment: "test", nip: "1111111111" } };
+    api.createDestination.mockClear().mockResolvedValue(created);
+    const ui = newForm();
+    await waitFor(() => expect(kinds(ui)).toContain("KSeF"));
+    fireEvent.change(ui.getByLabelText("Send by"), { target: { value: "ksef" } });
+    expect(ui.queryByRole("radio", { name: /^Production/ })).toBeNull();
+    expect(ui.getByRole("radio", { name: /^Test:/ })).toBeChecked();
+    for (const [label, value] of [["Name", "KSeF"], ["NIP", "1111111111"], ["KSeF token", "t"]])
+      fireEvent.change(ui.getByLabelText(label), { target: { value } });
+    fireEvent.click(ui.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(api.createDestination).toHaveBeenCalledTimes(1));
+    expect(api.createDestination.mock.calls[0][0]).toEqual({
+      name: "KSeF", protocol: "ksef", config: { environment: "test", nip: "1111111111" }, credentials: { token: "t" },
+    });
+    // the saved destination is now edited: Production is offered, and Save waits for the issuer tick
+    api.updateDestination.mockClear().mockResolvedValue({ ...created, config: { environment: "production", nip: "1111111111" } });
+    fireEvent.click(ui.getByRole("radio", { name: /^Production/ }));
+    const save = ui.getByRole("button", { name: "Save" });
+    expect(save).toBeDisabled();
+    fireEvent.click(save);
+    expect(api.updateDestination).not.toHaveBeenCalled();
+    fireEvent.click(ui.getByRole("checkbox", { name: /^I confirm that every invoice sent from this destination/ }));
+    fireEvent.click(save);
+    await waitFor(() => expect(api.updateDestination).toHaveBeenCalledTimes(1));
+    expect(api.updateDestination.mock.calls[0][1].config).toEqual({ environment: "production", nip: "1111111111", acceptedIssuerTerms: true });
+  });
+
   it("offers Reconnect for an account whose Google access was removed", async () => {
     linked.listLinkedAccounts.mockResolvedValue({ available: true, accounts: [{ ...account, status: "reconnect" }] });
     const ui = newForm();

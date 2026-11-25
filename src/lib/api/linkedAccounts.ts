@@ -14,8 +14,8 @@ import { readRefusal } from "./refusal";
 /** `status` is "active" or "reconnect" (Google access was removed). Kept a string: a newer value is never coerced. */
 export interface LinkedAccount { id: string; provider: string; email: string; status: string; createdAt: string }
 // Named types, not inline ones: the backend's reachability scanner reads `apiFetch<T>(` only when T has no braces.
-/** `available` is Google's; `microsoftAvailable` is absent on an older backend, which means hidden. */
-export interface LinkedAccountList { available: boolean; microsoftAvailable?: boolean; accounts: LinkedAccount[] }
+/** `available` is Google's; `microsoftAvailable` and `ksefAvailable` are absent on an older backend, which means hidden. */
+export interface LinkedAccountList { available: boolean; microsoftAvailable?: boolean; ksefAvailable?: boolean; accounts: LinkedAccount[] }
 /** The backend's `LinkedAccount.Provider` values: `outlook` is a mailbox, `microsoft` saves files to OneDrive. */
 export type LinkedProvider = "google" | "outlook" | "microsoft";
 export interface GoogleConnected { account: LinkedAccount; returnTo: string | null }

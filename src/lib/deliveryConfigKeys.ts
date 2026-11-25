@@ -49,4 +49,5 @@ export const MANAGED_CONFIG_KEYS: Record<DeliveryProtocol, readonly string[]> = 
   google_drive: ["accountId", "folderId", "folderName"],
   google_sheets: ["accountId", "spreadsheetId", "spreadsheetName", "sheetName"],
   microsoft_onedrive: ["accountId", "link", "driveId", "itemId", "itemName"],
+  ksef: ["nip", "environment"],
 };

@@ -12,7 +12,7 @@ import { MANAGED_CONFIG_KEYS } from "@/lib/deliveryConfigKeys";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { GoogleTargetFields, useLinkedAccounts } from "./GoogleTargetFields";
 
-type Kind = "text" | "number" | "check" | "method";
+type Kind = "text" | "number" | "check" | "method" | "environment";
 const CONFIG_FIELDS: Record<string, [label: string, kind: Kind]> = {
   url: ["Web address", "text"],
   method: ["Request method", "method"],
@@ -32,15 +32,17 @@ const CONFIG_FIELDS: Record<string, [label: string, kind: Kind]> = {
   region: ["Region", "text"],
   serviceUrl: ["Endpoint URL", "text"],
   accessKeyId: ["Access key ID", "text"],
+  nip: ["NIP", "text"],
+  environment: ["KSeF environment", "environment"],
   // No attachmentFileName box: a flow send always names the attachment after the document.
 };
 
 /** The common places first; the server kinds are grouped under "A server or another system" (plan 16a R17). */
 const PROTOCOLS = {
   email: "Email", google_drive: "Google Drive", google_sheets: "Google Sheets", microsoft_onedrive: "OneDrive",
-  sftp: "SFTP", ftps: "FTPS", s3: "S3 bucket", http: "Web address (API)",
+  sftp: "SFTP", ftps: "FTPS", s3: "S3 bucket", http: "Web address (API)", ksef: "KSeF",
 } as const;
-const SERVER = new Set(["sftp", "ftps", "s3", "http"]);
+const SERVER = new Set(["sftp", "ftps", "s3", "http", "ksef"]);
 type Protocol = keyof typeof PROTOCOLS;
 const isGoogle = (p: string): p is "google_drive" | "google_sheets" => p === "google_drive" || p === "google_sheets";
 /** Sends through a connected account (Google, or Microsoft for OneDrive), so it has no login of its own. */
@@ -54,7 +56,16 @@ const DEFAULTS: Record<Protocol, Record<string, unknown>> = {
   google_drive: {},
   google_sheets: {},
   microsoft_onedrive: {},
+  ksef: { environment: "test" },
 };
+/** Production is offered only on an edit; an unknown or absent environment checks no option (plan 33). */
+const KSEF_ENVIRONMENTS = {
+  test: "Test: fictitious data, no legal effect",
+  demo: "Demo: your own token, fictitious invoices, no legal effect",
+  production: "Production: real invoices with legal effect",
+};
+const ISSUER_TICK = "I confirm that every invoice sent from this destination is issued in KSeF in my company's name. My company is the issuer and is responsible for each invoice's content and for checking it before it is sent. Each one is sent only when a person confirms it.";
+const KSEF_TOKEN_HELP = "Paste a KSeF token made for this NIP in Aplikacja Podatnika KSeF, with permission to issue invoices. We keep it encrypted and use it only to test the sign-in and to send invoices a person confirms. It is never shown again. Tokens expire; when yours does, sends stop with a message and you paste a new one. If you give your buyer a printed or PDF copy of an invoice issued in KSeF, it must carry the KSeF QR code; ProcuLink doesn't add it.";
 
 type CredField = [key: string, label: string];
 const LOGIN: CredField[] = [["username", "Username"], ["password", "Password"]];
@@ -65,6 +76,7 @@ const HTTP_AUTH: Record<string, CredField[]> = {
   basic: LOGIN,
 };
 const S3_SECRET: CredField[] = [["secretKey", "Secret access key"]];
+const KSEF_TOKEN: CredField[] = [["token", "KSeF token"]];
 const AUTH_LABEL = { bearer: "Bearer token", apikey: "API key", basic: "Username and password" };
 /** Secrets: with a login saved, the box asks for a new one. */
 const SECRETS = new Set(["password", "token", "value", "secretKey", "privateKey"]);
@@ -82,6 +94,7 @@ const TEST_NOTE: Record<string, string> = {
   email: "The test email's subject starts with [TEST], so it is easy to spot.",
   http: "The test request carries the header X-ProcuLink-Test, so it is easy to spot.",
   google_sheets: "The test checks that ProcuLink can open the spreadsheet and the tab you chose. It adds no rows.",
+  ksef: "A test only signs in to KSeF with your token. It never sends an invoice.",
 };
 
 export const INPUT_BASE = "w-full rounded-md border border-border-strong bg-surface px-3 text-[14px] font-medium text-ink";
@@ -138,16 +151,20 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
   const linked = useLinkedAccounts().data;
   const googleOn = linked?.available === true;
   const microsoftOn = linked?.microsoftAvailable === true;
+  const ksefOn = linked?.ksefAvailable === true;
+  const [issuer, setIssuer] = useState(false);
 
   const credFields: CredField[] =
-    protocol === "http" ? HTTP_AUTH[auth] : protocol === "email" || isLinked(protocol) ? [] : protocol === "s3" ? S3_SECRET : protocol === "sftp" ? SFTP_LOGIN : LOGIN;
+    protocol === "http" ? HTTP_AUTH[auth] : protocol === "email" || isLinked(protocol) ? [] : protocol === "s3" ? S3_SECRET : protocol === "ksef" ? KSEF_TOKEN : protocol === "sftp" ? SFTP_LOGIN : LOGIN;
   const keys = MANAGED_CONFIG_KEYS[protocol] ?? [];
 
   const typed = Object.fromEntries(credFields.filter(([k]) => creds[k]?.trim()).map(([k]) => [k, creds[k]]));
   if (typed.privateKey) delete typed.password;
   // Saving replaces the stored login wholesale, so a half-filled one must never be sent.
-  const required = protocol === "http" || protocol === "s3" ? credFields.map(([k]) => k) : typed.privateKey ? ["username", "privateKey"] : ["username", "password"];
+  const required = protocol === "http" || protocol === "s3" || protocol === "ksef" ? credFields.map(([k]) => k) : typed.privateKey ? ["username", "privateKey"] : ["username", "password"];
   const loginIncomplete = Object.keys(typed).length > 0 && required.some((k) => !typed[k]);
+  // Switching a KSeF destination to Production needs the issuer tick, which the save carries (plan 33, C5.4).
+  const toProduction = protocol === "ksef" && config.environment === "production" && current?.config?.environment !== "production";
 
   const test = useMutation({
     mutationFn: (id: string) => testDestination(id),
@@ -180,8 +197,9 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
     const kept = Object.hasOwn(PROTOCOLS, protocol)
       ? Object.fromEntries(Object.entries(config).filter(([k, v]) => v !== "" && (keys.includes(k) || !(k in CONFIG_FIELDS))))
       : config;
+    if (toProduction && !issuer) return;
     busy.current = true;
-    save.mutate({ name: name.trim(), protocol, config: kept, credentials });
+    save.mutate({ name: name.trim(), protocol, config: toProduction ? { ...kept, acceptedIssuerTerms: true } : kept, credentials });
   }
 
   // A passed test belongs to the settings it tested: any edit after a save un-tests it until it is saved and tested again.
@@ -190,6 +208,24 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
   const configField = (key: string) => {
     const [label, kind] = CONFIG_FIELDS[key];
     const value = config[key];
+    if (kind === "environment")
+      return (
+        <fieldset key={key} className="col-span-full grid gap-1.5">
+          <legend className="mb-1.5 text-[13px] font-semibold text-ink-muted">{label}</legend>
+          {Object.entries(KSEF_ENVIRONMENTS).filter(([id]) => id !== "production" || current).map(([id, text]) => (
+            <label key={id} className="flex items-center gap-2 text-[13px] text-ink">
+              <input type="radio" name={`${hintId}-${key}`} checked={value === id} onChange={() => { setIssuer(false); setValue(key, id); }} />
+              {text}
+            </label>
+          ))}
+          {toProduction && (
+            <label className="flex items-start gap-2 text-[13px] text-ink">
+              <input type="checkbox" className="mt-0.5" checked={issuer} onChange={(e) => setIssuer(e.target.checked)} />
+              {ISSUER_TICK}
+            </label>
+          )}
+        </fieldset>
+      );
     if (kind === "check")
       return (
         <label key={key} className="flex items-center gap-2 text-[13px] text-ink">
@@ -247,7 +283,8 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
   const fields = keys.filter((k) => k in CONFIG_FIELDS);
   const folded = [...fields.filter((k) => FOLDED.has(k)).map(configField), ...credFields.filter(([k]) => FOLDED.has(k)).map(credField)];
   const note = TEST_NOTE[protocol];
-  const offered = Object.entries(PROTOCOLS).filter(([id]) => (chosen ? chosen.protocols.includes(id) : (isGoogle(id) ? googleOn : id !== "microsoft_onedrive" || microsoftOn) || id === protocol));
+  const offered = Object.entries(PROTOCOLS).filter(([id]) => (chosen ? chosen.protocols.includes(id)
+    : (isGoogle(id) ? googleOn : id === "microsoft_onedrive" ? microsoftOn : id !== "ksef" || ksefOn) || id === protocol));
 
   const body = (
     // Not a <form>: this sits inside the output and draft-review forms, and a nested form's Save
@@ -296,6 +333,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
       )}
       {credFields.filter(([k]) => !FOLDED.has(k)).map(credField)}
       {protocol === "http" && <p className="col-span-full text-[13px] text-ink-muted">Leave blank if the address needs no login.</p>}
+      {protocol === "ksef" && <p className="col-span-full text-[13px] text-ink-muted">{KSEF_TOKEN_HELP}</p>}
       {current?.hasCredentials && credFields.length > 0 && (
         <p className="col-span-full text-[13px] text-ink-muted">A login is saved. Leave the login boxes blank to keep it.</p>
       )}
@@ -311,7 +349,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
         {testAfterSave ? (
           <Button type="button" variant={chosen && (saved || chosen.outlined) ? "secondary" : filled} loading={save.isPending || test.isPending} onClick={submit}>Save and send a test</Button>
         ) : (
-          <Button type="button" variant={filled} loading={save.isPending} onClick={submit}>Save</Button>
+          <Button type="button" variant={filled} loading={save.isPending} disabled={toProduction && !issuer} onClick={submit}>Save</Button>
         )}
         <Button type="button" variant="ghost" onClick={onCancel}>{saved ? "Close" : "Cancel"}</Button>
         {!testAfterSave && (
