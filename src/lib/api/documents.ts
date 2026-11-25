@@ -308,6 +308,9 @@ export function listDocumentPage(params: {
 }
 
 export const getDocument = (id: string) => apiFetch<DocumentDetail>(`/documents/${seg(id)}`);
+/** Whether the buyer can receive Peppol invoices (Peppol switch only). `status` is a string, not a union: an unrecognised one renders as "couldn't check". */
+export interface PeppolReceiver { status: string; participant: string | null; derived: boolean; invoice: boolean | null; creditNote: boolean | null }
+export const getPeppolReceiver = (documentId: string) => apiFetch<PeppolReceiver>(`/documents/${seg(documentId)}/peppol-receiver`);
 export const editDocumentValues = (id: string, edits: EditValuesRequest) =>
   apiFetch<DocumentDetail>(`/documents/${seg(id)}/values`, { method: "PATCH", body: json(edits) });
 export const teachDocument = (id: string, req: TeachRequest) =>

@@ -21,6 +21,7 @@ import { saveBlob } from "@/lib/saveBlob";
 import { changeFileAddress } from "@/lib/flowSteps";
 import { makeFileLabel } from "./fileChoice";
 import { LookupMisses } from "./LookupMisses";
+import { PeppolReceiverLine } from "./PeppolReceiverLine";
 import { outputTypeLabel } from "./OutputEditor";
 import { Failed, Loading } from "./states";
 
@@ -82,10 +83,12 @@ const openOutputs = (): string[] => {
 };
 
 // Owns its own preview so opening one output never replaces another's.
-function OutputRow({ o, flowId, documentId, flowFields, destinations, live }: {
+function OutputRow({ o, flowId, documentId, flowFields, destinations, live, peppolOn }: {
   o: FlowOutput; flowId: string; documentId: string; flowFields: Flow["fields"] | undefined; destinations: readonly { id: string; name: string }[] | undefined;
   /** The values can still change: an open preview is made again after each saved change. */
   live: boolean;
+  /** The Peppol switch: a Peppol BIS output then says whether the buyer can receive it. */
+  peppolOn: boolean;
 }) {
   const enabled = useTenantQueriesEnabled();
   const [open, setOpen] = useState(() => openOutputs().includes(o.id));
@@ -106,6 +109,9 @@ function OutputRow({ o, flowId, documentId, flowFields, destinations, live }: {
           <span className="text-[13px] font-medium text-ink">{o.name}</span>
           <span className="text-[12.5px] text-ink-muted">{outputLine(o, destinations)}</span>
           {o.sendWhen && <span className="text-[12.5px] text-ink-muted">{describeSendWhen(o.sendWhen, flowFields)}</span>}
+          {peppolOn && (o.standard === "peppol-bis-billing-3" || o.standard === "peppol-bis-billing-3-credit-note") && (
+            <PeppolReceiverLine documentId={documentId} creditNote={o.standard === "peppol-bis-billing-3-credit-note"} />
+          )}
         </span>
         <span className="flex flex-wrap items-center gap-2">
           {open && live && <span className="text-[12.5px] text-ink-muted">{preview.isFetching ? "Updating…" : "Updates as you type"}</span>}
@@ -162,7 +168,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
         : list.length > 0 && (
           <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr))] [&>*:only-child]:col-span-full">
             {list.map((o) => (
-              <OutputRow key={o.id} o={o} flowId={flowId} documentId={documentId} flowFields={flow.data?.fields} destinations={destinations.data} live={editable} />
+              <OutputRow key={o.id} o={o} flowId={flowId} documentId={documentId} flowFields={flow.data?.fields} destinations={destinations.data} live={editable} peppolOn={flow.data?.peppolOn === true} />
             ))}
           </div>
         )}
