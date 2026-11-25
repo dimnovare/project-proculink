@@ -210,6 +210,15 @@ export interface DocumentDelivery {
   lastError: string | null; fileName: string | null; deliveredAt: string | null;
   /** The destination's name when delivered; null when stored or gone. */
   destination?: string | null;
+  /** The receiving system's own number for it (the KSeF number); absent on an older backend. */
+  remoteReference?: string | null;
+  /** A receipt (KSeF's UPO) can be downloaded. */
+  hasReceipt?: boolean;
+}
+/** What a KSeF Production send would issue, read by the server from the file itself (plan 33); amounts as written. */
+export interface KsefSummary {
+  sellerName: string; sellerNip: string; buyerName: string | null; buyerId: string; number: string; issueDate: string;
+  saleDate: string | null; currency: string; rates: { rate: string; net: string; vat: string }[]; gross: string; lines: number; confirm: string;
 }
 
 const UPLOAD_TIMEOUT_MS = 60_000;
@@ -426,10 +435,13 @@ export const suggestLookupMatches = (documentId: string, outputId: string) =>
   }, UPLOAD_TIMEOUT_MS).then((r) => r.suggestions);
 export const deleteLookup = (id: string) => apiFetch<void>(`/lookups/${seg(id)}`, { method: "DELETE" });
 
-export const sendDocument = (id: string) => apiFetch<DocumentDelivery[]>(`/documents/${seg(id)}/send`, { method: "POST" });
+/** `ksefConfirm`: the confirmation a person gave for a KSeF Production send; the body is sent only with it. */
+export const sendDocument = (id: string, ksefConfirm?: string) =>
+  apiFetch<DocumentDelivery[]>(`/documents/${seg(id)}/send`, { method: "POST", ...(ksefConfirm && { body: json({ ksefConfirm }) }) });
 export const listDeliveries = (id: string) => apiFetch<DocumentDelivery[]>(`/documents/${seg(id)}/deliveries`);
-export const downloadDeliveryFile = (id: string, deliveryId: string) =>
-  apiFetch<Blob>(`/documents/${seg(id)}/deliveries/${seg(deliveryId)}/file`, undefined, UPLOAD_TIMEOUT_MS, "blob");
+/** `receipt`: the receiving system's receipt (KSeF's UPO) instead of the file sent. */
+export const downloadDeliveryFile = (id: string, deliveryId: string, receipt = false) =>
+  apiFetch<Blob>(`/documents/${seg(id)}/deliveries/${seg(deliveryId)}/file${receipt ? "?receipt=true" : ""}`, undefined, UPLOAD_TIMEOUT_MS, "blob");
 
 /** One row of `GET /api/audit` (`AuditController.GetAuditLog`); only the fields the Activity page reads. */
 export interface ActivityEvent {

@@ -37,11 +37,15 @@ function Deliveries({ documentId, deliveries, destinationOf }: { documentId: str
   const download = useMutation({
     mutationFn: async (d: DocumentDelivery) => saveBlob(await downloadDeliveryFile(documentId, d.id), d.fileName!),
   });
+  const receipt = useMutation({
+    mutationFn: async (d: DocumentDelivery) => saveBlob(await downloadDeliveryFile(documentId, d.id, true), `UPO-${d.remoteReference ?? d.id}.xml`),
+  });
   return (
     <>
       <h3 className="m-0 text-[12.5px] font-semibold text-ink">Deliveries</h3>
       <ul className="m-0 grid list-none gap-2 p-0">
         {download.isError && <StatusNotice tone="error">{documentRefusalMessage(download.error)}</StatusNotice>}
+        {receipt.isError && <StatusNotice tone="error">{documentRefusalMessage(receipt.error)}</StatusNotice>}
         {deliveries.map((d) => (
           <li key={d.id} className="grid gap-0.5 text-[12.5px]">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -55,6 +59,12 @@ function Deliveries({ documentId, deliveries, destinationOf }: { documentId: str
                 </Button>
               )}
             </div>
+            {d.remoteReference && <span className="text-ink">KSeF number {d.remoteReference}</span>}
+            {d.hasReceipt && (
+              <Button size="sm" variant="secondary" className="justify-self-start" loading={receipt.isPending && receipt.variables?.id === d.id} onClick={() => receipt.mutate(d)}>
+                Download UPO receipt
+              </Button>
+            )}
             {d.lastError && <span className="text-danger">{d.lastError}</span>}
             {d.status === "dead_letter" && (() => {
               const dest = destinationOf(d.outputName);
