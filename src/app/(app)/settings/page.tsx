@@ -539,7 +539,7 @@ function ApiKeysSection() {
             <input type="checkbox" checked={newCanSend} aria-describedby="api-key-send-hint" onChange={(e) => setNewCanSend(e.target.checked)} className="h-4 w-4" />
             Let it send documents
           </label>
-          <p id="api-key-send-hint" className="m-0 text-[13px] text-ink-muted">Without this, the key can add and read documents but can&apos;t send them itself. A flow set to send automatically still sends what the key adds.</p>
+          <p id="api-key-send-hint" className="m-0 text-[13px] text-ink-muted">Without this, the key can add and read documents but can&apos;t send them itself. A flow set to Check nothing still sends what the key adds.</p>
           {create.isError && <p role="alert" className="m-0 text-[13px] text-danger-text">{documentRefusalMessage(create.error)}</p>}
         </form>
       ) : (
