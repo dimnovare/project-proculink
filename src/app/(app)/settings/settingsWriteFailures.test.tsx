@@ -63,6 +63,7 @@ const key = (over: Partial<ApiKey> = {}): ApiKey => ({
   createdAt: "2026-08-01T10:00:00Z",
   lastUsedAt: null,
   expiresAt: null,
+  canSend: false,
   ...over,
 });
 
