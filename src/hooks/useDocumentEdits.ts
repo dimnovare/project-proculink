@@ -58,6 +58,8 @@ export function useDocumentEdits(documentId: string): DocumentEdits {
       qc.setQueryData(["document", documentId], answer);
       qc.invalidateQueries({ queryKey: ["document-history", documentId] });
       qc.invalidateQueries({ queryKey: ["output-preview", documentId] });
+      // A typed Receiver Peppol ID or VAT number changes who the Peppol line looks up.
+      qc.invalidateQueries({ queryKey: ["peppol-receiver", documentId] });
       // A saved value can change a list row: its number, sender, checks or status.
       qc.invalidateQueries({ queryKey: ["documents"] });
       const sent = new Map<string, string | null>([

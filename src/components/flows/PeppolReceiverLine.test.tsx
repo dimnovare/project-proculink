@@ -3,7 +3,8 @@ import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PeppolReceiverLine } from "./PeppolReceiverLine";
 
-vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
+const tenant = vi.hoisted(() => ({ ready: true }));
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => tenant.ready }));
 const api = vi.hoisted(() => ({ getPeppolReceiver: vi.fn() }));
 vi.mock("@/lib/api/documents", () => api);
 
@@ -12,7 +13,7 @@ const r = (status: string, more: object = {}) => ({ status, participant: ID, der
 const renderLine = (creditNote = false) =>
   render(<QueryClientProvider client={new QueryClient()}><PeppolReceiverLine documentId="d" creditNote={creditNote} /></QueryClientProvider>);
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => { vi.clearAllMocks(); tenant.ready = true; });
 
 describe("PeppolReceiverLine", () => {
   it.each([
@@ -21,6 +22,8 @@ describe("PeppolReceiverLine", () => {
     [r("found", { invoice: true, creditNote: true }), true, `This buyer can receive Peppol credit notes (${ID}).`],
     [r("found", { invoice: true, derived: true }), false,
       `This buyer can receive Peppol invoices as ${ID}, found from their VAT number. Add it as the Receiver Peppol ID so the invoice is addressed to them.`],
+    [r("found", { creditNote: true, derived: true }), true,
+      `This buyer can receive Peppol credit notes as ${ID}, found from their VAT number. Add it as the Receiver Peppol ID so the credit note is addressed to them.`],
     [r("not_found"), false, `This buyer wasn't found on Peppol (${ID}). Check the Receiver Peppol ID, or send another way.`],
     [r("not_found", { derived: true }), false, `No Receiver Peppol ID was read, and the buyer wasn't found on Peppol from their VAT number (${ID}).`],
     [r("no_id", { participant: null }), false, "No Receiver Peppol ID was read, so we can't check whether this buyer is on Peppol."],
@@ -40,5 +43,12 @@ describe("PeppolReceiverLine", () => {
     renderLine();
     expect(await screen.findByText("We couldn't check Peppol right now.")).toBeInTheDocument();
     expect(screen.queryByText(/wasn't found|doesn't receive/)).toBeNull();
+  });
+
+  it("renders nothing while the check cannot run, never a lasting Checking Peppol…", () => {
+    tenant.ready = false;
+    const { container } = renderLine();
+    expect(container).toBeEmptyDOMElement();
+    expect(api.getPeppolReceiver).not.toHaveBeenCalled();
   });
 });

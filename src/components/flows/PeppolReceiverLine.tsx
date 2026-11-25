@@ -10,12 +10,13 @@ const UNKNOWN: [string, string] = ["We couldn't check Peppol right now.", MUTED]
 /** Words and tone by allow-list: a status this build does not know, or a found without a yes/no, is "couldn't check", never a negative. */
 function describe(r: PeppolReceiver, creditNote: boolean): [string, string] {
   const noun = creditNote ? "credit notes" : "invoices";
+  const one = creditNote ? "credit note" : "invoice";
   const id = r.participant ?? "";
   const takes = creditNote ? r.creditNote : r.invoice;
   switch (r.status) {
     case "found":
       if (takes === true) return [r.derived
-        ? `This buyer can receive Peppol ${noun} as ${id}, found from their VAT number. Add it as the Receiver Peppol ID so the invoice is addressed to them.`
+        ? `This buyer can receive Peppol ${noun} as ${id}, found from their VAT number. Add it as the Receiver Peppol ID so the ${one} is addressed to them.`
         : `This buyer can receive Peppol ${noun} (${id}).`, "text-brand-green-deep"];
       return takes === false ? [`This buyer is on Peppol (${id}) but doesn't receive Peppol ${noun}.`, "text-amber-text"] : UNKNOWN;
     case "not_found":
@@ -33,10 +34,12 @@ function describe(r: PeppolReceiver, creditNote: boolean): [string, string] {
 
 /** On a Peppol BIS output: can this document's buyer receive it on Peppol. Display only; it never blocks a send. */
 export function PeppolReceiverLine({ documentId, creditNote }: { documentId: string; creditNote: boolean }) {
+  const enabled = useTenantQueriesEnabled();
   const q = useQuery({
     queryKey: ["peppol-receiver", documentId], queryFn: () => getPeppolReceiver(documentId),
-    retry: false, refetchOnWindowFocus: false, staleTime: 10 * 60_000, enabled: useTenantQueriesEnabled(),
+    retry: false, refetchOnWindowFocus: false, staleTime: 10 * 60_000, enabled,
   });
+  if (!enabled && !q.data) return null; // never "Checking Peppol…" for a check that will not run
   const [words, tone] = q.data ? describe(q.data, creditNote) : q.isError ? UNKNOWN : ["Checking Peppol…", MUTED];
   return <span className={`text-[12.5px] ${tone}`}>{words}</span>;
 }
