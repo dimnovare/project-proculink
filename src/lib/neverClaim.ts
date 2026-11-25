@@ -43,6 +43,7 @@ export const NEVER_CLAIM: readonly NeverClaim[] = [
   { label: "IDoc", pattern: /\bidoc\b/i },
   { label: "Erply", pattern: /\berply\b/i },
   { label: "Directo", pattern: /\bdirecto\b/i },
+  { label: "KSeF (plan 33, decision 7)", pattern: /\bksef\b/i },
   { label: "plain-FTP destination", pattern: asDestination("ftp") },
   { label: "SharePoint (except on request)", pattern: /\bsharepoint\b(?![^.\n]*\bon request\b)/i },
   { label: "Dropbox", pattern: /\bdropbox\b/i },

@@ -89,6 +89,9 @@ export const COPY: Record<string, string> = {
   invalid_format: "Choose Excel or CSV.",
   not_in_flow: "Put this document with a flow first, then teach it.",
   invalid_fields: "We couldn't set up a flow from what we read. Move it to a flow you have, or download it.",
+  ksef_confirm: "This invoice goes to KSeF Production, so a person has to check and confirm it. Open the document and press Send.",
+  ksef_changed: "The invoice changed after you checked it. Check it again before issuing it.",
+  ksef_already_issued: "This document has already been issued in KSeF (number {ksefNumber}), so it isn't sent again.",
 };
 
 /** Reasons a read can never succeed on a retry (`ReadDocumentJob`). A scan that failed before scans were switched on can be read now. */
@@ -128,6 +131,10 @@ export function documentRefusalMessage(error: unknown): string {
   // Set it up answers 422 with a machine detail; the flow's field editor answers 400 with a detail a person reads.
   if (token === "invalid_fields" && error instanceof ApiHttpError && error.status === 422) return COPY.invalid_fields;
   if (token === "invalid_destination" || token === "url_required" || token === "url_not_absolute" || token === "url_scheme_not_allowed" || token === "credentials_in_url_not_allowed" || token === "url_requires_tls" || token === "invalid_intake" || token === "invalid_fields" || token === "lookup_invalid") return detail ?? GENERIC;
+  if (token === "ksef_already_issued") {
+    const n = field(error, "ksefNumber");
+    return n ? COPY.ksef_already_issued.replace("{ksefNumber}", n) : COPY.ksef_already_issued.replace(" (number {ksefNumber})", "");
+  }
   if (token && LIMIT_CODES.has(token))
     return token === "pilot_expired" ? COPY.pilot_expired : COPY.order_limit_reached;
   if (error instanceof ApiHttpError && error.status === 413 && !token) return COPY.file_too_large;
