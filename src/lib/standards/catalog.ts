@@ -278,7 +278,7 @@ export const STANDARDS: StandardSupport[] = [
     transport: "Email or direct exchange — ProcuLink does not provide the transport",
     conformance:
       "Outbound: a PDF/A-3 we draw from the values read, with the EN 16931 CII file inside, behind the per-org flag. " +
-      "The file inside is checked on demand against the EN 16931 rules by the validator sidecar — a rule check, not network acceptance. " +
+      "The file inside is checked on demand against the EN 16931 rules by the validator sidecar, and the whole PDF by the Mustang validator in our tests — a rule check, not network acceptance. " +
       "No document has been accepted by a trading partner.",
     referenceUrl: "https://www.ferd-net.de/en/standards/zugferd",
   },
@@ -292,7 +292,7 @@ export const STANDARDS: StandardSupport[] = [
     transport: "Email or direct exchange — ProcuLink does not provide the transport",
     conformance:
       "Outbound: a PDF/A-3 we draw from the values read, with the EN 16931 CII file inside, behind the per-org flag. " +
-      "The file inside is checked on demand against the EN 16931 rules by the validator sidecar — a rule check, not network acceptance. " +
+      "The file inside is checked on demand against the EN 16931 rules by the validator sidecar, and the whole PDF by the Mustang validator in our tests — a rule check, not network acceptance. " +
       "No document has been accepted by a trading partner.",
     referenceUrl: "https://www.ferd-net.de/en/standards/zugferd",
   },
@@ -306,7 +306,7 @@ export const STANDARDS: StandardSupport[] = [
     transport: "Email or direct exchange — ProcuLink does not provide the transport",
     conformance:
       "Outbound: a PDF/A-3 we draw from the values read, with the XRechnung CII file inside, behind the per-org flag. " +
-      "The file inside is checked on demand against the XRechnung rules by the validator sidecar — a rule check, not network acceptance. " +
+      "The file inside is checked on demand against the XRechnung rules by the validator sidecar, and the whole PDF by the Mustang validator in our tests — a rule check, not network acceptance. " +
       "No document has been accepted by a trading partner.",
     referenceUrl: "https://www.ferd-net.de/en/standards/zugferd",
   },
@@ -320,7 +320,7 @@ export const STANDARDS: StandardSupport[] = [
     transport: "Email or direct exchange — ProcuLink does not provide the transport",
     conformance:
       "Outbound: a PDF/A-3 we draw from the values read, with the XRechnung CII file inside, behind the per-org flag. " +
-      "The file inside is checked on demand against the XRechnung rules by the validator sidecar — a rule check, not network acceptance. " +
+      "The file inside is checked on demand against the XRechnung rules by the validator sidecar, and the whole PDF by the Mustang validator in our tests — a rule check, not network acceptance. " +
       "No document has been accepted by a trading partner.",
     referenceUrl: "https://www.ferd-net.de/en/standards/zugferd",
   },
