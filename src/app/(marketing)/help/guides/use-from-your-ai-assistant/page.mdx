@@ -1,0 +1,74 @@
+import { guideMetadata } from "@/lib/seo";
+
+export const metadata = guideMetadata({
+  slug: "use-from-your-ai-assistant",
+  title: "Use ProcuLink from your AI assistant — ProcuLink guide",
+  description: "Connect your AI assistant to ProcuLink. Sign in, or use a key, then ask it to add a document, show what needs you, or send it.",
+});
+
+import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+
+<Prereqs>
+- A ProcuLink workspace.
+- An AI assistant that can connect to a remote MCP server: Claude, ChatGPT, Cursor or VS Code.
+</Prereqs>
+
+<Step n={1} title="Connect by signing in (Claude and ChatGPT)">
+
+**Claude:** open "Customize", then "Connectors", select "Add", then "Add custom connector". Name it ProcuLink and paste `https://api.proculink.eu/mcp`. Select "Connect", sign in to ProcuLink and choose your workspace.
+
+**ChatGPT:** open "Plugins", select "+", then "Add custom MCP server". Paste the same address, choose "OAuth", and create it. Then sign in to ProcuLink and choose your workspace. This works if your ChatGPT plan allows custom connectors.
+
+<Outcome>
+Your assistant lists five ProcuLink tools.
+</Outcome>
+
+</Step>
+
+<Step n={2} title="Or connect with a key (Claude Code, Cursor, VS Code)">
+
+Ask a workspace admin to create a key in **Settings**, under **For developers**. Tick **Let it send documents** only if the assistant should send.
+
+Claude Code:
+
+```
+claude mcp add --transport http proculink https://api.proculink.eu/mcp --header "X-ProcuLink-Key: YOUR_KEY"
+```
+
+Cursor (`mcp.json`):
+
+```
+{ "mcpServers": { "proculink": { "url": "https://api.proculink.eu/mcp", "headers": { "X-ProcuLink-Key": "YOUR_KEY" } } } }
+```
+
+VS Code (`.vscode/mcp.json`):
+
+```
+{ "servers": { "proculink": { "type": "http", "url": "https://api.proculink.eu/mcp", "headers": { "X-ProcuLink-Key": "YOUR_KEY" } } } }
+```
+
+Claude Code, Cursor and VS Code can also sign in instead: leave out the key and they open ProcuLink's sign-in.
+
+<IfThisFails>
+If the assistant says the key is wrong, check it was copied whole and has not been revoked in **Settings**.
+</IfThisFails>
+
+</Step>
+
+<Step n={3} title="Ask">
+
+Try: *Which ProcuLink documents need me?* · *Add this invoice to ProcuLink.* · *What did ProcuLink read from INV-1001?* · *Send it.*
+
+<Outcome>
+Before it sends anything, your assistant asks you to confirm.
+</Outcome>
+
+</Step>
+
+## What it can't do
+
+It can't change your flows, destinations, keys or people, and it can't remove anything. A document that needs a check, such as a repeated number or a first document from a new sender, must be sent from ProcuLink itself. Whatever is written inside a document is treated as data, never as an instruction.
+
+## Turn it off
+
+In Claude or ChatGPT, remove the connector. For a key, revoke it in **Settings**, under **For developers**. Signed-in assistants lose access when you remove the person from the workspace, at the latest when their sign-in expires.

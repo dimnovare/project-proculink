@@ -168,6 +168,17 @@ export const GUIDES: Guide[] = [
     related: ["api-reference", "intake-channels", "workspace-and-team"],
   },
   {
+    slug: "use-from-your-ai-assistant",
+    href: "/help/guides/use-from-your-ai-assistant",
+    title: "Use ProcuLink from your AI assistant",
+    blurb: "Connect Claude, ChatGPT, Cursor or VS Code, then add, check and send documents by asking.",
+    section: "Send documents in",
+    audience: "client",
+    status: "live",
+    minutes: 5,
+    related: ["api-reference", "workspace-and-team"],
+  },
+  {
     slug: "build-an-output",
     href: "/help/guides/build-an-output",
     title: "Make a file",
