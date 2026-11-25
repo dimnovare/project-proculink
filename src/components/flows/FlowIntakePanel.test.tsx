@@ -6,7 +6,7 @@ import { FlowIntakePanel } from "./FlowIntakePanel";
 
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 
-const api = vi.hoisted(() => ({ listIntakes: vi.fn(), newIntakeAddress: vi.fn(), getInbox: vi.fn() }));
+const api = vi.hoisted(() => ({ listIntakes: vi.fn(), newIntakeAddress: vi.fn(), getInbox: vi.fn(), updateIntake: vi.fn() }));
 vi.mock("@/lib/api/documents", async () => ({ ...(await vi.importActual<object>("@/lib/api/documents")), ...api }));
 
 const email = {
@@ -118,5 +118,15 @@ describe("FlowIntakePanel", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Get an address" }));
     await waitFor(() => expect(api.newIntakeAddress).toHaveBeenCalledTimes(1));
     expect(api.newIntakeAddress).toHaveBeenCalledWith("f1", "e1");
+  });
+
+  it("unticking On switches a pickup off", async () => {
+    // Live 2026-11-25: the box sent enabled:true, because the handler read the checkbox after React had reset it.
+    api.listIntakes.mockResolvedValue([email, { ...email, id: "p1", kind: "sftp", address: null, config: { host: "sftp.example.test" } }]);
+    api.updateIntake.mockResolvedValue({});
+    mount();
+    const row = (await screen.findByText("sftp.example.test")).closest(".grid") as HTMLElement;
+    fireEvent.click(within(row).getByRole("checkbox"));
+    await waitFor(() => expect(api.updateIntake).toHaveBeenCalledWith("f1", "p1", expect.objectContaining({ enabled: false })));
   });
 });

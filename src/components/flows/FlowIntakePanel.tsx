@@ -51,7 +51,11 @@ function OnOff({ intake, flowId, run }: { intake: FlowIntake; flowId: string; ru
     <label className="inline-flex cursor-pointer items-center gap-2 text-[13px]">
       <input
         type="checkbox" checked={intake.isEnabled} disabled={run.isPending}
-        onChange={(e) => run.mutate(() => updateIntake(flowId, intake.id, request(intake, e.target.checked)))}
+        onChange={(e) => {
+          // Read it now: by the time the mutation runs, React has put the controlled box back.
+          const on = e.target.checked;
+          run.mutate(() => updateIntake(flowId, intake.id, request(intake, on)));
+        }}
       />
       On
     </label>
