@@ -326,8 +326,9 @@ export const updateDestination = (id: string, body: DestinationRequest) =>
   apiFetch<Destination>(`/destinations/${seg(id)}`, { method: "PUT", body: json(body) });
 export const deleteDestination = (id: string) =>
   apiFetch<void>(`/destinations/${seg(id)}`, { method: "DELETE" });
+// A connection test waits on someone else's server or mailbox (a full Outlook inbox takes ~8 s), so it gets the long timeout.
 export const testDestination = (id: string) =>
-  apiFetch<DestinationTestResult>(`/destinations/${seg(id)}/test`, { method: "POST" });
+  apiFetch<DestinationTestResult>(`/destinations/${seg(id)}/test`, { method: "POST" }, UPLOAD_TIMEOUT_MS);
 
 export interface NotificationSettings { email: string | null; onReview: boolean; onFailure: boolean }
 export const getNotificationSettings = () => apiFetch<NotificationSettings>(`/notification-settings`);
@@ -355,7 +356,7 @@ export const deleteIntake = (flowId: string, id: string) =>
 export const newIntakeAddress = (flowId: string, id: string) =>
   apiFetch<FlowIntake>(`/flows/${seg(flowId)}/intakes/${seg(id)}/new-address`, { method: "POST" });
 export const testIntake = (flowId: string, id: string) =>
-  apiFetch<DestinationTestResult>(`/flows/${seg(flowId)}/intakes/${seg(id)}/test`, { method: "POST" });
+  apiFetch<DestinationTestResult>(`/flows/${seg(flowId)}/intakes/${seg(id)}/test`, { method: "POST" }, UPLOAD_TIMEOUT_MS);
 /** The machine-facing file API's URL for a flow (shown to the customer, never called from here). */
 export const flowApiEndpoint = (flowId: string) => `${API_BASE_URL}/api/v1/flows/${seg(flowId)}/documents`;
 
