@@ -33,6 +33,10 @@ import { ConnectedAccounts } from "@/components/settings/ConnectedAccounts";
 import { DestinationsSection } from "@/components/destinations/DestinationsSection";
 import { InstallPanel } from "@/components/pwa/InstallPanel";
 import { formatDate } from "@/lib/format-date";
+import { GUIDES } from "@/lib/guides";
+
+// Linked from API keys once it is published (held until assistant sign-in is switched on).
+const ASSISTANT_GUIDE = GUIDES.find((g) => g.slug === "use-from-your-ai-assistant" && g.status === "live");
 
 export default function SettingsPage() {
   return (
@@ -472,9 +476,11 @@ function ApiKeysSection() {
       <div className="flex flex-col gap-0.5">
         <h2 id="api-keys" className="m-0 text-[16px] font-semibold leading-[1.3] text-ink">API keys</h2>
         <p className="m-0 text-[14px] text-ink-muted">You see a key once, when you create it.</p>
-        <Link href="/help/guides/use-from-your-ai-assistant" className="inline-flex min-h-[40px] items-center text-[14px] font-semibold text-brand-blue underline">
-          Use ProcuLink from your AI assistant
-        </Link>
+        {ASSISTANT_GUIDE && (
+          <Link href={ASSISTANT_GUIDE.href} className="inline-flex min-h-[40px] items-center text-[14px] font-semibold text-brand-blue underline">
+            {ASSISTANT_GUIDE.title}
+          </Link>
+        )}
       </div>
       {/* One-time reveal: a focus-trapped dialog; every way of closing it forgets the key. */}
       <Dialog open={!!newKey} onOpenChange={(open) => { if (!open) closeKey(); }}>
@@ -533,7 +539,7 @@ function ApiKeysSection() {
             <input type="checkbox" checked={newCanSend} aria-describedby="api-key-send-hint" onChange={(e) => setNewCanSend(e.target.checked)} className="h-4 w-4" />
             Let it send documents
           </label>
-          <p id="api-key-send-hint" className="m-0 text-[13px] text-ink-muted">Without this, the key can add and read documents but can&apos;t send them.</p>
+          <p id="api-key-send-hint" className="m-0 text-[13px] text-ink-muted">Without this, the key can add and read documents but can&apos;t send them itself. A flow set to send automatically still sends what the key adds.</p>
           {create.isError && <p role="alert" className="m-0 text-[13px] text-danger-text">{documentRefusalMessage(create.error)}</p>}
         </form>
       ) : (

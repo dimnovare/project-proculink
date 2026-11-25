@@ -23,6 +23,7 @@ vi.mock("@/lib/api-client", async (o) => ({
 }));
 
 import SettingsPage from "./page";
+import { GUIDES } from "@/lib/guides";
 
 const key = { id: "key-9", label: "Accounting system", keyPrefix: "example-", isActive: true, createdAt: "2026-06-01T09:00:00Z", lastUsedAt: null, expiresAt: null };
 
@@ -78,11 +79,12 @@ describe("Settings › API keys", () => {
     expect((await screen.findAllByText("Never used")).length).toBeGreaterThan(0);
   });
 
-  it("creates a key that can send, says so on its row, and links the assistant guide", async () => {
+  it("creates a key that can send, says so on its row, and links the assistant guide once it is published", async () => {
     api.getApiKeys.mockResolvedValueOnce([]).mockResolvedValue([{ ...key, canSend: true }]);
     api.createApiKey.mockClear().mockResolvedValue({ ...key, canSend: true, rawKey: RAW });
     mount();
-    expect(screen.getByRole("link", { name: "Use ProcuLink from your AI assistant" })).toHaveAttribute("href", "/help/guides/use-from-your-ai-assistant");
+    const guide = GUIDES.find((g) => g.slug === "use-from-your-ai-assistant")!;
+    expect(screen.queryByRole("link", { name: guide.title })?.getAttribute("href") ?? null).toBe(guide.status === "live" ? guide.href : null);
     fireEvent.click(await screen.findByRole("button", { name: "Create key" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Assistant" } });
     fireEvent.click(screen.getByRole("checkbox", { name: "Let it send documents" }));
