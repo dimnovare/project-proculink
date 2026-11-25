@@ -5,7 +5,7 @@ import { ApiHttpError } from "@/lib/api/core";
 import type { DocumentSummary, Flow } from "@/lib/api/documents";
 import { COPY } from "@/lib/documentRefusals";
 import { uploadRefusalMessage, UploadQueueProvider } from "./UploadQueue";
-import { Welcome } from "./Welcome";
+import { Welcome, whereItGoes } from "./Welcome";
 
 const api = vi.hoisted(() => ({
   createFlow: vi.fn<(name: string) => Promise<Flow>>(),
@@ -109,6 +109,15 @@ describe("Welcome", () => {
     await waitFor(() => expect(router.push).toHaveBeenCalledWith("/flows/new?step=check&flow=f-1&doc=d-2"));
     expect(api.createFlow).not.toHaveBeenCalled();
     expect(api.uploadDocument.mock.calls[0][0]).toBe("f-1");
+  });
+
+  it("names Google and OneDrive among the places a file goes only when the workspace offers them", () => {
+    expect([undefined, { available: true }, { available: false, microsoftAvailable: true }, { available: true, microsoftAvailable: true }].map(whereItGoes)).toEqual([
+      "A download, an email or a server.",
+      "A download, an email, a server, or Google Drive or Sheets.",
+      "A download, an email, a server, or OneDrive.",
+      "A download, an email, a server, Google Drive or Sheets, or OneDrive.",
+    ]);
   });
 
   it("a later flow is told it is set up from this document, not the first", () => {

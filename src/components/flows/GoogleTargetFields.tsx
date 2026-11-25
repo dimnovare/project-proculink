@@ -163,7 +163,7 @@ export function GoogleTargetFields({ protocol, config, onChange }: {
           {picked && <span className="text-[13px] text-ink">{picked}</span>}
         </div>
       )}
-      {!drive && (
+      {protocol === "google_sheets" && (
         <div className="grid gap-1">
           <Field label="Tab (optional)">
             <input className={INPUT} value={String(config.sheetName ?? "")} aria-describedby="dest-sheet-help"

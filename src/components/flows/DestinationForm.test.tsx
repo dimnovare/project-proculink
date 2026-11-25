@@ -190,6 +190,7 @@ describe("DestinationForm", () => {
     expect(ui.getByText("user@example.com")).toBeTruthy();
     expect(ui.queryByText("other@example.com")).toBeNull();
     expect(ui.queryByText("mail@example.com")).toBeNull();
+    expect(ui.queryByLabelText("Tab (optional)"), "the Sheets tab box is not OneDrive's (live 2026-11-25)").toBeNull();
     fireEvent.change(ui.getByLabelText("Folder link"), { target: { value: "https://contoso.sharepoint.com/:f:/s/team/EaBc1" } });
     fireEvent.change(ui.getByLabelText("Name"), { target: { value: "OneDrive" } });
     fireEvent.click(ui.getByRole("button", { name: "Save" }));

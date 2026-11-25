@@ -47,6 +47,12 @@ const STEPS = [
   ["Check what we read", "The original stays beside the values we found."],
 ] as const;
 
+/** The places a file can go, naming Google and OneDrive only where this workspace offers them. */
+export function whereItGoes(linked?: { available: boolean; microsoftAvailable?: boolean }): string {
+  const cloud = [linked?.available === true && "Google Drive or Sheets", linked?.microsoftAvailable === true && "OneDrive"].filter(Boolean);
+  return cloud.length ? `A download, an email, a server, ${cloud.length > 1 ? `${cloud[0]}, ` : ""}or ${cloud.at(-1)}.` : "A download, an email or a server.";
+}
+
 /** Step "add" of first run, and the body of Documents, Flows and Upload when the workspace has no flow.
  *  `flows` is the answered list (never a loading or failed one). `flowId` is the address's flow, on /flows/new only. */
 export function Welcome({ flows, flowId }: { flows: readonly Flow[]; flowId?: string | null }) {
@@ -166,8 +172,7 @@ export function Welcome({ flows, flowId }: { flows: readonly Flow[]; flowId?: st
           <section data-testid="welcome-steps" aria-labelledby="welcome-steps-heading">
             <h2 id="welcome-steps-heading" className="m-0 mb-2 hidden text-[14px] font-semibold text-ink sm:block">Three short steps</h2>
             <ol className="m-0 grid list-decimal gap-2 pl-5 text-[14px] text-ink">
-              {[...STEPS, ["Choose where it goes", google.data?.available === true
-                ? "A download, an email, a server, or Google Drive or Sheets." : "A download, an email or a server."] as const].map(([t, d]) => (
+              {[...STEPS, ["Choose where it goes", whereItGoes(google.data)] as const].map(([t, d]) => (
                 <li key={t}>
                   <span className="font-semibold">{t}</span>
                   <span className="hidden text-ink-muted sm:block">{d}</span>
