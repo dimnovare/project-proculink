@@ -29,6 +29,7 @@ import { readSettingsTab, settingsAddress, SETTINGS_TABS } from "@/lib/settingsT
 import { isOrgAdminRefusal } from "@/lib/planGate";
 import { planDisplayName, planName } from "@/lib/plans";
 import { NotificationEmailSection } from "@/components/flows/NotificationEmailSection";
+import { ConnectedAccounts } from "@/components/settings/ConnectedAccounts";
 import { DestinationsSection } from "@/components/destinations/DestinationsSection";
 import { InstallPanel } from "@/components/pwa/InstallPanel";
 import { formatDate } from "@/lib/format-date";
@@ -216,6 +217,7 @@ function OrgSection({ developersOpen }: { developersOpen: boolean }) {
           </SettingsPanel>
         )}
         <NotificationEmailSection />
+        <ConnectedAccounts />
         <Card flush radius={12}>
         <details open={developers} onToggle={(e) => setDevelopers(e.currentTarget.open)}>
           <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 px-6 py-3 max-[560px]:px-4 [&::-webkit-details-marker]:hidden">

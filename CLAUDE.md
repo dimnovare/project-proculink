@@ -338,7 +338,7 @@ magic", "AI magic" or sparkles.
 | Monitoring / analytics | Sentry (`@sentry/nextjs`); PostHog (`posthog-js`, consent-gated, `src/lib/analytics.ts`) |
 | PDF rendering | `pdfjs-dist` (`bridge/document/PdfDocumentView.tsx`). A JS renderer, not an iframe: `frame-src` in `src/lib/security/csp.ts` allows neither `blob:` nor the API origin, and widening it was considered and rejected. |
 | Spreadsheets | **No grid library.** CSV and XLSX are read in-browser by `src/lib/sheetPreview.ts` (`fflate` + `DOMParser`). |
-| Tables | Plain tables. `@tanstack/react-table` is still in `package.json` but nothing in `src/` imports it. |
+| Tables | Plain `<table>` markup. No table library. |
 | Mock data | `isApiMockMode` in `src/lib/api/core.ts` (`NEXT_PUBLIC_USE_MOCK=true`, never in production); fixtures in `src/lib/api/mock*.ts` and `src/lib/api-client.ts`. |
 | Installed app | `public/sw.js`, `public/site.webmanifest`, `src/lib/pwa/` (install, push, held uploads, offline) |
 | Package manager | **bun** (never npm install, never npx — bunx is fine) |

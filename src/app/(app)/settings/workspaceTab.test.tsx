@@ -24,6 +24,7 @@ vi.mock("@clerk/nextjs", () => ({
 }));
 vi.mock("@clerk/nextjs/errors", () => ({ isClerkAPIResponseError: (e: unknown) => typeof (e as { status?: unknown })?.status === "number" }));
 vi.mock("@/components/flows/NotificationEmailSection", () => ({ NotificationEmailSection: () => null }));
+vi.mock("@/components/settings/ConnectedAccounts", () => ({ ConnectedAccounts: () => null }));
 vi.mock("@/lib/api-client", async (o) => ({
   ...(await o<typeof import("@/lib/api-client")>()),
   getBillingStatus: vi.fn().mockResolvedValue({ plan: "starter", accountStatus: "active" }),
