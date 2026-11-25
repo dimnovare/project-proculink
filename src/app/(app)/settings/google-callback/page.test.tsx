@@ -4,6 +4,7 @@ import { render, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import GoogleCallbackPage from "./page";
 import OutlookCallbackPage from "../outlook-callback/page";
+import MicrosoftCallbackPage from "../microsoft-callback/page";
 
 const nav = vi.hoisted(() => ({ search: "", replace: vi.fn() }));
 vi.mock("next/navigation", () => ({
@@ -11,11 +12,12 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: nav.replace }),
 }));
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
-const linked = vi.hoisted(() => ({ completeGoogleConnect: vi.fn(), completeOutlookConnect: vi.fn() }));
+const linked = vi.hoisted(() => ({ completeGoogleConnect: vi.fn(), completeOutlookConnect: vi.fn(), completeMicrosoftConnect: vi.fn() }));
 vi.mock("@/lib/api/linkedAccounts", async (original) => ({
   ...(await original<typeof import("@/lib/api/linkedAccounts")>()),
   completeGoogleConnect: linked.completeGoogleConnect,
   completeOutlookConnect: linked.completeOutlookConnect,
+  completeMicrosoftConnect: linked.completeMicrosoftConnect,
 }));
 
 const posts: { name: string; data: unknown }[] = [];
@@ -37,6 +39,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   linked.completeGoogleConnect.mockReset();
   linked.completeOutlookConnect.mockReset();
+  linked.completeMicrosoftConnect.mockReset();
   nav.replace.mockReset();
   posts.length = 0;
 });
@@ -44,6 +47,7 @@ afterEach(() => {
 describe.each([
   ["google", GoogleCallbackPage, () => linked.completeGoogleConnect, "Google account connected. You can close this window."],
   ["outlook", OutlookCallbackPage, () => linked.completeOutlookConnect, "Microsoft mailbox connected. You can close this window."],
+  ["microsoft", MicrosoftCallbackPage, () => linked.completeMicrosoftConnect, "Microsoft account connected. You can close this window."],
 ] as const)("%s callback page", (_provider, Page, complete, connected) => {
   it("exchanges the code once under StrictMode's double mount, announces it, and closes the popup", async () => {
     nav.search = "?code=c1&state=s1";

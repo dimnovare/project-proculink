@@ -35,7 +35,8 @@ const sha256 = (s: string) => createHash("sha256").update(s, "utf8").digest("hex
 
 const PINNED: Record<"/privacy" | "/terms" | "/aup" | "/dpa" | "/subprocessors" | "/security#statements", string> = {
   // Re-pinned 2026-11-25: new "Microsoft accounts you connect" section (Outlook pickup) and date line.
-  "/privacy": "a51f743d909e407f4669ab58345f1aac688e462fbf1214b2e5368407d28994f5",
+  // Re-pinned 2026-11-25 (plan 30 Part B): that section also covers saving files to a OneDrive folder.
+  "/privacy": "ebf3de27e3028925e1af25bd82f6d27bc3974df93de99dbdb20c594c3f55014e",
   "/terms": "ae25fb8cb42c3fcc5d053c5b0c3f630bca58751810227182747d711cbb148478",
   "/aup": "917a1e45c7f3775aad05ae6d74275ee63f522e4a2db5012bdecca0702f4c0fbf",
   "/dpa": "a86971bb79039f2a9403ebef616bf194cd955d36d4fe3cd3b20a5fe903a72e39",

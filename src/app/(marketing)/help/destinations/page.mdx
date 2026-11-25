@@ -3,12 +3,12 @@ import { helpArticleMetadata } from "@/lib/seo";
 export const metadata = helpArticleMetadata({
   slug: "destinations",
   title: "Destinations — ProcuLink Help",
-  description: "Where should a flow's file go? Email, a web address, SFTP or FTPS, an S3 bucket, Google Drive or Sheets, or a download, and what happens if a send fails.",
+  description: "Where should a flow's file go? Email, a web address, SFTP or FTPS, an S3 bucket, Google Drive or Sheets, OneDrive or a download, and what if a send fails.",
 });
 
 # Destinations
 
-Where a flow sends its file: email, a web address, an SFTP or FTPS server, an S3 bucket, Google Drive, Google Sheets, or a download.
+Where a flow sends its file: email, a web address, an SFTP or FTPS server, an S3 bucket, Google Drive, Google Sheets, OneDrive, or a download.
 
 A destination is a place a file goes. You set one up once and any file in your workspace can use it. Only a workspace admin can create one. You create a destination while you set up a file: press **Change** beside **Goes to**, then choose **New destination…**. See [Send files to a destination](/help/guides/send-to-a-destination).
 
@@ -18,6 +18,7 @@ A destination is a place a file goes. You set one up once and any file in your w
 - **Email.** The file goes as an attachment to the addresses you list. You can add a reply-to address. The email comes from ProcuLink's sender address. It uses the **Subject** and **Message** you enter. Left blank, ProcuLink uses a default subject (the flow name and the file name) and a short message. A test send puts `[TEST]` in front of the subject. The attachment is named after the document.
 - **Google Drive.** The file goes to a folder you choose.
 - **Google Sheets.** Each send adds the rows of a CSV file to the end of a sheet.
+- **OneDrive.** The file goes to a OneDrive folder whose sharing link you paste. A file with the same name in that folder is replaced.
 
 The kinds below are grouped under **A server or another system**:
 

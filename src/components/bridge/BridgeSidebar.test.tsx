@@ -97,7 +97,7 @@ describe("BridgeSidebar — the document tool's nav", () => {
       "/flows": "/flows", "/flows/new": "/flows", "/flows/x": "/flows", "/flows/x/documents/x": "/documents",
       "/flows/x/outputs/x/advanced": "/flows", "/flows/x/change-file": "/flows", "/lookups": "/flows", "/lookups/x": "/flows",
       "/operations/log": "/documents", "/settings": "/settings", "/settings/google-callback": "/settings",
-      "/settings/outlook-callback": "/settings", "/admin": null,
+      "/settings/outlook-callback": "/settings", "/settings/microsoft-callback": "/settings", "/admin": null,
     };
     const paths = Object.keys(APP_PAGE_TITLES).map((r) => r.replace(/\[[^\]]+\]/g, "x"));
     expect(Object.fromEntries(paths.map((p) => [p, currentPlace(p)]))).toEqual(PLACES);

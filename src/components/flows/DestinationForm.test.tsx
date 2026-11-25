@@ -18,6 +18,7 @@ const linked = vi.hoisted(() => ({
   listLinkedAccounts: vi.fn(),
   getGooglePicker: vi.fn(),
   startGoogleConnect: vi.fn(),
+  startMicrosoftConnect: vi.fn(),
   deleteLinkedAccount: vi.fn(),
 }));
 vi.mock("@/lib/api/linkedAccounts", () => linked);
@@ -173,6 +174,29 @@ describe("DestinationForm", () => {
     expect(api.createDestination.mock.calls[0][0]).toEqual({
       name: "Drive", protocol: "google_drive",
       config: { accountId: "acc-1", folderId: "fold-1", folderName: "Invoices" }, credentials: null,
+    });
+  });
+
+  it("offers OneDrive only when Microsoft is on, lists only its files accounts, and saves the pasted link", async () => {
+    const ms = { ...account, id: "ms-1", provider: "microsoft" };
+    linked.listLinkedAccounts.mockResolvedValue({ available: false, microsoftAvailable: true, accounts: [
+      ms, { ...account, id: "g-1", email: "other@example.com" }, { ...account, id: "o-1", provider: "outlook", email: "mail@example.com" },
+    ] });
+    api.createDestination.mockClear().mockResolvedValue({ ...saved, protocol: "microsoft_onedrive", hasCredentials: false, config: {} });
+    const ui = newForm();
+    await waitFor(() => expect(kinds(ui)).toContain("OneDrive"));
+    expect(kinds(ui)).not.toContain("Google Drive");
+    fireEvent.change(ui.getByLabelText("Send by"), { target: { value: "microsoft_onedrive" } });
+    expect(ui.getByText("user@example.com")).toBeTruthy();
+    expect(ui.queryByText("other@example.com")).toBeNull();
+    expect(ui.queryByText("mail@example.com")).toBeNull();
+    fireEvent.change(ui.getByLabelText("Folder link"), { target: { value: "https://contoso.sharepoint.com/:f:/s/team/EaBc1" } });
+    fireEvent.change(ui.getByLabelText("Name"), { target: { value: "OneDrive" } });
+    fireEvent.click(ui.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(api.createDestination).toHaveBeenCalledTimes(1));
+    expect(api.createDestination.mock.calls[0][0]).toEqual({
+      name: "OneDrive", protocol: "microsoft_onedrive",
+      config: { accountId: "ms-1", link: "https://contoso.sharepoint.com/:f:/s/team/EaBc1" }, credentials: null,
     });
   });
 

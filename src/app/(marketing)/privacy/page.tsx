@@ -308,8 +308,20 @@ export default function PrivacyPage() {
         <li><strong>What we access.</strong> The account&apos;s email address, the names of its mail folders, and the unread emails in the one folder you choose. For those emails we read the sender, the subject and the email headers, to match your flow&apos;s filters and to check that each email really came from its sender.</li>
         <li><strong>How we use it.</strong> Only to bring documents into your flow. From an unread email that matches your filters, we take its attachments, or its text when it has none, and then mark the email as read. We never send, move or delete email, and we leave every other email as it is.</li>
         <li><strong>What we store.</strong> The account&apos;s email address, an encrypted token issued by Microsoft that lets ProcuLink reach the mailbox, and the documents we pick up, which are kept like any other document in your workspace. We do not keep the other emails we look at.</li>
+      </ul>
+      <p>
+        If a workspace admin connects a Microsoft account so that a flow can save files to a
+        OneDrive folder:
+      </p>
+      <ul>
+        <li><strong>What we access.</strong> The account&apos;s email address, and the one folder whose sharing link you paste. Microsoft&apos;s sign-in asks for access to your files, because Microsoft offers no permission limited to one folder you choose; we use it only for that folder. Opening the link through Microsoft gives the account lasting access to the folder, as opening it in a browser would.</li>
+        <li><strong>How we use it.</strong> Only to save the files your flows produce into that folder, and to show which account is connected. When you save the destination, we read the folder&apos;s name. We add each file under its own name; if the folder already holds a file with that name, it is replaced, so a re-send does not make a copy. We never list, open, read or delete any other file.</li>
+        <li><strong>What we store.</strong> The account&apos;s email address, an encrypted token issued by Microsoft that lets ProcuLink save to the folder, and the folder&apos;s name and Microsoft&apos;s reference for it. We do not keep the link you paste.</li>
+      </ul>
+      <p>For both:</p>
+      <ul>
         <li><strong>Sharing.</strong> We do not share data from your Microsoft account with anyone. We do not use it for advertising, and we do not use it to train AI models.</li>
-        <li><strong>Removing access.</strong> Disconnect the account in ProcuLink, and we delete its token at once. If a flow still picks up with the account, change that first. You can also remove ProcuLink from your Microsoft account&apos;s app permissions at any time. Deleting your workspace deletes the connection too.</li>
+        <li><strong>Removing access.</strong> Disconnect the account in ProcuLink, and we delete its token at once. If a flow still picks up with the account, or a destination still saves with it, change that first. You can also remove ProcuLink from your Microsoft account&apos;s app permissions at any time. Deleting your workspace deletes the connection too.</li>
       </ul>
 
       <LegalH2>Cookies</LegalH2>

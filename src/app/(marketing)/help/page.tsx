@@ -23,7 +23,7 @@ const CATEGORY_BLURB: Record<HelpCategory, string> = {
   Documents: "What we read, what each status means, and what to do when a document stops.",
   Flows: "Values, versions, and what we learn from each sender.",
   "Sending in": "Upload, email, mailbox, SFTP, FTP, S3 and API.",
-  "Files and destinations": "Choose a format, then send it by email, to a web address, to an SFTP or FTPS server, an S3 bucket, Google Drive or Google Sheets, or download it.",
+  "Files and destinations": "Choose a format, then send it by email, to a web address, to an SFTP or FTPS server, an S3 bucket, Google Drive, Google Sheets or OneDrive, or download it.",
   Lookups: "Translate one value into another with a list you import.",
   Account: "Your team, API keys, plan, history and old orders.",
   API: "Send files in and get results out, with signed webhooks.",

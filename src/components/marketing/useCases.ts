@@ -45,7 +45,7 @@ export const INVOICE_USE_CASE: UseCase = {
     ["Send it in", "Upload the invoice, forward the email it came in, or let us collect it from a mailbox."],
     ["We read it", "The header and the lines are read, scans and phone photos too. Nothing to set up first."],
     ["You check it", "The original stays beside what we read. Anything missing or hard to read is marked."],
-    ["You get the file", "Download the Excel or CSV file, or have it sent by email, to Google Drive or Sheets, or to a server."],
+    ["You get the file", "Download the Excel or CSV file, or have it sent by email, to Google Drive, Sheets or OneDrive, or to a server."],
   ],
   works: [
     "Reads PDF invoices, scans and phone photos, and Excel or CSV files",

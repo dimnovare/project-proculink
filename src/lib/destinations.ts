@@ -28,6 +28,7 @@ const WHERE: Record<string, (c: Record<string, unknown>) => string> = {
   http: (c) => parts("Web address", webAddress(c.url)),
   s3: (c) => parts("S3 bucket", text(c.bucket), folder(c.prefix)),
   google_drive: (c) => parts("Google Drive", folder(c.folderName)),
+  microsoft_onedrive: (c) => parts("OneDrive", folder(c.itemName)),
   google_sheets: (c) => parts("Google Sheets", text(c.spreadsheetName), text(c.sheetName) ? `tab ${text(c.sheetName)}` : null),
 };
 

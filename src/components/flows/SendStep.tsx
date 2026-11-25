@@ -26,18 +26,19 @@ import { useLinkedAccounts } from "./GoogleTargetFields";
 import { Failed, Gone } from "./states";
 import { Loading } from "@/components/bridge/LogoLoader";
 
-type NewTile = "email" | "google_drive" | "google_sheets" | "server" | "s3" | "http";
+type NewTile = "email" | "google_drive" | "google_sheets" | "microsoft_onedrive" | "server" | "s3" | "http";
 export type SendChoice =
   | { kind: "download" }
   | { kind: "existing"; destinationId: string | null }
   | { kind: "new"; tile: NewTile };
 
-/** R16: exactly the kinds FlowDestinationService allows, in order; Google only when the server says it is available.
+/** R16: exactly the kinds FlowDestinationService allows, in order; Google and Microsoft only when the server says each is available.
  *  The server kinds sit behind "A server or another system" (plan 16a R16): one press away, never gone. */
-const TILES: readonly { tile: NewTile; title: string; sub: string; protocols: readonly string[]; google?: true; server?: true }[] = [
+const TILES: readonly { tile: NewTile; title: string; sub: string; protocols: readonly string[]; google?: true; microsoft?: true; server?: true }[] = [
   { tile: "email", title: "Email", sub: "To one or more addresses", protocols: ["email"] },
   { tile: "google_drive", title: "Google Drive", sub: "A folder you choose", protocols: ["google_drive"], google: true },
   { tile: "google_sheets", title: "Google Sheets", sub: "New rows in a sheet", protocols: ["google_sheets"], google: true },
+  { tile: "microsoft_onedrive", title: "OneDrive", sub: "A folder you choose", protocols: ["microsoft_onedrive"], microsoft: true },
   { tile: "server", title: "SFTP or FTPS", sub: "A folder on a server", protocols: ["sftp", "ftps"], server: true },
   { tile: "s3", title: "S3 bucket", sub: "Amazon S3 or compatible", protocols: ["s3"], server: true },
   { tile: "http", title: "Web address", sub: "Posted to another system", protocols: ["http"], server: true },
@@ -92,7 +93,9 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
   const enabled = useTenantQueriesEnabled();
   const run = useRunDocument(flow.id, docId);
   const id = run.docId ?? "";
-  const google = useLinkedAccounts().data?.available === true;
+  const linked = useLinkedAccounts().data;
+  const google = linked?.available === true;
+  const microsoft = linked?.microsoftAvailable === true;
   const outputs = useQuery({ queryKey: ["outputs", flow.id], queryFn: () => listOutputs(flow.id), enabled });
   const destinations = useQuery({ queryKey: ["destinations"], queryFn: listDestinations, enabled });
   const doc = useQuery({ queryKey: ["document", id], queryFn: () => getDocument(id), enabled: enabled && !!id });
@@ -185,7 +188,7 @@ export function SendStep({ flow, docId, first }: { flow: Flow; docId: string | n
     list.map((t) => ({ id: t.tile, title: t.title, sub: t.sub, checked: tile?.tile === t.tile, pick: () => pick({ kind: "new", tile: t.tile }) }));
   const common = [
     { id: "download", title: "Download", sub: "No setup needed", checked: choice.kind === "download", pick: () => pick({ kind: "download" }) },
-    ...newTiles(TILES.filter((t) => !t.server && (google || !t.google))),
+    ...newTiles(TILES.filter((t) => !t.server && (google || !t.google) && (microsoft || !t.microsoft))),
     ...(destinations.data?.length ? [{
       id: "existing", title: "Already set up", sub: "A place you saved before", checked: choice.kind === "existing",
       pick: () => pick({ kind: "existing", destinationId: choice.kind === "existing" ? choice.destinationId : destinations.data[0].id }),
