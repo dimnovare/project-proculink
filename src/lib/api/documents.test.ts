@@ -5,7 +5,7 @@ vi.mock("./core", async (importOriginal) => {
   return { ...actual, authHeader: async () => ({}), API_BASE_URL: "http://api.test", isApiMockMode: false };
 });
 
-import { addDocument, createSampleDocument, downloadDocument, editDocumentValues, getDocument, getFlow, getInbox, getSortFlows, listActivity, listDocumentPage, moveDocument, newInboxAddress, sendDocument, setUpDocument, updateLookup, uploadDocument } from "./documents";
+import { addDocument, createSampleDocument, downloadDocument, editDocumentValues, getDocument, getFlow, getInbox, getSortFlows, listActivity, listDocumentPage, moveDocument, newInboxAddress, sendDocument, setUpDocument, testDestination, testIntake, updateLookup, uploadDocument } from "./documents";
 import { ApiHttpError } from "./core";
 
 const fetchMock = vi.fn();
@@ -18,6 +18,21 @@ afterEach(() => {
 });
 
 describe("documents api", () => {
+  it("lets a connection test run past the 8 s default (a full Outlook inbox took ~8 s live)", async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock.mockImplementation((_url: string, init: RequestInit) => new Promise((resolve, reject) => {
+        const done = setTimeout(() => resolve(json({ success: true, message: "Connected. 0 file(s) waiting." })), 12_000);
+        init.signal?.addEventListener("abort", () => { clearTimeout(done); reject(new DOMException("aborted", "AbortError")); });
+      }));
+      const results = Promise.all([testIntake("f1", "i1"), testDestination("d1")]);
+      await vi.advanceTimersByTimeAsync(12_000);
+      await expect(results).resolves.toEqual([expect.objectContaining({ success: true }), expect.objectContaining({ success: true })]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("uploadDocument posts FormData to the flow without a JSON content type", async () => {
     fetchMock.mockResolvedValue(json({ id: "d1", fileName: "a.csv" }));
     const file = new File(["x"], "a.csv", { type: "text/csv" });
