@@ -32,7 +32,7 @@ beforeEach(() => vi.clearAllMocks());
 
 describe("DocumentList", () => {
   it("names the first document from an email address, never as a value to check, and a repeated number wins", () => {
-    expect(rowNeed(row({ failedChecks: 1, checks: ["new_sender"] }))).toEqual({ text: "Email address not confirmed", tone: "amber" });
+    expect(rowNeed(row({ failedChecks: 1, checks: ["new_sender"] }))).toEqual({ text: "Check the sender", tone: "amber" });
     expect(rowNeed(row({ failedChecks: 2, checks: ["new_sender", "duplicate"] })).text).toBe("Same number as an earlier document");
   });
 
