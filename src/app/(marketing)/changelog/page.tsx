@@ -26,6 +26,18 @@ export const metadata = pageMetadata({
 // one is formatting, not a rewrite: the words stay as they were.
 const ENTRIES = [
   {
+    version: "v2.12",
+    date: "25 November 2026",
+    items: [
+      "A flow can now send its file to OneDrive: press **Connect a Microsoft account**, then paste the folder's sharing link into **Folder link**. A file with the same name in that folder is replaced.",
+      "ZUGFeRD and Factur-X invoices are read from the invoice data built into the PDF, when the names, numbers and amounts we take from it are also printed on the page. Otherwise the page is read as usual.",
+      "**Settings** › **Workspace** now lists the Google and Microsoft accounts your workspace has connected, under **Connected accounts**. **Disconnect** removes one.",
+      "Unticking a pickup's **On** box now really switches it off.",
+      "In the XML file a flow builds, each table is now named as it is in the flow, the same in every file.",
+      "When we couldn't place a table's values in its columns, its heading line no longer merges into a single column.",
+    ],
+  },
+  {
     version: "v2.11",
     date: "24 November 2026",
     items: [

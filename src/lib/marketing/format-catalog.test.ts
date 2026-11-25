@@ -224,10 +224,10 @@ describe("outbound status is derived from what we can emit", () => {
 
 describe("the landing-page counts", () => {
   it("are what the page says, so a status change is never silent", () => {
-    // (home)/page.tsx renders these three as "10 inbound / 6 outbound / 6 channels". Deriving them
+    // (home)/page.tsx renders these three as "11 inbound / 6 outbound / 6 channels". Deriving them
     // stopped the numbers drifting from the table; pinning them stops the TABLE drifting unnoticed.
     expect({ INBOUND_FORMAT_COUNT, OUTBOUND_FORMAT_COUNT, DELIVERY_CHANNEL_COUNT }).toEqual({
-      INBOUND_FORMAT_COUNT: 10,
+      INBOUND_FORMAT_COUNT: 11,
       OUTBOUND_FORMAT_COUNT: 6,
       DELIVERY_CHANNEL_COUNT: 6,
     });

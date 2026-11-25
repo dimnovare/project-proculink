@@ -20,6 +20,8 @@ export const READ_ROWS: readonly FormatRow[] = [
   { name: "Text", note: "A plain .txt file.", keys: ["txt"] },
   { name: "XML", note: "A structured .xml file exported by another system.", keys: ["xml"] },
   { name: "JSON", note: "A structured .json file exported by another system.", keys: ["json"] },
+  // A PDF too (its key is on the PDF row): the invoice data built into it is used when the page shows the same values.
+  { name: "ZUGFeRD and Factur-X invoices", note: "A PDF invoice with its data built in. We use that data when the page shows the same values.", keys: [] },
 ];
 
 export const OUTPUT_ROWS: readonly FormatRow[] = [

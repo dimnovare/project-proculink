@@ -32,7 +32,7 @@ describe("ConnectedAccounts", () => {
     const [google, outlook] = within(list).getAllByRole("listitem");
     expect(google).toHaveTextContent(/drive@example\.test.*Google/);
     expect(outlook).toHaveTextContent(/inbox@example\.test.*Microsoft mailbox.*Reconnect needed/);
-    fireEvent.click(within(outlook).getByRole("button", { name: "Disconnect inbox@example.test" }));
+    fireEvent.click(within(outlook).getByRole("button", { name: "Disconnect inbox@example.test, Microsoft mailbox" }));
     expect(linked.deleteLinkedAccount).not.toHaveBeenCalled();
     fireEvent.click(within(outlook).getByRole("button", { name: "Disconnect" }));
     expect(await within(outlook).findByText("A destination or a pickup still uses this account. Change it first.")).toBeTruthy();

@@ -11,7 +11,7 @@ import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { SettingsPanel } from "./SettingsPrimitives";
 
 /** A provider this build does not know is printed as the server sent it. */
-const PROVIDER: Record<string, string> = { google: "Google", outlook: "Microsoft mailbox", microsoft: "Microsoft" };
+const PROVIDER: Record<string, string> = { google: "Google", outlook: "Microsoft mailbox", microsoft: "Microsoft OneDrive" };
 
 /** Settings › Workspace: every account the workspace has connected, each disconnected after an inline confirm. */
 export function ConnectedAccounts() {
@@ -41,7 +41,7 @@ export function ConnectedAccounts() {
               <span className="text-[13px] text-ink-muted">{PROVIDER[a.provider] ?? a.provider}</span>
               {a.status === "reconnect" && <Pill tone="amber">Reconnect needed</Pill>}
               {confirming !== a.id && (
-                <Button type="button" variant="ghost" size="sm" className="ml-auto" aria-label={`Disconnect ${a.email}`}
+                <Button type="button" variant="ghost" size="sm" className="ml-auto" aria-label={`Disconnect ${a.email}, ${PROVIDER[a.provider] ?? a.provider}`}
                   onClick={() => { setProblem(null); setConfirming(a.id); }}>Disconnect</Button>
               )}
             </div>

@@ -159,6 +159,7 @@ export const IMPORT_FORMATS: FormatRow[] = [
   { name: "Excel (XLSX)", status: "live", note: "First worksheet, header row." },
   { name: "PDF (text-based)", status: "live", note: "Text layer read, then AI structured extraction. Deterministic fallback when no AI key." },
   { name: "PDF (scanned / image)", status: "live", note: "No text layer — read by AI vision extraction. Assisted: every line is flagged for review." },
+  { name: "ZUGFeRD / Factur-X invoices", status: "live", note: "We take the invoice data built into the PDF when the page shows the same values." },
   standardRow("cxml-1-2", "parse", "cXML 1.2", "OrderRequest documents."),
   // Named for the document it actually is. Orders sent over the Peppol network use this
   // same UBL 2.1 Order document, so they parse here too — inbound is the direction where
