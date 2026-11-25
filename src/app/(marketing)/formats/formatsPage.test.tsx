@@ -22,7 +22,7 @@ describe("/formats", () => {
     const limits = container.querySelector("#limits")!.textContent!;
     expect(limits).toContain(`Up to ${MAX_UPLOAD_BYTES / (1024 * 1024)} MB a file.`);
     expect(limits).toContain(DOCUMENT_UNIT_SENTENCE);
-    expect(container.textContent).toContain("Microsoft OneDrive and SharePoint: on request");
+    expect(container.textContent).toContain("Microsoft SharePoint: on request");
     expect(page.getByRole("link", { name: "See how it works" })).toHaveAttribute("href", "/how-it-works");
     for (const name of ["cXML", "UBL Order", "EDIFACT ORDERS", "ANSI X12 850"]) expect(container.querySelector("#outputs")!.textContent, name).toContain(name);
     expect(container.textContent).not.toMatch(/peppol|xrechnung|EU-region|residen|Capabilities/i);

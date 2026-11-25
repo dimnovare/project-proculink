@@ -147,7 +147,7 @@ const STEPS = [
     node: "border-brand-green",
     lead: "Choose CSV, JSON, XML, Excel, PDF, text or fixed-width, then send the result where it needs to go.",
     detail:
-      "Send it by email, to a web address, to an SFTP or FTPS server, an S3 bucket, Google Drive or Google Sheets, or download it. Microsoft OneDrive and SharePoint are available on request.",
+      "Send it by email, to a web address, to an SFTP or FTPS server, an S3 bucket, Google Drive, Google Sheets or OneDrive, or download it. Microsoft SharePoint is available on request.",
     picture: <SendPicture />,
   },
 ];

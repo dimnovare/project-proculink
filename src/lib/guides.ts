@@ -204,7 +204,7 @@ export const GUIDES: Guide[] = [
     slug: "send-to-a-destination",
     href: "/help/guides/send-to-a-destination",
     title: "Send files to a destination",
-    blurb: "Send a flow's file by email, to a web address, to an SFTP or FTPS server, to an S3 bucket, to Google Drive or Google Sheets, or as a download.",
+    blurb: "Send a flow's file by email, to a web address, to an SFTP or FTPS server, to an S3 bucket, to Google Drive, Google Sheets or OneDrive, or as a download.",
     section: "Files and destinations",
     audience: "client",
     status: "live",

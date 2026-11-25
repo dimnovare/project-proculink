@@ -17,7 +17,7 @@ export const metadata = pageMetadata({
 
 // What every workspace has today (offer ⇔ works). The rows come from formatsRows.ts, which a test
 // ties to the app's own registries in both directions. The one thing offered only on request
-// (OneDrive and SharePoint) says so in its own line. Section heads carry a top rule by direction:
+// (SharePoint) says so in its own line. Section heads carry a top rule by direction:
 // blue brings in, navy makes real, green sends.
 
 const LIMIT_ROWS: FormatRow[] = [
@@ -42,7 +42,7 @@ const SECTIONS: Array<{ id: string; title: string; lead: string; rule: string; i
   {
     id: "ways-out", title: "Ways out", icon: FolderCheck, rule: "border-t-brand-green", tone: "text-brand-green-deep", rows: WAYS_OUT_ROWS,
     lead: "Where the finished file goes. One flow can send to several places at once.",
-    note: "Microsoft OneDrive and SharePoint: on request",
+    note: "Microsoft SharePoint: on request",
   },
   {
     id: "limits", title: "Limits", icon: Ruler, rule: "border-t-ink", tone: "text-ink", rows: LIMIT_ROWS,

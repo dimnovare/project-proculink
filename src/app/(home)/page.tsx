@@ -17,14 +17,14 @@ const PRICE_ROW = PUBLIC_LADDER.filter((p) => !p.isCustom);
 const COLUMNS = [
   { title: "We read", rule: "border-brand-blue", items: ["PDF", "Excel and CSV", "Word and text", "XML and JSON", "Scans and phone photos"] },
   { title: "You get", rule: "border-navy", items: ["CSV", "Excel", "JSON or XML", "PDF", "Text or fixed-width"] },
-  { title: "It goes to", rule: "border-brand-green", items: ["Email", "An SFTP or FTPS server", "Google Drive or Sheets", "An S3 bucket or a web address", "Or a download"] },
+  { title: "It goes to", rule: "border-brand-green", items: ["Email", "An SFTP or FTPS server", "Google Drive, Sheets or OneDrive", "An S3 bucket or a web address", "Or a download"] },
 ];
 
 const STEPS = [
   { title: "You send it in", rule: "border-brand-blue", body: "Upload a file, forward an email, or let us collect it from a mailbox, an SFTP or FTP server, an S3 bucket, or our API." },
   { title: "We read it", rule: "border-brand-blue", body: "We read every value and table on the first document. There's no template to build first. Scans and phone photos are read too." },
   { title: "You check it", rule: "border-amber", body: "The original stays on screen beside what we read. Fix a value, or point at it on the page so we find it next time." },
-  { title: "We send it", rule: "border-brand-green", body: "Choose the file your system needs, then send it by email, to a server, to Google Drive or Sheets, or download it." },
+  { title: "We send it", rule: "border-brand-green", body: "Choose the file your system needs, then send it by email, to a server, to Google Drive, Sheets or OneDrive, or download it." },
 ];
 
 const TECH = [
@@ -110,7 +110,7 @@ export default function RootPage() {
                   </ul>
                 </div>
               ))}
-              <p className={`${SITE.soft} col-span-full text-[15px]`}>Microsoft OneDrive and SharePoint on request.</p>
+              <p className={`${SITE.soft} col-span-full text-[15px]`}>Microsoft SharePoint on request.</p>
             </div>
           </div>
         </section>

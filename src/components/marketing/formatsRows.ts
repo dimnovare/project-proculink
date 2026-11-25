@@ -52,6 +52,7 @@ export const WAYS_OUT_ROWS: readonly FormatRow[] = [
   { name: "An S3 bucket", note: "Into a bucket, or S3-compatible storage.", keys: ["s3"] },
   { name: "Google Drive", note: "Into a folder you choose.", keys: ["google_drive"] },
   { name: "Google Sheets", note: "As new rows at the end of a sheet you choose.", keys: ["google_sheets"] },
+  { name: "OneDrive", note: "Into a folder you choose.", keys: ["microsoft_onedrive"] },
   { name: "Download", note: "Download the file and send it on yourself.", keys: [""] },
 ];
 

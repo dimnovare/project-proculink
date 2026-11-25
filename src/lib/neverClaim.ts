@@ -1,11 +1,12 @@
 /**
  * What public copy must never claim, because the document engine does not do it (plan 12b, Global Constraints):
- * standard outputs, ERP destinations, plain-FTP destinations, cloud drives other than Google, Peppol validation
+ * standard outputs, ERP destinations, plain-FTP destinations, cloud drives other than Google and OneDrive, Peppol validation
  * and approval workflows. Whole-word and case-insensitive.
  *
  * cXML, UBL, EDIFACT and X12 orders had a real send and were taken off on 2026-11-18.
  * S3 and Google Drive/Sheets delivery shipped (plans 9a, 9b) and were taken off this list on 2026-11-14.
- * OneDrive and SharePoint are offered on request only, so they may appear in a sentence that says "on request".
+ * OneDrive folder delivery shipped (plan 30 Part B) and was taken off this list on 2026-11-25. SharePoint libraries are not
+ * confirmed to work with the scope ProcuLink asks for, so SharePoint may appear only in a sentence that says "on request".
  *
  * Intake over FTP is real and may be claimed, so the FTP pattern looks for the store used as a
  * DESTINATION, in three small shapes (see `asDestination`). `SFTP` and `FTPS` never match `FTP`: the word
@@ -43,7 +44,7 @@ export const NEVER_CLAIM: readonly NeverClaim[] = [
   { label: "Erply", pattern: /\berply\b/i },
   { label: "Directo", pattern: /\bdirecto\b/i },
   { label: "plain-FTP destination", pattern: asDestination("ftp") },
-  { label: "OneDrive or SharePoint (except on request)", pattern: /\b(?:onedrive|sharepoint)\b(?![^.\n]*\bon request\b)/i },
+  { label: "SharePoint (except on request)", pattern: /\bsharepoint\b(?![^.\n]*\bon request\b)/i },
   { label: "Dropbox", pattern: /\bdropbox\b/i },
   { label: "approval workflows", pattern: /\bapproval (?:workflow|flow|chain)s?\b/i },
   // The seven document checks (`DocumentChecks.cs`) include no sum check. A field named "Total" is fine.

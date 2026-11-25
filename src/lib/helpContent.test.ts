@@ -53,9 +53,9 @@ describe("help content", () => {
 describe("never-claim destination patterns", () => {
   const pattern = (label: string) => NEVER_CLAIM.find((n) => n.label === label)!.pattern;
   const CASES: [label: string, text: string, hit: boolean][] = [
-    ["OneDrive or SharePoint (except on request)", "Send it to OneDrive", true],
-    ["OneDrive or SharePoint (except on request)", "We deliver to SharePoint. Ask us.", true],
-    ["OneDrive or SharePoint (except on request)", "Microsoft OneDrive and SharePoint: on request", false],
+    ["SharePoint (except on request)", "We deliver to SharePoint. Ask us.", true],
+    ["SharePoint (except on request)", "Microsoft SharePoint: on request", false],
+    ["SharePoint (except on request)", "Send it to OneDrive", false],
     ["plain-FTP destination", "Deliver via FTP", true],
     ["plain-FTP destination", "We deliver it to your FTP server.", true],
     ["plain-FTP destination", "Upload a file to your FTP server and we collect it", false],
