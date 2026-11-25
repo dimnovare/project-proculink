@@ -230,6 +230,21 @@ describe("DestinationForm", () => {
     expect(api.updateDestination.mock.calls[0][1].config).toEqual({ environment: "production", nip: "1111111111", acceptedIssuerTerms: true });
   });
 
+  it("asks for the issuer tick again when a Production KSeF destination's NIP changes", async () => {
+    linked.listLinkedAccounts.mockResolvedValue({ available: false, ksefAvailable: true, accounts: [] });
+    const prod: Destination = { ...saved, id: "k2", name: "KSeF", protocol: "ksef", hasCredentials: true, config: { environment: "production", nip: "1111111111" } };
+    const ui = within(render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DestinationForm destination={prod} onSaved={() => {}} onCancel={() => {}} />
+      </QueryClientProvider>,
+    ).container);
+    await waitFor(() => expect(ui.getByRole("radio", { name: /^Production/ })).toBeChecked());
+    expect(ui.queryByRole("checkbox", { name: /^I confirm that every invoice sent from this destination/ })).toBeNull();
+    fireEvent.change(ui.getByLabelText("NIP"), { target: { value: "PL 999-999-99-99" } });
+    expect(ui.getByRole("checkbox", { name: /^I confirm that every invoice sent from this destination/ })).toBeTruthy();
+    expect(ui.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
   it("offers Reconnect for an account whose Google access was removed", async () => {
     linked.listLinkedAccounts.mockResolvedValue({ available: true, accounts: [{ ...account, status: "reconnect" }] });
     const ui = newForm();

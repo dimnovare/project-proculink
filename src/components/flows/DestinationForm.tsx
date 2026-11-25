@@ -163,8 +163,10 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
   // Saving replaces the stored login wholesale, so a half-filled one must never be sent.
   const required = protocol === "http" || protocol === "s3" || protocol === "ksef" ? credFields.map(([k]) => k) : typed.privateKey ? ["username", "privateKey"] : ["username", "password"];
   const loginIncomplete = Object.keys(typed).length > 0 && required.some((k) => !typed[k]);
-  // Switching a KSeF destination to Production needs the issuer tick, which the save carries (plan 33, C5.4).
-  const toProduction = protocol === "ksef" && config.environment === "production" && current?.config?.environment !== "production";
+  // Switching a KSeF destination to Production, or changing a Production one's NIP, needs the issuer tick, which the save carries (plan 33, C5.4).
+  const nipDigits = (v: unknown) => String(v ?? "").replace(/\D/g, "");
+  const toProduction = protocol === "ksef" && config.environment === "production"
+    && (current?.config?.environment !== "production" || nipDigits(config.nip) !== nipDigits(current?.config?.nip));
 
   const test = useMutation({
     mutationFn: (id: string) => testDestination(id),
