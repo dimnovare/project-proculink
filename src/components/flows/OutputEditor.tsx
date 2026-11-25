@@ -20,7 +20,7 @@ import { sendsByItself } from "@/lib/deliveryMode";
 import { defaultWidth, excelReady, fromSimple, OP_LABEL, toSimple } from "@/lib/flowOutputModel";
 import type { SimpleOutput, SimpleRow } from "@/lib/flowOutputModel";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { FLAGGED, RULE_SETS, standardName } from "@/lib/standardOutputs";
+import { RULE_SETS, standardName } from "@/lib/standardOutputs";
 import { StandardQuestions } from "@/components/flows/StandardQuestions";
 import { PartnerIds } from "@/components/flows/PartnerIds";
 import type { EnvelopeConfig } from "@/lib/api/types";
@@ -452,7 +452,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
   const standardQuestions = standard && <StandardQuestions flow={flow} needs={current.needs ?? []} tableKey={tableKey} name={standardName(standard)} />;
   const partnerIds = standard && <PartnerIds standard={standard} envelope={envelope} onChange={setEnvelope} />;
   const problemNotice = problem && <StatusNotice tone="error">{problem}</StatusNotice>;
-  const checkButton = previewDocumentId && current && standard && FLAGGED.has(standard) && flow.peppolOn && (
+  const checkButton = previewDocumentId && current && standard && standard in RULE_SETS && flow.peppolOn && (
     <Button type="button" variant="secondary" loading={check.isPending} onClick={() => check.mutate(previewDocumentId)}>Check against {RULE_SETS[standard]?.short} rules</Button>
   );
   const checkResult = (

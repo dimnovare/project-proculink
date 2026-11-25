@@ -3,7 +3,7 @@ import { act, render, screen, fireEvent, waitFor, within } from "@testing-librar
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { OutputNode, OutputNodeTemplate } from "@/lib/api/types";
 import { OutputBuilder } from "./OutputBuilder";
-import { RULE_SETS, STANDARD_OUTPUTS, kindGroup, standardFamilies } from "@/lib/standardOutputs";
+import { FLAGGED, STANDARD_OUTPUTS, kindGroup, standardFamilies } from "@/lib/standardOutputs";
 
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
 const api = vi.hoisted(() => ({
@@ -153,17 +153,17 @@ describe("OutputBuilder", () => {
     fireEvent.click(within(others).getByRole("button", { name: "Credit note versions (6)" }));
     expect(uses(others)).toHaveLength(12);
     o.unmount();
-    // e-invoices off: the fitting group is empty, so the order standards stay folded and named as such, never offered
-    // to an invoice flow as if they fit it
+    // e-invoices off: only the released Factur-X invoice fits, with no credit-note twin; the order standards stay folded
     renderBuilder({ flow: invoiceFlow, kind: "Invoice" });
     fireEvent.click(screen.getByRole("button", { name: "A standard format" }));
-    expect(screen.queryByRole("heading", { name: /like the documents in this flow/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /^Use / })).toBeNull();
+    const offFit = screen.getByRole("heading", { name: "For invoices and credit notes, like the documents in this flow" }).parentElement!;
+    expect(uses(offFit)).toEqual(["Use ZUGFeRD / Factur-X EN 16931"]);
     expect(screen.getByText("For orders: cXML, UBL Order, EDIFACT ORDERS and ANSI X12 850.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Other standards (4)" }));
-    expect(screen.getAllByRole("button", { name: /^Use / })).toHaveLength(4);
+    expect(screen.getAllByRole("button", { name: /^Use / })).toHaveLength(5);
     expect(screen.queryByRole("button", { name: /Peppol|Credit note/ })).toBeNull();
-    expect(standardFamilies(false).invoices).toEqual([]);
+    expect(standardFamilies(false).invoices.map((f) => [f.id, f.creditNote])).toEqual([["factur-x-en16931", null]]);
+    expect(standardFamilies(true).invoices.find((f) => f.id === "factur-x-en16931")?.creditNote).toBe("factur-x-en16931-credit-note");
     // A kind is matched by whole words; an answer to an order is not an order.
     const kinds: [string | null, ReturnType<typeof kindGroup>][] = [
       ["Purchase order", "orders"], ["Invoice", "invoices"], ["credit note", "invoices"], ["Proforma invoice", "invoices"],
@@ -182,7 +182,7 @@ describe("OutputBuilder", () => {
         while ((closed = screen.queryAllByRole("button", { expanded: false })[0])) fireEvent.click(closed);
         // Each row read back to the standard it makes, so one id under two names plus one missing cannot pass.
         const ids = screen.getAllByRole("button", { name: /^Use / }).map((b) => b.getAttribute("data-standard"));
-        const offered = STANDARD_OUTPUTS.filter((id) => peppolOn || !RULE_SETS[id]);
+        const offered = STANDARD_OUTPUTS.filter((id) => peppolOn || !FLAGGED.has(id));
         expect([...ids].sort(), `${kind} ${peppolOn}`).toEqual([...offered].sort());
         r.unmount();
       }

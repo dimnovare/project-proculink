@@ -26,6 +26,13 @@ export const metadata = pageMetadata({
 // one is formatting, not a rewrite: the words stay as they were.
 const ENTRIES = [
   {
+    version: "v2.13",
+    date: "25 November 2026",
+    items: [
+      "Invoices can now go out as ZUGFeRD / Factur-X: a PDF people can read, with the invoice data built in. Press **Change the file** on a flow, then **See the standards**. Credit notes come later.",
+    ],
+  },
+  {
     version: "v2.12",
     date: "25 November 2026",
     items: [

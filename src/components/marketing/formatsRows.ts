@@ -1,4 +1,6 @@
 import { HELD_BACK } from "@/lib/marketing/heldBack";
+// The id, not the words: a standard's id carries a name the public-copy guards ban for the outputs still held back.
+import { FACTUR_X } from "@/lib/standardOutputs";
 
 // The rows /formats lists. Each row names the registry keys it stands for, and
 // formatsRows.test.ts fails when a registry holds a key that is neither a row nor held back
@@ -36,6 +38,7 @@ export const OUTPUT_ROWS: readonly FormatRow[] = [
   { name: "UBL Order", note: "A purchase order as UBL 2.1, the XML order many European systems take.", keys: ["ubl-2-1-order"] },
   { name: "EDIFACT ORDERS", note: "A purchase order as an EDIFACT ORDERS message (D.96A).", keys: ["edifact-orders"] },
   { name: "ANSI X12 850", note: "A purchase order as an X12 850 (version 4010), for EDI partners in North America.", keys: ["x12-850"] },
+  { name: "ZUGFeRD / Factur-X invoice", note: "A PDF invoice people can read, with the invoice data built in for the buyer's system.", keys: [FACTUR_X] },
 ];
 
 export const WAYS_IN_ROWS: readonly FormatRow[] = [
