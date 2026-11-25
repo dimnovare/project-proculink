@@ -20,7 +20,7 @@ import { FileDrop } from "./FileDrop";
 import { FilePreview } from "./FilePreview";
 import { useLatestRead } from "./FlowValues";
 import { kindGroup, standardFamilies } from "@/lib/standardOutputs";
-import { DOCS_ACCEPT, DOCS_BYTES, SAMPLE_ACCEPT, SAMPLE_BYTES, StandardList, WORDS } from "./OutputBuilder";
+import { DOCS_ACCEPT, DOCS_BYTES, SAMPLE_ACCEPT, SAMPLE_BYTES, StandardList } from "./OutputBuilder";
 import { FORMATS, outputTypeLabel } from "./OutputEditor";
 import { COMMON_TYPES, aFileOf, makeFileLabel, replaceOutput, standardChoice, typeChoice } from "./fileChoice";
 import { Failed, Quiet, Loading } from "./states";
@@ -95,10 +95,8 @@ export function ChooseFile({ flowId }: { flowId: string }) {
   const fams = standardFamilies(f.peppolOn);
   const fit = kindGroup(doc.data?.read?.kindLabel ?? null);
   const fitting = fit ? fams[fit] : [...fams.invoices, ...fams.orders];
-  const standardLine = fitting.length
-    ? `${or(fitting.map((s) => s.name))}. We fill the standard in from what each value means.`
-    // Only the invoice group can be empty (its standards are switched on per workspace); the order ones always ship.
-    : `There is no invoice standard yet. These ${WORDS[fams.orders.length] ?? fams.orders.length} are for purchase orders, so only use one if your system asked for it.`;
+  // Neither group is ever empty: the Factur-X invoice and the order standards ship to every workspace.
+  const standardLine = `${or(fitting.map((s) => s.name))}. We fill the standard in from what each value means.`;
   const goesTo = destinations.data?.find((d) => d.id === output.destinationId);
   const blocked = goesTo?.protocol === "google_sheets" && !!choice && (!!choice.standard || choice.format !== "csv");
   const pressedType = (id: string) => (pick ? pick.by === "type" && choice!.format === id : !output.standard && output.format === id);

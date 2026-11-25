@@ -58,10 +58,10 @@ describe("ChooseFile", () => {
     await waitFor(() => expect(nav.push).toHaveBeenCalledWith("/flows/flow-1"));
   });
 
-  it("an invoice flow with no invoice standard says so, and the disabled Use this file says why (B-13, B-23)", async () => {
+  it("an invoice flow with the e-invoice switch off is offered the Factur-X invoice, and the disabled Use this file says why (B-13, B-23)", async () => {
     setSearch("way=docs");
     mount({ docsOutputsOn: false });
-    expect(await screen.findByText("There is no invoice standard yet. These four are for purchase orders, so only use one if your system asked for it.")).toBeInTheDocument();
+    expect(await screen.findByText("ZUGFeRD / Factur-X EN 16931. We fill the standard in from what each value means.")).toBeInTheDocument();
     expect(screen.getByText("Pick a file type, a sample or a standard above.")).toBeInTheDocument();
     expect(screen.getByText("Building from documentation isn't on for this workspace yet.")).toBeInTheDocument();
     expect(bar().getByRole("button", { name: "Use this file" })).toBeDisabled();
