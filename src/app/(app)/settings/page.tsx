@@ -33,6 +33,10 @@ import { ConnectedAccounts } from "@/components/settings/ConnectedAccounts";
 import { DestinationsSection } from "@/components/destinations/DestinationsSection";
 import { InstallPanel } from "@/components/pwa/InstallPanel";
 import { formatDate } from "@/lib/format-date";
+import { GUIDES } from "@/lib/guides";
+
+// Linked from API keys once it is published (held until assistant sign-in is switched on).
+const ASSISTANT_GUIDE = GUIDES.find((g) => g.slug === "use-from-your-ai-assistant" && g.status === "live");
 
 export default function SettingsPage() {
   return (
@@ -224,7 +228,7 @@ function OrgSection({ developersOpen }: { developersOpen: boolean }) {
             <ChevronRight size={16} aria-hidden data-disclosure-chevron />
             <span className="grid gap-0.5">
               <span className="text-[14px] font-semibold text-ink">For developers</span>
-              <span className="text-[13px] text-ink-muted">API keys, for connecting another system to this workspace.</span>
+              <span className="text-[13px] text-ink-muted">API keys, for connecting another system or your AI assistant to this workspace.</span>
             </span>
           </summary>
           {developers && <ApiKeysSection />}
@@ -321,6 +325,7 @@ function WorkspaceName({ organization }: { organization: Organization }) {
 function ApiKeysSection() {
   const qc = useQueryClient();
   const [newLabel, setNewLabel] = useState("");
+  const [newCanSend, setNewCanSend] = useState(false);
   const [newKey, setNewKey] = useState<string | null>(null);
   const [copy, setCopy] = useState<"copied" | "failed" | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -334,13 +339,14 @@ function ApiKeysSection() {
   const create = useMutation({
     // The raw key goes straight to `newKey` and is left out of what the mutation keeps: a reset mutation
     // still sits in the mutation cache until it is collected.
-    mutationFn: async (label: string) => {
-      const { rawKey, ...made } = await createApiKey(label);
+    mutationFn: async ({ label, canSend }: { label: string; canSend: boolean }) => {
+      const { rawKey, ...made } = await createApiKey(label, canSend);
       setNewKey(rawKey);
       return made;
     },
     onSuccess: () => {
       setNewLabel("");
+      setNewCanSend(false);
       setShowCreate(false);
       qc.invalidateQueries({ queryKey: ["api-keys"] });
     },
@@ -351,7 +357,7 @@ function ApiKeysSection() {
   });
 
   const closeKey = () => { setNewKey(null); setCopy(null); create.reset(); };
-  const submit = () => { const label = newLabel.trim(); if (label && !create.isPending) create.mutate(label); };
+  const submit = () => { const label = newLabel.trim(); if (label && !create.isPending) create.mutate({ label, canSend: newCanSend }); };
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(newKey ?? "");
@@ -415,7 +421,10 @@ function ApiKeysSection() {
           <tbody>
             {keys.map((k) => (
               <tr key={k.id} className={k.isActive ? undefined : "opacity-60"}>
-                <td className={`${cell} font-semibold text-ink`}>{k.label}</td>
+                <td className={`${cell} font-semibold text-ink`}>
+                  {k.label}
+                  {k.canSend && <span className="block text-[12.5px] font-normal text-ink-muted">Can send documents</span>}
+                </td>
                 <td className={cell}><code className="font-mono text-ink-muted">{k.keyPrefix}…</code></td>
                 <td className={`${cell} whitespace-nowrap text-ink-muted`}>{formatDate(k.createdAt)}</td>
                 <td className={`${cell} whitespace-nowrap text-ink-muted`}>{lastUsed(k)}</td>
@@ -443,6 +452,7 @@ function ApiKeysSection() {
                 {!k.isActive && <Pill tone="neutral">Revoked</Pill>}
               </div>
               <code className="mt-1.5 block font-mono text-[13px] text-ink-muted">{k.keyPrefix}…</code>
+              {k.canSend && <p className="mb-0 mt-1.5 text-[13px] text-ink-muted">Can send documents</p>}
               <p className="mb-0 mt-1.5 text-[13px] text-ink-muted">
                 {k.lastUsedAt === null
                   ? `Created ${formatDate(k.createdAt)}. Never used.`
@@ -466,6 +476,11 @@ function ApiKeysSection() {
       <div className="flex flex-col gap-0.5">
         <h2 id="api-keys" className="m-0 text-[16px] font-semibold leading-[1.3] text-ink">API keys</h2>
         <p className="m-0 text-[14px] text-ink-muted">You see a key once, when you create it.</p>
+        {ASSISTANT_GUIDE && (
+          <Link href={ASSISTANT_GUIDE.href} className="inline-flex min-h-[40px] items-center text-[14px] font-semibold text-brand-blue underline">
+            {ASSISTANT_GUIDE.title}
+          </Link>
+        )}
       </div>
       {/* One-time reveal: a focus-trapped dialog; every way of closing it forgets the key. */}
       <Dialog open={!!newKey} onOpenChange={(open) => { if (!open) closeKey(); }}>
@@ -514,12 +529,17 @@ function ApiKeysSection() {
                 <Plus size={14} aria-hidden />
                 {create.isPending ? "Creating…" : "Create key"}
               </Button>
-              <Button type="button" variant="secondary" className="flex-1 sm:flex-none" onClick={() => { setShowCreate(false); setNewLabel(""); create.reset(); }}>
+              <Button type="button" variant="secondary" className="flex-1 sm:flex-none" onClick={() => { setShowCreate(false); setNewLabel(""); setNewCanSend(false); create.reset(); }}>
                 Cancel
               </Button>
             </div>
           </div>
           <p id="api-key-name-hint" className="m-0 text-[13px] text-ink-muted">Name it after the system that will use it.</p>
+          <label className="flex min-h-11 items-center gap-2 text-[14px] text-ink">
+            <input type="checkbox" checked={newCanSend} aria-describedby="api-key-send-hint" onChange={(e) => setNewCanSend(e.target.checked)} className="h-4 w-4" />
+            Let it send documents
+          </label>
+          <p id="api-key-send-hint" className="m-0 text-[13px] text-ink-muted">Without this, the key can add and read documents but can&apos;t send them itself. A flow set to Check nothing still sends what the key adds.</p>
           {create.isError && <p role="alert" className="m-0 text-[13px] text-danger-text">{documentRefusalMessage(create.error)}</p>}
         </form>
       ) : (

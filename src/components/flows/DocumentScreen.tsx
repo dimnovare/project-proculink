@@ -74,7 +74,7 @@ const actionWords = (action: string) => {
 };
 
 const SOURCES = new Map([
-  ["upload", "upload"], ["email", "email"], ["api", "the API"], ["imap", "mailbox"], ["outlook", "mailbox"],
+  ["upload", "upload"], ["email", "email"], ["api", "the API"], ["assistant", "an AI assistant"], ["imap", "mailbox"], ["outlook", "mailbox"],
   ["sftp", "SFTP"], ["ftp", "FTP"], ["ftps", "FTPS"], ["s3", "S3"],
 ]);
 
