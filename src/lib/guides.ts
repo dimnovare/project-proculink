@@ -174,7 +174,8 @@ export const GUIDES: Guide[] = [
     blurb: "Connect Claude, ChatGPT, Cursor or VS Code, then add, check and send documents by asking.",
     section: "Send documents in",
     audience: "client",
-    status: "live",
+    // Held until assistant sign-in is switched on (Mcp:OAuth); publishing it is a revert of this commit.
+    status: "planned",
     minutes: 5,
     related: ["api-reference", "workspace-and-team"],
   },
