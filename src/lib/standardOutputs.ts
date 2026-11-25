@@ -1,7 +1,7 @@
 import { STANDARDS } from "@/lib/standards/catalog";
 
 /** The standards a flow output can be. Mirrors `StandardOutputs.All` in the backend; diffed by backendMirror.test.ts. */
-export const STANDARD_OUTPUTS = ["cxml-1-2", "ubl-2-1-order", "x12-850", "peppol-bis-billing-3", "peppol-bis-billing-3-credit-note", "edifact-orders", "en16931-cii", "en16931-cii-credit-note", "xrechnung-ubl", "xrechnung-ubl-credit-note", "xrechnung-cii", "xrechnung-cii-credit-note"] as const;
+export const STANDARD_OUTPUTS = ["cxml-1-2", "ubl-2-1-order", "x12-850", "peppol-bis-billing-3", "peppol-bis-billing-3-credit-note", "edifact-orders", "en16931-cii", "en16931-cii-credit-note", "xrechnung-ubl", "xrechnung-ubl-credit-note", "xrechnung-cii", "xrechnung-cii-credit-note", "factur-x-en16931", "factur-x-en16931-credit-note", "zugferd-xrechnung", "zugferd-xrechnung-credit-note"] as const;
 
 /** The rule set a flagged standard is checked against, as the check button and its result name it. */
 const PEPPOL_RULES = { short: "Peppol", long: "Peppol BIS Billing 3.0" };
@@ -16,6 +16,10 @@ export const RULE_SETS: Record<string, { short: string; long: string }> = {
   "xrechnung-ubl-credit-note": XR_RULES,
   "xrechnung-cii": XR_RULES,
   "xrechnung-cii-credit-note": XR_RULES,
+  "factur-x-en16931": EN_RULES,
+  "factur-x-en16931-credit-note": EN_RULES,
+  "zugferd-xrechnung": XR_RULES,
+  "zugferd-xrechnung-credit-note": XR_RULES,
 };
 
 /** Standards behind the per-org e-invoice (validator sidecar) flag, still named Peppol; offered only when `flow.peppolOn`. */
@@ -33,6 +37,8 @@ const DESCRIPTIONS: Partial<Record<string, string>> = {
   "en16931-cii": "The European e-invoice standard, as CII XML.",
   "xrechnung-ubl": "E-invoices for German public bodies, as UBL XML.",
   "xrechnung-cii": "E-invoices for German public bodies, as CII XML.",
+  "factur-x-en16931": "A PDF invoice people can read, with the EN 16931 XML inside.",
+  "zugferd-xrechnung": "A PDF invoice for German public bodies, with the XRechnung XML inside.",
 };
 
 export type Family = { id: string; name: string; description: string | null; creditNote: string | null; version: string | null };
