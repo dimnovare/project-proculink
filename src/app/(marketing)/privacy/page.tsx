@@ -314,7 +314,7 @@ export default function PrivacyPage() {
         OneDrive folder:
       </p>
       <ul>
-        <li><strong>What we access.</strong> The account&apos;s email address, and the one folder whose sharing link you paste. Microsoft&apos;s sign-in asks for access to your files, because Microsoft offers no permission limited to a single folder; we use it only for that folder. Opening the link through Microsoft gives the account lasting access to the folder, as opening it in a browser would.</li>
+        <li><strong>What we access.</strong> The account&apos;s email address, and the one folder whose sharing link you paste. Microsoft&apos;s sign-in asks for access to your files, because Microsoft offers no permission limited to one folder you choose; we use it only for that folder. Opening the link through Microsoft gives the account lasting access to the folder, as opening it in a browser would.</li>
         <li><strong>How we use it.</strong> Only to save the files your flows produce into that folder, and to show which account is connected. When you save the destination, we read the folder&apos;s name. We add each file under its own name; if the folder already holds a file with that name, it is replaced, so a re-send does not make a copy. We never list, open, read or delete any other file.</li>
         <li><strong>What we store.</strong> The account&apos;s email address, an encrypted token issued by Microsoft that lets ProcuLink save to the folder, and the folder&apos;s name and Microsoft&apos;s reference for it. We do not keep the link you paste.</li>
       </ul>
