@@ -16,7 +16,7 @@ export const metadata = pageMetadata({
 export default function PrivacyPage() {
   return (
     // FOUNDER DECISION: set this date to the day the page is published.
-    <LegalPage title="Privacy Policy" updated="Last updated: 19 November 2026" path="/privacy">
+    <LegalPage title="Privacy Policy" updated="Last updated: 25 November 2026" path="/privacy">
 
       <LegalH2>Who we are</LegalH2>
       <p>
@@ -298,6 +298,19 @@ export default function PrivacyPage() {
         <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>,
         including the Limited Use requirements.
       </p>
+
+      <LegalH2>Microsoft accounts you connect</LegalH2>
+      <p>
+        If a workspace admin connects an Outlook or Microsoft 365 mailbox so that a flow can pick up
+        documents from it:
+      </p>
+      <ul>
+        <li><strong>What we access.</strong> The account&apos;s email address, the names of its mail folders, and the unread emails in the one folder you choose. For those emails we read the sender, the subject and the email headers, to match your flow&apos;s filters and to check that each email really came from its sender.</li>
+        <li><strong>How we use it.</strong> Only to bring documents into your flow. From an unread email that matches your filters, we take its attachments, or its text when it has none, and then mark the email as read. We never send, move or delete email, and we leave every other email as it is.</li>
+        <li><strong>What we store.</strong> The account&apos;s email address, an encrypted token issued by Microsoft that lets ProcuLink reach the mailbox, and the documents we pick up, which are kept like any other document in your workspace. We do not keep the other emails we look at.</li>
+        <li><strong>Sharing.</strong> We do not share data from your Microsoft account with anyone. We do not use it for advertising, and we do not use it to train AI models.</li>
+        <li><strong>Removing access.</strong> Disconnect the account in ProcuLink, and we delete its token at once. If a flow still picks up with the account, change that first. You can also remove ProcuLink from your Microsoft account&apos;s app permissions at any time. Deleting your workspace deletes the connection too.</li>
+      </ul>
 
       <LegalH2>Cookies</LegalH2>
       <p>
