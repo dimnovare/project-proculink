@@ -66,7 +66,7 @@ function Deliveries({ documentId, deliveries, destinationOf }: { documentId: str
               </Button>
             )}
             {d.lastError && <span className="text-danger">{d.lastError}</span>}
-            {d.status === "dead_letter" && (() => {
+            {d.status === "dead_letter" && !d.remoteMayHold && (() => {
               const dest = destinationOf(d.outputName);
               return dest && <Link href={fixDestinationHref(dest)} className={`${buttonClass("secondary", "sm")} justify-self-start`}>Fix the destination</Link>;
             })()}

@@ -8,7 +8,7 @@ import { useConfirm } from "@/components/ui/confirm";
 import { inboxQuery } from "@/hooks/useDocumentEngine";
 import { downloadDeliveryFile, retryDocumentRead, sendDocument, type DocumentFile, type DuplicateOf } from "@/lib/api/documents";
 import { fixDestinationHref } from "@/lib/activityRows";
-import { canRetryRead, documentRefusalMessage } from "@/lib/documentRefusals";
+import { canRetryRead, COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { removeOne } from "@/lib/eachDocument";
 import { useUploadQueueIfMounted } from "./UploadQueue";
 import { dayAt, duplicateLine, flowWords, madeLine } from "@/lib/flowWords";
@@ -107,6 +107,7 @@ export function useRemove(onRemoved: (id: string) => void, leaving = false): { a
 export function rowSecondLine(d: ListedDocument, said: string | null): string | null {
   if (d.statusReason === "duplicate_file") return d.duplicateOfAt ? `You added this same file ${dayAt(d.duplicateOfAt)}` : "You added this same file before.";
   if (d.duplicateOf) return duplicateLine(d.duplicateOf);
+  if (d.statusReason === "ksef_confirm") return COPY.ksef_confirm;
   const made = madeLine(d.files ?? []);
   // A sender may end in its own full stop ("Example Bank Ltd."): one stop between the two sentences.
   return made ? (said ? `${said.replace(/\.$/, "")}. ${made}` : made) : said;

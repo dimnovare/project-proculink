@@ -271,7 +271,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
       },
     };
     return (
-      <Field key={key} label={current?.hasCredentials && SECRETS.has(key) ? `New ${label.charAt(0).toLowerCase()}${label.slice(1)}` : label}>
+      <Field key={key} label={current?.hasCredentials && SECRETS.has(key) ? `New ${/^[A-Z][a-z]/.test(label) ? label.charAt(0).toLowerCase() + label.slice(1) : label}` : label}>
         {key === "privateKey" ? (
           // A key needs its line breaks, which a one-line input strips from a paste.
           <textarea {...props} rows={4} spellCheck={false} autoComplete="off"
@@ -349,7 +349,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
       {problem && <StatusNotice tone="error" className="col-span-full">{problem}</StatusNotice>}
       <div className="col-span-full flex flex-wrap gap-2">
         {testAfterSave ? (
-          <Button type="button" variant={chosen && (saved || chosen.outlined) ? "secondary" : filled} loading={save.isPending || test.isPending} onClick={submit}>Save and send a test</Button>
+          <Button type="button" variant={chosen && (saved || chosen.outlined) ? "secondary" : filled} loading={save.isPending || test.isPending} disabled={toProduction && !issuer} onClick={submit}>Save and send a test</Button>
         ) : (
           <Button type="button" variant={filled} loading={save.isPending} disabled={toProduction && !issuer} onClick={submit}>Save</Button>
         )}

@@ -245,6 +245,20 @@ describe("DestinationForm", () => {
     expect(ui.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
+  it("holds Save and send a test until the issuer tick, on a destination switched to Production", async () => {
+    linked.listLinkedAccounts.mockResolvedValue({ available: false, ksefAvailable: true, accounts: [] });
+    const k: Destination = { ...saved, id: "k3", name: "KSeF", protocol: "ksef", hasCredentials: true, config: { environment: "test", nip: "1111111111" } };
+    const ui = within(render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DestinationForm destination={k} testAfterSave onSaved={() => {}} onCancel={() => {}} />
+      </QueryClientProvider>,
+    ).container);
+    await waitFor(() => expect(ui.getByRole("radio", { name: /^Production/ })).toBeTruthy());
+    expect(ui.getByLabelText("New KSeF token")).toBeTruthy();
+    fireEvent.click(ui.getByRole("radio", { name: /^Production/ }));
+    expect(ui.getByRole("button", { name: "Save and send a test" })).toBeDisabled();
+  });
+
   it("offers Reconnect for an account whose Google access was removed", async () => {
     linked.listLinkedAccounts.mockResolvedValue({ available: true, accounts: [{ ...account, status: "reconnect" }] });
     const ui = newForm();

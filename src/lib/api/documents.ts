@@ -214,6 +214,8 @@ export interface DocumentDelivery {
   remoteReference?: string | null;
   /** A receipt (KSeF's UPO) can be downloaded. */
   hasReceipt?: boolean;
+  /** A KSeF dead letter KSeF holds or may hold: no destination to fix. */
+  remoteMayHold?: boolean;
 }
 /** What a KSeF Production send would issue, read by the server from the file itself (plan 33); amounts as written. */
 export interface KsefSummary {
