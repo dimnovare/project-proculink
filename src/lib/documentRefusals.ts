@@ -92,6 +92,8 @@ export const COPY: Record<string, string> = {
   ksef_confirm: "This invoice goes to KSeF Production, so a person has to check and confirm it. Open the document and press Send.",
   ksef_changed: "The invoice changed after you checked it. Check it again before issuing it.",
   ksef_already_issued: "This document has already been issued in KSeF (number {ksefNumber}), so it isn't sent again.",
+  // No number came back: KSeF took the invoice but the outcome was never confirmed.
+  ksef_maybe_issued: "This document may already have been issued in KSeF, so it isn't sent again. Check it in Aplikacja Podatnika KSeF.",
 };
 
 /** Reasons a read can never succeed on a retry (`ReadDocumentJob`). A scan that failed before scans were switched on can be read now. */
@@ -133,7 +135,7 @@ export function documentRefusalMessage(error: unknown): string {
   if (token === "invalid_destination" || token === "url_required" || token === "url_not_absolute" || token === "url_scheme_not_allowed" || token === "credentials_in_url_not_allowed" || token === "url_requires_tls" || token === "invalid_intake" || token === "invalid_fields" || token === "lookup_invalid") return detail ?? GENERIC;
   if (token === "ksef_already_issued") {
     const n = field(error, "ksefNumber");
-    return n ? COPY.ksef_already_issued.replace("{ksefNumber}", n) : COPY.ksef_already_issued.replace(" (number {ksefNumber})", "");
+    return n ? COPY.ksef_already_issued.replace("{ksefNumber}", n) : COPY.ksef_maybe_issued;
   }
   if (token && LIMIT_CODES.has(token))
     return token === "pilot_expired" ? COPY.pilot_expired : COPY.order_limit_reached;

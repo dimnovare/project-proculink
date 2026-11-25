@@ -16,7 +16,7 @@ describe("documentRefusalMessage", () => {
     expect(documentRefusalMessage(refusal({ error: "ksef_already_issued", ksefNumber: "1111111111-20261126-ABCDEF123456-7A" })))
       .toBe("This document has already been issued in KSeF (number 1111111111-20261126-ABCDEF123456-7A), so it isn't sent again.");
     expect(documentRefusalMessage(refusal({ error: "ksef_already_issued" })))
-      .toBe("This document has already been issued in KSeF, so it isn't sent again.");
+      .toBe("This document may already have been issued in KSeF, so it isn't sent again. Check it in Aplikacja Podatnika KSeF.");
   });
   it("words an empty output step", () => {
     expect(documentRefusalMessage(refusal({ error: "output_invalid", detail: "template" })))
