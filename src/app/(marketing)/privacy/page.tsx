@@ -16,7 +16,7 @@ export const metadata = pageMetadata({
 export default function PrivacyPage() {
   return (
     // FOUNDER DECISION: set this date to the day the page is published.
-    <LegalPage title="Privacy Policy" updated="Last updated: 25 November 2026" path="/privacy">
+    <LegalPage title="Privacy Policy" updated="Last updated: 26 November 2026" path="/privacy">
 
       <LegalH2>Who we are</LegalH2>
       <p>
@@ -148,6 +148,11 @@ export default function PrivacyPage() {
         <li><strong>Payments</strong>: Stripe (US, EU establishment) — billing data only, no document content</li>
         <li><strong>Email in and out</strong>: Postmark (US) — carries documents emailed to your ProcuLink address, and the files we email to the recipients you set, as attachments</li>
       </ul>
+      <p>
+        When a flow sends a file to a destination you set up, such as a server, a mailbox, a
+        cloud drive or an e-invoicing system or provider, the receiver gets that file on your
+        instructions. Receivers you choose are not our subprocessors.
+      </p>
       <p>
         If you turn on phone alerts, we keep the push address your browser gives us for that device until you turn them
         off or sign out. Each alert goes through your browser&apos;s push service, run by Google, Apple, Mozilla or
@@ -323,6 +328,22 @@ export default function PrivacyPage() {
         <li><strong>Sharing.</strong> We do not share data from your Microsoft account with anyone. We do not use it for advertising, and we do not use it to train AI models.</li>
         <li><strong>Removing access.</strong> Disconnect the account in ProcuLink, and we delete its token at once. If a flow still picks up with the account, or a destination still saves with it, change that first. You can also remove ProcuLink from your Microsoft account&apos;s app permissions at any time. Deleting your workspace deletes the connection too.</li>
       </ul>
+
+      {/*
+        FOUNDER DECISION (2026-11-26), counsel to check. There is no place in ProcuLink to end an
+        assistant's sign-in (OAuth through Clerk): it is removed from the assistant. A key is
+        revoked in Settings.
+      */}
+      <LegalH2>AI assistants you connect</LegalH2>
+      <p>
+        If someone in your workspace connects an AI assistant, such as Claude, ChatGPT, Cursor or
+        VS Code, the assistant can add documents and read what we made from them: the values we
+        read, the checks, and whether a document was sent. What it reads goes to the company that
+        runs the assistant, under your agreement with that company. These companies are not our
+        subprocessors, and we do not control what they keep. Nothing goes to an assistant until
+        someone connects it. To stop it, remove ProcuLink from the assistant, or revoke its key in
+        Settings, under For developers.
+      </p>
 
       <LegalH2>Cookies</LegalH2>
       <p>

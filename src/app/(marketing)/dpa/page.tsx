@@ -17,7 +17,7 @@ export default function DpaPage() {
   return (
     // FOUNDER DECISION: set the effective month when this version is published. Revised from
     // an advisor's pilot review (2026-11): roles, breach notice, termination, Annex I/II.
-    <LegalPage title="Data Processing Addendum" updated="Effective: November 2026 · Version 1.5" path="/dpa">
+    <LegalPage title="Data Processing Addendum" updated="Effective: November 2026 · Version 1.6" path="/dpa">
       <p>
         This Data Processing Addendum (&quot;DPA&quot;) forms part of the agreement between{" "}
         {LEGAL_ENTITY.legalName}, operator of the ProcuLink service (the &quot;Processor&quot;),
@@ -82,6 +82,13 @@ export default function DpaPage() {
         <li>After the agreement ends, delete the Controller personal data or keep it available for the Controller to download, at the Controller&apos;s choice, on the Controller&apos;s written request — unless EU or Member State law requires it to be kept. Data is not deleted automatically when the agreement ends; deletion is carried out on request as described in the <Link href="/privacy">Privacy Policy</Link>.</li>
         <li>Make available the information necessary to demonstrate compliance with GDPR Art. 28(3).</li>
       </ul>
+      {/* FOUNDER DECISION (2026-11-26), version 1.6: instructed disclosures. Counsel to check. */}
+      <p>
+        Sending documents to a destination the Controller sets up, or making them available to a
+        service the Controller connects, such as an AI assistant or an e-invoicing provider, is
+        done on the Controller&apos;s documented instructions. It is not sub-processing by the
+        Processor, and the receiving service is not a sub-processor.
+      </p>
 
       {/*
         This clause used to open "All Controller personal data is processed in EU-region or

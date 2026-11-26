@@ -130,7 +130,7 @@ const POSTURE: Array<{ title: string; lead: string; body: React.ReactNode; icon:
   {
     title: "Responsible AI",
     lead: "AI suggestions never apply themselves.",
-    body: "Suggestions never apply themselves: you accept each one, and every value shows how sure we are. Your data is never used to train third-party models. We can also turn AI off for a workspace entirely, so nothing about its documents reaches OpenAI. Documents there cannot be read, because reading uses AI: they are stopped and marked as not read, never sent out. We set that for you on request; it is not a self-serve setting, and it does not change where your files are stored.",
+    body: "Suggestions never apply themselves: you accept each one, and every value shows how sure we are. Our AI provider does not train models on your data. An AI assistant you connect yourself works under your own agreement with its provider. We can also turn AI off for a workspace entirely, so nothing about its documents reaches OpenAI. Documents there cannot be read, because reading uses AI: they are stopped and marked as not read, never sent out. We set that for you on request; it is not a self-serve setting, and it does not change where your files are stored.",
     icon: <Eye />,
   },
 ];

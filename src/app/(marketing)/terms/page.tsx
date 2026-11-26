@@ -22,7 +22,7 @@ export const metadata = pageMetadata({
 export default function TermsPage() {
   return (
     // FOUNDER DECISION: set this date to the day the page is published.
-    <LegalPage title="Terms of Service" updated="Last updated: 25 November 2026" path="/terms">
+    <LegalPage title="Terms of Service" updated="Last updated: 26 November 2026 · The changes made on this date take effect on 14 December 2026" path="/terms">
 
       <LegalH2>1. Agreement</LegalH2>
       <p>
@@ -70,16 +70,38 @@ export default function TermsPage() {
         should check both before production use.
       */}
       <p>
-        Some outputs make files for, or send files to, systems run by public authorities, such
-        as national e-invoicing systems. When you use them, you are the issuer of the document.
-        You remain responsible for its content, for checking it before it is issued or sent, for
-        the credentials you give us, and for meeting your own legal and tax obligations.
-        ProcuLink provides the software and its checks and acts only on your instructions: a
-        file is sent to such a system only through a destination you set up with your own
-        credentials, and to a live (production) system only when a person in your organisation
-        confirms it. Our checks reduce mistakes but do not guarantee that a document is correct
-        or complete or that the authority will accept it, and passing them is not tax or legal
-        advice.
+        Some file types and destinations make files for, or send files to, systems run by public
+        authorities, such as national e-invoicing systems, or by e-invoicing providers and
+        networks you choose, such as a Peppol access point. When you use them, you are the issuer
+        of the document. You remain responsible for its content, for checking it before it is
+        issued or sent, for the accounts you hold with those systems and providers, for the
+        tokens, keys and other credentials you give us and for keeping them valid, and for
+        meeting your own legal and tax obligations. ProcuLink provides the software and its
+        checks and acts only on your instructions. A file is sent to such a system only through
+        a destination you set up with your own account and credentials. For KSeF&apos;s live
+        system, a person in your organisation must confirm each invoice before it is sent. Our
+        checks reduce mistakes but do not guarantee that a document is correct or complete, or
+        that the authority, provider or receiver will accept it. Passing them is not tax or
+        legal advice. ProcuLink is not certified or approved by any tax authority or
+        e-invoicing network.
+      </p>
+      {/* FOUNDER DECISION (2026-11-26): optional early-access sentence, approved with T1. Counsel to check. */}
+      <p>
+        Features we offer as early access may change or be withdrawn. We will tell you before
+        we switch one off for your workspace.
+      </p>
+
+      {/*
+        FOUNDER DECISION (2026-11-26): services the customer connects (AI assistants, e-invoicing
+        providers). Counsel to check. Numbered "2a" so the section numbers other pages cite stay.
+      */}
+      <LegalH2>2a. Services you connect</LegalH2>
+      <p>
+        You can connect services you hold your own account with, such as an AI assistant or an
+        e-invoicing provider. They are not our subprocessors. What you send to them, or let them
+        read from ProcuLink, is handled under your agreement with them. Anything done in
+        ProcuLink with a key you created or a sign-in you approved counts as done by you. Keep
+        keys safe, and revoke a key you no longer use in Settings, under For developers.
       </p>
 
       <LegalH2>3. Acceptable use</LegalH2>
@@ -186,7 +208,8 @@ export default function TermsPage() {
         Subject to the first paragraph of this section, we are not liable for the content of a
         document you issue or send through the service, for taxes, interest or penalties
         relating to it, or for the acts, decisions or availability of a public authority&apos;s
-        system, except to the extent that the loss is caused by our breach of these Terms.
+        system or of a third-party service you connect, such as an e-invoicing provider or an AI
+        assistant, except to the extent that the loss is caused by our breach of these Terms.
       </p>
 
       <LegalH2>8. Governing law</LegalH2>

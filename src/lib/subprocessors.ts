@@ -157,7 +157,7 @@ export const SUBPROCESSORS: Subprocessor[] = [
   },
   {
     name: "Clerk",
-    purpose: "Authentication and session management",
+    purpose: "Authentication and session management, including the sign-in an AI assistant uses to connect",
     location: "US, EU data residency available",
     contract: "Clerk DPA + SCCs",
   },
