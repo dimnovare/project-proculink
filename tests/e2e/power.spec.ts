@@ -148,7 +148,7 @@ test.describe("power tools", () => {
     expect(await page.locator("#main-content").evaluate((el) => Math.max(...[el, ...el.children].map((e) => e.scrollWidth - e.clientWidth)))).toBeLessThanOrEqual(1);
     // The footer's inline controls are tap targets too. (Its Ctrl K search shows from 768 up; on a phone History is the link.)
     expect((await box(page.locator("#main-content").getByRole("link", { name: "History", exact: true }))).height).toBeGreaterThanOrEqual(44);
-    expect((await box(page.getByRole("link", { name: "Older documents (before flows)" }))).height).toBeGreaterThanOrEqual(44);
+    expect((await box(page.getByRole("link", { name: "Documents before flows" }))).height).toBeGreaterThanOrEqual(44);
     // Everything ticked went: the result is drawn clear of the tab bar, with no Review next bar over it, and holds focus.
     await one.getByRole("button", { name: "Send" }).click();
     const result = page.getByRole("status").filter({ hasText: "invoice-1002.pdf is on its way." });

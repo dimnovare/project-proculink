@@ -218,7 +218,7 @@ export function DocumentsHome() {
         <p className="m-0 text-[13px] text-ink-muted">
           To download or remove several at once, press Select and tick them. Open any document to remove it from there.{" "}
           Older documents are under All
-          {pagePopulation(anyOldOrders.data).rows > 0 && <> and <Link href="/archive" className="-my-3 inline-flex items-center font-medium text-brand-blue-deep underline">Older documents (before flows)</Link></>}
+          {pagePopulation(anyOldOrders.data).rows > 0 && <> and <Link href="/archive" className="-my-3 inline-flex items-center font-medium text-brand-blue-deep underline">Documents before flows</Link></>}
           <span className="hidden md:inline">
             , or press{" "}
             <button type="button" onClick={openSearch} aria-label={`Search all documents, ${keyWord("Mod", apple)} K`}

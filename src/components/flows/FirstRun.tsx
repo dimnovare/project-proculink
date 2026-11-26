@@ -50,8 +50,7 @@ export function StepFrame({ step, sub, first, children }: { step: 2 | 3; sub: st
   return (
     <PageShell variant="wide">
       <PageHeader title={first ? "Set up your first flow" : "Set up a new flow"} sub={sub} back={BACK} />
-      {/* Phones: plain text, as the pills wrap to two lines there and look tappable. */}
-      <p className="m-0 mb-5 text-[13px] font-semibold text-ink-muted sm:hidden">{`Step ${step} of ${PILLS.length}: ${PILLS[step - 1]}`}</p>
+      {/* Phones: no pills (they wrap to two lines and look tappable); the line above already says the step. */}
       <ol aria-label="Steps" className="m-0 mb-5 hidden list-none flex-wrap gap-2 p-0 sm:flex">
         {PILLS.map((p, i) => (
           <li
