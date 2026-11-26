@@ -59,7 +59,7 @@ function Deliveries({ documentId, deliveries, destinationOf }: { documentId: str
                 </Button>
               )}
             </div>
-            {d.remoteReference && <span className="text-ink">KSeF number {d.remoteReference}</span>}
+            {d.remoteReference && <span className="text-ink">{d.protocol === "b2brouter" ? "B2Brouter invoice" : "KSeF number"} {d.remoteReference}</span>}
             {d.hasReceipt && (
               <Button size="sm" variant="secondary" className="justify-self-start" loading={receipt.isPending && receipt.variables?.id === d.id} onClick={() => receipt.mutate(d)}>
                 Download UPO receipt
