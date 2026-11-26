@@ -146,7 +146,8 @@ export function limitRefusalCopy(refusal: LimitRefusal): LimitRefusalCopy {
     const next = nextPlanUp(plan ?? "pilot");
     return {
       code,
-      title: `Your ${PLAN_BY_ID.pilot.name.toLowerCase()} has ended.`,
+      // Cause-neutral: the server sends pilot_expired for a spent document count AND a passed date.
+      title: `Your ${PLAN_BY_ID.pilot.name.toLowerCase()} is used up.`,
       message: "You can still view previous documents, but new processing is paused.",
       cta: next ? `Upgrade to ${next.name}` : "See plans",
       href: next ? undefined : "/pricing",

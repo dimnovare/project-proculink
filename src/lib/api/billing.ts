@@ -74,6 +74,7 @@ export async function getBillingStatus(): Promise<BillingStatus> {
       isSupplierLimitReached: true,
       canProcessOrders:       true,
       canAddSupplier:         false,
+      canSendDocuments:       true,
       stripeCustomerId:       null,
       stripeSubscriptionId:   null,
       overageOrders:          0,

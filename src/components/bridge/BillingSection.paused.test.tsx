@@ -314,6 +314,18 @@ describe("the pause is derived from the server's answer, not from a plan name", 
     expect(pageText().split("Your trial has ended.").length - 1).toBe(1);
   });
 
+  // The same payload WITHOUT canSendDocuments is the test above: an older API fails closed to it.
+  it("a trial with its documents used but days left does not say the trial ended", async () => {
+    await renderBilling(billing({
+      plan: "pilot", accountStatus: "trial_expired", isTrialExpired: true, isOrderLimitReached: true,
+      orderLimit: 35, canSendDocuments: true,
+    }));
+    expect(pageText()).toContain("You've used your 35 trial documents.");
+    expect(pageText()).toContain("You can still send the ones you already have.");
+    expect(pageText()).toContain(`${PLAN_BY_ID.pilot.name} · All documents used`);
+    expect(pageText()).not.toMatch(/has ended|ended · Processing paused/);
+  });
+
   it("NEGATIVE CONTROL: a healthy paid plan gets none of it", async () => {
     // Without this the walk above is satisfied by a banner that is simply always on,
     // which would be its own lie — and would move the committed /settings baseline.

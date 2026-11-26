@@ -112,6 +112,16 @@ function isProcessingPaused(status: BillingStatus): boolean {
 }
 
 /**
+ * A trial whose document count is spent while its window is still open. The server says
+ * `trial_expired` for it too, but only NEW documents are refused, so "Your trial has ended"
+ * would sit beside "27 days left". Keyed on the server's `canSendDocuments` (false once the
+ * date passes) rather than the client clock; absent on an older API reads as false.
+ */
+function trialDocumentsUsed(status: BillingStatus): boolean {
+  return status.plan === "pilot" && status.isOrderLimitReached && status.canSendDocuments === true;
+}
+
+/**
  * What to tell a workspace whose processing is paused.
  *
  * MOVED to `@/lib/billingPause` — it is no longer this screen's private copy. The order
@@ -260,6 +270,15 @@ function LimitBanner({ status, documentLadder }: { status: BillingStatus; docume
   // would speak over a subscription-level cause that ProcessingPausedBanner states correctly.
   if (namesSubscriptionCause(status.accountStatus)) return null;
 
+  if (trialDocumentsUsed(status)) {
+    return (
+      <div style={bannerStyle}>
+        <strong>You&apos;ve used your {(status.orderLimit || PLAN_BY_ID.pilot.orderLimit || 0).toLocaleString(NUMBER_LOCALE)} {TRIAL_NAME} documents.</strong>
+        <span>New documents aren&apos;t being accepted. You can still send the ones you already have. Choose a plan in Stripe to keep going.</span>
+      </div>
+    );
+  }
+
   if (status.plan === "pilot" && status.isTrialExpired) {
     return (
       <div style={bannerStyle}>
@@ -367,8 +386,9 @@ const USE_GRID = "grid grid-cols-[repeat(auto-fit,minmax(min(280px,100%),1fr))] 
 function PlanPanel({ status, flows }: { status: BillingStatus; flows: Use | null }) {
   const name = PLAN_BY_ID[status.plan].name;
   const isPaused = isProcessingPaused(status);
-  const heading =
-    status.plan === "pilot" && status.isTrialExpired
+  const heading = trialDocumentsUsed(status)
+    ? `${name} · All documents used`
+    : status.plan === "pilot" && status.isTrialExpired
       ? `${name} ended · Processing paused`
       : isPaused
         ? `${name} · Processing paused`

@@ -31,7 +31,7 @@ export const COPY: Record<string, string> = {
   document_busy: "This document is being read or sent. Try again in a moment.",
   not_retryable: "This document can't be read again.",
   invalid_name: "Use a name of 120 characters or fewer.",
-  pilot_expired: "Your trial has ended, so new documents aren't being accepted.",
+  pilot_expired: "Your trial is used up, so new documents aren't being accepted.",
   order_limit_reached: "You've reached your plan's document limit for this month.",
   flow_limit_reached: "You've reached your plan's flow limit. Upgrade in Settings → Plan & billing to add more flows.",
   no_output_matches: "No file is set to send this document. Check “Send when” on the flow's files.",

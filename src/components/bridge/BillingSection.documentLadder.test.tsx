@@ -196,7 +196,7 @@ describe("trial copy details", () => {
 
   it("limitRefusal's trial-ended title is C4's first sentence and never says Pilot", () => {
     const copy = limitRefusalCopy(readLimitRefusal({ error: "pilot_expired", plan: "pilot" }));
-    expect(copy.title).toBe(`Your ${PLAN_BY_ID.pilot.name.toLowerCase()} has ended.`);
+    expect(copy.title).toBe(`Your ${PLAN_BY_ID.pilot.name.toLowerCase()} is used up.`);
     expect(copy.title).not.toMatch(/Pilot/);
     expect(copy.cta).toBe(`Upgrade to ${PLAN_BY_ID[PLAN_BY_ID.pilot.next!].name}`);
   });

@@ -45,7 +45,7 @@ describe("Welcome", () => {
     billing.getBillingStatus.mockResolvedValue({ plan: "pilot", canProcessOrders: false, isTrialExpired: true, isOrderLimitReached: false });
     const main = render(<Welcome flows={[]} flowId={null} />, { wrapper }).container;
     expect(await within(main).findByText("Processing is paused, so new documents can't be read right now.")).toBeInTheDocument();
-    expect(within(main).getByRole("alert")).toHaveTextContent("Your trial has ended.");
+    expect(within(main).getByRole("alert")).toHaveTextContent("Your trial is used up.");
     for (const name of ["Choose a file", "Take a photo", "Use our sample invoice"]) expect(within(main).getByRole("button", { name })).toBeDisabled();
     choose(main, new File(["x"], "po.pdf", { type: "application/pdf" }));
     expect(api.createFlow).not.toHaveBeenCalled();
