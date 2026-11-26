@@ -91,6 +91,11 @@ describe("DestinationForm", () => {
     expect(api.createDestination).not.toHaveBeenCalled();
     fireEvent.change(name, { target: { value: "Books" } });
     expect(name).not.toHaveAttribute("aria-invalid");
+    const to = ui.getByLabelText("Send to (separate addresses with commas)");
+    fireEvent.change(to, { target: { value: "Books <books@example.test>, ap@example.test" } });
+    fireEvent.click(ui.getByRole("button", { name: "Save" }));
+    expect(to).not.toHaveAttribute("aria-invalid");
+    await waitFor(() => expect(api.createDestination).toHaveBeenCalledTimes(1));
   });
 
   it("offers an email subject and message but no attachment file name, which a flow send ignores", () => {
@@ -107,6 +112,7 @@ describe("DestinationForm", () => {
   });
 
   it("takes an SFTP private key in a textarea that keeps its line breaks, and does not show it after saving", async () => {
+    api.createDestination.mockClear();
     const key = "-----BEGIN OPENSSH PRIVATE KEY-----\nAAAA\nBBBB\n-----END OPENSSH PRIVATE KEY-----\n";
     api.createDestination.mockResolvedValue({ ...saved, id: "d2", protocol: "sftp", config: {} });
     const { container } = render(
@@ -278,6 +284,7 @@ describe("DestinationForm", () => {
   });
 
   it("asks for the issuer tick again when a Production KSeF destination's NIP changes", async () => {
+    api.updateDestination.mockClear();
     linked.listLinkedAccounts.mockResolvedValue({ available: false, ksefAvailable: true, accounts: [] });
     const prod: Destination = { ...saved, id: "k2", name: "KSeF", protocol: "ksef", hasCredentials: true, config: { environment: "production", nip: "1111111111" } };
     const ui = within(render(
@@ -291,6 +298,7 @@ describe("DestinationForm", () => {
     expect(ui.getByRole("checkbox", { name: /I confirm that every invoice sent from this destination/ })).toBeTruthy();
     fireEvent.click(ui.getByRole("button", { name: "Save" }));
     expect(ui.getByText("Tick this to send real invoices to KSeF Production.")).toBeTruthy();
+    expect(api.updateDestination).not.toHaveBeenCalled();
   });
 
   it("holds Save and send a test until the issuer tick, on a destination switched to Production", async () => {

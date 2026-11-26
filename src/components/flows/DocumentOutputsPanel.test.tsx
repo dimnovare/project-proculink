@@ -126,20 +126,27 @@ describe("DocumentOutputsPanel", () => {
     expect(panel.queryByRole("link", { name: "Open in Advanced" })).toBeNull();
   });
 
-  it("on a sent document: a retry is amber, the KSeF number can be copied, one delivered attempt is not counted, no Change the file", async () => {
+  it("while sending a retry is amber, the KSeF number can be copied, one delivered attempt is not counted; once sent, no Change the file", async () => {
+    const delivered = { id: "k", outputName: "Totals", protocol: "ksef", status: "delivered", attempts: 1, lastError: null, fileName: "fa.xml", deliveredAt: null, remoteReference: "5265877635-20260601-AB", hasReceipt: true };
     api.listDeliveries.mockResolvedValue([
-      { id: "k", outputName: "Totals", protocol: "ksef", status: "delivered", attempts: 1, lastError: null, fileName: "fa.xml", deliveredAt: null, remoteReference: "5265877635-20260601-AB", hasReceipt: true },
+      delivered,
       { id: "r", outputName: "Copy", protocol: "email", status: "failed", attempts: 2, lastError: "The mailbox didn't answer.", fileName: null, deliveredAt: null },
     ]);
-    const panel = within(render(<QueryClientProvider client={new QueryClient()}>
-      <DocumentOutputsPanel flowId="f" document={{ ...detail, summary: { ...detail.summary, status: "sent" } } as never} />
-    </QueryClientProvider>).container);
+    const as = (status: string) => render(<QueryClientProvider client={new QueryClient()}>
+      <DocumentOutputsPanel flowId="f" document={{ ...detail, summary: { ...detail.summary, status } } as never} />
+    </QueryClientProvider>);
+    const sending = as("sending");
+    const panel = within(sending.container);
     expect(await panel.findByText(/Will try again automatically, 2 attempts/)).toHaveClass("text-amber-text");
     expect(panel.getByText("The mailbox didn't answer.")).not.toHaveClass("text-danger");
     expect(panel.queryByText(/1 attempt/)).toBeNull();
     expect(panel.getByRole("button", { name: "Copy KSeF number" })).toBeInTheDocument();
     expect(panel.getByRole("button", { name: "Download UPO receipt" }).parentElement).toBe(panel.getByRole("button", { name: "Download" }).parentElement);
-    expect(panel.queryByRole("link", { name: "Change the file" })).toBeNull();
+    sending.unmount();
+    api.listDeliveries.mockResolvedValue([delivered]);
+    const sent = within(as("sent").container);
+    expect(await sent.findByRole("button", { name: "Copy KSeF number" })).toBeInTheDocument();
+    expect(sent.queryByRole("link", { name: "Change the file" })).toBeNull();
   });
 
   it("a KSeF delivery KSeF holds shows KSeF's answer and no destination to fix", async () => {

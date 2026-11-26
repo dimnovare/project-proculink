@@ -22,7 +22,7 @@ import { inInbox } from "@/lib/documentKind";
 import { editKey, reviewMarks } from "@/lib/reviewMarks";
 import { documentHref, pickNext, positionText, queuePosition } from "@/lib/reviewQueue";
 import { documentsAddress } from "@/lib/documentTabs";
-import { flowAddress } from "@/lib/flowSteps";
+import { changeFileAddress, flowAddress } from "@/lib/flowSteps";
 import { relativeTime } from "@/lib/relativeTime";
 import { nextTabIndex } from "@/lib/tabKeys";
 import { downloadDeliveryFile, fetchDocumentSource, getDocument, getFlow, getDocumentHistory, listDeliveries, listOutputs, retryDocumentRead, sendDocument, teachDocument } from "@/lib/api/documents";
@@ -294,7 +294,7 @@ function spotsOf(read: DocumentDetail["read"]): SourceSpot[] {
 const WAY_ON = "inline-flex items-center text-[12.5px] font-semibold text-brand-blue";
 
 /** A refused send in words, read by machine code only (never message text), with the way on when there is one. */
-function sendRefusal(e: unknown, flowId: string): { text: string; wayOn: ReactNode } {
+function sendRefusal(e: unknown, flowId: string, documentId: string): { text: string; wayOn: ReactNode } {
   const t = refusalToken(e);
   if (t === "processing_paused" || (t && (LIMIT_CODES.has(t) || isPlanGateError(t))))
     return { text: documentRefusalMessage(e), wayOn: <Link href="/settings?tab=billing" className={WAY_ON}>Open Plan &amp; billing</Link> };
@@ -302,9 +302,12 @@ function sendRefusal(e: unknown, flowId: string): { text: string; wayOn: ReactNo
     return { text: documentRefusalMessage(e), wayOn: <Link href={`/flows/${flowId}?tab=outputs`} className={WAY_ON}>Open the flow&apos;s files</Link> };
   if (rateLimited(e)) return { text: "Couldn't send just now. Try again in a moment.", wayOn: null };
   // The 422 names the file that couldn't be made (`outputId`); an older backend leaves it out and the flow's files open.
+  // Missing values are fixed by entering them, so the file is offered only when none are missing.
   if (t === "output_invalid") {
-    const id = e instanceof ApiHttpError ? (e.body as { outputId?: unknown } | null)?.outputId : null;
-    return { text: documentRefusalMessage(e), wayOn: <Link href={flowAddress(flowId, "send", { output: typeof id === "string" ? id : undefined })} className={buttonClass("secondary", "sm")}>Change the file</Link> };
+    const b = e instanceof ApiHttpError ? (e.body as { outputId?: unknown; missing?: unknown[] } | null) : null;
+    const id = typeof b?.outputId === "string" ? b.outputId : undefined;
+    const href = id ? changeFileAddress(flowId, { output: id, document: documentId, from: `/flows/${flowId}/documents/${documentId}` }) : flowAddress(flowId, "send");
+    return { text: documentRefusalMessage(e), wayOn: !b?.missing?.length && <Link href={href} className={buttonClass("secondary", "sm")}>Change the file</Link> };
   }
   return { text: documentRefusalMessage(e), wayOn: null };
 }
@@ -513,8 +516,6 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   };
   const busy = send.isPending || skip.isPending || leaving || answering;
   const words = flowWords(flow.data?.downloadOnly);
-  // Once sent, the pane says what went, in the past.
-  const sendPane = summary?.status === "sent" && !flow.data?.downloadOnly ? "What we sent" : words.pane;
   // The same request as the "What we'll send" pane. A flow that makes no file yet is set up first: the server would refuse the send.
   const outputs = useQuery({ queryKey: ["outputs", docFlowId, "published"], queryFn: () => listOutputs(docFlowId, { published: true }), enabled: enabled && here === false });
   const setUp = sends && outputs.data?.length === 0;
@@ -535,8 +536,10 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   // A sent document whose files were all made to download: File ready, and Download is the way on.
   const deliveries = useQuery({ queryKey: ["deliveries", documentId], queryFn: () => listDeliveries(documentId), enabled: enabled && here === false && (summary?.status === "sent" || sendFailed) });
   const files = filesOf(deliveries.data);
+  // Once sent, the pane says what went, in the past: only when something was delivered (`sent` also covers files only stored).
+  const sendPane = summary?.status === "sent" && !flow.data?.downloadOnly && !!deliveries.data?.some((d) => d.status === "delivered") ? "What we sent" : words.pane;
   // Why sending stopped, said above the tabs below lg, where the deliveries are on the last tab.
-  const unsent = (sendFailed && deliveries.data?.filter((d) => d.status === "dead_letter" || d.status === "failed")) || [];
+  const unsent = (sendFailed && deliveries.data?.filter((d) => d.status === "dead_letter")) || [];
   const made = here === false && summary?.status === "sent" && files.length > 0 && files.every((f) => !f.delivered);
   const download = useMutation({ mutationFn: async () => saveBlob(await downloadDeliveryFile(documentId, files[0].deliveryId), files[0].fileName) });
   const madeActions = (cls: string) => made && (
@@ -613,7 +616,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
           {refused === UNSAVED ? (
             <StatusNotice tone="error" action={!isLg && tab !== "read" && <Button size="sm" variant="secondary" onClick={() => setTab("read")}>Show what we read</Button>}>{UNSAVED_TEXT}</StatusNotice>
           ) : (() => {
-            const r = sendRefusal(refused, summary?.flowId ?? flowId);
+            const r = sendRefusal(refused, summary?.flowId ?? flowId, documentId);
             return <StatusNotice tone="error" action={r.wayOn}>{r.text}</StatusNotice>;
           })()}
         </div>
@@ -644,14 +647,11 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
           </div>
           <div className={`grid items-start gap-4 lg:gap-x-1 lg:grid-cols-[minmax(280px,var(--split))_10px_minmax(0,1fr)] ${waiting ? "min-[1700px]:grid-cols-[264px_minmax(280px,var(--split))_10px_minmax(360px,1fr)]" : ""}`} style={{ "--split": `${split}%` } as CSSProperties}>
             {/* Inside the grid so that below lg the inbox answers can sit above the tabs (order-first). */}
-            {/* A failed line is still being tried by the server: amber, never the red of a stopped one. */}
-            {(["dead_letter", "failed"] as const).map((s) => unsent.some((d) => d.status === s) && (
-              <div key={s} className="lg:hidden"><StatusNotice tone={s === "failed" ? "warning" : "error"}>
-                {unsent.filter((d) => d.status === s).map((d) => (
-                  <span key={d.id} className="block">{`${d.outputName}: ${d.lastError ?? "it couldn't be delivered."}`}{s === "failed" && " We'll try again automatically."}</span>
-                ))}
+            {unsent.length > 0 && (
+              <div className="lg:hidden"><StatusNotice tone="error">
+                {unsent.map((d) => <span key={d.id} className="block">{`${d.outputName}: ${d.lastError ?? "it couldn't be delivered."}`}</span>)}
               </StatusNotice></div>
-            ))}
+            )}
             <PaneTabs panes={panes} active={tab} onSelect={(id) => setTab(id as PaneId)} />
             {waiting && queue.data && (
               <div className={`hidden min-w-0 min-[1700px]:mr-3 min-[1700px]:block min-[1700px]:sticky ${UNDER_HEADER}`}>

@@ -92,7 +92,9 @@ const REQUIRED: Record<string, string> = {
   "ksef.token": "Paste your KSeF token.",
   "b2brouter.apiKey": "Paste your B2Brouter API key.",
 };
-const EMAIL = /^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/;
+// A bare address, or one with a display name (`Books <books@example.com>`), as the server accepts.
+const ADDRESS = /[^\s<>@,]+@[^\s<>@,]+\.[^\s<>@,]+/.source;
+const EMAIL = new RegExp(`^(?:${ADDRESS}|[^<>@,]*<${ADDRESS}>)$`);
 const FRANCE = [
   "From 1 September 2026, French companies receive invoices through an approved platform. Check that your provider is on the official list of approved platforms at impots.gouv.fr.",
   "Your invoices need your SIREN and your buyer's SIREN.",
