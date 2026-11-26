@@ -2,7 +2,7 @@ import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { LegalH2, LegalPage } from "@/components/marketing/LegalPage";
 import { LEGAL_ENTITY, PRODUCT_OPERATOR_NOTICE } from "@/lib/legal-entity";
-import { DOCUMENT_PLANS, DOCUMENT_PLAN_IDS, LEGACY_PAID_PLANS, OVERAGE_PER_ORDER_EUR, PLAN_BY_ID, TRIAL_DAYS } from "@/lib/plans";
+import { DOCUMENT_PLANS, DOCUMENT_PLAN_IDS, LEGACY_PAID_PLANS, OVERAGE_PER_ORDER_EUR, PLAN_BY_ID, TRIAL_DAYS, type Plan } from "@/lib/plans";
 
 export const metadata = pageMetadata({
   path: "/terms",
@@ -18,6 +18,17 @@ export const metadata = pageMetadata({
  * commercial choices inside them are the founder's, and counsel should check the final
  * wording against Estonian law (the Law of Obligations Act limits what a cap can exclude).
  */
+
+const planItem = (p: Plan) => (
+  <li key={p.id}>
+    <strong>{p.name}</strong>:{" "}
+    {p.id === "pilot"
+      ? `${TRIAL_DAYS}-day free trial — includes ${p.orderLimit} documents total, ${p.flowLimit} flows. On expiry, accounts become read-only. No Stripe card required.`
+      : p.priceMonthly == null
+        ? "Custom pricing. Contact us."
+        : `€${p.priceMonthly.toLocaleString("en-IE")}/month — includes ${p.orderLimit?.toLocaleString("en-IE")} ${DOCUMENT_PLAN_IDS.includes(p.id) ? "documents" : "orders"}/month, ${p.supplierLimit ?? (p.flowLimit == null ? "unlimited" : p.flowLimit)} ${p.supplierLimit != null ? "suppliers" : "flows"}${p.supplierLimit == null ? `, then €${p.overageEur?.toFixed(2)} per extra document` : ""}.`}
+  </li>
+);
 
 export default function TermsPage() {
   return (
@@ -129,16 +140,11 @@ export default function TermsPage() {
       {/* Plan numbers come from src/lib/plans.ts (the shared frontend ladder,
           aligned with backend PlanConstants) so the Terms can never drift. */}
       <ul>
-        {[PLAN_BY_ID.pilot, ...DOCUMENT_PLANS, ...LEGACY_PAID_PLANS, PLAN_BY_ID.enterprise].map((p) => (
-          <li key={p.id}>
-            <strong>{p.name}</strong>:{" "}
-            {p.id === "pilot"
-              ? `${TRIAL_DAYS}-day free trial — includes ${p.orderLimit} documents total, ${p.flowLimit} flows. On expiry, accounts become read-only. No Stripe card required.`
-              : p.priceMonthly == null
-                ? "Custom pricing. Contact us."
-                : `€${p.priceMonthly.toLocaleString("en-IE")}/month — includes ${p.orderLimit?.toLocaleString("en-IE")} ${DOCUMENT_PLAN_IDS.includes(p.id) ? "documents" : "orders"}/month, ${p.supplierLimit ?? (p.flowLimit == null ? "unlimited" : p.flowLimit)} ${p.supplierLimit != null ? "suppliers" : "flows"}${p.supplierLimit == null ? `, then €${p.overageEur?.toFixed(2)} per extra document` : ""}.`}
-          </li>
-        ))}
+        {[PLAN_BY_ID.pilot, ...DOCUMENT_PLANS, PLAN_BY_ID.enterprise].map(planItem)}
+      </ul>
+      <p>Earlier plans, kept for existing subscriptions and no longer offered:</p>
+      <ul>
+        {LEGACY_PAID_PLANS.map(planItem)}
       </ul>
       <p>
         Paid plans include the monthly volume listed above as a soft allowance, not a hard cap:
