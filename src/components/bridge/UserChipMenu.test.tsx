@@ -53,3 +53,10 @@ it("asks before signing out with held files, then removes them; with none it sig
   await waitFor(() => expect(signOut).toHaveBeenCalledWith({ redirectUrl: "/" }));
   expect(screen.queryByRole("alertdialog")).toBeNull();
 });
+
+it("names itself on a light page, where it stands alone; the top bar's chip stays an avatar", () => {
+  const { rerender } = render(<ConfirmProvider><UserChipMenu collapsed placement="down" onLight /></ConfirmProvider>);
+  expect(screen.getByRole("button", { name: /Open account menu/ })).toHaveTextContent("AEAccount");
+  rerender(<ConfirmProvider><UserChipMenu collapsed placement="down" /></ConfirmProvider>);
+  expect(screen.getByRole("button", { name: /Open account menu/ })).not.toHaveTextContent("Account");
+});

@@ -67,7 +67,7 @@ describe("DestinationsSection", () => {
     act(() => answer([inbox, server]));
     const rows = within(await screen.findByRole("list", { name: "Destinations" })).getAllByRole("listitem");
     expect(rows[0]).toHaveTextContent(/Accounting inbox.*Email to accounting@example\.test.*Used by Supplier invoices \(Invoice CSV\).*Couldn't send on 24 May.*See why/);
-    expect(within(rows[0]).getByRole("link", { name: "See why" })).toHaveAttribute("href", "/operations/log");
+    expect(within(rows[0]).getByRole("link", { name: "See why" })).toHaveAttribute("href", "/documents?show=failed");
     expect(rows[1]).toHaveTextContent(/Accounting server.*SFTP, sftp\.example\.test, folder \/in\/invoices.*Not used.*Never sent/);
     api.testDestination.mockResolvedValue({ success: false, message: "The server refused the login.", responseCode: null });
     const test = within(rows[1]).getByRole("button", { name: "Send a test to Accounting server" });

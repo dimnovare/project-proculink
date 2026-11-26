@@ -192,6 +192,8 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up", onLight 
         onMouseLeave={onLight ? undefined : (e) => { if (!open) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
       >
         <AvatarCircle initials={initials} onLight={onLight} />
+        {/* On a light page (Settings on a phone) the chip stands alone, so it names itself. */}
+        {onLight && <span className="pl-2 pr-1 text-[13px] font-semibold text-ink">Account</span>}
         {!collapsed && (
           <>
             <div className="min-w-0 flex-1 text-left" style={{ lineHeight: 1.25 }}>
