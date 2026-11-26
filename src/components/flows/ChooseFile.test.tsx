@@ -50,6 +50,8 @@ describe("ChooseFile", () => {
   it("picks XML, previews it as XML, and Use this file replaces only the named file", async () => {
     setSearch("output=out-2&from=%2Fflows%2Fflow-1");
     mount();
+    // The type in use is tagged, never drawn as picked while Use this file waits for a pick.
+    expect(await screen.findByRole("button", { name: /^JSON\W+Current$/ })).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(await screen.findByRole("button", { name: "XML" }));
     await waitFor(() => expect(api.previewOutput).toHaveBeenLastCalledWith("doc-1", "out-2", { as: expect.objectContaining({ format: "xml", standard: null }) }));
     expect(screen.getByRole("button", { name: "XML" })).toHaveAttribute("aria-pressed", "true");

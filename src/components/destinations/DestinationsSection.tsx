@@ -175,7 +175,8 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
               </div>
             </div>
           ) : (
-            <div><Button type="button" variant="ghost" loading={del.isPending} onClick={remove}>Delete destination</Button></div>
+            // Below a line, in red text, away from the test result and the form's own buttons.
+            <div className="border-t border-border pt-3"><Button type="button" variant="ghost" className="!px-0 !text-danger-text" loading={del.isPending} onClick={remove}>Delete destination</Button></div>
           )}
           {del.isError && <StatusNotice tone="error">{documentRefusalMessage(del.error)}</StatusNotice>}
         </div>

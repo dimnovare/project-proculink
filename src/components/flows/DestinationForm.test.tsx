@@ -78,6 +78,21 @@ describe("DestinationForm", () => {
     expect(api.updateDestination).not.toHaveBeenCalled();
   });
 
+  it("says what each box needs under it, marks it invalid, focuses the first, and saves nothing", async () => {
+    api.createDestination.mockClear();
+    const ui = newForm();
+    fireEvent.change(ui.getByLabelText("Send to (separate addresses with commas)"), { target: { value: "accounts, books@example.test" } });
+    fireEvent.click(ui.getByRole("button", { name: "Save" }));
+    const name = ui.getByLabelText("Name");
+    expect(name).toHaveAttribute("aria-invalid", "true");
+    expect(name).toHaveAccessibleDescription("Give this destination a name.");
+    expect(ui.getByLabelText("Send to (separate addresses with commas)")).toHaveAccessibleDescription("Enter an email address, like name@example.com.");
+    await waitFor(() => expect(name).toHaveFocus());
+    expect(api.createDestination).not.toHaveBeenCalled();
+    fireEvent.change(name, { target: { value: "Books" } });
+    expect(name).not.toHaveAttribute("aria-invalid");
+  });
+
   it("offers an email subject and message but no attachment file name, which a flow send ignores", () => {
     const { container } = render(
       <QueryClientProvider client={new QueryClient()}>
@@ -102,6 +117,7 @@ describe("DestinationForm", () => {
     const ui = within(container);
     fireEvent.change(ui.getByLabelText("Send by"), { target: { value: "sftp" } });
     fireEvent.change(ui.getByLabelText("Name"), { target: { value: "Files" } });
+    fireEvent.change(ui.getByLabelText("Server"), { target: { value: "sftp.example.test" } });
     fireEvent.change(ui.getByLabelText("Username"), { target: { value: "ops" } });
     fireEvent.click(ui.getByRole("button", { name: /^More options/ }));
     const box = ui.getByLabelText("Private key (instead of password)") as HTMLTextAreaElement;
@@ -205,17 +221,17 @@ describe("DestinationForm", () => {
     linked.listLinkedAccounts.mockResolvedValue({ available: false, accounts: [] });
     const hidden = newForm();
     await waitFor(() => expect(linked.listLinkedAccounts).toHaveBeenCalled());
-    expect(kinds(hidden)).not.toContain("B2Brouter (e-invoice network)");
+    expect(kinds(hidden)).not.toContain("B2Brouter");
     linked.listLinkedAccounts.mockResolvedValue({ available: false, peppolAvailable: true, accounts: [] });
     const shown = newForm();
-    await waitFor(() => expect(kinds(shown)).toContain("B2Brouter (e-invoice network)"));
+    await waitFor(() => expect(kinds(shown)).toContain("B2Brouter"));
   });
 
   it("saves B2Brouter with the key as a credential, never in config", async () => {
     linked.listLinkedAccounts.mockResolvedValue({ available: false, peppolAvailable: true, accounts: [] });
     api.createDestination.mockClear().mockResolvedValue({ ...saved, id: "b1", name: "E-invoices", protocol: "b2brouter", config: { account: "acc-1", sandbox: true } });
     const ui = newForm();
-    await waitFor(() => expect(kinds(ui)).toContain("B2Brouter (e-invoice network)"));
+    await waitFor(() => expect(kinds(ui)).toContain("B2Brouter"));
     fireEvent.change(ui.getByLabelText("Send by"), { target: { value: "b2brouter" } });
     for (const [label, value] of [["Name", "E-invoices"], ["B2Brouter account ID", "acc-1"], ["API key", "test_k"]])
       fireEvent.change(ui.getByLabelText(label), { target: { value } });
@@ -243,14 +259,19 @@ describe("DestinationForm", () => {
     expect(api.createDestination.mock.calls[0][0]).toEqual({
       name: "KSeF", protocol: "ksef", config: { environment: "test", nip: "1111111111" }, credentials: { token: "t" },
     });
-    // the saved destination is now edited: Production is offered, and Save waits for the issuer tick
+    // the saved destination is now edited: Production is offered, and Save says, under the issuer tick, that it waits for it
     api.updateDestination.mockClear().mockResolvedValue({ ...created, config: { environment: "production", nip: "1111111111" } });
     fireEvent.click(ui.getByRole("radio", { name: /^Production/ }));
     const save = ui.getByRole("button", { name: "Save" });
-    expect(save).toBeDisabled();
+    expect(save).toBeEnabled();
     fireEvent.click(save);
     expect(api.updateDestination).not.toHaveBeenCalled();
-    fireEvent.click(ui.getByRole("checkbox", { name: /^I confirm that every invoice sent from this destination/ }));
+    const tick = ui.getByRole("checkbox", { name: /^Required for Production: I confirm that every invoice sent from this destination/ });
+    expect(tick).toHaveAttribute("aria-invalid", "true");
+    expect(tick).toHaveAccessibleDescription("Tick this to send real invoices to KSeF Production.");
+    await waitFor(() => expect(tick).toHaveFocus());
+    fireEvent.click(tick);
+    expect(ui.queryByText("Tick this to send real invoices to KSeF Production.")).toBeNull();
     fireEvent.click(save);
     await waitFor(() => expect(api.updateDestination).toHaveBeenCalledTimes(1));
     expect(api.updateDestination.mock.calls[0][1].config).toEqual({ environment: "production", nip: "1111111111", acceptedIssuerTerms: true });
@@ -265,10 +286,11 @@ describe("DestinationForm", () => {
       </QueryClientProvider>,
     ).container);
     await waitFor(() => expect(ui.getByRole("radio", { name: /^Production/ })).toBeChecked());
-    expect(ui.queryByRole("checkbox", { name: /^I confirm that every invoice sent from this destination/ })).toBeNull();
+    expect(ui.queryByRole("checkbox", { name: /I confirm that every invoice sent from this destination/ })).toBeNull();
     fireEvent.change(ui.getByLabelText("NIP"), { target: { value: "PL 999-999-99-99" } });
-    expect(ui.getByRole("checkbox", { name: /^I confirm that every invoice sent from this destination/ })).toBeTruthy();
-    expect(ui.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(ui.getByRole("checkbox", { name: /I confirm that every invoice sent from this destination/ })).toBeTruthy();
+    fireEvent.click(ui.getByRole("button", { name: "Save" }));
+    expect(ui.getByText("Tick this to send real invoices to KSeF Production.")).toBeTruthy();
   });
 
   it("holds Save and send a test until the issuer tick, on a destination switched to Production", async () => {
@@ -282,7 +304,10 @@ describe("DestinationForm", () => {
     await waitFor(() => expect(ui.getByRole("radio", { name: /^Production/ })).toBeTruthy());
     expect(ui.getByLabelText("New KSeF token")).toBeTruthy();
     fireEvent.click(ui.getByRole("radio", { name: /^Production/ }));
-    expect(ui.getByRole("button", { name: "Save and send a test" })).toBeDisabled();
+    api.updateDestination.mockClear();
+    fireEvent.click(ui.getByRole("button", { name: "Save and send a test" }));
+    expect(ui.getByText("Tick this to send real invoices to KSeF Production.")).toBeTruthy();
+    expect(api.updateDestination).not.toHaveBeenCalled();
   });
 
   it("offers Reconnect for an account whose Google access was removed", async () => {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
+import { CopyButton } from "@/components/bridge/CopyButton";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import {
@@ -27,9 +28,10 @@ import { Failed, Loading } from "./states";
 
 const STATUSES = new Map([
   ["queued", "Waiting"], ["delivering", "Sending"], ["delivered", "Delivered"],
-  ["stored", "Ready to download"], ["failed", "Will retry"], ["dead_letter", "Couldn't deliver"],
+  ["stored", "Ready to download"], ["failed", "Will try again automatically"], ["dead_letter", "Couldn't deliver"],
 ]);
-const BAD = new Set(["failed", "dead_letter"]);
+// A failed line is retried by the server, so it is amber; only a stopped (or unknown) one is red.
+const tone = (s: string) => (s === "failed" ? "text-amber-text" : s === "dead_letter" || !STATUSES.has(s) ? "text-danger" : "text-ink-muted");
 const BUSY = new Set(["queued", "delivering"]);
 
 /** `destinationOf`: where an output sends, by its name, so a stopped line can say where to fix it. */
@@ -47,25 +49,39 @@ function Deliveries({ documentId, deliveries, destinationOf }: { documentId: str
         {download.isError && <StatusNotice tone="error">{documentRefusalMessage(download.error)}</StatusNotice>}
         {receipt.isError && <StatusNotice tone="error">{documentRefusalMessage(receipt.error)}</StatusNotice>}
         {deliveries.map((d) => (
-          <li key={d.id} className="grid gap-0.5 text-[12.5px]">
+          <li key={d.id} className="grid gap-1 text-[12.5px]">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="font-medium text-ink">{d.outputName}</span>
-              <span className={BAD.has(d.status) || !STATUSES.has(d.status) ? "text-danger" : "text-ink-muted"}>
-                {CHANNELS.get(d.protocol) ?? d.protocol}, {STATUSES.get(d.status) ?? d.status}{d.attempts > 0 && `, ${d.attempts} ${d.attempts === 1 ? "attempt" : "attempts"}`}
+              <span className={tone(d.status)}>
+                {/* One attempt that delivered is no news. */}
+                {CHANNELS.get(d.protocol) ?? d.protocol}, {STATUSES.get(d.status) ?? d.status}{d.attempts > 0 && (d.attempts > 1 || d.status !== "delivered") && `, ${d.attempts} ${d.attempts === 1 ? "attempt" : "attempts"}`}
               </span>
-              {d.fileName !== null && (
-                <Button size="sm" variant="secondary" loading={download.isPending && download.variables?.id === d.id} onClick={() => download.mutate(d)}>
-                  Download
-                </Button>
+              {(d.hasReceipt || d.fileName !== null) && (
+                <span className="flex flex-wrap justify-end gap-2">
+                  {d.hasReceipt && (
+                    <Button size="sm" variant="secondary" loading={receipt.isPending && receipt.variables?.id === d.id} onClick={() => receipt.mutate(d)}>
+                      Download UPO receipt
+                    </Button>
+                  )}
+                  {d.fileName !== null && (
+                    <Button size="sm" variant="secondary" loading={download.isPending && download.variables?.id === d.id} onClick={() => download.mutate(d)}>
+                      Download
+                    </Button>
+                  )}
+                </span>
               )}
             </div>
-            {d.remoteReference && <span className="text-ink">{d.protocol === "b2brouter" ? "B2Brouter invoice" : "KSeF number"} {d.remoteReference}</span>}
-            {d.hasReceipt && (
-              <Button size="sm" variant="secondary" className="justify-self-start" loading={receipt.isPending && receipt.variables?.id === d.id} onClick={() => receipt.mutate(d)}>
-                Download UPO receipt
-              </Button>
-            )}
-            {d.lastError && <span className="text-danger">{d.lastError}</span>}
+            {d.remoteReference && (() => {
+              const label = d.protocol === "b2brouter" ? "B2Brouter invoice" : "KSeF number";
+              return (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-ink-muted">{label}</span>
+                  <span className="min-w-0 break-all font-mono text-ink">{d.remoteReference}</span>
+                  <CopyButton text={d.remoteReference} label={`Copy ${label}`} size="sm" />
+                </div>
+              );
+            })()}
+            {d.lastError && <span className={d.status === "failed" ? "text-ink-muted" : "text-danger"}>{d.lastError}</span>}
             {d.status === "dead_letter" && !d.remoteMayHold && (() => {
               const dest = destinationOf(d.outputName);
               return dest && <Link href={fixDestinationHref(dest)} className={`${buttonClass("secondary", "sm")} justify-self-start`}>Fix the destination</Link>;
@@ -93,12 +109,14 @@ const openOutputs = (): string[] => {
 };
 
 // Owns its own preview so opening one output never replaces another's.
-function OutputRow({ o, flowId, documentId, flowFields, destinations, live, peppolOn }: {
+function OutputRow({ o, flowId, documentId, flowFields, destinations, live, peppolOn, sent }: {
   o: FlowOutput; flowId: string; documentId: string; flowFields: Flow["fields"] | undefined; destinations: readonly { id: string; name: string }[] | undefined;
   /** The values can still change: an open preview is made again after each saved change. */
   live: boolean;
   /** The Peppol switch: a Peppol BIS output then says whether the buyer can receive it. */
   peppolOn: boolean;
+  /** Sent: changing the flow's file changes nothing here, so it is not offered. */
+  sent: boolean;
 }) {
   const enabled = useTenantQueriesEnabled();
   const [open, setOpen] = useState(() => openOutputs().includes(o.id));
@@ -126,9 +144,9 @@ function OutputRow({ o, flowId, documentId, flowFields, destinations, live, pepp
         <span className="flex flex-wrap items-center gap-2">
           {open && live && <span className="text-[12.5px] text-ink-muted">{preview.isFetching ? "Updating…" : "Updates as you type"}</span>}
           <Button size="sm" variant="secondary" aria-expanded={open} loading={open && preview.isLoading} onClick={toggle}>{open ? "Hide preview" : "Preview"}</Button>
-          <Link href={changeFileAddress(flowId, { output: o.id, document: documentId, from: `/flows/${flowId}/documents/${documentId}` })} className={`${buttonClass("secondary", "sm")} inline-flex items-center`}>Change the file</Link>
+          {!sent && <Link href={changeFileAddress(flowId, { output: o.id, document: documentId, from: `/flows/${flowId}/documents/${documentId}` })} className={`${buttonClass("secondary", "sm")} inline-flex items-center`}>Change the file</Link>}
           {/* Only where Advanced fits: a phone would be sent to a screen that says it needs a wider one. */}
-          {!o.standard && <Link href={`/flows/${flowId}/outputs/${o.id}/advanced?document=${documentId}`} className="hidden items-center text-[12.5px] text-brand-blue underline lg:inline-flex">More settings</Link>}
+          {!sent && !o.standard && <Link href={`/flows/${flowId}/outputs/${o.id}/advanced?document=${documentId}`} className="hidden items-center text-[12.5px] text-brand-blue underline lg:inline-flex">More settings</Link>}
         </span>
       </div>
       {open && preview.isError && <StatusNotice tone="error">{documentRefusalMessage(preview.error)}</StatusNotice>}
@@ -145,7 +163,7 @@ function OutputRow({ o, flowId, documentId, flowFields, destinations, live, pepp
   );
 }
 
-/** The content of the "What we'll send" pane: what each output makes, where it goes, and what was sent. */
+/** The content of the "What we'll send" ("What we sent") pane: what each output makes, where it goes, and what was sent. */
 export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string; document: DocumentDetail }) {
   const enabled = useTenantQueriesEnabled();
   const documentId = doc.summary.id;
@@ -178,7 +196,7 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
         : list.length > 0 && (
           <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr))] [&>*:only-child]:col-span-full">
             {list.map((o) => (
-              <OutputRow key={o.id} o={o} flowId={flowId} documentId={documentId} flowFields={flow.data?.fields} destinations={destinations.data} live={editable} peppolOn={flow.data?.peppolOn === true} />
+              <OutputRow key={o.id} o={o} flowId={flowId} documentId={documentId} flowFields={flow.data?.fields} destinations={destinations.data} live={editable} peppolOn={flow.data?.peppolOn === true} sent={doc.summary.status === "sent"} />
             ))}
           </div>
         )}

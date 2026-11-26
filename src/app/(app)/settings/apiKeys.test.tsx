@@ -88,6 +88,8 @@ describe("Settings › API keys", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Create key" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Assistant" } });
     fireEvent.click(screen.getByRole("checkbox", { name: "Let it send documents" }));
+    // The option sits before Create, so it is seen before the key is made.
+    expect(screen.getByRole("checkbox", { name: "Let it send documents" }).compareDocumentPosition(screen.getByRole("button", { name: "Create key" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Create key" }));
     await waitFor(() => expect(api.createApiKey).toHaveBeenCalledWith("Assistant", true));
     expect((await screen.findAllByText("Can send documents")).length).toBeGreaterThan(0);

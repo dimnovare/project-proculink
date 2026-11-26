@@ -268,6 +268,15 @@ describe("DocumentScreen", () => {
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/documents?show=needs-you"));
   });
 
+  it("a file that couldn't be made offers Change the file, opened on that file", async () => {
+    api.sendDocument.mockRejectedValueOnce(new ApiHttpError("no", 422, { error: "output_invalid", output: "KSeF invoice", detail: null, outputId: "o-9" }));
+    renderScreen();
+    fireEvent.click(within(await screen.findByTestId("review-header-actions")).getByRole("button", { name: "Send and open next" }));
+    const refusal = within(await screen.findByTestId("review-refusal"));
+    expect(refusal.getByText(/KSeF invoice/)).toBeInTheDocument();
+    expect(refusal.getByRole("link", { name: "Change the file" })).toHaveAttribute("href", "/flows/f?tab=send&output=o-9");
+  });
+
   it("sends nothing while the last change is not saved", async () => {
     api.editDocumentValues.mockRejectedValue(new Error("offline"));
     renderScreen();

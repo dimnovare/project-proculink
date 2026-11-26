@@ -528,7 +528,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
             <div className="grid gap-2 border-t border-border px-4 py-3">
               {sendToField}
               {destinationsFailed}
-              {destination && (
+              {destination && !newDestination && (
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-[13px] text-ink">
                   <span className="min-w-0 break-words">{destinationWhere(destination)}</span>
                   <FlowLink href={destinationsAddress(destination.id)} push className="inline-flex items-center font-semibold text-brand-blue">Edit</FlowLink>

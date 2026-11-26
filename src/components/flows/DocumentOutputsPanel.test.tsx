@@ -126,6 +126,22 @@ describe("DocumentOutputsPanel", () => {
     expect(panel.queryByRole("link", { name: "Open in Advanced" })).toBeNull();
   });
 
+  it("on a sent document: a retry is amber, the KSeF number can be copied, one delivered attempt is not counted, no Change the file", async () => {
+    api.listDeliveries.mockResolvedValue([
+      { id: "k", outputName: "Totals", protocol: "ksef", status: "delivered", attempts: 1, lastError: null, fileName: "fa.xml", deliveredAt: null, remoteReference: "5265877635-20260601-AB", hasReceipt: true },
+      { id: "r", outputName: "Copy", protocol: "email", status: "failed", attempts: 2, lastError: "The mailbox didn't answer.", fileName: null, deliveredAt: null },
+    ]);
+    const panel = within(render(<QueryClientProvider client={new QueryClient()}>
+      <DocumentOutputsPanel flowId="f" document={{ ...detail, summary: { ...detail.summary, status: "sent" } } as never} />
+    </QueryClientProvider>).container);
+    expect(await panel.findByText(/Will try again automatically, 2 attempts/)).toHaveClass("text-amber-text");
+    expect(panel.getByText("The mailbox didn't answer.")).not.toHaveClass("text-danger");
+    expect(panel.queryByText(/1 attempt/)).toBeNull();
+    expect(panel.getByRole("button", { name: "Copy KSeF number" })).toBeInTheDocument();
+    expect(panel.getByRole("button", { name: "Download UPO receipt" }).parentElement).toBe(panel.getByRole("button", { name: "Download" }).parentElement);
+    expect(panel.queryByRole("link", { name: "Change the file" })).toBeNull();
+  });
+
   it("a KSeF delivery KSeF holds shows KSeF's answer and no destination to fix", async () => {
     api.listOutputs.mockResolvedValue([{ id: "o", flowId: "f", name: "Totals", format: "xml", tableKey: null, destinationId: "dest-1", template: {}, createdAt: "" }]);
     api.listDeliveries.mockResolvedValue([{ id: "x", outputName: "Totals", protocol: "ksef", status: "dead_letter", attempts: 1, lastError: "KSeF already has this invoice.", fileName: null, deliveredAt: null, remoteMayHold: true }]);

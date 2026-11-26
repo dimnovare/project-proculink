@@ -22,6 +22,7 @@ import { inInbox } from "@/lib/documentKind";
 import { editKey, reviewMarks } from "@/lib/reviewMarks";
 import { documentHref, pickNext, positionText, queuePosition } from "@/lib/reviewQueue";
 import { documentsAddress } from "@/lib/documentTabs";
+import { flowAddress } from "@/lib/flowSteps";
 import { relativeTime } from "@/lib/relativeTime";
 import { nextTabIndex } from "@/lib/tabKeys";
 import { downloadDeliveryFile, fetchDocumentSource, getDocument, getFlow, getDocumentHistory, listDeliveries, listOutputs, retryDocumentRead, sendDocument, teachDocument } from "@/lib/api/documents";
@@ -150,6 +151,21 @@ export function Original({ documentId, fileName, highlight, marks, onPick, spots
   if (source.isError || source.data.size === 0)
     return <p className="px-4 pb-4 text-[12.5px] text-ink-muted">The original isn&apos;t available right now.</p>;
   return <SourceDocumentBody cacheKey={documentId} document={{ blob: source.data, contentType: type, filename: fileName }} bounded={isLg} highlight={highlight} marks={marks} onPick={onPick} spots={spots} onSpot={onSpot} />;
+}
+
+/** Loading the document; after 15 seconds, the two ways on. */
+function SlowLoading({ retry }: { retry(): void }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => { if (slow) return; const t = setTimeout(() => setSlow(true), 15_000); return () => clearTimeout(t); }, [slow]);
+  if (!slow) return <Loading>Loading document…</Loading>;
+  return (
+    <StatusNotice tone="warning" action={
+      <span className="flex flex-wrap gap-2">
+        <Button size="sm" variant="secondary" onClick={() => { setSlow(false); retry(); }}>Try again</Button>
+        <Link href="/documents" className={buttonClass("secondary", "sm")}>Go to Documents</Link>
+      </span>
+    }>Still loading. Try again, or go to Documents.</StatusNotice>
+  );
 }
 
 type PaneId = "original" | "read" | "send";
@@ -285,6 +301,11 @@ function sendRefusal(e: unknown, flowId: string): { text: string; wayOn: ReactNo
   if (t === "no_outputs" || t === "no_output_matches")
     return { text: documentRefusalMessage(e), wayOn: <Link href={`/flows/${flowId}?tab=outputs`} className={WAY_ON}>Open the flow&apos;s files</Link> };
   if (rateLimited(e)) return { text: "Couldn't send just now. Try again in a moment.", wayOn: null };
+  // The 422 names the file that couldn't be made (`outputId`); an older backend leaves it out and the flow's files open.
+  if (t === "output_invalid") {
+    const id = e instanceof ApiHttpError ? (e.body as { outputId?: unknown } | null)?.outputId : null;
+    return { text: documentRefusalMessage(e), wayOn: <Link href={flowAddress(flowId, "send", { output: typeof id === "string" ? id : undefined })} className={buttonClass("secondary", "sm")}>Change the file</Link> };
+  }
   return { text: documentRefusalMessage(e), wayOn: null };
 }
 
@@ -492,6 +513,8 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   };
   const busy = send.isPending || skip.isPending || leaving || answering;
   const words = flowWords(flow.data?.downloadOnly);
+  // Once sent, the pane says what went, in the past.
+  const sendPane = summary?.status === "sent" && !flow.data?.downloadOnly ? "What we sent" : words.pane;
   // The same request as the "What we'll send" pane. A flow that makes no file yet is set up first: the server would refuse the send.
   const outputs = useQuery({ queryKey: ["outputs", docFlowId, "published"], queryFn: () => listOutputs(docFlowId, { published: true }), enabled: enabled && here === false });
   const setUp = sends && outputs.data?.length === 0;
@@ -505,14 +528,15 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   }, [qc, documentId]);
   const remove = useRemove(() => { removed.current = true; setLeaving(true); router.replace(nextNow ? documentHref(nextNow) : "/documents"); }, true);
   const canRemove = !!doc.data?.canRemove && !!summary && removable(summary.status);
+  // From md it sits first in the header, 24px clear of Skip and Send; a phone has those in the bar below.
   const removeButton = canRemove && (
-    <Button variant="secondary" className="!text-danger-text" disabled={busy} loading={remove.pendingId === documentId} onClick={() => void remove.ask({ ...summary, countsThisMonth: doc.data?.countsThisMonth })}>Remove</Button>
+    <Button variant="secondary" className="!text-danger-text md:order-first md:mr-4" disabled={busy} loading={remove.pendingId === documentId} onClick={() => void remove.ask({ ...summary, countsThisMonth: doc.data?.countsThisMonth })}>Remove</Button>
   );
   // A sent document whose files were all made to download: File ready, and Download is the way on.
   const deliveries = useQuery({ queryKey: ["deliveries", documentId], queryFn: () => listDeliveries(documentId), enabled: enabled && here === false && (summary?.status === "sent" || sendFailed) });
   const files = filesOf(deliveries.data);
   // Why sending stopped, said above the tabs below lg, where the deliveries are on the last tab.
-  const whyUnsent = sendFailed ? deliveries.data?.filter((d) => d.status === "dead_letter" || d.status === "failed").map((d) => `${d.outputName}: ${d.lastError ?? "it couldn't be delivered."}`) : undefined;
+  const unsent = (sendFailed && deliveries.data?.filter((d) => d.status === "dead_letter" || d.status === "failed")) || [];
   const made = here === false && summary?.status === "sent" && files.length > 0 && files.every((f) => !f.delivered);
   const download = useMutation({ mutationFn: async () => saveBlob(await downloadDeliveryFile(documentId, files[0].deliveryId), files[0].fileName) });
   const madeActions = (cls: string) => made && (
@@ -542,7 +566,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   const ago = relativeTime(summary?.createdAt);
   const by = summary?.source ? `by ${SOURCES.get(summary.source) ?? summary.source}` : "";
   const when = `${summary?.sourceRef ? ` from ${summary.sourceRef}` : ""}${ago ? ` ${ago}` : ""}`;
-  const panes = here === false ? PANES.map((p) => (p.id === "send" ? { ...p, title: words.pane } : p)) : PANES.filter((p) => p.id !== "send");
+  const panes = here === false ? PANES.map((p) => (p.id === "send" ? { ...p, title: sendPane } : p)) : PANES.filter((p) => p.id !== "send");
 
   return (
     <PageShell variant="full">
@@ -596,7 +620,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
       )}
       {!doc.data || !summary || !status ? (
         doc.isError ? (notFound(doc.error) ? <Gone text="This document isn't here any more. It may have been removed." back="documents" />
-          : <Failed error={doc.error} retry={() => doc.refetch()} />) : <Loading>Loading document…</Loading>
+          : <Failed error={doc.error} retry={() => doc.refetch()} />) : <SlowLoading retry={() => doc.refetch()} />
       ) : (
         <div className="grid gap-4">
           {doc.isError && <Failed error={doc.error} retry={() => doc.refetch()} />}
@@ -620,9 +644,14 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
           </div>
           <div className={`grid items-start gap-4 lg:gap-x-1 lg:grid-cols-[minmax(280px,var(--split))_10px_minmax(0,1fr)] ${waiting ? "min-[1700px]:grid-cols-[264px_minmax(280px,var(--split))_10px_minmax(360px,1fr)]" : ""}`} style={{ "--split": `${split}%` } as CSSProperties}>
             {/* Inside the grid so that below lg the inbox answers can sit above the tabs (order-first). */}
-            {!!whyUnsent?.length && (
-              <div className="lg:hidden"><StatusNotice tone="error">{whyUnsent.map((w) => <span key={w} className="block">{w}</span>)}</StatusNotice></div>
-            )}
+            {/* A failed line is still being tried by the server: amber, never the red of a stopped one. */}
+            {(["dead_letter", "failed"] as const).map((s) => unsent.some((d) => d.status === s) && (
+              <div key={s} className="lg:hidden"><StatusNotice tone={s === "failed" ? "warning" : "error"}>
+                {unsent.filter((d) => d.status === s).map((d) => (
+                  <span key={d.id} className="block">{`${d.outputName}: ${d.lastError ?? "it couldn't be delivered."}`}{s === "failed" && " We'll try again automatically."}</span>
+                ))}
+              </StatusNotice></div>
+            ))}
             <PaneTabs panes={panes} active={tab} onSelect={(id) => setTab(id as PaneId)} />
             {waiting && queue.data && (
               <div className={`hidden min-w-0 min-[1700px]:mr-3 min-[1700px]:block min-[1700px]:sticky ${UNDER_HEADER}`}>
@@ -665,7 +694,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
               )}
             </Pane>
             {here === false && (
-              <Pane id="send" title={words.pane} dot="green" hidden={tab !== "send"}>
+              <Pane id="send" title={sendPane} dot="green" hidden={tab !== "send"}>
                 <DocumentOutputsPanel flowId={summary.flowId} document={doc.data} />
               </Pane>
             )}

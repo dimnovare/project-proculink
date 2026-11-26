@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { OutputNode, OutputNodeTemplate } from "@/lib/api/types";
-import { OutputBuilder } from "./OutputBuilder";
+import { OutputBuilder, WORDS } from "./OutputBuilder";
 import { FLAGGED, KSEF, STANDARD_OUTPUTS, kindGroup, standardFamilies } from "@/lib/standardOutputs";
 
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useTenantQueriesEnabled: () => true }));
@@ -122,6 +122,16 @@ describe("OutputBuilder", () => {
     const use = screen.getAllByRole("button", { name: "Use UBL Order" }).at(-1)!;
     act(() => { use.click(); use.click(); });
     await waitFor(() => expect(api.createOutput).toHaveBeenCalledTimes(1));
+  });
+
+  it("says the same for credit notes only when every invoice standard has one", () => {
+    renderBuilder({ flow: { ...invoiceFlow, peppolOn: true, ksefOn: true }, kind: "Invoice" });
+    fireEvent.click(screen.getByRole("button", { name: "A standard format" }));
+    const fams = standardFamilies(true, true).invoices;
+    const twins = fams.filter((f) => f.creditNote).length;
+    expect(twins).toBeLessThan(fams.length);   // KSeF has none: the case this line is about
+    expect(screen.getByText(new RegExp(`^${WORDS[twins]} of these, for credit notes\\.$`, "i"))).toBeTruthy();
+    expect(screen.queryByText(/^The same/)).toBeNull();
   });
 
   it("lists one row per family, the fitting ones first, and keeps every standard reachable", () => {
