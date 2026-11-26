@@ -36,14 +36,19 @@ const sha256 = (s: string) => createHash("sha256").update(s, "utf8").digest("hex
 const PINNED: Record<"/privacy" | "/terms" | "/aup" | "/dpa" | "/subprocessors" | "/security#statements", string> = {
   // Re-pinned 2026-11-25: new "Microsoft accounts you connect" section (Outlook pickup) and date line.
   // Re-pinned 2026-11-25 (plan 30 Part B): that section also covers saving files to a OneDrive folder.
-  "/privacy": "ebf3de27e3028925e1af25bd82f6d27bc3974df93de99dbdb20c594c3f55014e",
-  "/terms": "a85ed4affde78a10ef0566eea7e67f89a4b9d53848f7b73979469dddbe538c45",
+  // Re-pinned 2026-11-26 (release pass): new "AI assistants you connect" section, destinations sentence, date line.
+  "/privacy": "eea242ae2ce00914e6b866f080675a737a5b5b47aa3f81ca0780d7f029b8e95b",
+  // Re-pinned 2026-11-26 (release pass): §2 e-invoicing providers + KSeF confirm + early access, new §2a, §7 connected services, effective date.
+  "/terms": "49dfc474e5612d7339b0e9e54e47a6f5181de11ffe8851a2f4b844990a1e4341",
   "/aup": "917a1e45c7f3775aad05ae6d74275ee63f522e4a2db5012bdecca0702f4c0fbf",
-  "/dpa": "a86971bb79039f2a9403ebef616bf194cd955d36d4fe3cd3b20a5fe903a72e39",
-  "/subprocessors": "e4bd03fe1c61f9709e8a396e8070351c8ec6991a0b202b3b2dc7d47a89956122",
+  // Re-pinned 2026-11-26 (release pass): §3 instructed disclosures, version 1.6.
+  "/dpa": "a6cc19cf206af3bb271987f63a92532457cf72f677ab2491d56de8d2e086b585",
+  // Re-pinned 2026-11-26 (release pass): Clerk purpose names the assistant sign-in (wording only; list unchanged).
+  "/subprocessors": "afc6dea9fd52cd3ad3128d2f426c4937517fa07309b74ecaebdc23abb22a074e",
   // Re-pinned 2026-11-23 (UI review C-04): each card gained a one-sentence plain answer above its
   // unchanged detail, and the residency card's link reads "the subprocessor list", not "/subprocessors".
-  "/security#statements": "54a4c704be2ee16152bfc84ff949b36bef493e4f469be56b3f0be512c7494a76",
+  // Re-pinned 2026-11-26 (release pass): the training line no longer covers assistants a customer connects.
+  "/security#statements": "4752c15cabf3da75d1280b0b558f7341de72b888a6853d2c58e14df8f2055f94",
 };
 
 const PAGES = [
