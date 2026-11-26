@@ -165,7 +165,7 @@ describe("OutputEditor", () => {
   });
 
   const peppol = { ...output, standard: "peppol-bis-billing-3", format: "xml", tableKey: "lines", template: {}, needs: [] };
-  const checkFlow = { ...flow, peppolOn: true, fields: { fields: [], tables: [lines] } };
+  const checkFlow = { ...flow, peppolOn: true, rulesCheckOn: true, fields: { fields: [], tables: [lines] } };
 
   it("a failed Peppol check lists its rules, errors first", async () => {
     api.checkOutput.mockResolvedValue({ status: "failed", issues: [
@@ -198,6 +198,11 @@ describe("OutputEditor", () => {
     renderEditor(peppol, checkFlow);
     fireEvent.click(screen.getByRole("button", { name: "Check against Peppol rules" }));
     expect(await screen.findByText("We couldn't reach the rule checker. Try again in a minute.")).toBeTruthy();
+  });
+
+  it("no rule checker configured, no check button", () => {
+    renderEditor(peppol, { ...checkFlow, rulesCheckOn: false });
+    expect(screen.queryByRole("button", { name: "Check against Peppol rules" })).toBeNull();
   });
 
   it("a CII output checks against EN 16931 rules", async () => {

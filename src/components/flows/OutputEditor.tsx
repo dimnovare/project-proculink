@@ -452,7 +452,7 @@ function Editor({ flow, output, previewDocumentId, previewFile, hideDestination,
   const standardQuestions = standard && <StandardQuestions flow={flow} needs={current.needs ?? []} tableKey={tableKey} name={standardName(standard)} />;
   const partnerIds = standard && <PartnerIds standard={standard} envelope={envelope} onChange={setEnvelope} />;
   const problemNotice = problem && <StatusNotice tone="error">{problem}</StatusNotice>;
-  const checkButton = previewDocumentId && current && standard && standard in RULE_SETS && flow.peppolOn && (
+  const checkButton = previewDocumentId && current && standard && standard in RULE_SETS && flow.rulesCheckOn && (
     <Button type="button" variant="secondary" loading={check.isPending} onClick={() => check.mutate(previewDocumentId)}>Check against {RULE_SETS[standard]?.short} rules</Button>
   );
   const checkResult = (

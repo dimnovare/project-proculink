@@ -48,6 +48,8 @@ export interface Flow {
   docsOutputsOn?: boolean;
   /** E-invoice outputs that need the validator sidecar (Peppol BIS, EN 16931 CII and XRechnung) are offered. Absent means off. */
   peppolOn?: boolean;
+  /** The rule checker is configured, so "Check against … rules" can answer. Absent means off: the button is hidden, never shown to fail. */
+  rulesCheckOn?: boolean;
   /** The Polish KSeF invoice file is offered (plan 33). Absent means off. */
   ksefOn?: boolean;
   /** The live version number; null means never published. Only the single-flow response carries these three. */
