@@ -231,6 +231,8 @@ describe("DestinationForm", () => {
     linked.listLinkedAccounts.mockResolvedValue({ available: false, peppolAvailable: true, accounts: [] });
     const shown = newForm();
     await waitFor(() => expect(kinds(shown)).toContain("B2Brouter"));
+    // An e-invoice network is early access: its group says so.
+    expect(shown.getByRole("group", { name: "E-invoice network (early access)" })).toBeInTheDocument();
   });
 
   it("saves B2Brouter with the key as a credential, never in config", async () => {
@@ -242,6 +244,7 @@ describe("DestinationForm", () => {
     for (const [label, value] of [["Name", "E-invoices"], ["B2Brouter account ID", "acc-1"], ["API key", "test_k"]])
       fireEvent.change(ui.getByLabelText(label), { target: { value } });
     expect(ui.getByText("Sending invoices in France")).toBeTruthy();
+    expect(ui.getByLabelText("API key").closest("label")!.parentElement!.parentElement).toHaveClass("col-span-full"); // its own row
     fireEvent.click(ui.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(api.createDestination).toHaveBeenCalledTimes(1));
     expect(api.createDestination.mock.calls[0][0]).toEqual({

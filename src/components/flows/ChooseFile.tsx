@@ -96,7 +96,10 @@ export function ChooseFile({ flowId }: { flowId: string }) {
   const fit = kindGroup(doc.data?.read?.kindLabel ?? null);
   const fitting = fit ? fams[fit] : [...fams.invoices, ...fams.orders];
   // Neither group is ever empty: the Factur-X invoice and the order standards ship to every workspace.
-  const standardLine = `${or(fitting.map((s) => s.name))}. We fill the standard in from what each value means.`;
+  // The rest of the list sits under "Other standards": the line counts them, from the same families.
+  const others = fit ? fams[fit === "invoices" ? "orders" : "invoices"].length : 0;
+  const more = others ? ` ${others} more for ${fit === "invoices" ? "orders" : "invoices"} under Other standards.` : "";
+  const standardLine = `${or(fitting.map((s) => s.name))}.${more} We fill the standard in from what each value means.`;
   const goesTo = destinations.data?.find((d) => d.id === output.destinationId);
   const blocked = goesTo?.protocol === "google_sheets" && !!choice && (!!choice.standard || choice.format !== "csv");
   // Only a new pick looks pressed: the type in use is tagged Current, so a grey Use this file never sits under a "chosen" button.
