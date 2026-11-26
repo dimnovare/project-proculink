@@ -40,6 +40,7 @@ describe("GoogleAccounts", () => {
       { id: "acc-1", provider: "google", email: "accounts@example.test", status: "active", createdAt: T },
       { id: "acc-2", provider: "google", email: "old@example.test", status: "reconnect", createdAt: T },
       { id: "acc-3", provider: "google", email: "next@example.test", status: "suspended", createdAt: T },
+      { id: "acc-4", provider: "microsoft", email: "drive@example.test", status: "active", createdAt: T },
     ] });
     const uses = [
       { ...base, id: "g1", name: "Invoices folder", protocol: "google_drive", config: { accountId: "acc-1", folderName: "Invoices 2026" } },
@@ -54,6 +55,7 @@ describe("GoogleAccounts", () => {
     expect(first).toHaveTextContent(/accounts@example\.test.*Used by Invoices folder and Weekly log.*Connected/);
     expect(second).toHaveTextContent(/old@example\.test.*Not used by a destination yet\..*Reconnect needed/);
     expect(block).toHaveTextContent("Keep the Google Drive box ticked, or we can't save files or add rows.");
+    expect(within(block).getByRole("link", { name: "Workspace › Connected accounts" })).toHaveAttribute("href", "/settings?tab=org");
     const invalidate = vi.spyOn(qc, "invalidateQueries");
     linked.deleteLinkedAccount.mockRejectedValueOnce(new ApiHttpError("in use", 409, { error: "account_in_use" }));
     fireEvent.click(within(first).getByRole("button", { name: "Disconnect accounts@example.test" }));

@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check } from "lucide-react";
 import { Button, Pill } from "@/components/bridge/DSPrimitives";
@@ -11,6 +12,7 @@ import { useConfirm } from "@/components/ui/confirm";
 import type { Destination } from "@/lib/api/documents";
 import { deleteLinkedAccount } from "@/lib/api/linkedAccounts";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
+import { settingsAddress } from "@/lib/settingsTabs";
 
 const LINK = "inline-flex items-center text-[13px] font-semibold text-ink underline";
 
@@ -96,6 +98,12 @@ export function GoogleAccounts({ destinations }: { destinations: Destination[] |
           </ul>
         ) : (
           <p className="m-0 text-[14px] text-ink">No Google account is connected.</p>
+        )}
+        {/* Microsoft accounts live under Workspace; say so, so this tab never reads as "nothing connected". */}
+        {linked.data.accounts.some((a) => a.provider !== "google") && (
+          <p className="m-0 text-[13px] text-ink-muted">
+            Your Microsoft accounts are listed under <Link href={settingsAddress("org")} className={LINK}>Workspace › Connected accounts</Link>.
+          </p>
         )}
         <p className="m-0 rounded-card bg-surface-2 p-3 text-[13px] text-ink-muted">
           When you connect, Google lists what ProcuLink may do. Keep the Google Drive box ticked, or we can&apos;t save files or add

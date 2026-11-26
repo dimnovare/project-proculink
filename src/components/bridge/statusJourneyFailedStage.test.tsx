@@ -55,6 +55,10 @@ describe("StatusJourney render — the X sits on the failing node", () => {
     expect(d).toHaveLength(5);
     expect(d[4]).toHaveStyle({ background: "#B43838" });
     expect(d[2]).not.toHaveStyle({ background: "#B43838" });
+    // The line keeps running into the failed node, as on a sent row.
+    const lines = Array.from(container.querySelectorAll("div:not(.rounded-full)")).filter((x) => (x as HTMLElement).style.height === "1.5px");
+    expect(lines).toHaveLength(4);
+    for (const l of lines) expect(l).toHaveStyle({ background: "#2E8E3A" });
   });
 
   it("compact: parse failure marks node 0", () => {

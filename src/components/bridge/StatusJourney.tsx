@@ -69,7 +69,8 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
                     height: 1.5,
                     minWidth: 12,
                     flex: 1,
-                    background: i <= numericStage && i !== failedAt ? "#2E8E3A" : "#CBD0DA",
+                    // The line runs up to the node it stopped at, so a failed row reads as the same track as a sent one.
+                    background: i <= numericStage ? "#2E8E3A" : "#CBD0DA",
                   }}
                 />
               )}

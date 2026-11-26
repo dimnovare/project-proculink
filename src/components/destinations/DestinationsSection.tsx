@@ -17,6 +17,7 @@ import type { Destination } from "@/lib/api/documents";
 import { destinationsAddress, destinationWhere, lastSendWords, readDestinationsAddress, usedByWords } from "@/lib/destinations";
 import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { activityAddress } from "@/lib/activityRows";
+import { documentsAddress } from "@/lib/documentTabs";
 import { GoogleAccounts } from "./GoogleAccounts";
 import { TestOutcome } from "./TestOutcome";
 
@@ -141,7 +142,7 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
           {last?.tone === "failed" && (
             <>
               <span aria-hidden>{" · "}</span>
-              <Link href={activityAddress("all")} className="inline-flex items-center font-semibold underline max-lg:min-h-[44px]">See why</Link>
+              <Link href={d.lastSend?.kind === "document" ? documentsAddress("failed") : activityAddress("all")} className="inline-flex items-center font-semibold underline max-lg:min-h-[44px]">See why</Link>
             </>
           )}
         </span>
