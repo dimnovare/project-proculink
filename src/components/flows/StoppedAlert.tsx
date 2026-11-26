@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { buttonClass } from "@/components/bridge/DSPrimitives";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import type { DocumentPage } from "@/lib/api/documents";
 import { fixDestinationHref } from "@/lib/activityRows";
@@ -40,7 +41,7 @@ export function StoppedAlert({ page }: { page: DocumentPage | undefined }) {
           : " The documents are safe. Fix the destination, then send them again."}
       </>
     );
-    link = <Link href={fixDestinationHref(first.destinationId)} className="inline-flex items-center font-semibold underline">Fix the destination</Link>;
+    link = <Link href={fixDestinationHref(first.destinationId)} className={buttonClass("secondary", "sm")}>Fix the destination</Link>;
   } else if (one && rows.length === 1 && !first?.destinationId && serverReasonOrNull(first?.error)) {
     // Held where it was sent (a KSeF duplicate): its answer is the whole story; there is no destination to fix.
     detail = serverReasonOrNull(first!.error);

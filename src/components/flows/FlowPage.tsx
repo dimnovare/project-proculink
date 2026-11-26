@@ -257,9 +257,16 @@ function FlowBody({ flow, view, output, renaming, onRenamed, blocked }: { flow: 
   const summaries = useStepSummaries(flow);
   // Single-flow answers carry no summary; the flows list does.
   const line = doesLine(useQuery({ ...flowsQuery, enabled: useTenantQueriesEnabled() }).data?.find((x) => x.id === flow.id) ?? { summary: null });
+  // The summary is of the setup in use; a draft waiting to be put in use is said, not shown as if it were live.
+  const pending = typeof flow.publishedVersion === "number" && !!flow.hasChanges;
   return (
     <div className="grid gap-4">
-      {line && <p className="m-0 text-[14.5px] text-ink">{line}</p>}
+      {line && <p className="m-0 text-[14.5px] text-ink">{pending ? `In use now: ${line}` : line}</p>}
+      {pending && (!view || view === "documents") && (
+        <StatusNotice tone="warning" action={<FlowLink href={flowAddress(flow.id, "send")} className={buttonClass("secondary", "md")}>Review changes</FlowLink>}>
+          You have changes that aren&apos;t in use yet.
+        </StatusNotice>
+      )}
       {renaming && <RenameForm flow={flow} onDone={onRenamed} />}
       {renaming && flow.canDelete && <DeleteFlow flow={flow} />}
       <StepStrip flow={flow} view={view ?? "documents"} summaries={summaries} />

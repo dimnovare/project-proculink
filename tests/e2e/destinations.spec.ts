@@ -97,7 +97,7 @@ test.describe("destinations", () => {
     await expect(panel).toContainText("invoice-1004.csv is on its way again.");
     await expect(panel.getByTestId("destination-waiting")).toHaveCount(0);
     const server = page.getByRole("list", { name: "Destinations" }).getByRole("listitem").filter({ hasText: "Accounting server" });
-    await server.getByRole("button", { name: "Test Accounting server" }).click();
+    await server.getByRole("button", { name: "Send a test to Accounting server" }).click();
     await expect(server.getByRole("alert")).toContainText("The test didn't arrive: The server refused the login.");
     await page.goBack();
     await expect(page).toHaveURL(/\/documents\?show=failed$/);
@@ -141,7 +141,7 @@ test.describe("destinations", () => {
       await root.getByRole("button", { name: "More options" }).click();
       await root.getByRole("button", { name: "Save and send a test" }).click();
       await expect(root.getByTestId("destination-waiting")).toBeVisible();          // the amber band and Send it now are measured too
-      await root.getByRole("button", { name: "Test Accounting server" }).click();
+      await root.getByRole("button", { name: "Send a test to Accounting server" }).click();
       await expect(root.getByRole("listitem").filter({ hasText: "Accounting server" }).getByRole("alert")).toBeVisible();
       expect(await overflows(root), `overflow at ${width}`).toEqual([]);
       const [size, text] = await smallestText(root);

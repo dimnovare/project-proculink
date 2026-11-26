@@ -88,7 +88,9 @@ export function FlowDocuments({ flow }: { flow: Flow }) {
     enabled,
     refetchInterval: (q) => (q.state.data?.items.some((d) => documentStatus(d.status, d.statusReason).tone === "working") ? 2000 : false),
   });
-  const needs = useQuery({ ...flowNeedsYouQuery(flow.id), enabled });
+  // Polled with the list while a row is being read, so a read that ends in review is counted (else "Nothing needs you").
+  const reading = page.data?.items.some((d) => documentStatus(d.status, d.statusReason).tone === "working");
+  const needs = useQuery({ ...flowNeedsYouQuery(flow.id), enabled, refetchInterval: reading ? 2000 : false });
   const total = pageTotal(page.data);
   const need = pageTotal(needs.data);
   const unsent = pageTotal(useQuery({ ...documentCountQuery([STATUS.send_failed], flow.id), enabled }).data);

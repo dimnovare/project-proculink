@@ -45,10 +45,10 @@ export function startOfWeek(now: Date): Date {
 }
 
 /** The line under the title. null while the needs-you number is unknown (the caller keeps the plain line);
- *  the other clauses only for a number above zero. */
-export function documentsHelper(needsYou: number | undefined, sentThisWeek: number | undefined, beingRead?: number): string | null {
+ *  the other clauses only for a number above zero. Problems need a person too, so with any, it is never "Nothing needs you". */
+export function documentsHelper(needsYou: number | undefined, sentThisWeek: number | undefined, beingRead?: number, problems?: number): string | null {
   if (needsYou === undefined) return null;
-  const needs = needsYou === 0 ? "Nothing needs you." : `${needsYou} ${needsYou === 1 ? "needs" : "need"} you.`;
+  const needs = needsYou ? `${needsYou} ${needsYou === 1 ? "needs" : "need"} you.` : problems ? `Nothing to check. ${problems} under Problems.` : "Nothing needs you.";
   const reading = beingRead ? ` ${beingRead} being read.` : "";
   return `${needs}${reading}${sentThisWeek ? ` ${sentThisWeek} finished this week.` : ""}`;
 }

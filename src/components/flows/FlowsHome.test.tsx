@@ -131,10 +131,11 @@ describe("FlowsHome", () => {
     known.unmount();
 
     // At or over the limit: no "New flow"; the header says "See plans" and an amber notice sits above the list.
-    for (const [n, lead] of [[limit, `${limit} of ${limit} flows on ${planName("pilot")}.`], [limit + 1, "You have more flows than your plan includes."]] as const) {
+    for (const [n, lead] of [[limit, `${limit} of ${limit} flows on the ${planName("pilot")}.`], [limit + 1, "You have more flows than your plan includes."]] as const) {
       listFlows.mockResolvedValue(Array.from({ length: n }, (_, i) => flow(`flow-${i}`, `Flow ${i}`, 0)));
       const full = show();
-      expect(await screen.findByText(`${lead} New flows can't be added until you upgrade.`)).toBeTruthy();
+      expect(await screen.findByText(`${lead} To try another file, such as the KSeF invoice, add it to a flow you have: open the flow, then We send, then Make another file.`)).toBeTruthy();
+      expect(screen.getByRole("link", { name: "Open Flow 0" })).toHaveAttribute("href", "/flows/flow-0");
       expect(screen.getByRole("link", { name: "See plans" }).className).toBe(buttonClass("secondary", "md"));
       expect(screen.queryByRole("button", { name: "New flow" })).toBeNull();
       full.unmount();

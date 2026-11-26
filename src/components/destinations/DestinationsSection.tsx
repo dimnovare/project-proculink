@@ -150,8 +150,8 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
             <span className="text-[13px] font-semibold text-ink-muted">Editing</span>
           ) : (
             <>
-              <Button type="button" variant="secondary" size="sm" aria-label={`Test ${d.name}`} loading={test.isPending}
-                onClick={() => { if (busy.current) return; busy.current = true; test.mutate(); }}>Test</Button>
+              <Button type="button" variant="secondary" size="sm" aria-label={`Send a test to ${d.name}`} loading={test.isPending}
+                onClick={() => { if (busy.current) return; busy.current = true; test.mutate(); }}>Send a test</Button>
               <Button type="button" variant="secondary" size="sm" aria-label={`Edit ${d.name}`} aria-expanded={open} data-row-edit
                 onClick={() => go(d.id)}>Edit</Button>
             </>

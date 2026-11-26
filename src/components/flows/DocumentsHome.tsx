@@ -190,7 +190,7 @@ export function DocumentsHome() {
                   key={t.id} type="button" role="tab" id={`documents-tab-${t.id}`} aria-controls="documents-panel" aria-selected={selected}
                   tabIndex={selected || (!tab && i === 0) ? 0 : -1} onKeyDown={onTabKey} onClick={() => go(t.id)}
                   ref={selected ? (el) => intoStrip(el) : undefined}
-                  className={`flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap px-2 text-[13px] sm:px-3 ${selected ? "border-b-2 border-brand-blue font-semibold text-ink" : "text-ink-muted"}`}
+                  className={`flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap px-2 text-[13px] sm:px-3${t.id === "all" ? " min-w-11 px-3" : ""} ${selected ? "border-b-2 border-brand-blue font-semibold text-ink" : "text-ink-muted"}`}
                 >
                   {t.label}
                   {n !== undefined && <>{" "}<span>{n}</span></>}
@@ -218,7 +218,7 @@ export function DocumentsHome() {
         <p className="m-0 text-[13px] text-ink-muted">
           To download or remove several at once, press Select and tick them. Open any document to remove it from there.{" "}
           Older documents are under All
-          {pagePopulation(anyOldOrders.data).rows > 0 && <> and <Link href="/archive" className="-my-3 inline-flex items-center font-medium text-brand-blue-deep underline">Old orders</Link></>}
+          {pagePopulation(anyOldOrders.data).rows > 0 && <> and <Link href="/archive" className="-my-3 inline-flex items-center font-medium text-brand-blue-deep underline">Documents before flows</Link></>}
           <span className="hidden md:inline">
             , or press{" "}
             <button type="button" onClick={openSearch} aria-label={`Search all documents, ${keyWord("Mod", apple)} K`}
@@ -248,7 +248,7 @@ export function DocumentsHome() {
   );
   return (
     // A being-read count that is unknown, or whose last request failed, says nothing (R6).
-    <Frame sub={documentsHelper(needTotal, pageTotal(week.data), beingRead.isError ? undefined : pageTotal(beingRead.data))} actions={reviewNext("review-next", " hidden md:inline-flex")}>
+    <Frame sub={documentsHelper(needTotal, pageTotal(week.data), beingRead.isError ? undefined : pageTotal(beingRead.data), pageTotal(counts[2].data))} actions={reviewNext("review-next", " hidden md:inline-flex")}>
       {body}
       {/* Not in Select mode: the selection bar and its result sit where this bar would cover them. */}
       {next && !selecting && <ActionBar>{reviewNext()}</ActionBar>}
