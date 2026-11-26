@@ -307,10 +307,10 @@ describe("DocumentsHome", () => {
     first.unmount();
     getOrders.mockResolvedValue({ items: [{}], totalCount: 1, page: 1, pageSize: 1, sampleCount: 0 });
     mount();
-    const old = await screen.findByRole("link", { name: "Old orders" });
+    const old = await screen.findByRole("link", { name: "Older documents (before flows)" });
     expect(old).toHaveAttribute("href", "/archive");
     expect(old.closest("p")!.textContent).toBe(
-      "To download or remove several at once, press Select and tick them. Open any document to remove it from there. Older documents are under All and Old orders, or press Ctrl K to find any document. What happened to each one is in History.",
+      "To download or remove several at once, press Select and tick them. Open any document to remove it from there. Older documents are under All and Older documents (before flows), or press Ctrl K to find any document. What happened to each one is in History.",
     );
   });
   it("says flows are off on the engine refusal", async () => {

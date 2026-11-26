@@ -84,6 +84,15 @@ describe("FlowPage", () => {
     expect(strip().queryByRole("link", { name: "Documents in this flow" })).toBeNull();
   });
 
+  it("with changes not in use, the summary says it is the setup in use and the overview links to them (P2-1)", async () => {
+    api.getFlow.mockResolvedValue({ ...flow, hasChanges: true });
+    api.listFlows.mockResolvedValue([{ ...flow, summary: { needsYou: 0, couldNotSend: 0, couldNotRead: 0, lastDocumentAt: null, waysIn: ["email"], outputs: [{ name: "Invoices CSV", format: "csv", standard: null, destination: null }] } }]);
+    renderPage();
+    expect(await screen.findByText("In use now: Reads documents from email and upload. You download Invoices CSV.")).toBeInTheDocument();
+    expect(screen.getByText("You have changes that aren't in use yet.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Review changes" })).toHaveAttribute("href", "/flows/flow-1?tab=send");
+  });
+
   it("an unconfirmed flow asks for its values above the phone's step list, with a button (B-11)", async () => {
     api.getFlow.mockResolvedValue({ ...flow, fieldsConfirmed: false });
     renderPage();

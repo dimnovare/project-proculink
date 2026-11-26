@@ -140,8 +140,9 @@ export function FlowsHome() {
     body = (
       <div className="flex flex-col gap-3">
         {full && plan && (
-          <StatusNotice tone="warning">
-            {`${count > limit! ? "You have more flows than your plan includes." : `${count} of ${limit} flows on ${planName(plan)}.`} New flows can't be added until you upgrade.`}
+          // A full plan can still try another file: it goes in a flow it already has.
+          <StatusNotice tone="warning" action={flows.data[0] && <Link href={`/flows/${flows.data[0].id}`} className={buttonClass("secondary", "md")}>{`Open ${flows.data[0].name}`}</Link>}>
+            {`${count > limit! ? "You have more flows than your plan includes." : `${count} of ${limit} flows on the ${planName(plan)}.`} To try another file, such as the KSeF invoice, add it to a flow you have: open the flow, then We send, then Make another file.`}
           </StatusNotice>
         )}
         <Card flush as="section" aria-labelledby="flows-heading">

@@ -70,7 +70,7 @@ describe("DestinationsSection", () => {
     expect(within(rows[0]).getByRole("link", { name: "See why" })).toHaveAttribute("href", "/operations/log");
     expect(rows[1]).toHaveTextContent(/Accounting server.*SFTP, sftp\.example\.test, folder \/in\/invoices.*Not used.*Never sent/);
     api.testDestination.mockResolvedValue({ success: false, message: "The server refused the login.", responseCode: null });
-    const test = within(rows[1]).getByRole("button", { name: "Test Accounting server" });
+    const test = within(rows[1]).getByRole("button", { name: "Send a test to Accounting server" });
     fireEvent.click(test);
     fireEvent.click(test);
     expect(await within(rows[1]).findByRole("alert")).toHaveTextContent("The test didn't arrive: The server refused the login.");
@@ -135,7 +135,7 @@ describe("DestinationsSection", () => {
     expect(await screen.findByText("We can't find that destination. It may have been deleted.")).toBeInTheDocument();
     api.testDestination.mockRejectedValueOnce(new ApiHttpError("forbidden", 403, { error: "requires_org_admin" }));
     const rows = within(screen.getByRole("list", { name: "Destinations" })).getAllByRole("listitem");
-    fireEvent.click(within(rows[0]).getByRole("button", { name: "Test Accounting inbox" }));
+    fireEvent.click(within(rows[0]).getByRole("button", { name: "Send a test to Accounting inbox" }));
     expect(await within(rows[0]).findByRole("alert")).toHaveTextContent("Only a workspace admin can change this.");
     cleanup();
     search.q = "tab=destinations&open=new";

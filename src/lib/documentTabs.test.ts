@@ -40,6 +40,7 @@ describe("documentTabs", () => {
     expect(documentsHelper(undefined, 24)).toBeNull();
     expect(documentsHelper(3, 24, 2)).toBe("3 need you. 2 being read. 24 finished this week.");
     expect(documentsHelper(0, 0, 1)).toBe("Nothing needs you. 1 being read.");
+    expect(documentsHelper(0, 0, 0, 2)).toBe("Nothing to check. 2 under Problems.");
     expect(documentsHelper(3, 24, 0)).toBe("3 need you. 24 finished this week.");
     expect(documentsHelper(3, 24, undefined)).toBe("3 need you. 24 finished this week.");
     expect(documentsHelper(undefined, 24, 2)).toBeNull();
