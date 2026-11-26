@@ -17,7 +17,7 @@ import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
 
 **Claude:** open "Customize", then "Connectors", select "Add", then "Add custom connector". Name it ProcuLink and paste `https://api.proculink.eu/mcp`. Select "Connect", sign in to ProcuLink and choose your workspace.
 
-**ChatGPT:** open "Plugins", select "+", then "Add custom MCP server". Paste the same address, choose "OAuth", and create it. Then sign in to ProcuLink and choose your workspace. This works if your ChatGPT plan allows custom connectors.
+**ChatGPT:** open "Plugins", select "+", then "Add custom MCP server". Paste the same address and choose "OAuth". Open "Advanced OAuth settings", set "Registration method" to "Client Identifier Metadata Document (CIMD)" and untick the box under "OpenID support". Create it, then sign in to ProcuLink and choose your workspace. This works if your ChatGPT plan allows custom connectors.
 
 <Outcome>
 Your assistant lists five ProcuLink tools.
