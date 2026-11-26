@@ -1,24 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import type { UseMutationResult } from "@tanstack/react-query";
+import { useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import { Check, TriangleAlert } from "lucide-react";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { Loading, LogoLoader } from "@/components/bridge/LogoLoader";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
-import type { DocumentCheck, DocumentSummary, DuplicateOf } from "@/lib/api/documents";
+import type { DocumentCheck, DocumentDetail, DocumentSummary, DuplicateOf } from "@/lib/api/documents";
 import { duplicateLine } from "@/lib/flowWords";
 import { EarlierLink } from "./RowActions";
 import { classifyApiFailure } from "@/lib/apiFailure";
-import { canRetryRead, COPY, documentRefusalMessage, readFailureMessage, refusalToken } from "@/lib/documentRefusals";
+import { canRetryRead, COPY, documentRefusalMessage, outputFailedMessage, readFailureMessage, refusalToken } from "@/lib/documentRefusals";
+import { flowAddress } from "@/lib/flowSteps";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
 import { documentsAddress, type DocumentTab } from "@/lib/documentTabs";
 import { firstRunAddress } from "@/lib/firstRun";
 
-/** Reasons the engine parks a document for review on its own, each worded in COPY. */
-const AUTOMATIC_HOLDS = new Set(["no_output_matches", "output_invalid", "ksef_confirm"]);
+/** Reasons the engine parks a document for review on its own, each worded in COPY (`output_invalid` names its file, in ReadProblem). */
+const AUTOMATIC_HOLDS = new Set(["no_output_matches", "ksef_confirm"]);
 
 /** Gone: the server's words and the way on: back to the start of a first run, or back to Documents from the review screen. */
 export const Gone = ({ text, back = "start" }: { text: string; back?: "start" | "documents" }) => (
@@ -149,6 +150,13 @@ export function ReadProblem({ summary, retry, scansOn, uploadHref, held }: {
   /** The server's sentence for a held duplicate ("This file is already in your workspace." in the inbox). */
   held?: string;
 }) {
+  // The screen's own ["document", id] query already holds the detail; read, never fetched again here.
+  const failed = useQueryClient().getQueryData<DocumentDetail>(["document", summary.id])?.heldOutput;
+  if (summary.statusReason === "output_invalid") return (
+    <StatusNotice tone="warning" action={
+      <Link href={flowAddress(summary.flowId, "send", { output: failed?.outputId ?? undefined })} className={buttonClass("secondary", "sm")}>Change the file</Link>
+    }>{outputFailedMessage(failed?.output, failed?.detail)}</StatusNotice>
+  );
   if (AUTOMATIC_HOLDS.has(summary.statusReason ?? "")) return <StatusNotice tone="warning">{readFailureMessage(summary.statusReason)}</StatusNotice>;
   // A held duplicate always shows its hold and "Read it anyway", even when values were read (a moved inbox document was).
   const duplicate = summary.statusReason === "duplicate_file";

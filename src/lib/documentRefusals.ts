@@ -1,6 +1,5 @@
 import { ApiHttpError } from "@/lib/api/core";
 import { errorField } from "@/lib/api/refusal";
-import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
 import { isPlanGateError } from "@/lib/planGate";
 
@@ -123,18 +122,17 @@ export const rateLimited = (e: unknown) => {
   return e instanceof ApiHttpError && e.status === 429 && !(t && (Object.hasOwn(COPY, t) || isPlanGateError(t)));
 };
 
-/** A need no field holds is named by its meaning in the server's words ("Sender endpoint id", StandardOrderAdapter.Humanise): show the label the meaning picker shows. */
-const meaningLabels = (detail: string) =>
-  Object.entries(FIELD_MEANINGS).reduce((s, [key, { label }]) => s.replaceAll(key[0].toUpperCase() + key.slice(1).replaceAll("_", " "), label), detail);
+/** A file that couldn't be made: its name and the server's reason when known (the reason names meanings by FIELD_MEANINGS labels). */
+export function outputFailedMessage(output: string | null | undefined, detail: string | null | undefined): string {
+  if (detail && Object.hasOwn(COPY, detail)) return COPY[detail];
+  if (!output && !detail) return "One of this flow's files couldn't be made. Open the flow's files to see which one.";
+  return `The file${output ? ` "${output}"` : ""} couldn't be made${detail ? `: ${detail}` : "."}`;
+}
 
 export function documentRefusalMessage(error: unknown): string {
   const token = refusalToken(error);
   const detail = field(error, "detail");
-  if (token === "output_invalid") {
-    if (detail && Object.hasOwn(COPY, detail)) return COPY[detail];
-    const output = field(error, "output");
-    return `The file${output ? ` "${output}"` : ""} couldn't be made${detail ? `: ${meaningLabels(detail)}` : "."}`;
-  }
+  if (token === "output_invalid") return outputFailedMessage(field(error, "output"), detail);
   // Set it up answers 422 with a machine detail; the flow's field editor answers 400 with a detail a person reads.
   if (token === "invalid_fields" && error instanceof ApiHttpError && error.status === 422) return COPY.invalid_fields;
   if (token === "invalid_destination" || token === "url_required" || token === "url_not_absolute" || token === "url_scheme_not_allowed" || token === "credentials_in_url_not_allowed" || token === "url_requires_tls" || token === "invalid_intake" || token === "invalid_fields" || token === "lookup_invalid") return detail ?? GENERIC;

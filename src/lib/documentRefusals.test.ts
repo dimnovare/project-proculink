@@ -9,9 +9,9 @@ describe("documentRefusalMessage", () => {
     expect(documentRefusalMessage(refusal({ error: "output_invalid", output: "Accounting CSV", detail: "x" })))
       .toBe('The file "Accounting CSV" couldn\'t be made: x');
   });
-  it("names a missing meaning by the label the picker shows", () => {
-    expect(documentRefusalMessage(refusal({ error: "output_invalid", detail: "This standard needs Sender endpoint id and Receiver endpoint id." })))
-      .toBe("The file couldn't be made: This standard needs Sender Peppol ID and Receiver Peppol ID.");
+  it("says to open the flow's files when the server names neither the file nor the reason", () => {
+    expect(documentRefusalMessage(refusal({ error: "output_invalid" })))
+      .toBe("One of this flow's files couldn't be made. Open the flow's files to see which one.");
   });
   it("words an output_invalid machine token", () => {
     expect(documentRefusalMessage(refusal({ error: "output_invalid", detail: "send_when" }))).toBe(COPY.send_when);
