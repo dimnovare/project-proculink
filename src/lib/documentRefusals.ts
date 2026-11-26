@@ -1,5 +1,6 @@
 import { ApiHttpError } from "@/lib/api/core";
 import { errorField } from "@/lib/api/refusal";
+import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
 import { isPlanGateError } from "@/lib/planGate";
 
@@ -122,13 +123,17 @@ export const rateLimited = (e: unknown) => {
   return e instanceof ApiHttpError && e.status === 429 && !(t && (Object.hasOwn(COPY, t) || isPlanGateError(t)));
 };
 
+/** A need no field holds is named by its meaning in the server's words ("Sender endpoint id", StandardOrderAdapter.Humanise): show the label the meaning picker shows. */
+const meaningLabels = (detail: string) =>
+  Object.entries(FIELD_MEANINGS).reduce((s, [key, { label }]) => s.replaceAll(key[0].toUpperCase() + key.slice(1).replaceAll("_", " "), label), detail);
+
 export function documentRefusalMessage(error: unknown): string {
   const token = refusalToken(error);
   const detail = field(error, "detail");
   if (token === "output_invalid") {
     if (detail && Object.hasOwn(COPY, detail)) return COPY[detail];
     const output = field(error, "output");
-    return `The file${output ? ` "${output}"` : ""} couldn't be made${detail ? `: ${detail}` : "."}`;
+    return `The file${output ? ` "${output}"` : ""} couldn't be made${detail ? `: ${meaningLabels(detail)}` : "."}`;
   }
   // Set it up answers 422 with a machine detail; the flow's field editor answers 400 with a detail a person reads.
   if (token === "invalid_fields" && error instanceof ApiHttpError && error.status === 422) return COPY.invalid_fields;
