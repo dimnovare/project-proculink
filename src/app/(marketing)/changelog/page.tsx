@@ -26,6 +26,14 @@ export const metadata = pageMetadata({
 // one is formatting, not a rewrite: the words stay as they were.
 const ENTRIES = [
   {
+    version: "v2.14",
+    date: "26 November 2026",
+    items: [
+      "Connect Claude, ChatGPT, Cursor or VS Code to your workspace: sign in from the assistant, or create a key in **Settings** under **For developers**. Your assistant can add documents, show what needs you, tell you what we read and send them. A document held for a check is sent from ProcuLink itself. The guide **Use ProcuLink from your AI assistant** shows how.",
+      "After signing in, you now land on the page you opened, instead of always on **Documents**.",
+    ],
+  },
+  {
     version: "v2.13",
     date: "25 November 2026",
     items: [
