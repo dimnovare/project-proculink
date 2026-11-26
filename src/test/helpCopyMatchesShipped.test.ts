@@ -29,6 +29,7 @@ const SHIPPED = [
   join(ROOT, "src", "lib", "flowSteps.ts"),   // the flow page's step names
   join(ROOT, "src", "lib", "flowWords.ts"),   // the words that change on a download-only flow (Send and open next / Make the file)
   join(ROOT, "src", "components", "bridge", "BridgeSidebar.tsx"),
+  join(ROOT, "src", "app", "(app)", "settings", "page.tsx"), // the API key's send tick
 ]
   .map((f) => readFileSync(f, "utf8"))
   .join("\n");

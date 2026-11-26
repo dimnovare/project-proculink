@@ -55,6 +55,7 @@ export const INVOICE_USE_CASE: UseCase = {
     "Remembers where each supplier puts a value, so the next invoice needs less checking",
     "Splits a file that holds several invoices into one document each",
     "Uses your column names in the file it makes",
+    "Can also make a ZUGFeRD / Factur-X invoice",
   ],
   limits: [
     "It does not post into your accounting software for you. It makes the file that software imports and sends it where you choose.",
@@ -113,10 +114,10 @@ export const PURCHASE_ORDER_USE_CASE: UseCase = {
   works: [
     "Reads PDF and Excel orders, CSV files, emailed attachments, scans and phone photos",
     "Swaps item codes using a list you import from a CSV or Excel file",
-    "Makes CSV, Excel, JSON or XML with the column names your system expects",
+    "Makes CSV, Excel, JSON or XML with the column names your system expects, or cXML, UBL Order, EDIFACT ORDERS or X12 850",
     "Proposes the file from your system's import documentation or a sample file",
     "Holds an order number it has already seen, so an order is not sent twice",
-    "Picks orders up from a mailbox, an SFTP or FTP server or an S3 bucket every five minutes",
+    "Picks orders up from a mailbox, an SFTP, FTP or FTPS server or an S3 bucket every five minutes",
   ],
   limits: [
     "It does not enter the order in your ERP for you. It makes the import file and sends it where your system reads from.",

@@ -107,7 +107,7 @@ export interface Plan {
 }
 
 const SIGN_UP = "/sign-up";
-const SALES = "mailto:sales@proculink.eu";
+export const SALES = "mailto:sales@proculink.eu";
 
 // ─── Annual billing availability gate (offer⇔works) ──────────────────────────
 // Annual billing is LIVE. The FE `createCheckoutSession(plan, "yearly")` sends
@@ -475,8 +475,9 @@ export const LEGACY_PAID_PLANS: readonly Plan[] = PLANS.filter((p) => p.isChecko
 
 /** Every bullet the document plans share, shown once on /pricing under "On every paid plan". */
 export const DOCUMENT_PLAN_FEATURES: readonly string[] = [
-  "Every way in: upload, email, mailbox, SFTP, FTP, S3 and API",
-  "Every output: CSV, JSON, XML, Excel, PDF, text and fixed-width",
+  "Every way in: upload, email, mailbox, SFTP, FTP, FTPS, S3, API and your AI assistant",
+  "Every file type: CSV, JSON, XML, Excel, PDF, text, fixed-width, order standards and ZUGFeRD / Factur-X invoices",
+  "Connect Claude, ChatGPT, Cursor or VS Code",
   "Unlimited users",
 ];
 

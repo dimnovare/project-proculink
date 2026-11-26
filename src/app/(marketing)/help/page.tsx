@@ -22,7 +22,7 @@ const CATEGORY_BLURB: Record<HelpCategory, string> = {
   "Getting started": "What ProcuLink does, and how it uses AI.",
   Documents: "What we read, what each status means, and what to do when a document stops.",
   Flows: "Values, versions, and what we learn from each sender.",
-  "Sending in": "Upload, email, mailbox, SFTP, FTP, S3 and API.",
+  "Sending in": "Upload, email, mailbox, SFTP, FTP, S3, API and AI assistants.",
   "Files and destinations": "Choose a format, then send it by email, to a web address, to an SFTP or FTPS server, an S3 bucket, Google Drive, Google Sheets or OneDrive, or download it.",
   Lookups: "Translate one value into another with a list you import.",
   Account: "Your team, API keys, plan, history and old orders.",

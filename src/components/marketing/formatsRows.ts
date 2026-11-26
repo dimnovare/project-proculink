@@ -1,4 +1,4 @@
-import { HELD_BACK } from "@/lib/marketing/heldBack";
+import { EARLY_ACCESS_KEYS, HELD_BACK } from "@/lib/marketing/heldBack";
 // The id, not the words: a standard's id carries a name the public-copy guards ban for the outputs still held back.
 import { FACTUR_X } from "@/lib/standardOutputs";
 
@@ -62,13 +62,13 @@ export const WAYS_OUT_ROWS: readonly FormatRow[] = [
 ];
 
 /** What a registry holds that the page does not list, and why (kept out of this folder: its keys name standards). */
-export { HELD_BACK };
+export { EARLY_ACCESS_KEYS, HELD_BACK };
 
-/** Registry keys neither listed nor held back, and listed keys the registry lacks. Empty both ways means in step. */
+/** Registry keys neither listed, held back nor in early access, and listed keys the registry lacks. Empty both ways means in step. */
 export function outOfStep(registry: readonly string[], rows: readonly FormatRow[]): { unlisted: string[]; unknown: string[] } {
   const listed = rows.flatMap((r) => r.keys);
   return {
-    unlisted: registry.filter((k) => !listed.includes(k) && !Object.hasOwn(HELD_BACK, k)),
+    unlisted: registry.filter((k) => !listed.includes(k) && !Object.hasOwn(HELD_BACK, k) && !EARLY_ACCESS_KEYS.has(k)),
     unknown: listed.filter((k) => !registry.includes(k)),
   };
 }

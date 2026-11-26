@@ -270,7 +270,7 @@ export const STANDARDS: StandardSupport[] = [
   },
   {
     id: "factur-x-en16931",
-    name: "ZUGFeRD / Factur-X EN 16931 (invoice)",
+    name: "ZUGFeRD / Factur-X (invoice)",
     version: "2.x",
     family: "xml",
     parse: "none",
@@ -284,7 +284,7 @@ export const STANDARDS: StandardSupport[] = [
   },
   {
     id: "factur-x-en16931-credit-note",
-    name: "ZUGFeRD / Factur-X EN 16931 (credit note)",
+    name: "ZUGFeRD / Factur-X (credit note)",
     version: "2.x",
     family: "xml",
     parse: "none",
@@ -326,7 +326,7 @@ export const STANDARDS: StandardSupport[] = [
   },
   {
     id: "ksef-fa-3",
-    name: "KSeF invoice file",
+    name: "KSeF invoice",
     version: "FA(3) 1-0E",
     family: "xml",
     parse: "none",

@@ -27,7 +27,7 @@ Your assistant lists five ProcuLink tools.
 
 <Step n={2} title="Or connect with a key (Claude Code, Cursor, VS Code)">
 
-Ask a workspace admin to create a key in **Settings**, under **For developers**. Tick **Let it send documents** only if the assistant should send. Without it, a flow set to **Check nothing** still sends what the assistant adds.
+Ask a workspace admin to create a key in **Settings**, under **For developers**. Tick **Let it send documents** only if the assistant should send. Without it, the assistant can't send. A flow still sends by itself what it would send anyway: everything on **Check nothing**, and every document with nothing marked on **Check only what we marked**.
 
 Claude Code:
 
@@ -60,14 +60,18 @@ If the assistant says the key is wrong, check it was copied whole and has not be
 Try: *Which ProcuLink documents need me?* · *Add this invoice to ProcuLink.* · *What did ProcuLink read from INV-1001?* · *Send it.*
 
 <Outcome>
-Most assistants ask you to confirm before they send.
+Many assistants ask before they send. Check before you say yes: a send can't be undone.
 </Outcome>
 
 </Step>
 
 ## What it can't do
 
-It can't change your flows, destinations, keys or people, and it can't remove anything. A document that needs a check, such as a repeated number or a first document from a new sender, must be sent from ProcuLink itself. With a key, it sends only what the flow would send by itself. ProcuLink tells your assistant to treat whatever is written inside a document as data, never as instructions.
+It can't change your flows, destinations, keys or people, and it can't remove anything. A document that needs a check, such as a repeated number, a first document from a new sender, or one we're not sure which flow it belongs to, must be sent from ProcuLink itself. With a key, it sends only what the flow would send by itself. Signed in, it can send what you could send from ProcuLink, except the documents above. ProcuLink tells your assistant to treat whatever is written inside a document as data, never as instructions.
+
+## What your assistant sees
+
+Everything the assistant adds or reads goes to the company behind it, such as Anthropic, OpenAI, Cursor or Microsoft: the files you add, and the values, checks and send results it fetches. That happens under your agreement with them. See [How ProcuLink uses AI](/help/ai-in-proculink).
 
 ## Turn it off
 

@@ -7,6 +7,7 @@ export const STANDARD_OUTPUTS = ["cxml-1-2", "ubl-2-1-order", "x12-850", "peppol
 const PEPPOL_RULES = { short: "Peppol", long: "Peppol BIS Billing 3.0" };
 const EN_RULES = { short: "EN 16931", long: "EN 16931" };
 const XR_RULES = { short: "XRechnung", long: "XRechnung 3.0" };
+const FX_RULES = { short: "Factur-X", long: "Factur-X" };
 export const RULE_SETS: Record<string, { short: string; long: string }> = {
   "peppol-bis-billing-3": PEPPOL_RULES,
   "peppol-bis-billing-3-credit-note": PEPPOL_RULES,
@@ -16,8 +17,8 @@ export const RULE_SETS: Record<string, { short: string; long: string }> = {
   "xrechnung-ubl-credit-note": XR_RULES,
   "xrechnung-cii": XR_RULES,
   "xrechnung-cii-credit-note": XR_RULES,
-  "factur-x-en16931": EN_RULES,
-  "factur-x-en16931-credit-note": EN_RULES,
+  "factur-x-en16931": FX_RULES,
+  "factur-x-en16931-credit-note": FX_RULES,
   "zugferd-xrechnung": XR_RULES,
   "zugferd-xrechnung-credit-note": XR_RULES,
 };
@@ -45,7 +46,7 @@ const DESCRIPTIONS: Partial<Record<string, string>> = {
   "en16931-cii": "The European e-invoice standard, as CII XML.",
   "xrechnung-ubl": "E-invoices for German public bodies, as UBL XML.",
   "xrechnung-cii": "E-invoices for German public bodies, as CII XML.",
-  "factur-x-en16931": "A PDF invoice people can read, with the EN 16931 XML inside.",
+  "factur-x-en16931": "A PDF invoice people can read, with the invoice data inside as XML.",
   "zugferd-xrechnung": "A PDF invoice for German public bodies, with the XRechnung XML inside.",
   "ksef-fa-3": "The Polish KSeF invoice file (FA(3)). Upload it yourself in the free Aplikacja Podatnika KSeF, or send it with a KSeF destination. You are the issuer; check it before you issue it.",
 };

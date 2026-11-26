@@ -13,7 +13,7 @@ const [STARTER] = DOCUMENT_PLANS;
 export const metadata = pageMetadata({
   path: "/pricing",
   title: `Pricing: from €${STARTER.priceMonthly} a month, ${TRIAL_DAYS} days free — ProcuLink`,
-  description: `Document processing from €${STARTER.priceMonthly} a month for ${STARTER.orderLimit!.toLocaleString("en-US")} documents. Every channel, output and check on every plan. Free for ${TRIAL_DAYS} days.`,
+  description: `Document processing from €${STARTER.priceMonthly} a month for ${STARTER.orderLimit!.toLocaleString("en-US")} documents. Every channel, file type and check on every plan. Free for ${TRIAL_DAYS} days.`,
 });
 
 export default function PricingLayout({ children }: { children: React.ReactNode }) {

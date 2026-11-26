@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import PricingPage from "@/app/(marketing)/pricing/page";
 
 import { MINIMUM_PLAN, planIncludesCapability } from "@/lib/gatedCapabilities";
+import { EARLY_ACCESS } from "@/lib/marketing/earlyAccess";
 import {
   DELIVERY_METHODS,
   IMPORT_METHODS,
@@ -166,14 +167,15 @@ const SELLS_SSO =
   /\bsso\b|\bsaml\b|\boidc\b|openid connect|single[- ]sign[- ]on|\bscim\b|directory sync|identity provider|\bidp\b|federated login|\bokta\b|\bentra\b|azure ad|onelogin|enterprise connections/i;
 
 /** The plan names a row's name+note mention, cheapest-first. */
-const plansNamedIn = (row: FormatRow): string[] =>
+const plansNamedIn = (row: Pick<FormatRow, "name" | "note">): string[] =>
   PLAN_NAMES.filter((p) => new RegExp(`\\b${p}\\b`, "i").test(`${row.name} ${row.note ?? ""}`));
 
 describe("advertised tier matches the enforced tier", () => {
-  it("names no plan on any /formats row — no BillingFeature gates a channel or a format", () => {
+  it("names no plan on any /formats row or in the early-access block — no BillingFeature gates a channel or a format", () => {
     // The backend gate table is Sso only, so a tier on an intake channel, a
     // delivery channel or an output format would sell an upgrade nobody needs.
-    const rows = [...IMPORT_METHODS, ...DELIVERY_METHODS, ...OUTPUT_FORMATS];
+    // Early access is switched on per workspace, never per plan.
+    const rows = [...IMPORT_METHODS, ...DELIVERY_METHODS, ...OUTPUT_FORMATS, ...EARLY_ACCESS.items, { name: EARLY_ACCESS.pricingLine, note: EARLY_ACCESS.lead }];
     expect(rows.length, "the corpus must really contain rows").toBeGreaterThan(5);
 
     const offenders = rows

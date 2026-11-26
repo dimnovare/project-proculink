@@ -49,7 +49,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     title: "How ProcuLink uses AI",
     blurb: "Where AI reads your documents and suggests values, and how you stay in control of what is sent.",
     category: "Getting started",
-    keywords: ["ai", "confidence", "suggestions", "privacy", "accept", "reject"],
+    keywords: ["ai", "confidence", "suggestions", "privacy", "accept", "reject", "assistant", "mcp", "claude", "chatgpt"],
     readMin: 4,
   },
   {
@@ -103,7 +103,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "intake-channels",
     title: "Ways to send documents in",
-    blurb: "Every way a document can reach a flow: upload, email, mailbox, SFTP, FTP, S3 and API.",
+    blurb: "Every way a document can reach a flow: upload, email, mailbox, SFTP, FTP, S3, API and your AI assistant.",
     category: "Sending in",
     keywords: ["intake", "upload", "email", "imap", "mailbox", "sftp", "ftp", "s3", "api", "inbound"],
     readMin: 4,
@@ -177,7 +177,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     title: "API reference: files, results and webhooks",
     blurb: "Send a file to a flow over the API, fetch the result, and receive webhooks when a document changes.",
     category: "API",
-    keywords: ["api", "reference", "webhook", "signature", "hmac", "idempotency", "x-proculink-key", "rest", "events"],
+    keywords: ["api", "reference", "webhook", "signature", "hmac", "idempotency", "x-proculink-key", "rest", "events", "mcp"],
     readMin: 6,
   },
 ];

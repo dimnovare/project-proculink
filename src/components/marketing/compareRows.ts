@@ -47,6 +47,10 @@ export const COMPARE_ROWS: readonly { name: string; cells: readonly [CompareCell
     cells: [["yes", "Yes, with lookup lists you keep."], VARIES, VARIES, ["partly", "You look each one up."]],
   },
   {
+    name: "Works from your AI assistant",
+    cells: [["yes", "Yes: Claude, ChatGPT, Cursor or VS Code, on every plan."], VARIES, VARIES, ["no", "No."]],
+  },
+  {
     name: "Documents in by email, upload, SFTP, S3 or API",
     cells: [["yes", "Yes, on every plan."], VARIES, VARIES, ["no", "No, you open each file yourself."]],
   },

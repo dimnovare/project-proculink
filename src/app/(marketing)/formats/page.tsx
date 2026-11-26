@@ -1,14 +1,15 @@
 import Link from "next/link";
-import { FileSpreadsheet, FileText, FolderCheck, Inbox, Ruler, type LucideIcon } from "lucide-react";
+import { FileSpreadsheet, FileText, FlaskConical, FolderCheck, Inbox, Ruler, type LucideIcon } from "lucide-react";
 import { ClosingCta, SITE } from "@/components/marketing/sitePictures";
 import { OUTPUT_ROWS, READ_ROWS, WAYS_IN_ROWS, WAYS_OUT_ROWS, type FormatRow } from "@/components/marketing/formatsRows";
 import { MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
+import { EARLY_ACCESS } from "@/lib/marketing/earlyAccess";
 import { DOCUMENT_UNIT_SENTENCE } from "@/lib/plans";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata({
   path: "/formats",
-  title: "Formats: PDF, Excel and scans in, CSV and XML out — ProcuLink",
+  title: "Formats: PDF, Excel and scans in. CSV, XML, order standards and e-invoices out — ProcuLink",
   description:
     "Every format and method, in one place. ProcuLink reads the files you receive, shows what it read beside the original, and sends the data on in the format your system needs.",
   ogDescription:
@@ -25,13 +26,13 @@ const LIMIT_ROWS: FormatRow[] = [
   { name: "What counts as a document", note: DOCUMENT_UNIT_SENTENCE, keys: [] },
 ];
 
-const SECTIONS: Array<{ id: string; title: string; lead: string; rule: string; icon: LucideIcon; tone: string; rows: readonly FormatRow[]; note?: string }> = [
+const SECTIONS: Array<{ id: string; title: string; lead: string; rule: string; icon: LucideIcon; tone: string; rows: readonly FormatRow[]; note?: string; cta?: { label: string; href: string } }> = [
   {
     id: "read", title: "Documents we read", icon: FileText, rule: "border-t-brand-blue", tone: "text-brand-blue", rows: READ_ROWS,
     lead: "Send the file as it is. We read every value and table on it, and there is no template to build first.",
   },
   {
-    id: "outputs", title: "Outputs", icon: FileSpreadsheet, rule: "border-t-brand-green", tone: "text-brand-green-deep", rows: OUTPUT_ROWS,
+    id: "outputs", title: "Files we make", icon: FileSpreadsheet, rule: "border-t-brand-green", tone: "text-brand-green-deep", rows: OUTPUT_ROWS,
     lead: "The file your system expects. You choose what goes in it and what each value is called.",
   },
   {
@@ -43,6 +44,10 @@ const SECTIONS: Array<{ id: string; title: string; lead: string; rule: string; i
     id: "ways-out", title: "Ways out", icon: FolderCheck, rule: "border-t-brand-green", tone: "text-brand-green-deep", rows: WAYS_OUT_ROWS,
     lead: "Where the finished file goes. One flow can send to several places at once.",
     note: "Microsoft SharePoint: on request",
+  },
+  {
+    id: "early-access", title: EARLY_ACCESS.heading, icon: FlaskConical, rule: "border-t-brand-green", tone: "text-brand-green-deep",
+    rows: EARLY_ACCESS.items.map(({ name, note }) => ({ name, note, keys: [] })), lead: EARLY_ACCESS.lead, cta: EARLY_ACCESS.cta,
   },
   {
     id: "limits", title: "Limits", icon: Ruler, rule: "border-t-ink", tone: "text-ink", rows: LIMIT_ROWS,
@@ -80,8 +85,8 @@ export default function FormatsPage() {
 
       <div className={`${SITE.band} bg-surface`}>
         <div className={`${SITE.wrap} flex flex-col gap-[clamp(56px,7vw,88px)]`}>
-          {SECTIONS.map(({ id, title, lead, rule, icon: Icon, tone, rows, note }) => (
-            <section key={id} id={id} aria-labelledby={`${id}-title`} className="flex scroll-mt-[90px] flex-wrap items-start gap-x-[72px] gap-y-7">
+          {SECTIONS.map(({ id, title, lead, rule, icon: Icon, tone, rows, note, cta }) => (
+            <section key={id} id={id} aria-labelledby={`${id}-title`} data-early-access={cta ? "" : undefined} className="flex scroll-mt-[90px] flex-wrap items-start gap-x-[72px] gap-y-7">
               <div className={`flex min-w-0 flex-[1_1_280px] flex-col gap-3 border-t-[3px] pt-5 ${rule} min-[900px]:sticky min-[900px]:top-[90px]`}>
                 <Icon aria-hidden="true" className={`mb-1 size-9 ${tone}`} strokeWidth={1.6} />
                 <h2 id={`${id}-title`} className={H2_SMALL}>{title}</h2>
@@ -97,6 +102,7 @@ export default function FormatsPage() {
                   ))}
                 </dl>
                 {note && <p className={`${SITE.soft} pt-4 text-[15.5px]`}>{note}</p>}
+                {cta && <p className="pt-4"><a href={cta.href} className={SITE.more}>{cta.label}</a></p>}
               </div>
             </section>
           ))}

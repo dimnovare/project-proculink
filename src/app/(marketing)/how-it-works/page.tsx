@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Code2, Folder, Mail, Upload } from "lucide-react";
+import { Bot, Code2, Folder, Mail, Upload } from "lucide-react";
 import { Card } from "@/components/bridge/layout/Card";
 import { STAGES } from "@/components/bridge/StatusJourney";
 import {
@@ -26,7 +26,7 @@ function IntakePicture() {
     <Card
       flush
       role="img"
-      aria-label="Four ways to send a document in: upload, the flow's own email address, collection from a mailbox or server, and the API."
+      aria-label="Five ways to send a document in: upload, the flow's own email address, collection from a mailbox or server, the API, and your AI assistant."
       className="overflow-hidden text-[15px]"
     >
       <div aria-hidden="true">
@@ -60,6 +60,13 @@ function IntakePicture() {
             <p className={`${SITE.soft} text-[14px]`}>Your own system posts a file to the flow.</p>
           </div>
         </div>
+        <div className={ROW}>
+          <Bot className={ICON} />
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">AI assistant</p>
+            <p className={`${SITE.soft} text-[14px]`}>Add a document from Claude, ChatGPT, Cursor or VS Code.</p>
+          </div>
+        </div>
       </div>
     </Card>
   );
@@ -84,7 +91,7 @@ function ReadPicture() {
   );
 }
 
-const CHIPS = ["CSV", "Excel", "JSON", "XML", "PDF", "Text", "Fixed-width"];
+const CHIPS = ["CSV", "Excel", "JSON", "XML", "PDF", "Text", "Fixed-width", "cXML", "UBL", "ZUGFeRD / Factur-X"];
 
 function SendPicture() {
   return (
@@ -111,7 +118,7 @@ function SendPicture() {
         </div>
       </div>
       <p className={`${SITE.soft} pt-3 text-[14.5px]`}>
-        Have your receiving system&apos;s documentation? Upload it and we propose the output for you to check.
+        Have your receiving system&apos;s documentation? Upload it and we propose the file for you to check.
       </p>
     </div>
   );
@@ -123,7 +130,7 @@ const STEPS = [
     node: "border-brand-blue",
     lead: "Upload a file, forward an email to the address your flow gives you, or let ProcuLink collect files for you.",
     detail:
-      "We can collect from a mailbox, an SFTP, FTP or FTPS server, an S3 bucket, or our API. PDFs with a text layer, CSV and Excel files are read, and so are Word, text, XML and JSON files.",
+      "We can collect from a mailbox, an SFTP, FTP or FTPS server or an S3 bucket. Your own system can use our API, and you can add documents from your AI assistant. PDFs with a text layer, CSV and Excel files are read, and so are Word, text, XML and JSON files.",
     picture: <IntakePicture />,
   },
   {
@@ -145,7 +152,7 @@ const STEPS = [
   {
     title: "We send it",
     node: "border-brand-green",
-    lead: "Choose CSV, JSON, XML, Excel, PDF, text or fixed-width, then send the result where it needs to go.",
+    lead: "Choose CSV, JSON, XML, Excel, PDF, text, fixed-width, an order standard such as cXML or UBL, or a ZUGFeRD / Factur-X invoice, then send the result where it needs to go.",
     detail:
       "Send it by email, to a web address, to an SFTP or FTPS server, an S3 bucket, Google Drive, Google Sheets or OneDrive, or download it. Microsoft SharePoint is available on request.",
     picture: <SendPicture />,
@@ -153,10 +160,10 @@ const STEPS = [
 ];
 
 const PIPELINE: Record<(typeof STAGES)[number], { dot: string; body: string }> = {
-  In: { dot: "border-[var(--brand-blue-bright)]", body: "A file arrives by upload, email, a pickup or the API, and becomes a document in its flow." },
+  In: { dot: "border-[var(--brand-blue-bright)]", body: "A file arrives by upload, email, a pickup, the API or your AI assistant, and becomes a document in its flow." },
   Read: { dot: "border-[var(--brand-blue-bright)]", body: "Every value and table is read, with where on the page it was found and how sure we are." },
   Check: { dot: "border-[var(--amber-bright)]", body: "Built-in checks mark a value that is missing, in the wrong shape or hard to read. A repeated document number is held, and so is a document from an email address we haven't confirmed." },
-  Transform: { dot: "border-[var(--brand-green-bright)]", body: "Each output file is built from the read values, with your column names and any lookups applied." },
+  Transform: { dot: "border-[var(--brand-green-bright)]", body: "Each file is built from the read values, with your column names and any lookups applied." },
   Send: { dot: "border-[var(--brand-green-bright)]", body: "The file goes to each destination. Each delivery keeps its attempts, the destination's answer where it gives one and, when it fails, the error." },
 };
 
