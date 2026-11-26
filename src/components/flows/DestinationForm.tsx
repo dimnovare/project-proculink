@@ -73,7 +73,7 @@ const B2BROUTER_HELP = "B2Brouter is your e-invoice provider: a Peppol access po
 const FRANCE = [
   "From 1 September 2026, French companies receive invoices through an approved platform. B2Brouter is on the French tax authority's list of approved platforms.",
   "Your invoices need your SIREN and your buyer's SIREN.",
-  "France accepts UBL, CII and Factur-X. ProcuLink makes EN 16931 CII, UBL and Factur-X files.",
+  "France accepts UBL, CII and Factur-X files.",
 ];
 
 type CredField = [key: string, label: string];
