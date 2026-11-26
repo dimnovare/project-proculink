@@ -205,7 +205,7 @@ describe("UploadToFlow", () => {
     billing.getBillingStatus.mockResolvedValue(status({ plan: "pilot", ordersThisMonth: 20, orderLimit: 20, canProcessOrders: false, isTrialExpired: true }));
     const first = mount();
     const paused = await screen.findByRole("alert");
-    expect(paused).toHaveTextContent("Your trial has ended. You can still view previous documents, but new processing is paused.");
+    expect(paused).toHaveTextContent("Your trial is used up. You can still view previous documents, but new processing is paused.");
     expect(within(paused).getByRole("link", { name: `Upgrade to ${next}` })).toHaveAttribute("href", "/settings?tab=billing");
     expect(await screen.findByText(/^20 of 20 trial documents used\./)).toBeInTheDocument();
     expect(await screen.findByText("Processing is paused, so new documents can't be read right now.")).toBeInTheDocument();
@@ -219,7 +219,7 @@ describe("UploadToFlow", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     drop([new File(["x"], "a.pdf")]);
     const panel = within(await screen.findByRole("region", { name: "Just added" }));
-    expect(await panel.findByText("Your trial has ended, so new documents aren't being accepted.")).toBeInTheDocument();
+    expect(await panel.findByText("Your trial is used up, so new documents aren't being accepted.")).toBeInTheDocument();
     expect(panel.getByText("Not uploaded")).toBeInTheDocument();
     expect(panel.queryByRole("button", { name: /again$/ })).toBeNull();
     expect(await screen.findByRole("link", { name: `Upgrade to ${next}` })).toBeInTheDocument();

@@ -214,6 +214,13 @@ export interface BillingStatus {
   /** TRUE for active paid plans even over the cap — paid orders are never blocked. */
   canProcessOrders:       boolean;
   canAddSupplier:         boolean;
+  /**
+   * May documents ALREADY counted be sent, re-sent or have their files made? True for a trial
+   * whose document count is spent while its window is still open (only NEW documents are
+   * refused); false once the trial date passes; equals canProcessOrders on paid plans.
+   * Optional so an older API that omits it stays valid: read absent as false (fail closed).
+   */
+  canSendDocuments?:      boolean;
   stripeCustomerId:       string | null;
   stripeSubscriptionId:   string | null;
   // ── Overage (paid plans bill extra orders at €0.50 each; never blocked) ─────
