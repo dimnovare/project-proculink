@@ -39,7 +39,8 @@ const PINNED: Record<"/privacy" | "/terms" | "/aup" | "/dpa" | "/subprocessors" 
   // Re-pinned 2026-11-26 (release pass): new "AI assistants you connect" section, destinations sentence, date line.
   "/privacy": "eea242ae2ce00914e6b866f080675a737a5b5b47aa3f81ca0780d7f029b8e95b",
   // Re-pinned 2026-11-26 (release pass): §2 e-invoicing providers + KSeF confirm + early access, new §2a, §7 connected services, effective date.
-  "/terms": "49dfc474e5612d7339b0e9e54e47a6f5181de11ffe8851a2f4b844990a1e4341",
+  // Re-pinned 2026-11-26 (terms �5): the earlier paid plans moved under their own lead-in line, after Enterprise.
+  "/terms": "48e102df437d291818e5a5752b5dc7e8648ab8e29703e4a974a1986d31c1b97e",
   "/aup": "917a1e45c7f3775aad05ae6d74275ee63f522e4a2db5012bdecca0702f4c0fbf",
   // Re-pinned 2026-11-26 (release pass): §3 instructed disclosures, version 1.6.
   "/dpa": "a6cc19cf206af3bb271987f63a92532457cf72f677ab2491d56de8d2e086b585",
