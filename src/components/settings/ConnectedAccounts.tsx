@@ -36,12 +36,15 @@ export function ConnectedAccounts() {
       <ul data-testid="connected-accounts" className="m-0 grid list-none gap-3 p-0">
         {linked.data.accounts.map((a) => (
           <li key={a.id} className="grid gap-2 border-b border-border pb-3 last:border-b-0 last:pb-0">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              <span className="min-w-0 text-[14px] font-semibold text-ink [overflow-wrap:anywhere]">{a.email}</span>
-              <span className="text-[13px] text-ink-muted">{PROVIDER[a.provider] ?? a.provider}</span>
-              {a.status === "reconnect" && <Pill tone="amber">Reconnect needed</Pill>}
+            {/* The same two columns on every row: the action never wraps under one account and not another. */}
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4">
+              <span className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+                <span className="min-w-0 text-[14px] font-semibold text-ink [overflow-wrap:anywhere]">{a.email}</span>
+                <span className="text-[13px] text-ink-muted">{PROVIDER[a.provider] ?? a.provider}</span>
+                {a.status === "reconnect" && <Pill tone="amber">Reconnect needed</Pill>}
+              </span>
               {confirming !== a.id && (
-                <Button type="button" variant="ghost" size="sm" className="ml-auto" aria-label={`Disconnect ${a.email}, ${PROVIDER[a.provider] ?? a.provider}`}
+                <Button type="button" variant="ghost" size="sm" aria-label={`Disconnect ${a.email}, ${PROVIDER[a.provider] ?? a.provider}`}
                   onClick={() => { setProblem(null); setConfirming(a.id); }}>Disconnect</Button>
               )}
             </div>

@@ -515,31 +515,30 @@ function ApiKeysSection() {
       {showCreate ? (
         <form className="grid gap-2" onSubmit={(e) => { e.preventDefault(); submit(); }}>
           <label htmlFor="api-key-name" className="text-[13px] font-semibold text-ink">Name</label>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <input
-              id="api-key-name"
-              value={newLabel}
-              autoFocus
-              aria-describedby="api-key-name-hint"
-              onChange={(e) => setNewLabel(e.target.value)}
-              className="h-10 w-full rounded-lg border border-border-strong bg-surface px-3 text-[14px] text-ink max-[639px]:text-[16px] sm:max-w-[420px]"
-            />
-            <div className="flex gap-2">
-              <Button type="submit" variant={createVariant} className="flex-1 sm:flex-none" loading={create.isPending} disabled={!newLabel.trim()}>
-                <Plus size={14} aria-hidden />
-                {create.isPending ? "Creating…" : "Create key"}
-              </Button>
-              <Button type="button" variant="secondary" className="flex-1 sm:flex-none" onClick={() => { setShowCreate(false); setNewLabel(""); setNewCanSend(false); create.reset(); }}>
-                Cancel
-              </Button>
-            </div>
-          </div>
+          <input
+            id="api-key-name"
+            value={newLabel}
+            autoFocus
+            aria-describedby="api-key-name-hint"
+            onChange={(e) => setNewLabel(e.target.value)}
+            className="h-10 w-full rounded-lg border border-border-strong bg-surface px-3 text-[14px] text-ink max-[639px]:text-[16px] sm:max-w-[420px]"
+          />
           <p id="api-key-name-hint" className="m-0 text-[13px] text-ink-muted">Name it after the system that will use it.</p>
+          {/* The option comes before Create, so it is seen before the key is made. */}
           <label className="flex min-h-11 items-center gap-2 text-[14px] text-ink">
             <input type="checkbox" checked={newCanSend} aria-describedby="api-key-send-hint" onChange={(e) => setNewCanSend(e.target.checked)} className="h-4 w-4" />
             Let it send documents
           </label>
           <p id="api-key-send-hint" className="m-0 text-[13px] text-ink-muted">With this, it sends only documents the flow would send without a person. A document waiting for a check is sent from ProcuLink. Without this, it can add and read documents, and a flow that sends by itself still sends what it adds.</p>
+          <div className="flex gap-2">
+            <Button type="submit" variant={createVariant} className="flex-1 sm:flex-none" loading={create.isPending} disabled={!newLabel.trim()}>
+              <Plus size={14} aria-hidden />
+              {create.isPending ? "Creating…" : "Create key"}
+            </Button>
+            <Button type="button" variant="secondary" className="flex-1 sm:flex-none" onClick={() => { setShowCreate(false); setNewLabel(""); setNewCanSend(false); create.reset(); }}>
+              Cancel
+            </Button>
+          </div>
           {create.isError && <p role="alert" className="m-0 text-[13px] text-danger-text">{documentRefusalMessage(create.error)}</p>}
         </form>
       ) : (

@@ -203,6 +203,7 @@ describe("SendStep", () => {
     const finish = await screen.findByRole("region", { name: "Finish" });
     fireEvent.click(await screen.findByRole("button", { name: /^A server or another system/ }));
     fireEvent.click(screen.getByRole("radio", { name: /^SFTP or FTPS/ }));
+    fireEvent.change(screen.getByLabelText("Server"), { target: { value: "sftp.example.test" } });
     fireEvent.click(screen.getByRole("button", { name: "Save and send a test" }));
     await waitFor(() => expect(api.testDestination).toHaveBeenCalledWith("dest-9"));
     expect(await within(finish).findByText("Invoices server did not pass its test, so it is saved but not used yet. You can fix it on the flow page.")).toBeInTheDocument();
@@ -222,6 +223,7 @@ describe("SendStep", () => {
     const finish = await screen.findByRole("region", { name: "Finish" });
     fireEvent.click(await screen.findByRole("button", { name: /^A server or another system/ }));
     fireEvent.click(screen.getByRole("radio", { name: /^SFTP or FTPS/ }));
+    fireEvent.change(screen.getByLabelText("Server"), { target: { value: "sftp.example.test" } });
     fireEvent.click(screen.getByRole("button", { name: "Save and send a test" }));
     await waitFor(() => expect(within(finish).getByRole("button", { name: "Send invoice.pdf now" })).toBeEnabled());
     fireEvent.change(screen.getByLabelText("Server"), { target: { value: "other.example.test" } });

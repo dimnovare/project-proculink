@@ -36,6 +36,7 @@ import { SpotsContext, spotProps, useSpotAt, type SourceSpot } from "./SourceHig
 import { parseAddress, spreadsheetColumnName } from "@/lib/sourceAddress";
 import { scrollRegionProps } from "./scrollRegion";
 import { Loading } from "@/components/bridge/LogoLoader";
+import { buttonClass } from "@/components/bridge/DSPrimitives";
 import {
   MAX_PREVIEW_ROWS,
   parseCsvTable,
@@ -508,7 +509,7 @@ function DownloadRow({ document: doc, cacheKey }: { document: SourceDocument; ca
       <button
         type="button"
         onClick={onDownload}
-        className="flex-shrink-0 rounded border border-border px-2 py-0.5 text-[12.5px] text-ink-muted hover:border-border-strong"
+        className={`${buttonClass("secondary", "sm")} flex-shrink-0`}
       >
         Download
       </button>

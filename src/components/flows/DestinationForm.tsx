@@ -1,7 +1,8 @@
 "use client";
 
-import { cloneElement, useId, useRef, useState } from "react";
+import { cloneElement, useEffect, useId, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
@@ -38,13 +39,14 @@ const CONFIG_FIELDS: Record<string, [label: string, kind: Kind]> = {
   // No attachmentFileName box: a flow send always names the attachment after the document.
 };
 
-/** The common places first; the server kinds are grouped under "A server or another system" (plan 16a R17). */
+/** The common places first; then the server kinds (plan 16a R17) and the e-invoice networks, each in its group. */
 const PROTOCOLS = {
   email: "Email", google_drive: "Google Drive", google_sheets: "Google Sheets", microsoft_onedrive: "OneDrive",
-  sftp: "SFTP", ftps: "FTPS", s3: "S3 bucket", http: "Web address (API)", ksef: "KSeF",
-  b2brouter: "B2Brouter (e-invoice network)",
+  sftp: "SFTP", ftps: "FTPS", s3: "S3 bucket", http: "Web address (API)", ksef: "KSeF", b2brouter: "B2Brouter",
 } as const;
-const SERVER = new Set(["sftp", "ftps", "s3", "http", "ksef"]);
+const SERVER = "A server or another system";
+const NETWORK = "E-invoice network";
+const GROUP: Record<string, string> = { sftp: SERVER, ftps: SERVER, s3: SERVER, http: SERVER, ksef: NETWORK, b2brouter: NETWORK };
 type Protocol = keyof typeof PROTOCOLS;
 const isGoogle = (p: string): p is "google_drive" | "google_sheets" => p === "google_drive" || p === "google_sheets";
 /** Sends through a connected account (Google, or Microsoft for OneDrive), so it has no login of its own. */
@@ -68,8 +70,31 @@ const KSEF_ENVIRONMENTS = {
   production: "Production: real invoices with legal effect",
 };
 const ISSUER_TICK = "I confirm that every invoice sent from this destination is issued in KSeF in my company's name. My company is the issuer and is responsible for each invoice's content and for checking it before it is sent. Each one is sent only when a person confirms it.";
-const KSEF_TOKEN_HELP = "Paste a KSeF token made for this NIP in Aplikacja Podatnika KSeF, with permission to issue invoices. We keep it encrypted and use it only to test the sign-in and to send this flow's invoices. In Production, each invoice is sent only after a person confirms it. It is never shown again. Tokens expire; when yours does, sends stop with a message and you paste a new one. If you give your buyer a printed or PDF copy of an invoice issued in KSeF, it must carry the KSeF QR code; ProcuLink doesn't add it.";
-const B2BROUTER_HELP = "B2Brouter is your e-invoice provider: a Peppol access point that also serves France. ProcuLink hands it your file using your own B2Brouter account, and B2Brouter delivers the invoice. The seller on your invoices must be the company of your B2Brouter account. \"Sent\" here means B2Brouter accepted it and didn't report a problem in the first few seconds; your B2Brouter account shows the buyer's delivery.";
+/** One short line under its own box; the rest of the KSeF token's story is folded under "How we use your token". */
+const HELP: Record<string, string> = {
+  serviceUrl: "Only for R2, MinIO or another S3-compatible service",
+  nip: "10 digits: your company's tax number.",
+  "ksef.token": "Made in Aplikacja Podatnika KSeF for this NIP, with permission to issue invoices.",
+  "b2brouter.apiKey": "A key that starts with test_ sends to B2Brouter's test system.",
+};
+const KSEF_TOKEN_USE = [
+  "We keep it encrypted and use it only to test the sign-in and to send this flow's invoices. In Production, each invoice is sent only after a person confirms it. It is never shown again.",
+  "Tokens expire; when yours does, sends stop with a message and you paste a new one.",
+  "If you give your buyer a printed or PDF copy of an invoice issued in KSeF, it must carry the KSeF QR code; ProcuLink doesn't add it.",
+];
+const B2BROUTER_HELP = "B2Brouter is your e-invoice provider: a Peppol access point that also serves France. ProcuLink hands it your file using your own B2Brouter account, and B2Brouter delivers the invoice.";
+const B2BROUTER_NOTE = "The seller on your invoices must be the company of your B2Brouter account. \"Sent\" here means B2Brouter accepted it and didn't report a problem in the first few seconds; your B2Brouter account shows the buyer's delivery.";
+/** P2-2: what a box needs before a save, said under it. Only the boxes on the form are checked. */
+const REQUIRED: Record<string, string> = {
+  host: "Enter the server's address.",
+  bucket: "Enter the bucket's name.",
+  account: "Enter your B2Brouter account ID.",
+  "ksef.token": "Paste your KSeF token.",
+  "b2brouter.apiKey": "Paste your B2Brouter API key.",
+};
+// A bare address, or one with a display name (`Books <books@example.com>`), as the server accepts.
+const ADDRESS = /[^\s<>@,]+@[^\s<>@,]+\.[^\s<>@,]+/.source;
+const EMAIL = new RegExp(`^(?:${ADDRESS}|[^<>@,]*<${ADDRESS}>)$`);
 const FRANCE = [
   "From 1 September 2026, French companies receive invoices through an approved platform. Check that your provider is on the official list of approved platforms at impots.gouv.fr.",
   "Your invoices need your SIREN and your buyer's SIREN.",
@@ -114,22 +139,33 @@ export const ICON_BUTTON = "inline-flex h-10 w-10 flex-none items-center justify
 // Imported here, beside the one component that uses them, so this change stays one hunk.
 /**
  * `look`: the sentence under the control when a value needs a look; it also gives the control an amber edge.
- * It sits outside the label and describes the control, so a screen reader names the box by its label alone (R22).
+ * `error`: what the box needs before a save, in red in its place; the control is marked invalid. Pass "" for none:
+ *   the box keeps its wrapper while an error comes and goes, so typing never remounts it.
+ * `help`: one short line on what goes in the box.
+ * Each sits outside the label and describes the control, so a screen reader names the box by its label alone (R22).
  * `hideLabel`: the label is for screen readers only (a table cell).
  */
-export const Field = ({ label, look, hideLabel, children }: { label: string; look?: React.ReactNode; hideLabel?: boolean; children: React.ReactElement<{ "aria-describedby"?: string }> }) => {
+export const Field = ({ label, look, error, help, hideLabel, children }: {
+  label: string; look?: React.ReactNode; error?: string; help?: string; hideLabel?: boolean;
+  children: React.ReactElement<{ "aria-describedby"?: string; "aria-invalid"?: boolean }>;
+}) => {
   const id = useId();
+  const note = error || look;
   const field = (
     <label className="block">
       <span className={hideLabel ? "sr-only" : "mb-1.5 block text-[13px] font-semibold text-ink-muted"}>{label}</span>
-      {look ? cloneElement(children, { "aria-describedby": [children.props["aria-describedby"], id].filter(Boolean).join(" ") }) : children}
+      {cloneElement(children, {
+        "aria-describedby": [children.props["aria-describedby"], note && id, help && `${id}-help`].filter(Boolean).join(" ") || undefined,
+        "aria-invalid": error ? true : children.props["aria-invalid"],
+      })}
     </label>
   );
-  if (!look) return field;
+  if (error === undefined && !look && !help) return field;
   return (
-    <div className="plk-look">
+    <div className={error ? "plk-bad" : look ? "plk-look" : undefined}>
       {field}
-      <p id={id} className="mt-1.5 text-[12.5px] font-medium text-amber-text">{look}</p>
+      {note && <p id={id} className={`mt-1.5 text-[12.5px] font-medium ${error ? "text-danger-text" : "text-amber-text"}`}>{note}</p>}
+      {help && <p id={`${id}-help`} className="m-0 mt-1 text-[12.5px] text-ink-muted">{help}</p>}
     </div>
   );
 };
@@ -165,6 +201,12 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
   const ksefOn = linked?.ksefAvailable === true;
   const peppolOn = linked?.peppolAvailable === true;
   const [issuer, setIssuer] = useState(false);
+  // P2-2: each box's problem under it; after a refused save the first one takes the focus.
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [tries, setTries] = useState(0);
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (tries) root.current?.querySelector<HTMLElement>("[aria-invalid=true]")?.focus(); }, [tries]);
+  const clear = (k: string) => setErrors((e) => (k in e ? Object.fromEntries(Object.entries(e).filter(([x]) => x !== k)) : e));
 
   const credFields: CredField[] =
     protocol === "http" ? HTTP_AUTH[auth] : protocol === "email" || isLinked(protocol) ? [] : protocol === "s3" ? S3_SECRET : protocol === "ksef" ? KSEF_TOKEN : protocol === "b2brouter" ? B2BROUTER_KEY : protocol === "sftp" ? SFTP_LOGIN : LOGIN;
@@ -201,9 +243,27 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
     onError: (e) => setProblem(documentRefusalMessage(e)),
   });
 
+  /** What the boxes on the form need before a save, by key. The server checks again. */
+  const check = () => {
+    const e: Record<string, string> = {};
+    if (!name.trim()) e.name = "Give this destination a name.";
+    for (const k of keys.filter((k) => k in CONFIG_FIELDS && !FOLDED.has(k))) {
+      const v = String(config[k] ?? "").trim();
+      const to = v.split(",").map((a) => a.trim()).filter(Boolean);
+      if (k === "toAddresses" && (!to.length || !to.every((a) => EMAIL.test(a)))) e[k] = "Enter an email address, like name@example.com.";
+      else if (k === "nip" && nipDigits(v).length !== 10) e[k] = "Enter the NIP: 10 digits.";
+      else if (REQUIRED[k] && !v) e[k] = REQUIRED[k];
+    }
+    for (const [k] of credFields) if (REQUIRED[`${protocol}.${k}`] && !current?.hasCredentials && !creds[k]?.trim()) e[k] = REQUIRED[`${protocol}.${k}`];
+    if (toProduction && !issuer) e.issuer = "Tick this to send real invoices to KSeF Production.";
+    return e;
+  };
+
   function submit() {
     if (busy.current || save.isPending || test.isPending) return;
-    if (!name.trim()) return setProblem("Give this destination a name.");
+    const found = check();
+    setErrors(found);
+    if (Object.keys(found).length) { setProblem(null); setTries((t) => t + 1); return; }
     if (loginIncomplete)
       return setProblem("Fill in every login field, or leave them all blank to keep the saved login.");
     const credentials = Object.keys(typed).length ? (protocol === "http" ? { type: auth, ...typed } : typed) : null;
@@ -211,45 +271,48 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
     const kept = Object.hasOwn(PROTOCOLS, protocol)
       ? Object.fromEntries(Object.entries(config).filter(([k, v]) => v !== "" && (keys.includes(k) || !(k in CONFIG_FIELDS))))
       : config;
-    if (toProduction && !issuer) return;
     busy.current = true;
     save.mutate({ name: name.trim(), protocol, config: toProduction ? { ...kept, acceptedIssuerTerms: true } : kept, credentials });
   }
 
   // A passed test belongs to the settings it tested: any edit after a save un-tests it until it is saved and tested again.
   const edited = () => { if (chosen && current) { chosen.onTested({ destinationId: current.id, ok: false }); setSaved(false); } };
-  const setValue = (key: string, value: unknown) => { edited(); setConfig((c) => ({ ...c, [key]: value })); };
+  const setValue = (key: string, value: unknown) => { edited(); clear(key); setConfig((c) => ({ ...c, [key]: value })); };
   const configField = (key: string) => {
     const [label, kind] = CONFIG_FIELDS[key];
     const value = config[key];
     if (kind === "environment")
       return (
-        <fieldset key={key} className="col-span-full grid gap-1.5">
+        <fieldset key={key} className="col-span-full grid">
           <legend className="mb-1.5 text-[13px] font-semibold text-ink-muted">{label}</legend>
           {Object.entries(KSEF_ENVIRONMENTS).filter(([id]) => id !== "production" || current).map(([id, text]) => (
-            <label key={id} className="flex items-center gap-2 text-[13px] text-ink">
-              <input type="radio" name={`${hintId}-${key}`} checked={value === id} onChange={() => { setIssuer(false); setValue(key, id); }} />
+            <label key={id} className="flex min-h-11 items-center gap-2 text-[13px] text-ink">
+              <input type="radio" name={`${hintId}-${key}`} checked={value === id} onChange={() => { setIssuer(false); clear("issuer"); setValue(key, id); }} />
               {text}
             </label>
           ))}
+          {!current && <p className="m-0 text-[12.5px] text-ink-muted">Production is offered once this destination is saved. Check an invoice on Test or Demo first.</p>}
           {toProduction && (
-            <label className="flex items-start gap-2 text-[13px] text-ink">
-              <input type="checkbox" className="mt-0.5" checked={issuer} onChange={(e) => setIssuer(e.target.checked)} />
-              {ISSUER_TICK}
-            </label>
+            <div className={`grid gap-1.5 ${errors.issuer ? "rounded-md border border-danger bg-danger-soft p-3" : ""}`}>
+              <label className="flex min-h-11 items-start gap-2 text-[13px] text-ink">
+                <input type="checkbox" className="mt-0.5" checked={issuer} aria-invalid={errors.issuer ? true : undefined}
+                  aria-describedby={errors.issuer ? `${hintId}-issuer` : undefined} onChange={(e) => { setIssuer(e.target.checked); clear("issuer"); }} />
+                <span><strong>Required for Production:</strong> {ISSUER_TICK}</span>
+              </label>
+              {errors.issuer && <p id={`${hintId}-issuer`} className="m-0 text-[12.5px] font-medium text-danger-text">{errors.issuer}</p>}
+            </div>
           )}
         </fieldset>
       );
     if (kind === "check")
       return (
-        <label key={key} className="flex items-center gap-2 text-[13px] text-ink">
+        <label key={key} className="flex min-h-11 items-center gap-2 text-[13px] text-ink">
           <input type="checkbox" checked={value === true} onChange={(e) => setValue(key, e.target.checked)} />
           {label}
         </label>
       );
     return (
-      <div key={key} className="grid gap-1">
-        <Field label={label}>
+      <Field key={key} label={label} error={errors[key] ?? ""} help={HELP[key]}>
           {kind === "method" ? (
             <select className={INPUT} value={String(value ?? "POST")} onChange={(e) => setValue(key, e.target.value)}>
               <option>POST</option>
@@ -260,17 +323,12 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
               className={INPUT}
               type={kind === "number" ? "number" : "text"}
               value={String(value ?? "")}
-              aria-describedby={key === "serviceUrl" ? "dest-service-url-help" : undefined}
               onChange={(e) =>
                 setValue(key, kind === "number" && e.target.value !== "" ? Number(e.target.value) : e.target.value)
               }
             />
           )}
-        </Field>
-        {key === "serviceUrl" && (
-          <span id="dest-service-url-help" className="text-[13px] text-ink-muted">Only for R2, MinIO or another S3-compatible service</span>
-        )}
-      </div>
+      </Field>
     );
   };
   const credField = ([key, label]: CredField) => {
@@ -279,11 +337,13 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
       placeholder: current?.hasCredentials ? "Leave blank to keep the saved one" : "",
       onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         edited();
+        clear(key);
         setCreds((c) => ({ ...c, [key]: e.target.value }));
       },
     };
     return (
-      <Field key={key} label={current?.hasCredentials && SECRETS.has(key) ? `New ${/^[A-Z][a-z]/.test(label) ? label.charAt(0).toLowerCase() + label.slice(1) : label}` : label}>
+      <Field key={key} label={current?.hasCredentials && SECRETS.has(key) ? `New ${/^[A-Z][a-z]/.test(label) ? label.charAt(0).toLowerCase() + label.slice(1) : label}` : label}
+        error={errors[key] ?? ""} help={HELP[`${protocol}.${key}`]}>
         {key === "privateKey" ? (
           // A key needs its line breaks, which a one-line input strips from a paste.
           <textarea {...props} rows={4} spellCheck={false} autoComplete="off"
@@ -303,11 +363,11 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
   const body = (
     // Not a <form>: this sits inside the output and draft-review forms, and a nested form's Save
     // either submits the outer form too or, with a password manager installed, reloads the page.
-    <div data-plk-destform className={inline ? "grid min-w-0 max-w-[840px] grid-cols-[repeat(auto-fit,minmax(min(240px,100%),1fr))] gap-3" : "grid gap-3"}
+    <div ref={root} data-plk-destform className={inline ? "grid min-w-0 max-w-[840px] grid-cols-[repeat(auto-fit,minmax(min(240px,100%),1fr))] gap-3" : "grid gap-3"}
       onKeyDown={(e) => { if (e.key === "Enter" && e.target instanceof HTMLInputElement) { e.preventDefault(); submit(); } }}>
       {chosen ? <p className="col-span-full m-0 text-[14px] text-ink">We&apos;ll save this destination as {chosen.name}.</p> : (
-        <Field label="Name">
-          <input className={INPUT} value={name} onChange={(e) => setName(e.target.value)} />
+        <Field label="Name" error={errors.name ?? ""}>
+          <input className={INPUT} value={name} onChange={(e) => { clear("name"); setName(e.target.value); }} />
         </Field>
       )}
       {!destination && (chosen?.protocols.length ?? 2) > 1 && (
@@ -321,16 +381,17 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
               setProtocol(next);
               setConfig(DEFAULTS[next]);
               setCreds({});
+              setErrors({});
             }}
           >
             {!Object.hasOwn(PROTOCOLS, protocol) && <option value={protocol}>{protocol}</option>}
-            {offered.filter(([id]) => chosen || !SERVER.has(id)).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+            {offered.filter(([id]) => chosen || !GROUP[id]).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
             {/* The first run already chose the server tile, so its two kinds need no group of their own. */}
-            {!chosen && offered.some(([id]) => SERVER.has(id)) && (
-              <optgroup label="A server or another system">
-                {offered.filter(([id]) => SERVER.has(id)).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+            {!chosen && [SERVER, NETWORK].map((g) => offered.some(([id]) => GROUP[id] === g) && (
+              <optgroup key={g} label={g}>
+                {offered.filter(([id]) => GROUP[id] === g).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
               </optgroup>
-            )}
+            ))}
           </select>
         </Field>
       )}
@@ -347,12 +408,18 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
       )}
       {credFields.filter(([k]) => !FOLDED.has(k)).map(credField)}
       {protocol === "http" && <p className="col-span-full text-[13px] text-ink-muted">Leave blank if the address needs no login.</p>}
-      {protocol === "ksef" && <p className="col-span-full text-[13px] text-ink-muted">{KSEF_TOKEN_HELP}</p>}
+      {protocol === "ksef" && (
+        <details className="col-span-full text-[13px] text-ink-muted">
+          <summary className="flex min-h-11 cursor-pointer items-center font-semibold text-ink">How we use your token</summary>
+          {KSEF_TOKEN_USE.map((line) => <p key={line} className="m-0 mt-1">{line}</p>)}
+        </details>
+      )}
       {protocol === "b2brouter" && (
         <div className="col-span-full grid gap-1.5 text-[13px] text-ink-muted">
           <p className="m-0">{B2BROUTER_HELP}</p>
+          <p className="m-0 text-ink">{B2BROUTER_NOTE}</p>
           <details>
-            <summary className="cursor-pointer font-semibold text-ink">Sending invoices in France</summary>
+            <summary className="flex min-h-11 cursor-pointer items-center font-semibold text-ink">Sending invoices in France</summary>
             {FRANCE.map((line) => <p key={line} className="m-0 mt-1">{line}</p>)}
           </details>
         </div>
@@ -362,17 +429,17 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
       )}
       {folded.length > 0 && (
         <button type="button" aria-expanded={more} aria-label="More options" aria-describedby={hintId} onClick={() => setMore((m) => !m)}
-          className="col-span-full inline-flex items-center gap-2 justify-self-start text-[13px] font-semibold text-ink">
-          More options <span id={hintId} className="font-normal text-ink-muted">{FOLD_HINT[protocol]}</span>
+          className="col-span-full inline-flex min-h-11 items-center gap-2 justify-self-start text-[13px] font-semibold text-ink">
+          <ChevronRight size={16} aria-hidden className={more ? "rotate-90" : undefined} />More options <span id={hintId} className="font-normal text-ink-muted">{FOLD_HINT[protocol]}</span>
         </button>
       )}
       {more && folded}
       {problem && <StatusNotice tone="error" className="col-span-full">{problem}</StatusNotice>}
       <div className="col-span-full flex flex-wrap gap-2">
         {testAfterSave ? (
-          <Button type="button" variant={chosen && (saved || chosen.outlined) ? "secondary" : filled} loading={save.isPending || test.isPending} disabled={toProduction && !issuer} onClick={submit}>Save and send a test</Button>
+          <Button type="button" variant={chosen && (saved || chosen.outlined) ? "secondary" : filled} loading={save.isPending || test.isPending} onClick={submit}>Save and send a test</Button>
         ) : (
-          <Button type="button" variant={filled} loading={save.isPending} disabled={toProduction && !issuer} onClick={submit}>Save</Button>
+          <Button type="button" variant={filled} loading={save.isPending} onClick={submit}>Save</Button>
         )}
         <Button type="button" variant="ghost" onClick={onCancel}>{saved ? "Close" : "Cancel"}</Button>
         {!testAfterSave && (

@@ -45,6 +45,7 @@ describe("OutputEditor", () => {
     // A <form> inside the output's <form> submitted both (or reloaded the page under a password manager).
     expect(document.querySelector("form form")).toBeNull();
     fireEvent.change(screen.getAllByLabelText("Name")[1], { target: { value: "Drop" } });
+    fireEvent.change(screen.getByLabelText(/^Send to/), { target: { value: "books@example.test" } });
     fireEvent.click(screen.getAllByRole("button", { name: "Save" })[0]); // the destination's Save comes first
     await waitFor(() => expect(api.createDestination).toHaveBeenCalled());
     expect(api.updateOutput).not.toHaveBeenCalled();
@@ -265,12 +266,22 @@ describe("OutputEditor on the flow page (draft)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Change where the file goes" }));
     fireEvent.change(screen.getByLabelText("Goes to"), { target: { value: "\u0000new" } });
     fireEvent.change(screen.getAllByLabelText("Name").at(-1)!, { target: { value: "Drop" } });
+    fireEvent.change(screen.getByLabelText(/^Send to/), { target: { value: "books@example.test" } });
     fireEvent.click(screen.getByRole("button", { name: "Save and send a test" }));
     await waitFor(() => expect(api.testDestination).toHaveBeenCalledWith("D1"));
     expect(await screen.findByText(/The test didn.t arrive/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(screen.queryByText(/The test didn.t arrive/)).toBeNull();
     await waitFor(() => expect(screen.getByRole("button", { name: "Change where the file goes" })).toHaveFocus());
+  });
+
+  it("New destination hides the box of the destination it replaces (P1-4)", async () => {
+    api.listDestinations.mockResolvedValue([{ id: "dest-a", name: "Accounting inbox", protocol: "email", config: { toAddresses: "books@example.test" }, hasCredentials: false }]);
+    renderDraft({ ...output, destinationId: "dest-a" });
+    fireEvent.click(await screen.findByRole("button", { name: "Change where the file goes" }));
+    expect(await screen.findByRole("link", { name: "Edit" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Goes to"), { target: { value: "\u0000new" } });
+    expect(screen.queryByRole("link", { name: "Edit" })).toBeNull();
   });
 
   it("a column problem opens the columns and is said outside them", async () => {

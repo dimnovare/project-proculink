@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from "@testing-library/rea
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import { COPY } from "@/lib/documentRefusals";
+import { changeFileAddress } from "@/lib/flowSteps";
 import { ariaOf } from "@/lib/shortcuts";
 import { DocumentScreen } from "./DocumentScreen";
 
@@ -268,6 +269,24 @@ describe("DocumentScreen", () => {
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/documents?show=needs-you"));
   });
 
+  it("a file that couldn't be made offers Change the file, opened on that file", async () => {
+    api.sendDocument.mockRejectedValueOnce(new ApiHttpError("no", 422, { error: "output_invalid", output: "KSeF invoice", detail: null, outputId: "o-9" }));
+    renderScreen();
+    fireEvent.click(within(await screen.findByTestId("review-header-actions")).getByRole("button", { name: "Send and open next" }));
+    const refusal = within(await screen.findByTestId("review-refusal"));
+    expect(refusal.getByText(/KSeF invoice/)).toBeInTheDocument();
+    expect(refusal.getByRole("link", { name: "Change the file" })).toHaveAttribute("href", changeFileAddress("f", { output: "o-9", document: "d", from: "/flows/f/documents/d" }));
+  });
+
+  it("a file that couldn't be made for missing values offers no Change the file", async () => {
+    api.sendDocument.mockRejectedValueOnce(new ApiHttpError("no", 422, { error: "output_invalid", output: "KSeF invoice", detail: null, outputId: "o-9", missing: ["seller_tax_id"] }));
+    renderScreen();
+    fireEvent.click(within(await screen.findByTestId("review-header-actions")).getByRole("button", { name: "Send and open next" }));
+    const refusal = within(await screen.findByTestId("review-refusal"));
+    expect(refusal.getByText(/KSeF invoice/)).toBeInTheDocument();
+    expect(refusal.queryByRole("link", { name: "Change the file" })).toBeNull();
+  });
+
   it("sends nothing while the last change is not saved", async () => {
     api.editDocumentValues.mockRejectedValue(new Error("offline"));
     renderScreen();
@@ -469,6 +488,19 @@ describe("DocumentScreen values", () => {
     expect(await within(await screen.findByTestId("review-header-actions")).findByRole("button", { name: "Send again" })).toBeInTheDocument();
     expect(await screen.findByText("Totals: The server said 404.")).toBeInTheDocument();
     failed.unmount();
+    // Sent, but only stored: nothing went anywhere, so the pane keeps its future title until a file is delivered.
+    as("sent");
+    const file = { id: "s", outputName: "Totals", protocol: "", status: "stored", attempts: 1, lastError: null, fileName: "t.csv", deliveredAt: null };
+    api.listDeliveries.mockResolvedValue([file]);
+    const stored = renderScreen();
+    const tabs = () => within(screen.getByRole("tablist", { name: "Parts of this document" }));
+    await waitFor(() => expect(api.listDeliveries).toHaveBeenCalled());
+    expect(tabs().getByRole("tab", { name: "What we'll send" })).toBeInTheDocument();
+    stored.unmount();
+    api.listDeliveries.mockResolvedValue([{ ...file, status: "delivered", fileName: null }]);
+    const delivered = renderScreen();
+    expect(await within(await screen.findByRole("tablist", { name: "Parts of this document" })).findByRole("tab", { name: "What we sent" })).toBeInTheDocument();
+    delivered.unmount();
     // A flow that makes no file yet: set it up first, never a send the server refuses.
     as("ready");
     api.listOutputs.mockResolvedValue([]);

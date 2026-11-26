@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronRight } from "lucide-react";
-import { Button } from "@/components/bridge/DSPrimitives";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { Field, INPUT } from "@/components/flows/DestinationForm";
@@ -81,8 +81,11 @@ export function StandardList({ flow, kind, onUse, busyId, pickedId }: {
     );
   };
   // The credit-note versions belong to the invoice families: in an orders flow they sit with them, inside "Other standards".
+  // "The same" only when every invoice family has one (KSeF has none).
+  const word = WORDS[twins.length] ?? String(twins.length);
   const credit = twins.length > 0 && (
-    <Fold label={`Credit note versions (${twins.length})`} line={twins.length === 1 ? "Its credit note version." : `The same ${WORDS[twins.length] ?? twins.length}, for credit notes.`}>
+    <Fold label={`Credit note versions (${twins.length})`} line={twins.length < fams.invoices.length ? `${word[0].toUpperCase()}${word.slice(1)} of these, for credit notes.`
+      : twins.length === 1 ? "Its credit note version." : `The same ${word}, for credit notes.`}>
       {twins.map((id) => row(id, null, undefined, false, OFFERED.find((s) => s.id === id)?.version ?? null))}
     </Fold>
   );
@@ -299,7 +302,7 @@ export function OutputBuilder(props: Props) {
   return (
     <div className="grid gap-3">
       {/* Not while a standard's Use is on its way: Back, then Create, would make a second file. */}
-      <div><button type="button" className={`${LINK} disabled:opacity-50`} aria-label={`Back to ${title}`} disabled={standard.isPending} onClick={() => go("quick")}>{title}</button></div>
+      <div><button type="button" className={`${buttonClass("ghost", "sm")} gap-1 disabled:opacity-50`} disabled={standard.isPending} onClick={() => go("quick")}><ChevronLeft size={16} aria-hidden />Back to {title}</button></div>
       {way === "standards" ? (
         <div className="grid gap-3">
           <div className="grid gap-0.5">

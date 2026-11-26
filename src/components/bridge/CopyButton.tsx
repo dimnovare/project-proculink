@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Copy } from "lucide-react";
 import { Button } from "@/components/bridge/DSPrimitives";
 
-export function CopyButton({ text, label = "Copy email address" }: { text: string; label?: string }) {
+export function CopyButton({ text, label = "Copy email address", size = "md" }: { text: string; label?: string; size?: "sm" | "md" }) {
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -18,7 +18,7 @@ export function CopyButton({ text, label = "Copy email address" }: { text: strin
   };
 
   return (
-    <Button variant="secondary" size="md" onClick={copy} aria-label={label} className="sm:flex-none">
+    <Button variant="secondary" size={size} onClick={copy} aria-label={label} className="sm:flex-none">
       <Copy size={13} />
       {copied ? "Copied!" : "Copy"}
     </Button>

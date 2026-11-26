@@ -22,7 +22,7 @@ import { useLatestRead } from "./FlowValues";
 import { kindGroup, standardFamilies } from "@/lib/standardOutputs";
 import { DOCS_ACCEPT, DOCS_BYTES, SAMPLE_ACCEPT, SAMPLE_BYTES, StandardList } from "./OutputBuilder";
 import { FORMATS, outputTypeLabel } from "./OutputEditor";
-import { COMMON_TYPES, aFileOf, makeFileLabel, replaceOutput, standardChoice, typeChoice } from "./fileChoice";
+import { COMMON_TYPES, aFileOf, replaceOutput, standardChoice, typeChoice } from "./fileChoice";
 import { Failed, Quiet, Loading } from "./states";
 
 const or = (words: string[]) => (words.length < 2 ? words.join("") : `${words.slice(0, -1).join(", ")} or ${words.at(-1)}`);
@@ -99,7 +99,9 @@ export function ChooseFile({ flowId }: { flowId: string }) {
   const standardLine = `${or(fitting.map((s) => s.name))}. We fill the standard in from what each value means.`;
   const goesTo = destinations.data?.find((d) => d.id === output.destinationId);
   const blocked = goesTo?.protocol === "google_sheets" && !!choice && (!!choice.standard || choice.format !== "csv");
-  const pressedType = (id: string) => (pick ? pick.by === "type" && choice!.format === id : !output.standard && output.format === id);
+  // Only a new pick looks pressed: the type in use is tagged Current, so a grey Use this file never sits under a "chosen" button.
+  const pressedType = (id: string) => pick?.by === "type" && choice!.format === id;
+  const currentType = (id: string) => !output.standard && output.format === id;
   const opener = (way: FileWay, label: string) =>
     open !== way && <Button variant="secondary" size="md" onClick={() => setOpen(way)}>{label}</Button>;
   const drafted = (way: "sample" | "docs", m: typeof sample, accept: string, maxBytes: number, prompt: string, busyLabel: string) =>
@@ -135,9 +137,10 @@ export function ChooseFile({ flowId }: { flowId: string }) {
         <Way title="A common file type" line="The same values, in the type your system opens.">
           <div role="group" aria-label="File type" className="grid w-full grid-cols-3 gap-2 sm:grid-cols-6">
             {COMMON_TYPES.map((id) => (
-              <Button key={id} variant={pressedType(id) ? "primary" : "secondary"} size="md" className="w-full" aria-pressed={pressedType(id)}
+              <Button key={id} variant={pressedType(id) ? "primary" : "secondary"} size="md" className={currentType(id) ? "h-auto w-full flex-col gap-0 py-1" : "w-full"} aria-pressed={pressedType(id)}
                 onClick={() => setPick(id === output.format && !output.standard ? null : { by: "type", choice: typeChoice(output, id) })}>
                 {FORMATS[id]}
+                {currentType(id) && <span className="rounded-full border border-current px-1.5 text-[11px] font-semibold"><span className="sr-only">, </span>Current</span>}
               </Button>
             ))}
           </div>
@@ -174,10 +177,10 @@ export function ChooseFile({ flowId }: { flowId: string }) {
         </Card>
         {blocked && <StatusNotice tone="warning">Google Sheets takes only a CSV file. Choose CSV, or change where this file goes first.</StatusNotice>}
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-          <p className="m-0 min-w-0 flex-[1_1_320px] text-[13.5px] leading-normal text-ink-muted">
-            The new file replaces the {type}. To keep the {type} as well, go back and use “{makeFileLabel(outputs.data.length)}”.
-            {typeof f.publishedVersion === "number" && f.hasChanges && <> {WAITING_LINE}</>}
-          </p>
+          <div className="grid min-w-0 flex-[1_1_320px] gap-1 text-[13.5px] leading-normal text-ink-muted">
+            <p className="m-0">The new file replaces the {type}. Nothing changes until you press Use this file.</p>
+            {typeof f.publishedVersion === "number" && f.hasChanges && <p className="m-0 text-[12.5px]">{WAITING_LINE}</p>}
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             {!choice && <span className="text-[13px] text-ink-muted">Pick a file type, a sample or a standard above.</span>}
             <div className="hidden items-center gap-2 md:flex">{actions}</div>
