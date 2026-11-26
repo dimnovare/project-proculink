@@ -27,6 +27,16 @@ export const metadata = pageMetadata({
 // one is formatting, not a rewrite: the words stay as they were.
 const ENTRIES = [
   {
+    version: "v2.16",
+    date: "26 November 2026",
+    items: [
+      "When one of a flow's files can't be made, the document now names the file and what it needs, with **Change the file** beside it. If the standard needs a value your documents don't have yet, **Add it as a field** adds it to the flow.",
+      "A send that failed and will be tried again is now shown in amber with **Will try again automatically**. Red is kept for sends that stopped. A reference number that comes back from a send has a **Copy** button.",
+      "The destination form puts each error under its own box and takes you to the first one.",
+      "A trial that has used all its documents can still send them until its last day. New documents wait until you choose a plan.",
+    ],
+  },
+  {
     version: "v2.15",
     date: "26 November 2026",
     items: [
