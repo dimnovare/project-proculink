@@ -12,7 +12,7 @@ export const metadata = pageMetadata({
   path: "/help",
   title: "Help centre — ProcuLink",
   description:
-    "Help for ProcuLink: how it works, the files it reads, flows, ways to send documents in, the files we make and where they go, lookups, billing, and the API.",
+    "Help for ProcuLink: how it works, the files it reads, flows, ways to send documents in, the files we make and where they go, lookups, billing, the API and AI assistants.",
   ogDescription:
     "Help for reading, checking and sending documents with ProcuLink.",
 });

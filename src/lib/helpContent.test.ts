@@ -66,6 +66,10 @@ describe("never-claim destination patterns", () => {
     ["totals check", "A totals check runs on every plan", true],
     ["totals check", "One puts the total top right, another at the bottom.", false],
     ["totals check", "Add a field called Total and we find it.", false],
+    ["certified or approved (ProcuLink)", "ProcuLink is approved by the tax authority", true],
+    ["certified or approved (ProcuLink)", "Sends files certified for KSeF", true],
+    ["certified or approved (ProcuLink)", "B2Brouter, a French approved platform", false],
+    ["certified or approved (ProcuLink)", "Sent only when a person confirms it.", false],
   ];
   it.each(CASES)("%s: %s", (label, text, hit) => {
     expect(pattern(label).test(text)).toBe(hit);

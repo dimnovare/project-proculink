@@ -8,7 +8,7 @@ describe("standardFamilies", () => {
     expect(ids(standardFamilies(true, false).invoices)).not.toContain(ksef);
     expect(ids(standardFamilies(true).invoices)).not.toContain(ksef);
     const on = standardFamilies(false, true);
-    expect(on.invoices.find((f) => f.id === ksef)).toMatchObject({ name: "KSeF invoice file", creditNote: null, version: "FA(3) 1-0E" });
+    expect(on.invoices.find((f) => f.id === ksef)).toMatchObject({ name: "KSeF invoice", creditNote: null, version: "FA(3) 1-0E" });
     expect(ids(on.orders)).not.toContain(ksef);
     expect(ids(standardFamilies(true, true).orders)).not.toContain(ksef);
   });

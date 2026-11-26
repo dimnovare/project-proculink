@@ -14,11 +14,11 @@ What happens to a document from the moment it arrives to the moment it is sent o
 
 Every document takes the same path through a flow. A flow is one setup for one kind of document: how documents arrive, which values to read, what to produce and where it goes.
 
-1. **It arrives.** You upload a file, forward it to the flow's email address, or let ProcuLink collect it from a mailbox, a server, an S3 bucket or the API. See [Ways to send documents in](/help/intake-channels).
+1. **It arrives.** You upload a file, forward it to the flow's email address, or let ProcuLink collect it from a mailbox, a server or an S3 bucket, or send it by API or from your AI assistant. See [Ways to send documents in](/help/intake-channels).
 2. **We read it.** We read the values and tables on the page. The first document needs no template. See [Files we read](/help/what-we-read).
 3. **We check it.** A few checks flag a missing value, a value we could not read, or a document we have already seen. See [Checks](/help/checks).
 4. **You review it, or we do not ask.** A new flow that an admin creates waits for you only on a document with a marked value (**Check only what we marked**). You can set a flow to **Check every document** or **Check nothing**. See [Flows](/help/flows).
-5. **We make the file.** Each file in the flow is made from what we read, as CSV, JSON, XML, Excel, PDF, text or fixed-width. See [Files we make](/help/outputs).
+5. **We make the file.** Each file in the flow is made from what we read, as CSV, JSON, XML, Excel, PDF, text or fixed-width, or a standard such as cXML, UBL or ZUGFeRD / Factur-X. See [Files we make](/help/outputs).
 6. **We send it.** Each file goes to its destination: an email address, a web address, an SFTP or FTPS server, an S3 bucket, Google Drive, Google Sheets, OneDrive, or a download. See [Destinations](/help/destinations).
 
 On **Documents** you can follow each document's progress through five steps: In, Read, Check, Transform and Send.

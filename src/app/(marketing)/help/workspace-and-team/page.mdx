@@ -46,11 +46,11 @@ When you remove a document that a file was already made or sent from, we keep a 
 
 ## API keys
 
-A key lets another system send files to your flows and fetch results. See the [API reference](/help/api-reference).
+A key lets another system, or an AI assistant, send files to your flows and fetch results. See the [API reference](/help/api-reference).
 
 Open **Settings**, and under **Workspace** open **For developers**.
 
-- Select **Create key**, name it after the system that will use it, and create it. Only an administrator can do this.
+- Select **Create key**, name it after the system that will use it, and create it. Only an administrator can do this. Tick **Let it send documents** only for an AI assistant that should send. Without it, the key adds and reads documents, and a flow still sends by itself what it would send anyway.
 - The key is shown once. Copy it and store it safely. We cannot show it again.
 - The list shows each key's name, its first characters, when it was created and when it was last used.
 - Select **Revoke** to stop a key. Any member can do this, so a leaked key can be stopped quickly. Anything that uses the key stops working.

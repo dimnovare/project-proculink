@@ -22,7 +22,9 @@ describe("How it works", () => {
     expect(second.textContent).toContain("You can set a flow to check every document, or nothing at all, and change it at any time.");
     expect(container.textContent).toContain("the destination's answer where it gives one");
     expect(container.textContent).toContain("the flow's own address, shown on the flow");
-    expect(container.textContent).not.toMatch(/response code|inbound\.proculink|cXML|UBL|Peppol|X12/);
+    // The order standards and Factur-X are live (2026-11-18, v2.13); the held-back e-invoice names stay off.
+    expect(container.textContent).toContain("a ZUGFeRD / Factur-X invoice");
+    expect(container.textContent).not.toMatch(/response code|inbound\.proculink|Peppol|XRechnung/);
     expect(container.querySelectorAll("style")).toHaveLength(0); // no moving picture on this page
   });
 });

@@ -14,7 +14,7 @@ For a walk-through, see [Send documents by API](/help/guides/send-documents-by-a
 
 ## Keys
 
-Create a key in **Settings**: under **Workspace**, open **For developers**. Only a workspace admin can create one. Send it in the `X-ProcuLink-Key` header on every call. A key works for every flow in the workspace, not for one flow. A missing, unknown, revoked or expired key is answered with `401`.
+Create a key in **Settings**: under **Workspace**, open **For developers**. Only a workspace admin can create one. **Let it send documents** matters only for AI assistants. The file API never sends a document by itself. Send it in the `X-ProcuLink-Key` header on every call. A key works for every flow in the workspace, not for one flow. A missing, unknown, revoked or expired key is answered with `401`.
 
 ## Send a file
 
@@ -90,6 +90,10 @@ Answered with `200`. It has two parts.
 `status` is one of `received`, `reading`, `read_failed`, `needs_review`, `ready`, `sending`, `sent` or `send_failed`. See [Documents and their statuses](/help/documents-and-statuses). A delivery `status` is `queued`, `delivering`, `delivered`, `stored`, `failed` or `dead_letter`.
 
 Refusals: `401`, `403` `document_engine_not_enabled`, and `404` `document_not_found`.
+
+## AI assistants
+
+The same key connects an AI assistant at `https://api.proculink.eu/mcp`, in the `X-ProcuLink-Key` header. See [Use ProcuLink from your AI assistant](/help/guides/use-from-your-ai-assistant).
 
 ## Webhooks
 

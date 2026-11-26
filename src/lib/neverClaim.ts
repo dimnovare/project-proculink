@@ -40,10 +40,20 @@ const asDestination = (store: string) =>
 export const NEVER_CLAIM: readonly NeverClaim[] = [
   { label: "Peppol (output or validation)", pattern: /\bpeppol\b/i },
   { label: "XRechnung or EN 16931", pattern: /\bxrechnung\b|\ben\s?16931\b/i },
+  // The Factur-X invoice is released; its credit note is not (behind the e-invoice switch).
+  { label: "Factur-X credit note", pattern: /\bfactur-x\b[^.\n]{0,40}\bcredit notes?\b/i },
   { label: "IDoc", pattern: /\bidoc\b/i },
   { label: "Erply", pattern: /\berply\b/i },
   { label: "Directo", pattern: /\bdirecto\b/i },
   { label: "KSeF (plan 33, decision 7)", pattern: /\bksef\b/i },
+  // KSeF, Peppol and B2Brouter appear in public copy only in src/lib/marketing/earlyAccess.ts (founder decision 2026-11-26).
+  { label: "B2Brouter (early access only)", pattern: /\bb2brouter\b/i },
+  // ProcuLink holds no certification or approval from a tax authority or network. "a French approved platform" is about
+  // someone else and does not match; "ProcuLink is approved by …" and "certified for KSeF" do.
+  {
+    label: "certified or approved (ProcuLink)",
+    pattern: /\b(?:proculink|we)\b(?:\s+(?:is|are))?[^.\n]{0,30}\b(?:certified|accredited|approved|authori[sz]ed)\b|\bcertified\s+(?:by|for)\b/i,
+  },
   { label: "plain-FTP destination", pattern: asDestination("ftp") },
   { label: "SharePoint (except on request)", pattern: /\bsharepoint\b(?![^.\n]*\bon request\b)/i },
   { label: "Dropbox", pattern: /\bdropbox\b/i },

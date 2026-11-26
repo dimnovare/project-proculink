@@ -16,12 +16,12 @@ const PRICE_ROW = PUBLIC_LADDER.filter((p) => !p.isCustom);
 
 const COLUMNS = [
   { title: "We read", rule: "border-brand-blue", items: ["PDF", "Excel and CSV", "Word and text", "XML and JSON", "Scans and phone photos"] },
-  { title: "You get", rule: "border-navy", items: ["CSV", "Excel", "JSON or XML", "PDF", "Text or fixed-width"] },
+  { title: "You get", rule: "border-navy", items: ["CSV", "Excel", "JSON or XML", "PDF", "Text or fixed-width", "cXML, UBL, EDIFACT or X12 orders", "ZUGFeRD / Factur-X invoices"] },
   { title: "It goes to", rule: "border-brand-green", items: ["Email", "An SFTP or FTPS server", "Google Drive, Sheets or OneDrive", "An S3 bucket or a web address", "Or a download"] },
 ];
 
 const STEPS = [
-  { title: "You send it in", rule: "border-brand-blue", body: "Upload a file, forward an email, or let us collect it from a mailbox, an SFTP or FTP server, an S3 bucket, or our API." },
+  { title: "You send it in", rule: "border-brand-blue", body: "Upload a file, forward an email, or let us collect it from a mailbox, an SFTP or FTP server, an S3 bucket, our API, or your AI assistant." },
   { title: "We read it", rule: "border-brand-blue", body: "We read every value and table on the first document. There's no template to build first. Scans and phone photos are read too." },
   { title: "You check it", rule: "border-amber", body: "The original stays on screen beside what we read. Fix a value, or point at it on the page so we find it next time." },
   { title: "We send it", rule: "border-brand-green", body: "Choose the file your system needs, then send it by email, to a server, to Google Drive, Sheets or OneDrive, or download it." },
@@ -30,7 +30,8 @@ const STEPS = [
 const TECH = [
   ["An address and an API for every flow", "Email a flow, post a file to it, fetch the result, or have us call your web address when a document is read or sent."],
   ["Pickups every five minutes", "We check a mailbox, an SFTP, FTPS or FTP server, or an S3 bucket every five minutes. Each file is picked up once, and files on a server or in a bucket stay where they are."],
-  ["Outputs from your documentation", "Upload your receiving system's documentation or a sample file and we propose the output for you to check."],
+  ["Files made from your documentation", "Upload your receiving system's documentation or a sample file and we propose the file for you to check."],
+  ["Your AI assistant", "Connect Claude, ChatGPT, Cursor or VS Code. Add a document, see what we read and send it by asking. A document that waits for a check still waits."],
   ["Lookups", "Swap a value on the document for the one your system uses, from a list you import."],
   ["Versions you can go back to", "Changes to a flow go live when you publish them, and any earlier version can be restored."],
   ["A record of every delivery", "Each delivery keeps when it went, its channel, how many attempts it took, the destination's answer where it gives one and, when it fails, the error."],
@@ -212,6 +213,7 @@ export default function RootPage() {
             </div>
             <div className="flex flex-wrap gap-x-7 gap-y-2">
               <Link href="/help/api-reference" className={SITE.onNavyLink}>API reference</Link>
+              <Link href="/help/guides/use-from-your-ai-assistant" className={SITE.onNavyLink}>Use it from your AI assistant</Link>
               <Link href="/security" className={SITE.onNavyLink}>Security</Link>
             </div>
           </div>
@@ -223,7 +225,7 @@ export default function RootPage() {
             <div className="flex max-w-[720px] flex-col gap-3.5">
               <h2 id="home-price" className={SITE.h2}>One price list. Everything included.</h2>
               <p className={SITE.lead}>
-                Every plan has every way in, every output and every check. You pay for the documents you process.
+                Every plan has every way in, every file type and every check. You pay for the documents you process.
               </p>
             </div>
             <ul

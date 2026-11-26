@@ -29,7 +29,7 @@ const STEPS: [string, string][] = [
   ["Check what we read", "The original stays on screen beside it. Fix anything that's wrong."],
   [
     "Choose where it goes",
-    "Download the file, or send it by email, to a server, or to Google Drive or OneDrive. You see the file before anything is sent.",
+    "Download the file, or send it by email, to a server, or to Google Drive or OneDrive. Nothing is sent until you choose where it goes, and a new flow holds anything we marked for you to check.",
   ],
 ];
 

@@ -5,6 +5,7 @@ import { Card } from "@/components/bridge/layout/Card";
 import { PriceHelper } from "@/components/marketing/PriceHelper";
 import { ClosingCta, FLOW_SENTENCE, SITE, Ticks } from "@/components/marketing/sitePictures";
 import { euro } from "@/lib/billingWords";
+import { EARLY_ACCESS } from "@/lib/marketing/earlyAccess";
 import {
   DOCUMENT_PLAN_FEATURES,
   DOCUMENT_PLAN_IDS,
@@ -41,7 +42,7 @@ const LINK = "font-semibold underline underline-offset-[3px]";
 const FAQ: Array<[string, ReactNode]> = [
   [
     "Do I need an integration to start?",
-    "No. Upload a file or forward an email and you have a result to check. The API and the server pickups are there for when you want documents to arrive by themselves.",
+    "No. Upload a file or forward an email and you have a result to check. The API and the server pickups are there for when you want documents to arrive by themselves. You can also connect your AI assistant.",
   ],
   [
     "Do the people who send me documents need to change anything?",
@@ -71,7 +72,7 @@ const FAQ: Array<[string, ReactNode]> = [
   [
     "What happens if I cancel?",
     <>
-      If you cancel, ProcuLink stops accepting new documents when your subscription ends. Everything you have already processed remains readable and exportable — past documents, flows and outputs stay until you ask us to delete them, and activity records such as delivery attempts are removed after 180 days (see the{" "}
+      If you cancel, ProcuLink stops accepting new documents when your subscription ends. Everything you have already processed remains readable and exportable — past documents, flows and files stay until you ask us to delete them, and activity records such as delivery attempts are removed after 180 days (see the{" "}
       <Link href="/privacy" className={LINK}>Privacy Policy</Link>) — but nothing new comes in on any route: uploads, emailed documents and the file API all stop, and mailbox, SFTP, FTP, FTPS and S3 pickups pause and leave your files where they are. Uploads, emails and API calls sent after that are not held for later, so tell your senders before you cancel. Resubscribing turns processing back on immediately, with your setup untouched.
     </>,
   ],
@@ -102,7 +103,7 @@ export default function PricingPage() {
           <div className="flex max-w-[880px] flex-col gap-[22px]">
             <h1 id="pricing-title" className={SITE.h1}>Start free. Pay for the documents you process.</h1>
             <p className={`${SITE.lead} max-w-[700px]`}>
-              Every plan has every way to send documents in, every output and every check. Plans differ only by how many documents you process and how many flows you set up.
+              Every plan has every way to send documents in, every file type and every check. Plans differ only by how many documents you process and how many flows you set up.
             </p>
             <p className={`${SITE.soft} text-[16px]`}>{FLOW_SENTENCE}</p>
             <p className={`${SITE.soft} text-[16px]`}>{DOCUMENT_UNIT_SENTENCE}</p>
@@ -135,7 +136,13 @@ export default function PricingPage() {
           <div className="border-b border-border">
             <div data-plans={DOCUMENT_PLAN_IDS.join(" ")} className={ROW}>
               <h3 className={`${SITE.h3} min-[1100px]:pr-4`}>On every paid plan</h3>
-              <Ticks items={DOCUMENT_PLAN_FEATURES} className="min-[1100px]:pl-5" />
+              <div className="flex flex-col gap-3 min-[1100px]:pl-5">
+                <Ticks items={DOCUMENT_PLAN_FEATURES} />
+                <p data-early-access="" className={SITE.soft}>
+                  {EARLY_ACCESS.pricingLine}{" "}
+                  <a href={EARLY_ACCESS.cta.href} className={LINK}>{EARLY_ACCESS.cta.label}</a>
+                </p>
+              </div>
             </div>
             <article data-plans={ENTERPRISE.id} className={`${ROW} min-[1100px]:items-center`}>
               <h3 className={`${SITE.h3} min-[1100px]:pr-4`}>{ENTERPRISE.name}</h3>

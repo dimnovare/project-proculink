@@ -2,6 +2,7 @@ import { ChevronRight } from "lucide-react";
 import { pageMetadata } from "@/lib/seo";
 import { ClosingCta, SITE } from "@/components/marketing/sitePictures";
 import { SITE_PAGE } from "@/components/marketing/LegalPage";
+import { EARLY_ACCESS } from "@/lib/marketing/earlyAccess";
 
 export const metadata = pageMetadata({
   path: "/changelog",
@@ -25,6 +26,14 @@ export const metadata = pageMetadata({
 // **Name** marks a name on screen (a button, page or tab); it is drawn bold. Marking
 // one is formatting, not a rewrite: the words stay as they were.
 const ENTRIES = [
+  {
+    version: "v2.15",
+    date: "26 November 2026",
+    items: [
+      "**Early access: KSeF and Peppol.** You can ask us to switch on KSeF (Poland), or Peppol and e-invoicing in France through your own B2Brouter account. Both are built and tested in each provider's test environment, and we set up the first send with you. You are the issuer of each invoice.",
+      "The Terms and the Privacy Policy now cover e-invoicing providers and the AI assistants you connect. The changes to the Terms take effect on 14 December 2026.",
+    ],
+  },
   {
     version: "v2.14",
     date: "26 November 2026",
@@ -263,9 +272,16 @@ function earlierRange(entries: readonly Entry[]): string {
 function Items({ items, big }: { items: readonly string[]; big?: boolean }) {
   return (
     <ul className={`m-0 flex min-w-0 flex-[1_1_420px] list-disc flex-col gap-3 pl-6 ${big ? "text-[clamp(19px,1.1vw+14.5px,22px)] leading-[1.45]" : ""}`}>
-      {items.map((item, j) => (
-        <li key={j}>{item.split(/\*\*(.+?)\*\*/).map((part, k) => (k % 2 ? <strong key={k}>{part}</strong> : part))}</li>
-      ))}
+      {items.map((item, j) => {
+        // An early-access item carries its own way to ask (publicCopyDrift.test.ts checks every page that names one).
+        const early = item.startsWith(`**${EARLY_ACCESS.heading}`);
+        return (
+          <li key={j} data-early-access={early ? "" : undefined}>
+            {item.split(/\*\*(.+?)\*\*/).map((part, k) => (k % 2 ? <strong key={k}>{part}</strong> : part))}
+            {early && <>{" "}<a href={EARLY_ACCESS.cta.href} className="font-semibold underline underline-offset-[3px]">{EARLY_ACCESS.cta.label}</a></>}
+          </li>
+        );
+      })}
     </ul>
   );
 }

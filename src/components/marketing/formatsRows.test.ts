@@ -6,7 +6,7 @@ import { WAY_IN_WORDS } from "@/lib/flowSentences";
 import { STANDARD_NAME_TOKENS } from "@/lib/marketing/format-catalog";
 import { NEVER_CLAIM } from "@/lib/neverClaim";
 import { STANDARD_OUTPUTS, standardName } from "@/lib/standardOutputs";
-import { HELD_BACK, OUTPUT_ROWS, READ_ROWS, WAYS_IN_ROWS, WAYS_OUT_ROWS, outOfStep } from "./formatsRows";
+import { EARLY_ACCESS_KEYS, HELD_BACK, OUTPUT_ROWS, READ_ROWS, WAYS_IN_ROWS, WAYS_OUT_ROWS, outOfStep } from "./formatsRows";
 
 const OUTPUT_KEYS = [...Object.keys(FORMATS), ...STANDARD_OUTPUTS];
 
@@ -18,14 +18,17 @@ const REGISTRIES = [
 ] as const;
 
 describe("the Formats rows", () => {
-  it("every kind each registry holds is a row or is held back, and nothing else", () => {
+  it("every kind each registry holds is a row, held back or in early access, exactly once", () => {
     for (const [name, registry, rows] of REGISTRIES) {
       expect(registry.length, `${name}: empty registry, so this proves nothing`).toBeGreaterThan(0);
       const held = Object.keys(HELD_BACK).filter((k) => registry.includes(k as never));
+      const early = [...EARLY_ACCESS_KEYS].filter((k) => registry.includes(k as never));
       const listed = rows.flatMap((r) => r.keys);
       expect(outOfStep(registry, rows), name).toEqual({ unlisted: [], unknown: [] });
-      expect(new Set([...listed, ...held]).size, `${name}: a key is listed twice or both listed and held`).toBe(listed.length + held.length);
+      expect(new Set([...listed, ...held, ...early]).size, `${name}: a key is in two of listed, held and early access`).toBe(listed.length + held.length + early.length);
     }
+    // Every early-access key is a real way out, so the block names nothing the app lacks.
+    expect([...EARLY_ACCESS_KEYS].filter((k) => !CHANNELS.has(k))).toEqual([]);
     // Control: one extra registry key is caught, and so is a row naming a key no registry holds.
     expect(outOfStep([...OUTPUT_KEYS, "heic"], OUTPUT_ROWS).unlisted).toEqual(["heic"]);
     expect(outOfStep(OUTPUT_KEYS.filter((k) => k !== "fixed"), OUTPUT_ROWS).unknown).toEqual(["fixed"]);
