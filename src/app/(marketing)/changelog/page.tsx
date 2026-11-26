@@ -27,6 +27,18 @@ export const metadata = pageMetadata({
 // one is formatting, not a rewrite: the words stay as they were.
 const ENTRIES = [
   {
+    version: "v2.17",
+    date: "27 November 2026",
+    items: [
+      "Once a document is sent, **What we sent** lists only the files that went out. A file added to the flow later no longer shows there, and there is no **Preview** of a file that may have changed since.",
+      "**Documents** no longer ends with \"That is everything that needs you\" while documents wait under **Problems**: it says how many are there. The line under the title now counts what was **sent** this week.",
+      "When a document couldn't be sent, the reason now sits at the top of the document on every screen size, not only on a phone.",
+      "After a document is read, the trial's document count on **Upload** updates without a reload.",
+      "**See why** on a destination whose last document couldn't be sent opens **Problems**, where that document is.",
+      "In Settings, the Destinations tab now says where your Microsoft accounts are listed. On a phone, the account button on Settings is labelled **Account**.",
+    ],
+  },
+  {
     version: "v2.16",
     date: "26 November 2026",
     items: [
