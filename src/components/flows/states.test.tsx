@@ -1,16 +1,37 @@
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Checks, Failed, Loading, LoadingPanel, ReadProblem } from "./states";
-import { COPY } from "@/lib/documentRefusals";
+import { COPY, outputFailedMessage } from "@/lib/documentRefusals";
+import { flowAddress } from "@/lib/flowSteps";
 import { ApiHttpError } from "@/lib/api/core";
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { buttonClass } from "@/components/bridge/DSPrimitives";
 
+/** ReadProblem reads the screen's cached document detail, so it renders inside a client; `detail` seeds that cache. */
+const withClient = (ui: React.ReactElement, detail?: unknown) => {
+  const qc = new QueryClient();
+  if (detail) qc.setQueryData(["document", "d"], detail);
+  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+};
+
 describe("ReadProblem", () => {
   it("says why a held document is waiting when no output matches", () => {
     const summary = { id: "d", status: "needs_review", statusReason: "no_output_matches" };
-    const { container } = render(<ReadProblem summary={summary as never} retry={{} as never} uploadHref="/flows/f?tab=documents" />);
+    const { container } = withClient(<ReadProblem summary={summary as never} retry={{} as never} uploadHref="/flows/f?tab=documents" />);
     expect(within(container).getByText(COPY.no_output_matches)).toBeTruthy();
+  });
+
+  it("a file that couldn't be made is named with its reason and opens that file, or says to open the flow's files", () => {
+    const summary = { id: "d", flowId: "f1", status: "needs_review", statusReason: "output_invalid" };
+    const held = { output: "KSeF invoice", detail: "This standard needs Receiver VAT ID.", outputId: "o1" };
+    const ui = <ReadProblem summary={summary as never} retry={{} as never} uploadHref="/flows/f1?tab=documents" />;
+    const named = within(withClient(ui, { summary, heldOutput: held }).container);
+    expect(named.getByText(outputFailedMessage(held.output, held.detail))).toBeTruthy();
+    expect(named.getByRole("link", { name: "Change the file" }).getAttribute("href")).toBe(flowAddress("f1", "send", { output: "o1" }));
+    const unknown = within(withClient(ui).container);
+    expect(unknown.getByText(outputFailedMessage(null, null))).toBeTruthy();
+    expect(unknown.getByRole("link", { name: "Change the file" }).getAttribute("href")).toBe(flowAddress("f1", "send"));
   });
 });
 
@@ -78,7 +99,7 @@ describe("Loading and a document we couldn't read", () => {
 
   it("a document we couldn't read says it was not sent or counted, and offers another copy as the filled button", () => {
     const summary = { id: "d", status: "read_failed", statusReason: "unreadable_file" };
-    const { container } = render(<ReadProblem summary={summary as never} retry={{ isPending: false, isError: false, mutate() {} } as never} uploadHref="/flows/f?tab=documents" />);
+    const { container } = withClient(<ReadProblem summary={summary as never} retry={{ isPending: false, isError: false, mutate() {} } as never} uploadHref="/flows/f?tab=documents" />);
     expect(within(container).getByText(COPY.unreadable_file)).toBeTruthy();
     expect(within(container).getByText("It hasn't been sent anywhere, and it doesn't count as a document on your plan.")).toBeTruthy();
     const link = within(container).getByRole("link", { name: "Upload another copy" });

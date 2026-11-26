@@ -128,6 +128,8 @@ export interface DocumentDetail extends CountsThisMonth {
   isSample?: boolean;
   /** Only on a repeated number (a failed `duplicate` check). Absent on an older backend. */
   duplicateOf?: DuplicateOf | null;
+  /** While an automatic send is held as `output_invalid`: the file that couldn't be made, why, and the meanings it lacks. Absent on an older backend. */
+  heldOutput?: { output: string; detail: string | null; missing?: string[] | null; outputId?: string | null } | null;
 }
 /** Where a value sits on the original: a box on a page, or a sheet cell / text line with the value read there. */
 export interface TeachRequest { key?: string; newLabel?: string; page?: number; box?: Box; address?: string; value?: string }

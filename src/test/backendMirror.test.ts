@@ -1291,7 +1291,7 @@ const EXPECTED_COMPARISONS =
   1 + // MINIMUM_PLAN against PlanConstants.MinimumPlan
   6 + // the ladder's numbers: Limits, MonthlyPriceEur, OveragePerOrderEur, FlowLimits, OverageRatesEur, PilotDuration
   1 + // document statuses
-  1 + // field meanings
+  2 + // field meanings: the keys and their labels
   2; // standard outputs: the ids, and which are flagged
 
 afterAll(() => {
@@ -1389,6 +1389,20 @@ describe("field meanings mirror the backend", () => {
       all.map((n) => constants[n]),
       Object.keys(FIELD_MEANINGS),
       "The field meaning vocabulary drifted from FieldMeanings.cs.",
+    );
+  });
+
+  // The backend names a missing meaning in a refusal by these labels, so the two must read the same.
+  test.skipIf(!BACKEND)("FIELD_MEANINGS labels equal FieldMeanings.Labels", () => {
+    const cs = stripCsComments(readFileSync(join(BACKEND!, "ProcuLink.Core/Documents/FieldMeanings.cs"), "utf8"));
+    const constants = parseStatusConstants(cs);
+    const block = /Labels\s*=\s*new Dictionary<string, string>\s*\{([^}]*)\}/.exec(cs)?.[1] ?? "";
+    expect(block, "FieldMeanings.Labels did not parse, so this would prove nothing").not.toBe("");
+    recordComparison(
+      "FieldMeanings.Labels",
+      [...block.matchAll(/\[(\w+)\]\s*=\s*"([^"]*)"/g)].map((m) => `${constants[m[1]]}=${m[2]}`),
+      Object.entries(FIELD_MEANINGS).map(([key, { label }]) => `${key}=${label}`),
+      "A meaning's label drifted from FieldMeanings.Labels.",
     );
   });
 });
