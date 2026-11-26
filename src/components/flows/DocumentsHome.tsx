@@ -125,6 +125,8 @@ export function DocumentsHome() {
     document.getElementById(`documents-tab-${DOCUMENT_TABS[to].id}`)?.focus();
   };
 
+  // Problems need a person too: with any, the end of the list never says that was everything.
+  const problems = pageTotal(counts[2].data);
   let panel;
   if (docs.isError && !docs.data) {
     panel = <Failed error={docs.error} retry={() => docs.refetch()} what="your documents" />;
@@ -159,7 +161,7 @@ export function DocumentsHome() {
           </div>
         )}
         {tabDef.id === "needs-you" && to >= totalCount && (
-          <p className="m-0 text-[14px] text-ink-muted">That is everything that needs you.</p>
+          <p className="m-0 text-[14px] text-ink-muted">{problems ? `That is everything to check. ${problems} under Problems.` : "That is everything that needs you."}</p>
         )}
       </div>
     );
@@ -248,7 +250,7 @@ export function DocumentsHome() {
   );
   return (
     // A being-read count that is unknown, or whose last request failed, says nothing (R6).
-    <Frame sub={documentsHelper(needTotal, pageTotal(week.data), beingRead.isError ? undefined : pageTotal(beingRead.data), pageTotal(counts[2].data))} actions={reviewNext("review-next", " hidden md:inline-flex")}>
+    <Frame sub={documentsHelper(needTotal, pageTotal(week.data), beingRead.isError ? undefined : pageTotal(beingRead.data), problems)} actions={reviewNext("review-next", " hidden md:inline-flex")}>
       {body}
       {/* Not in Select mode: the selection bar and its result sit where this bar would cover them. */}
       {next && !selecting && <ActionBar>{reviewNext()}</ActionBar>}

@@ -175,8 +175,11 @@ export function UploadToFlow() {
       const before = qc.getQueryData<Uploaded>(JUST_UPLOADED);
       const { items } = await listDocumentPage({ page: 1, pageSize: UPLOADED_LOOKBACK });
       const next: Uploaded = { items, seen: { ...before?.seen, ...Object.fromEntries(items.map((r) => [r.id, r])) } };
-      // The counts change when reading ends, not at the upload: refresh them then (R5).
-      if (done.some((i) => working(seen(i, before)!) && !working(seen(i, next)!))) void qc.invalidateQueries({ queryKey: ["documents", "count"] });
+      // The counts, and the plan's usage line, change when reading ends, not at the upload: refresh them then (R5).
+      if (done.some((i) => working(seen(i, before)!) && !working(seen(i, next)!))) {
+        void qc.invalidateQueries({ queryKey: ["documents", "count"] });
+        void qc.invalidateQueries({ queryKey: ["billing-status"] });
+      }
       return next;
     },
     enabled: tenant && done.length > 0,

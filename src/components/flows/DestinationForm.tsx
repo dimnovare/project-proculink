@@ -45,7 +45,7 @@ const PROTOCOLS = {
   sftp: "SFTP", ftps: "FTPS", s3: "S3 bucket", http: "Web address (API)", ksef: "KSeF", b2brouter: "B2Brouter",
 } as const;
 const SERVER = "A server or another system";
-const NETWORK = "E-invoice network";
+const NETWORK = "E-invoice network (early access)";
 const GROUP: Record<string, string> = { sftp: SERVER, ftps: SERVER, s3: SERVER, http: SERVER, ksef: NETWORK, b2brouter: NETWORK };
 type Protocol = keyof typeof PROTOCOLS;
 const isGoogle = (p: string): p is "google_drive" | "google_sheets" => p === "google_drive" || p === "google_sheets";
@@ -341,7 +341,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
         setCreds((c) => ({ ...c, [key]: e.target.value }));
       },
     };
-    return (
+    const field = (
       <Field key={key} label={current?.hasCredentials && SECRETS.has(key) ? `New ${/^[A-Z][a-z]/.test(label) ? label.charAt(0).toLowerCase() + label.slice(1) : label}` : label}
         error={errors[key] ?? ""} help={HELP[`${protocol}.${key}`]}>
         {key === "privateKey" ? (
@@ -353,6 +353,8 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
         )}
       </Field>
     );
+    // A network's token is long and its help is long: a row of its own, never one narrow column beside a gap.
+    return GROUP[protocol] === NETWORK ? <div key={key} className="col-span-full">{field}</div> : field;
   };
   const fields = keys.filter((k) => k in CONFIG_FIELDS);
   const folded = [...fields.filter((k) => FOLDED.has(k)).map(configField), ...credFields.filter(([k]) => FOLDED.has(k)).map(credField)];

@@ -157,6 +157,19 @@ describe("DocumentOutputsPanel", () => {
     expect(panel.queryByRole("link", { name: "Fix the destination" })).toBeNull();
   });
 
+  it("once sent, shows only what went out: a file the flow makes now is neither listed nor previewed", async () => {
+    api.listOutputs.mockResolvedValue([{ id: "o", flowId: "f", name: "Peppol BIS Billing (invoice) file", format: "xml", destinationId: null, template: {} }]);
+    api.listDeliveries.mockResolvedValue([{ id: "x", outputName: "ZUGFeRD / Factur-X EN 16931 (invoice) file", protocol: "b2brouter", status: "delivered", attempts: 1, lastError: null, fileName: "a.xml", deliveredAt: null }]);
+    localStorage.setItem("plk:review-preview-open", JSON.stringify(["o"]));
+    const panel = within(render(<QueryClientProvider client={new QueryClient()}>
+      <DocumentOutputsPanel flowId="f" document={{ ...detail, summary: { ...detail.summary, status: "sent" } } as never} />
+    </QueryClientProvider>).container);
+    expect(await panel.findByText("ZUGFeRD / Factur-X EN 16931 (invoice) file")).toBeInTheDocument();
+    expect(panel.queryByText("Peppol BIS Billing (invoice) file")).toBeNull();
+    expect(panel.queryByRole("button", { name: "Preview" })).toBeNull();
+    expect(api.previewOutput).not.toHaveBeenCalled();
+  });
+
   it("does not promise a send on a document that can no longer be sent", async () => {
     api.listDeliveries.mockResolvedValue([]);
     const panel = within(render(<QueryClientProvider client={new QueryClient()}>

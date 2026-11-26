@@ -115,11 +115,11 @@ function OutputRow({ o, flowId, documentId, flowFields, destinations, live, pepp
   live: boolean;
   /** The Peppol switch: a Peppol BIS output then says whether the buyer can receive it. */
   peppolOn: boolean;
-  /** Sent: changing the flow's file changes nothing here, so it is not offered. */
+  /** Sent: changing the flow's file changes nothing here, so it is not offered, and the current file is not previewed. */
   sent: boolean;
 }) {
   const enabled = useTenantQueriesEnabled();
-  const [open, setOpen] = useState(() => openOutputs().includes(o.id));
+  const [open, setOpen] = useState(() => !sent && openOutputs().includes(o.id));
   const toggle = () => {
     setOpen(!open);
     const rest = openOutputs().filter((id) => id !== o.id);
@@ -143,7 +143,7 @@ function OutputRow({ o, flowId, documentId, flowFields, destinations, live, pepp
         </span>
         <span className="flex flex-wrap items-center gap-2">
           {open && live && <span className="text-[12.5px] text-ink-muted">{preview.isFetching ? "Updating…" : "Updates as you type"}</span>}
-          <Button size="sm" variant="secondary" aria-expanded={open} loading={open && preview.isLoading} onClick={toggle}>{open ? "Hide preview" : "Preview"}</Button>
+          {!sent && <Button size="sm" variant="secondary" aria-expanded={open} loading={open && preview.isLoading} onClick={toggle}>{open ? "Hide preview" : "Preview"}</Button>}
           {!sent && <Link href={changeFileAddress(flowId, { output: o.id, document: documentId, from: `/flows/${flowId}/documents/${documentId}` })} className={`${buttonClass("secondary", "sm")} inline-flex items-center`}>Change the file</Link>}
           {/* Only where Advanced fits: a phone would be sent to a screen that says it needs a wider one. */}
           {!sent && !o.standard && <Link href={`/flows/${flowId}/outputs/${o.id}/advanced?document=${documentId}`} className="hidden items-center text-[12.5px] text-brand-blue underline lg:inline-flex">More settings</Link>}
@@ -178,12 +178,15 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
     },
   });
   const list = outputs.data;
+  const sent = doc.summary.status === "sent";
+  // Sent: only the files a delivery says went out. The flow's files may have changed since.
+  const rows = sent ? list?.filter((o) => deliveries.data?.some((d) => d.outputName === o.name)) : list;
   const editable = documentStatus(doc.summary.status, doc.summary.statusReason).editable;
   const addLink = `/flows/${flowId}?tab=outputs`;
   const downloadOnly = flow.data?.downloadOnly === true;
   // Made and waiting to be downloaded: every made file was stored, none went anywhere.
   const files = filesOf(deliveries.data);
-  const waiting = doc.summary.status === "sent" && files.length > 0 && files.every((f) => !f.delivered);
+  const waiting = sent && files.length > 0 && files.every((f) => !f.delivered);
   // When the newest stored file was made; no time is said when none is known.
   const at = relativeTime(deliveries.data?.filter((d) => d.status === "stored" && d.deliveredAt).map((d) => d.deliveredAt!).sort().at(-1));
   const madeAt = at ? ` ${at}` : "";
@@ -193,10 +196,10 @@ export function DocumentOutputsPanel({ flowId, document: doc }: { flowId: string
       {destinations.isError && <Failed error={destinations.error} retry={() => destinations.refetch()} />}
       {outputs.isError && !list ? <Failed error={outputs.error} retry={() => outputs.refetch()} />
         : !list ? <Loading>Loading files…</Loading>
-        : list.length > 0 && (
+        : !!rows?.length && (
           <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr))] [&>*:only-child]:col-span-full">
-            {list.map((o) => (
-              <OutputRow key={o.id} o={o} flowId={flowId} documentId={documentId} flowFields={flow.data?.fields} destinations={destinations.data} live={editable} peppolOn={flow.data?.peppolOn === true} sent={doc.summary.status === "sent"} />
+            {rows.map((o) => (
+              <OutputRow key={o.id} o={o} flowId={flowId} documentId={documentId} flowFields={flow.data?.fields} destinations={destinations.data} live={editable} peppolOn={flow.data?.peppolOn === true} sent={sent} />
             ))}
           </div>
         )}

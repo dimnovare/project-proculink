@@ -538,7 +538,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   const files = filesOf(deliveries.data);
   // Once sent, the pane says what went, in the past: only when something was delivered (`sent` also covers files only stored).
   const sendPane = summary?.status === "sent" && !flow.data?.downloadOnly && !!deliveries.data?.some((d) => d.status === "delivered") ? "What we sent" : words.pane;
-  // Why sending stopped, said above the tabs below lg, where the deliveries are on the last tab.
+  // Why sending stopped, said above the panes beside Send again: the deliveries that also say it are far down the page.
   const unsent = (sendFailed && deliveries.data?.filter((d) => d.status === "dead_letter")) || [];
   const made = here === false && summary?.status === "sent" && files.length > 0 && files.every((f) => !f.delivered);
   const download = useMutation({ mutationFn: async () => saveBlob(await downloadDeliveryFile(documentId, files[0].deliveryId), files[0].fileName) });
@@ -648,7 +648,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
           <div className={`grid items-start gap-4 lg:gap-x-1 lg:grid-cols-[minmax(280px,var(--split))_10px_minmax(0,1fr)] ${waiting ? "min-[1700px]:grid-cols-[264px_minmax(280px,var(--split))_10px_minmax(360px,1fr)]" : ""}`} style={{ "--split": `${split}%` } as CSSProperties}>
             {/* Inside the grid so that below lg the inbox answers can sit above the tabs (order-first). */}
             {unsent.length > 0 && (
-              <div className="lg:hidden"><StatusNotice tone="error">
+              <div className="lg:col-span-full"><StatusNotice tone="error">
                 {unsent.map((d) => <span key={d.id} className="block">{`${d.outputName}: ${d.lastError ?? "it couldn't be delivered."}`}</span>)}
               </StatusNotice></div>
             )}

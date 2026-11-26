@@ -63,7 +63,7 @@ describe("ChooseFile", () => {
   it("an invoice flow with the e-invoice switch off is offered the Factur-X invoice, and the disabled Use this file says why (B-13, B-23)", async () => {
     setSearch("way=docs");
     mount({ docsOutputsOn: false });
-    expect(await screen.findByText("ZUGFeRD / Factur-X. We fill the standard in from what each value means.")).toBeInTheDocument();
+    expect(await screen.findByText("ZUGFeRD / Factur-X. 4 more for orders under Other standards. We fill the standard in from what each value means.")).toBeInTheDocument();
     expect(screen.getByText("Pick a file type, a sample or a standard above.")).toBeInTheDocument();
     expect(screen.getByText("Building from documentation isn't on for this workspace yet.")).toBeInTheDocument();
     expect(bar().getByRole("button", { name: "Use this file" })).toBeDisabled();

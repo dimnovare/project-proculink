@@ -481,12 +481,12 @@ describe("DocumentScreen values", () => {
   it("a failed state shows its fix as the main action", async () => {
     const base = detail("INV-1");
     const as = (status: string) => api.getDocument.mockResolvedValue({ ...base, summary: { ...base.summary, status } });
-    // Couldn't send: Send again, and below lg the reason sits above the tabs.
+    // Couldn't send: Send again, and at every width the reason sits above the panes, not only down in Deliveries.
     as("send_failed");
     api.listDeliveries.mockResolvedValue([{ id: "x", outputName: "Totals", protocol: "webhook", status: "dead_letter", attempts: 3, lastError: "The server said 404.", fileName: null, deliveredAt: null }]);
     const failed = renderScreen();
     expect(await within(await screen.findByTestId("review-header-actions")).findByRole("button", { name: "Send again" })).toBeInTheDocument();
-    expect(await screen.findByText("Totals: The server said 404.")).toBeInTheDocument();
+    expect((await screen.findByText("Totals: The server said 404.")).closest("[class~='lg:hidden']")).toBeNull();
     failed.unmount();
     // Sent, but only stored: nothing went anywhere, so the pane keeps its future title until a file is delivered.
     as("sent");

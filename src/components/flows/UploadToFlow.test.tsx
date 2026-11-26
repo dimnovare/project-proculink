@@ -172,9 +172,11 @@ describe("UploadToFlow", () => {
     const item = (name: string) => within(panel.getByText(name).closest("li")!);
     await waitFor(() => expect(item("a.pdf").getByText("Reading")).toBeInTheDocument());
     await waitFor(() => expect(item("c.pdf").getByText("Sent")).toBeInTheDocument());
+    const usage = billing.getBillingStatus.mock.calls.length;
     read = true;
     await act(() => vi.advanceTimersByTimeAsync(2000));                // the next poll
     await waitFor(() => expect(item("b.csv").getByRole("button", { name: "Send b.csv" })).toBeInTheDocument());
+    await waitFor(() => expect(billing.getBillingStatus.mock.calls.length).toBeGreaterThan(usage)); // the usage line is asked again
     expect(item("a.pdf").getByText("1 value to check")).toBeInTheDocument();
     expect(item("a.pdf").getByRole("link", { name: "a.pdf" })).toHaveAttribute("href", "/flows/f1/documents/d1");
     // The two that need a person are the screen's one filled action; Choose files steps back.
