@@ -120,6 +120,10 @@ jobs:
       - name: Build
         run: bun run build
 
+      # Safari < 16.4 cannot parse class static blocks; one in a shared chunk breaks every page.
+      - name: Client syntax gate (Safari 15.4)
+        run: bun run lint:client-syntax
+
   test-unit:
     name: Unit tests + lint + conformance gates
     runs-on: ubuntu-latest
