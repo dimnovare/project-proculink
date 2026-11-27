@@ -16,7 +16,7 @@ import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { listActivity, listDestinations, type ActivityEvent } from "@/lib/api/documents";
 import {
-  ACTIVITY_PAGE_SIZE, ACTIVITY_TABS, activityAddress, activityCsv, activityDay, activityView, activityWho, memberNames, readActivityAddress, type ActivityTabKey,
+  ACTIVITY_PAGE_SIZE, ACTIVITY_TABS, activityAddress, activityCsv, atWindow, activityDay, activityView, activityWho, memberNames, readActivityAddress, type ActivityTabKey,
 } from "@/lib/activityRows";
 import { intoStrip } from "@/lib/intoStrip";
 import { saveBlob } from "@/lib/saveBlob";
@@ -35,11 +35,12 @@ const unnamed = (e: ActivityEvent) => {
 
 export function ActivityPage() {
   const router = useRouter();
-  const { tab, page } = readActivityAddress(useSearchParams());
+  const { tab, page, at } = readActivityAddress(useSearchParams());
   const tabDef = ACTIVITY_TABS.find((t) => t.key === tab)!;
   const [text, setText] = useState("");
   const [term, setTerm] = useState("");
-  const [openId, setOpenId] = useState<string | null>(null);
+  // Undefined until a row is pressed: an address with `at` opens its event on arrival.
+  const [pressed, setOpenId] = useState<string | null | undefined>(undefined);
   const enabled = useTenantQueriesEnabled();
   const { memberships } = useOrganization({ memberships: { pageSize: 100 } });
   const members = memberNames(memberships?.data);
@@ -58,13 +59,14 @@ export function ActivityPage() {
 
   // No placeholderData: a new tab or page shows "Loading history…", never the rows of the one before.
   const activity = useQuery({
-    queryKey: ["activity", tab, term, page],
-    queryFn: () => listActivity({ page, pageSize: ACTIVITY_PAGE_SIZE, actions: tabDef.actions, q: term }),
+    queryKey: ["activity", tab, term, page, at],
+    queryFn: () => listActivity({ page, pageSize: ACTIVITY_PAGE_SIZE, actions: tabDef.actions, q: term, ...(at ? atWindow(at) : {}) }),
     enabled,
   });
   const destinations = useQuery({
     queryKey: ["destinations"], queryFn: listDestinations, enabled: enabled && !!activity.data?.events.some(unnamed),
   });
+  const openId = pressed === undefined && at ? activity.data?.events[0]?.id ?? null : pressed ?? null;
   const destinationName = (id: string) => destinations.data?.find((d) => d.id === id)?.name ?? null;
 
   // Walks the tab and search in pages of 200, newest first, up to EXPORT_CAP events.
@@ -133,7 +135,7 @@ export function ActivityPage() {
         <EmptyState compact title={tabDef.emptyTitle} sub={tabDef.emptySub} />
         {tab === "all" && (
           <div className="flex justify-center pb-4">
-            <Link href="/upload" className={buttonClass("blue")}>Upload a document</Link>
+            <Link href="/upload" className={buttonClass("primary")}>Upload a document</Link>
           </div>
         )}
       </Card>
@@ -191,6 +193,11 @@ export function ActivityPage() {
       </Button>
     }>
       <div className="flex min-w-0 flex-col gap-3">
+        {at && (
+          <p className="m-0 text-[13px] text-ink-muted">
+            Showing one event. <Link href={activityAddress(tab)} className="font-semibold text-ink underline">Show all history</Link>
+          </p>
+        )}
         {exporting.isPending && <StatusNotice tone="working">Preparing the file…</StatusNotice>}
         {exporting.isError && <StatusNotice tone="error">We couldn&apos;t prepare the file. Try again.</StatusNotice>}
         {exporting.data && exporting.data.total > exporting.data.kept && (

@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import type { ActivityEvent } from "@/lib/api/documents";
 import { auditActionFact, auditActionLabel } from "@/lib/auditActionManifest";
 import { serverReasonOrNull } from "@/lib/serverText";
-import { ACTIVITY_TABS, activityAddress, activityView, activityWho, memberNames, plainSentence, readActivityAddress } from "./activityRows";
+import { ACTIVITY_TABS, activityAddress, activityView, atWindow, activityWho, memberNames, plainSentence, readActivityAddress } from "./activityRows";
 
 const ev = (over: Partial<ActivityEvent>): ActivityEvent => ({
   id: "evt-1", ts: "2026-06-01T08:00:00Z", action: "document.received", documentId: "doc-1", flowId: "flow-1",
@@ -13,6 +13,7 @@ const members = memberNames([
   { publicUserData: { userId: "user_member_a", firstName: "Alex", lastName: "Example", identifier: "alex@example.test" } },
   { publicUserData: { userId: "user_member_b", firstName: null, lastName: null, identifier: "sam@example.test" } },
 ]);
+const read = (x: string) => readActivityAddress(new URLSearchParams(x.split("?").pop()));
 const view = (e: ActivityEvent) => activityView(e, { who: activityWho(e, members), destinationName: () => null });
 
 describe("activityRows", () => {
@@ -35,15 +36,31 @@ describe("activityRows", () => {
     expect(activityWho(ev({ action: "inbound_email.rejected_orders_retired", documentId: null, source: null }), members)).not.toBe("Extraction engine");
     expect(plainSentence(view(ev({ source: "assistant", documentName: "a.pdf" })).sentence)).toBe("a.pdf arrived from an AI assistant");
 
-    const read = (x: string) => readActivityAddress(new URLSearchParams(x));
-    expect(read("show=failed&page=2")).toEqual({ tab: "all", page: 2 }); // the old tabs' addresses read as All (R14)
-    expect(read("show=changes")).toEqual({ tab: "changes", page: 1 });
+    expect(read("show=failed&page=2")).toEqual({ tab: "all", page: 2, at: null }); // the old tabs' addresses read as All (R14)
+    expect(read("show=changes")).toEqual({ tab: "changes", page: 1, at: null });
     for (const x of ["show=nope", "show=sent", "show=changes&show=all"]) expect(read(x).tab, x).toBe("all");
     for (const x of ["page=0", "page=1.5", "page=1000000000", "page=2&page=3"]) expect(read(x).page, x).toBe(1);
     expect(activityAddress("all")).toBe("/operations/log");
     expect(activityAddress("changes", 1)).toBe("/operations/log?show=changes");
     expect(activityAddress("changes", 2)).toBe("/operations/log?show=changes&page=2");
     expect(ACTIVITY_TABS.map((t) => t.label)).toEqual(["All", "Changes"]);
+  });
+
+  test("a failed test is addressed by its moment and says why", () => {
+    const at = "2026-06-01T08:02:00.123456Z";
+    expect(read(activityAddress("all", 1, at))).toEqual({ tab: "all", page: 1, at });
+    expect(read("at=nope").at).toBeNull();
+    expect(atWindow(at)).toEqual({ from: at, to: "2026-06-01T08:02:00.124Z" }); // the server's own microseconds fall inside
+    expect(atWindow("2026-06-01T08:02:00").from).toBe("2026-06-01T08:02:00Z");
+
+    const failed = view(ev({ action: "destination.tested", documentId: null, flowId: null, documentName: null, source: null,
+      payload: { success: false, responseCode: 401, error: "The server refused the sign-in.", destinationId: "dest-2", destination: "Accounting API", protocol: "http" } }));
+    expect(plainSentence(failed.sentence)).toBe("A test to Accounting API failed");
+    expect(failed.tag).toEqual({ label: "Test failed", tone: "danger" });
+    expect(failed.why).toBe(serverReasonOrNull("The server refused the sign-in."));
+    expect(failed.fixHref).toContain("dest-2");
+    const old = view(ev({ action: "destination.tested", documentId: null, flowId: null, documentName: null, source: null, payload: { responseCode: 200 } }));
+    expect([plainSentence(old.sentence), old.tag.label, old.why]).toEqual(["Destination tested", "Change", null]); // no `success`: claims neither
   });
 
   test("old and repaired deliveries leave unknown facts out", () => {
