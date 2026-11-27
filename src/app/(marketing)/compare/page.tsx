@@ -135,7 +135,7 @@ export default function ComparePage() {
       <section aria-labelledby="better-title" className={SITE.band}>
         <div className={`${SITE.wrap} flex flex-col gap-8`}>
           <h2 id="better-title" className={SITE.h2}>When another tool is the better choice</h2>
-          <ul className="m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(min(300px,100%),1fr))] gap-x-12 p-0">
+          <ul className="m-0 grid list-none gap-x-12 lg:grid-cols-3 p-0">
             {BETTER.map((b) => (
               <li key={b.title} className="flex flex-col gap-2 border-t border-border py-6">
                 <h3 className={SITE.h3}>{b.title}</h3>

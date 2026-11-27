@@ -163,7 +163,7 @@ export default function RootPage() {
         <section aria-labelledby="home-steps" className={SITE.band}>
           <div className={`${SITE.wrap} flex flex-col gap-11`}>
             <h2 id="home-steps" className={SITE.h2}>How it works</h2>
-            <ol className="m-0 grid list-none gap-x-8 gap-y-9 p-0 [grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr))]">
+            <ol className="m-0 grid list-none gap-x-8 gap-y-9 p-0 sm:grid-cols-2 lg:grid-cols-4">
               {STEPS.map((s, i) => (
                 <li key={s.title} className={`flex flex-col gap-2.5 border-t-[3px] pt-[18px] ${s.rule}`}>
                   <span className={`font-display text-[15px] font-semibold ${SITE.soft}`}>Step {i + 1}</span>
@@ -203,11 +203,11 @@ export default function RootPage() {
                 </pre>
               </figure>
             </div>
-            <div className="grid gap-x-10 gap-y-8 [grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr))]">
+            <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3 sm:[&>:last-child]:col-span-full">
               {TECH.map(([title, body]) => (
                 <div key={title} className="flex flex-col gap-2 border-t border-navy-border pt-[18px]">
                   <h3 className={`${SITE.h3} text-white`}>{title}</h3>
-                  <p>{body}</p>
+                  <p className="max-w-[68ch]">{body}</p>
                 </div>
               ))}
             </div>
@@ -230,7 +230,7 @@ export default function RootPage() {
             </div>
             <ul
               aria-label="Plans"
-              className="m-0 grid list-none border-t border-border p-0 [grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr))]"
+              className="m-0 grid list-none grid-cols-2 border-t border-border p-0 md:grid-cols-5 [&>:first-child]:col-span-2 md:[&>:first-child]:col-span-1"
             >
               {PRICE_ROW.map((p) => {
                 const limit = p.orderLimit?.toLocaleString("en-GB");

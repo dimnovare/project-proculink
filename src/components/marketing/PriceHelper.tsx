@@ -36,7 +36,7 @@ export function priceAnswer(documents: number, period: BillingPeriod): { answer:
   return { answer, hint };
 }
 
-/** One grid for every width: one column, then auto-fit columns, then labels + four plans that share rows. */
+/** One grid for every width: one column, then two, then labels + four plans that share rows. */
 const DESK = "min-[1100px]:grid-cols-[minmax(0,208fr)_repeat(4,minmax(0,226fr))]";
 const ROW_LABEL = "flex min-h-[52px] items-center border-t border-border pr-4 text-[15.5px] text-ink-muted";
 
@@ -108,7 +108,7 @@ export function PriceHelper({ heading }: { heading?: ReactNode }) {
         <div
           role="group"
           aria-label="The four paid plans"
-          className={`mt-3 grid gap-3 min-[660px]:grid-cols-[repeat(auto-fit,minmax(300px,1fr))] ${DESK} min-[1100px]:mt-4 min-[1100px]:grid-rows-[repeat(8,auto)] min-[1100px]:gap-0`}
+          className={`mt-3 grid gap-3 min-[660px]:grid-cols-2 ${DESK} min-[1100px]:mt-4 min-[1100px]:grid-rows-[repeat(8,auto)] min-[1100px]:gap-0`}
         >
           <div aria-hidden="true" className="hidden min-[1100px]:row-span-8 min-[1100px]:grid min-[1100px]:grid-rows-subgrid">
             <span className={`${ROW_LABEL} row-start-5`}>Documents a month</span>
