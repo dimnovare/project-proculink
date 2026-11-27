@@ -37,10 +37,12 @@ const PINNED: Record<"/privacy" | "/terms" | "/aup" | "/dpa" | "/subprocessors" 
   // Re-pinned 2026-11-25: new "Microsoft accounts you connect" section (Outlook pickup) and date line.
   // Re-pinned 2026-11-25 (plan 30 Part B): that section also covers saving files to a OneDrive folder.
   // Re-pinned 2026-11-26 (release pass): new "AI assistants you connect" section, destinations sentence, date line.
-  "/privacy": "eea242ae2ce00914e6b866f080675a737a5b5b47aa3f81ca0780d7f029b8e95b",
+  // Re-pinned 2026-11-27 (legal polish): "In short" summary, numbered sections, new 5 (who receives), 7 (protection), 16 (changes); sources and Art. 22 lines; retention list as a table; cookie-choice line; date line.
+  "/privacy": "e44f2ae8f11b8ce6aa80a1793e63115cfa3f0a7c7d4d1adf0570f9013e28a13f",
   // Re-pinned 2026-11-26 (release pass): §2 e-invoicing providers + KSeF confirm + early access, new §2a, §7 connected services, effective date.
   // Re-pinned 2026-11-26 (terms �5): the earlier paid plans moved under their own lead-in line, after Enterprise.
-  "/terms": "48e102df437d291818e5a5752b5dc7e8648ab8e29703e4a974a1986d31c1b97e",
+  // Re-pinned 2026-11-27 (legal polish): "In short" summary, sections renumbered 1-14, new 4 (account), 7 (confidentiality), 13 (general); support, AI provider, renewal, failed payment, objection and download lines; overage rules as a list; date line.
+  "/terms": "dad21aa13dcc56909dad3b661aebf24f86e186c6315767b798374d34b648d25f",
   "/aup": "917a1e45c7f3775aad05ae6d74275ee63f522e4a2db5012bdecca0702f4c0fbf",
   // Re-pinned 2026-11-26 (release pass): §3 instructed disclosures, version 1.6.
   "/dpa": "a6cc19cf206af3bb271987f63a92532457cf72f677ab2491d56de8d2e086b585",

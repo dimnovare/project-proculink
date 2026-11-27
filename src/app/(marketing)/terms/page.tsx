@@ -33,7 +33,25 @@ const planItem = (p: Plan) => (
 export default function TermsPage() {
   return (
     // FOUNDER DECISION: set this date to the day the page is published.
-    <LegalPage title="Terms of Service" updated="Last updated: 26 November 2026 · The changes made on this date take effect on 14 December 2026" path="/terms">
+    <LegalPage title="Terms of Service" updated="Last updated: 27 November 2026 · This revision takes effect on 14 December 2026" path="/terms">
+
+      {/*
+        2026-11-27 polish (structure from a review of comparable EU B2B SaaS terms). The summary
+        restates the sections below and adds nothing; the last sentence says so. Counsel to check.
+      */}
+      <LegalH2>In short</LegalH2>
+      <ul>
+        <li>ProcuLink is for businesses. It is not offered to consumers.</li>
+        <li>You own your documents and the data in them. We use them only to provide the service, and we do not use them to train AI models.</li>
+        <li>Automatic reading can be wrong. Check a document and the file made from it before you rely on them. When you send a document, you are its issuer.</li>
+        <li>A paid plan renews each month or year until you cancel it in Settings › Billing. It then runs to the end of the period you paid for.</li>
+        <li>When a subscription ends, new documents are no longer accepted. Your workspace stays readable, and nothing is deleted automatically.</li>
+        <li>Each party&apos;s liability is capped at the greater of 12 months&apos; fees and EUR 5,000.</li>
+        <li>We email you at least 14 days before a material change to these Terms. Estonian law applies.</li>
+      </ul>
+      <p>
+        This summary helps you find your way. The numbered sections below are the Terms.
+      </p>
 
       <LegalH2>1. Agreement</LegalH2>
       <p>
@@ -58,7 +76,9 @@ export default function TermsPage() {
       <p>
         We do not guarantee that the service will be uninterrupted or error-free. No specific
         uptime or availability service level applies unless one is agreed with you separately
-        in writing.
+        in writing. Support is by email at{" "}
+        <a href="mailto:support@proculink.eu">support@proculink.eu</a>, Monday to Friday. We aim
+        to reply within one business day, but this is an aim, not a guaranteed response time.
       </p>
       {/*
         FOUNDER DECISION (2026-11-17). Until 16 November this section carried a disclaimer for
@@ -76,7 +96,7 @@ export default function TermsPage() {
       </p>
       {/*
         FOUNDER DECISION (2026-11-25). Plan 33 adds a file for, and an optional send to, a public
-        authority's e-invoicing system. This paragraph and the last one in section 7 record
+        authority's e-invoicing system. This paragraph and the last one in section 10 record
         that the customer is the issuer. Counsel (Estonian, and ideally a Polish tax adviser)
         should check both before production use.
       */}
@@ -104,9 +124,10 @@ export default function TermsPage() {
 
       {/*
         FOUNDER DECISION (2026-11-26): services the customer connects (AI assistants, e-invoicing
-        providers). Counsel to check. Numbered "2a" so the section numbers other pages cite stay.
+        providers). Counsel to check. Was "2a"; renumbered 2026-11-27 — no other page cites a
+        Terms section number (checked with git grep), and this revision is not yet in effect.
       */}
-      <LegalH2>2a. Services you connect</LegalH2>
+      <LegalH2>3. Services you connect</LegalH2>
       <p>
         You can connect services you hold your own account with, such as an AI assistant or an
         e-invoicing provider. They are not our subprocessors. What you send to them, or let them
@@ -115,7 +136,18 @@ export default function TermsPage() {
         keys safe, and revoke a key you no longer use in Settings, under For developers.
       </p>
 
-      <LegalH2>3. Acceptable use</LegalH2>
+      {/* 2026-11-27: account duties, a clause every reviewed provider has. security@ is the
+          inbox /security publishes. Counsel to check. */}
+      <LegalH2>4. Your account and users</LegalH2>
+      <p>
+        You decide who in your organisation can use your workspace, and you are responsible for
+        what they do in it. Give us accurate details when you sign up and keep them up to date.
+        Keep sign-ins private: each person uses their own. If you think someone has used your
+        account without permission, tell us at once at{" "}
+        <a href="mailto:security@proculink.eu">security@proculink.eu</a>.
+      </p>
+
+      <LegalH2>5. Acceptable use</LegalH2>
       <p>
         Your use of ProcuLink is subject to the{" "}
         <Link href="/aup">Acceptable Use Policy</Link>, which is
@@ -125,7 +157,7 @@ export default function TermsPage() {
         availability.
       </p>
 
-      <LegalH2>4. Data ownership</LegalH2>
+      <LegalH2>6. Your data</LegalH2>
       <p>
         You own the documents you send us and the data in them. By uploading content, you
         grant ProcuLink a limited, non-exclusive licence to process your data solely as
@@ -135,8 +167,28 @@ export default function TermsPage() {
         workspace records contain personal data, we process it as your processor under the{" "}
         <Link href="/dpa">Data Processing Addendum</Link>.
       </p>
+      {/* 2026-11-27: AI disclosure in the Terms, matching /privacy "Turning AI off" and the
+          OpenAI row of src/lib/subprocessors.ts. Counsel to check. */}
+      <p>
+        To read some documents we use an AI provider, named in the{" "}
+        <Link href="/subprocessors">list of subprocessors</Link>. If you do not want your
+        documents sent to it, ask us and we will turn AI reading off for your organisation, as
+        described in the <Link href="/privacy">Privacy Policy</Link>. How we protect your data
+        is described on the <Link href="/security">Security</Link> page.
+      </p>
 
-      <LegalH2>5. Subscription and billing</LegalH2>
+      {/* 2026-11-27: mutual confidentiality, a clause most reviewed providers carry. Counsel to
+          check the scope and whether a survival period should be added. */}
+      <LegalH2>7. Confidentiality</LegalH2>
+      <p>
+        Each party keeps the other&apos;s non-public information confidential and uses it only
+        for this agreement. Your documents, workspace data and credentials are your confidential
+        information. This does not cover information that is already public, that the receiving
+        party already had or developed on its own, or that the law or a court requires it to
+        disclose.
+      </p>
+
+      <LegalH2>8. Subscription and billing</LegalH2>
       {/* Plan numbers come from src/lib/plans.ts (the shared frontend ladder,
           aligned with backend PlanConstants) so the Terms can never drift. */}
       <ul>
@@ -146,23 +198,24 @@ export default function TermsPage() {
       <ul>
         {LEGACY_PAID_PLANS.map(planItem)}
       </ul>
+      {/* 2026-11-27: the one long sentence split into a list. Same rules, same derived numbers. */}
+      <p>How the included volume works:</p>
+      <ul>
+        <li>On paid plans the monthly volume listed above is a soft allowance, not a hard cap: processing is never blocked when you exceed it.</li>
+        <li>Documents above the included volume are billed automatically at the end of the billing period, at the per-document rate listed for your plan above (€{OVERAGE_PER_ORDER_EUR.toFixed(2)} per order or document on the earlier plans).</li>
+        <li>That overage is capped: your monthly total never exceeds the list price of the cheapest higher self-serve plan on the same ladder that covers your usage. Above the top self-serve plan&apos;s included volume on that ladder, you pay that plan&apos;s price plus its rate for each extra document or order.</li>
+        <li>The Trial allowance is a hard limit (expired trials become read-only) and does not accrue overage.</li>
+        <li>A document counts once ProcuLink has read it. A file of up to 10 pages is one document; a longer file counts once for every 10 pages. Sample documents never count.</li>
+      </ul>
+      {/* 2026-11-27: renewal and failed payment added. Both are what the product does: Stripe
+          subscriptions renew until cancelled, and a past_due account stops accepting new
+          documents (CLAUDE.md §11.5, AccountStatusConstants.PastDue). */}
       <p>
-        Paid plans include the monthly volume listed above as a soft allowance, not a hard cap:
-        processing is never blocked when you exceed it. Documents above the included volume are
-        billed automatically at the per-document rate listed for your plan above (€{OVERAGE_PER_ORDER_EUR.toFixed(2)}
-        per order or document on the earlier plans) at the end of the billing period, and the metered
-        overage is capped so your monthly total never exceeds the list price of the cheapest
-        higher self-serve plan on the same ladder that covers your usage; above the top
-        self-serve plan&apos;s included volume on that ladder, you pay that plan&apos;s price plus its
-        rate for each extra document or order. The Trial allowance is
-        a hard limit (expired trials become read-only) and does not accrue overage. A document
-        counts once ProcuLink has read it. A file of up to 10 pages is one document; a longer
-        file counts once for every 10 pages. Sample documents never count.
-      </p>
-      <p>
-        Subscriptions are billed monthly or annually via Stripe. Refunds are covered in
-        section 9. We will provide 30 days&apos; notice to active subscribers before changing
-        pricing.
+        Subscriptions are billed monthly or annually via Stripe, and renew automatically at the
+        end of each billing period until they are cancelled. If a payment fails, we may pause
+        the processing of new documents until it is paid; your workspace stays readable.
+        Refunds are covered in section 11. We will provide 30 days&apos; notice to active
+        subscribers before changing pricing.
       </p>
       <p>
         If your subscription ends — by cancellation, downgrade, or termination — we reserve
@@ -173,7 +226,7 @@ export default function TermsPage() {
         termination.
       </p>
 
-      <LegalH2>6. Intellectual property</LegalH2>
+      <LegalH2>9. Intellectual property</LegalH2>
       <p>
         The ProcuLink software, design, documentation, and brand are owned by{" "}
         {LEGAL_ENTITY.legalName}. You may not copy, modify, distribute, sell, or sublicence any
@@ -196,7 +249,7 @@ export default function TermsPage() {
           • "data loss" was removed from the excluded heads of loss, so a loss of customer
             data caused by our breach is recoverable up to the cap rather than excluded.
       */}
-      <LegalH2>7. Limitation of liability</LegalH2>
+      <LegalH2>10. Limitation of liability</LegalH2>
       <p>
         Nothing in these Terms limits or excludes liability that cannot be limited or excluded
         under applicable law, including liability for intentional breach or gross negligence.
@@ -218,13 +271,6 @@ export default function TermsPage() {
         assistant, except to the extent that the loss is caused by our breach of these Terms.
       </p>
 
-      <LegalH2>8. Governing law</LegalH2>
-      <p>
-        These Terms are governed by the laws of the Republic of Estonia. Any disputes
-        arising from these Terms or your use of ProcuLink are subject to the exclusive
-        jurisdiction of the courts of Estonia, except where mandatory law requires otherwise.
-      </p>
-
       {/*
         FOUNDER DECISION + COUNSEL. The previous text said "Either party may terminate at any
         time" and "No refunds are provided for partial periods", which left a customer whose
@@ -242,25 +288,48 @@ export default function TermsPage() {
         The objection-to-a-subprocessor case matches /subprocessors ("terminate without further
         fees for the unused remainder"), made explicit as a pro-rata refund.
       */}
-      <LegalH2>9. Termination and refunds</LegalH2>
+      <LegalH2>11. Suspension, termination and refunds</LegalH2>
       <ul>
         <li><strong>If you cancel.</strong> You can cancel a paid subscription at any time from Settings › Billing. It stays active until the end of the billing period you have already paid for, and then ends. Fees for that period are not refunded, and an annual plan cancelled part-way through its year is not refunded for the remaining months, except where the law requires otherwise.</li>
         <li><strong>If we end the agreement because you breached it.</strong> We may suspend access immediately where a breach puts the service, other customers or third parties at risk, including a breach of the Acceptable Use Policy. We may terminate for a material breach that you have not remedied within a reasonable period after we tell you about it in writing, or straight away if it cannot be remedied. Prepaid fees are not refunded in this case.</li>
         <li><strong>If we end the agreement without any fault on your side</strong> — for example, because we stop offering the service — we give you reasonable advance written notice and refund the prepaid fees for the period after termination, pro rata.</li>
         <li><strong>If you end the agreement because we breached it</strong>, or because you object to a new subprocessor and we cannot resolve the objection, we refund the prepaid fees for the period after termination, pro rata.</li>
       </ul>
+      {/* 2026-11-27: "you can still sign in and download" added; it is what /privacy "How long
+          we keep data" already states and what BillingSection shows a paused workspace. */}
       <p>
         When a subscription ends, new documents are no longer accepted. Nothing is deleted
-        automatically: what happens to your data, and how to have it deleted, is described in
-        the{" "}
+        automatically: you can still sign in and view or download what you have processed.
+        What happens to your data, and how to have it deleted, is described in the{" "}
         <Link href="/privacy">Privacy Policy</Link>.
       </p>
 
-      <LegalH2>10. Changes to these Terms</LegalH2>
+      <LegalH2>12. Changes to these Terms</LegalH2>
       <p>
         We may update these Terms from time to time. For material changes, we will notify
         active account holders by email at least 14 days before the changes take effect.
+        If you do not agree with a change, you can cancel before it takes effect.
         Continued use after the effective date constitutes acceptance of the revised Terms.
+      </p>
+
+      {/* 2026-11-27: the documents that make up the agreement, and how notices reach you.
+          Precedence of the DPA on personal data is the common pattern; counsel to confirm. */}
+      <LegalH2>13. General</LegalH2>
+      <p>
+        These Terms, the <Link href="/aup">Acceptable Use Policy</Link> and the{" "}
+        <Link href="/dpa">Data Processing Addendum</Link> together make up the agreement between
+        you and us, unless we have signed a separate agreement with you. If these Terms and the
+        Data Processing Addendum differ on personal data, the Data Processing Addendum applies.
+        We send notices by email to the address on your account; you can send
+        notices to <a href="mailto:legal@proculink.eu">legal@proculink.eu</a>. If a court finds
+        part of these Terms invalid, the rest still applies.
+      </p>
+
+      <LegalH2>14. Governing law</LegalH2>
+      <p>
+        These Terms are governed by the laws of the Republic of Estonia. Any disputes
+        arising from these Terms or your use of ProcuLink are subject to the exclusive
+        jurisdiction of the courts of Estonia, except where mandatory law requires otherwise.
       </p>
 
       <LegalH2>Contact</LegalH2>
