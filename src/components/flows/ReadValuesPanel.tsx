@@ -147,7 +147,7 @@ function lookText(look: Look | undefined, teach: (() => void) | undefined): Reac
   return (
     <>
       {look.text.replace(/\.$/, ", or ")}
-      <a href="#review-pane-original" className="inline-flex min-h-11 items-center text-brand-blue underline" onClick={(e) => { e.preventDefault(); teach(); }}>point to it on the original</a>.
+      <a href="#review-pane-original" className="-my-3 inline-flex min-h-11 items-center text-brand-blue underline" onClick={(e) => { e.preventDefault(); teach(); }}>point to it on the original</a>.
     </>
   );
 }

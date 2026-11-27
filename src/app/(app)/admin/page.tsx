@@ -566,8 +566,8 @@ export default function AdminPage() {
                       </a>
                     )}
                   </div>
-                  {/* The two that destroy data, on their own line and in red, so they never read as harmless. */}
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                  {/* The two that destroy data, on their own line and in red, so they never read as harmless. Gap 8 keeps both on one line at 360. */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                     <Button variant="secondary" size="sm" className="text-danger-text" onClick={() => openErase(org.id)}>
                       Erase workspace…
                     </Button>
