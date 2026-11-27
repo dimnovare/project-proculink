@@ -34,6 +34,7 @@ import { DestinationsSection } from "@/components/destinations/DestinationsSecti
 import { InstallPanel } from "@/components/pwa/InstallPanel";
 import { formatDate } from "@/lib/format-date";
 import { GUIDES } from "@/lib/guides";
+import { useCopy } from "@/i18n/useCopy";
 
 // Linked from API keys once it is published (held until assistant sign-in is switched on).
 const ASSISTANT_GUIDE = GUIDES.find((g) => g.slug === "use-from-your-ai-assistant" && g.status === "live");
@@ -53,6 +54,7 @@ function SettingsScreen() {
   // `tab=api` (the old API keys tab) opens Workspace with For developers open.
   const developers = params.get("tab") === "api";
   const router = useRouter();
+  const { c } = useCopy("app");
   const { organization } = useOrganization();
   const { data: billing } = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000 });
   const orgName   = organization?.name ?? "…";
@@ -65,7 +67,7 @@ function SettingsScreen() {
     <PageShell variant="wide">
       {/* Phones have no account chip in the top bar: the account menu, and Admin for staff, sit here. */}
       <PageHeader
-        title="Settings"
+        title={c("settings", "Settings")}
         sub={organization && (billing ? `${orgName}, on the ${planLabel}` : orgName)}
         actions={<div className="flex items-center gap-2 md:hidden">
           {staff && <Link href="/admin" className={buttonClass("secondary", "sm")}>Admin</Link>}
@@ -74,7 +76,7 @@ function SettingsScreen() {
       />
       {/* The tab rule and every tab's content share one width. */}
       <div className="w-full max-w-[1230px]">
-      <nav aria-label="Settings sections" className="mb-5 flex gap-1 overflow-x-auto shadow-[inset_0_-1px_0_var(--border)]">
+      <nav aria-label={c("settingsSections", "Settings sections")} className="mb-5 flex gap-1 overflow-x-auto shadow-[inset_0_-1px_0_var(--border)]">
         {SETTINGS_TABS.map((t) => {
           const on = tab === t.id;
           return (
@@ -87,7 +89,7 @@ function SettingsScreen() {
                 on ? "border-brand-blue font-semibold text-ink" : "border-transparent font-medium text-ink-muted hover:text-ink"
               }`}
             >
-              {t.label}
+              {c(`tab_${t.id}`, t.label)}
             </button>
           );
         })}

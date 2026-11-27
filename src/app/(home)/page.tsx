@@ -5,9 +5,10 @@ import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
 import { ClosingCta, FLOW_SENTENCE, ReviewPicture, SecondDocumentPicture, SITE, Ticks } from "@/components/marketing/sitePictures";
 import { LEGAL_ENTITY, REGISTERED_LOCALITY } from "@/lib/legal-entity";
-import { PLAN_BY_ID, PUBLIC_LADDER } from "@/lib/plans";
+import { PLAN_BY_ID, PUBLIC_LADDER, TRIAL_DAYS } from "@/lib/plans";
 import { SITE_DESCRIPTION } from "@/lib/seo";
 import { DEMO_VIDEO } from "@/lib/demoVideo";
+import { euroIn, useCopy } from "@/i18n/useCopy";
 
 // Every number on this page is read off the plan table, never typed.
 const TRIAL = PLAN_BY_ID.pilot;
@@ -52,6 +53,9 @@ const API_EXAMPLE = `curl -X POST \\
 const TWO = "grid items-center gap-x-20 gap-y-12 [grid-template-columns:repeat(auto-fit,minmax(min(440px,100%),1fr))]";
 
 export default function RootPage() {
+  // English is written below; other languages come from messages/<locale>.json under "home".
+  const { locale, c, rich, list } = useCopy("home");
+  const trial = { days: TRIAL_DAYS, docs: TRIAL.orderLimit ?? 0, price: euroIn(locale, STARTER.priceMonthly) };
   return (
     <>
       <SkipToContent />
@@ -63,28 +67,34 @@ export default function RootPage() {
             <div className="flex flex-wrap items-end gap-x-16 gap-y-10">
               <div className="flex min-w-0 flex-[1_1_560px] flex-col gap-[26px]">
                 <h1 className={SITE.h1}>
-                  <span className="text-brand-blue">Any document in.</span>{" "}
-                  <span className="block text-brand-green-deep">Clean data out.</span>
+                  <span className="text-brand-blue">{c("h1a", "Any document in.")}</span>{" "}
+                  <span className="block text-brand-green-deep">{c("h1b", "Clean data out.")}</span>
                 </h1>
-                <p className={`${SITE.lead} max-w-[620px]`}>{SITE_DESCRIPTION}</p>
+                <p className={`${SITE.lead} max-w-[620px]`}>{c("lead", SITE_DESCRIPTION)}</p>
                 <div className="flex flex-col gap-x-7 gap-y-2.5 sm:flex-row sm:flex-wrap sm:items-center">
-                  <Link href="/sign-up" className={SITE.cta}>Start your free trial</Link>
+                  <Link href="/sign-up" className={SITE.cta}>{c("start", "Start your free trial")}</Link>
                   <p className={`${SITE.soft} text-center text-[15px] sm:order-last sm:basis-full sm:text-left`}>
-                    {`Free for ${TRIAL.priceCadence} · ${TRIAL.orderLimit} documents · `}
-                    <span className="whitespace-nowrap">{`from €${STARTER.priceMonthly} a month after.`}</span> No card needed.
+                    {rich(
+                      "trialLine",
+                      <>
+                        {`Free for ${TRIAL.priceCadence} · ${TRIAL.orderLimit} documents · `}
+                        <span className="whitespace-nowrap">{`from €${STARTER.priceMonthly} a month after.`}</span> No card needed.
+                      </>,
+                      { ...trial, nowrap: (x) => <span className="whitespace-nowrap">{x}</span> },
+                    )}
                   </p>
-                  <Link href="/how-it-works" className={`${SITE.more} self-center sm:self-auto`}>See how it works</Link>
+                  <Link href="/how-it-works" className={`${SITE.more} self-center sm:self-auto`}>{c("seeHow", "See how it works")}</Link>
                 </div>
               </div>
               <Ticks
-                label="Good to know"
+                label={c("goodToKnow", "Good to know")}
                 className="flex-[0_1_330px] text-[16px]"
-                items={[
+                items={list("goodToKnowItems", [
                   "No integration needed to start",
                   "The people who send you documents change nothing",
                   "Try it with a test or anonymised document",
                   "Anything we're unsure of waits for you",
-                ]}
+                ])}
               />
             </div>
             <HomeExample />
@@ -95,23 +105,22 @@ export default function RootPage() {
         <section aria-labelledby="home-formats" className={`${SITE.band} bg-surface`}>
           <div className={`${SITE.wrap} flex flex-wrap items-start gap-x-16 gap-y-12`}>
             <div className="flex flex-[1_1_320px] flex-col gap-5">
-              <h2 id="home-formats" className={SITE.h2}>Start with the documents you already get.</h2>
+              <h2 id="home-formats" className={SITE.h2}>{c("formatsTitle", "Start with the documents you already get.")}</h2>
               <p className={SITE.lead}>
-                You don&apos;t need to know a technical format or set up an integration. If it reaches you as a PDF, a
-                spreadsheet, a scan or an email attachment, start with that.
+                {c("formatsLead", "You don't need to know a technical format or set up an integration. If it reaches you as a PDF, a spreadsheet, a scan or an email attachment, start with that.")}
               </p>
-              <Link href="/formats" className={`${SITE.more} self-start`}>Every format and method</Link>
+              <Link href="/formats" className={`${SITE.more} self-start`}>{c("formatsMore", "Every format and method")}</Link>
             </div>
             <div className="grid flex-[2.4_1_620px] gap-x-8 gap-y-7 [grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr))]">
-              {COLUMNS.map((c) => (
-                <div key={c.title} className={`flex flex-col gap-3 border-t-[3px] pt-5 ${c.rule}`}>
-                  <h3 className={SITE.h3}>{c.title}</h3>
+              {COLUMNS.map((col, i) => (
+                <div key={col.title} className={`flex flex-col gap-3 border-t-[3px] pt-5 ${col.rule}`}>
+                  <h3 className={SITE.h3}>{c(`columns.${i}.title`, col.title)}</h3>
                   <ul className="m-0 flex list-none flex-col gap-2 p-0">
-                    {c.items.map((item) => <li key={item}>{item}</li>)}
+                    {list(`columns.${i}.items`, col.items).map((item) => <li key={item}>{item}</li>)}
                   </ul>
                 </div>
               ))}
-              <p className={`${SITE.soft} col-span-full text-[15px]`}>Microsoft SharePoint on request.</p>
+              <p className={`${SITE.soft} col-span-full text-[15px]`}>{c("sharepoint", "Microsoft SharePoint on request.")}</p>
             </div>
           </div>
         </section>
@@ -122,17 +131,15 @@ export default function RootPage() {
             <SecondDocumentPicture />
             <div className="flex flex-col gap-5">
               <h2 id="home-second" className={SITE.h2}>
-                <span className="inline-block">Check it once.</span> <span className="inline-block">The next one is easier.</span>
+                <span className="inline-block">{c("secondA", "Check it once.")}</span> <span className="inline-block">{c("secondB", "The next one is easier.")}</span>
               </h2>
               <p className={SITE.lead}>
-                The first document from a sender is where you help: fix a value, or point at it on the page. We remember
-                where that sender puts it, so the next document needs less checking.
+                {c("secondLead", "The first document from a sender is where you help: fix a value, or point at it on the page. We remember where that sender puts it, so the next document needs less checking.")}
               </p>
               <p>
-                There is no template to build first. When a flow keeps going through without corrections, you can let it
-                send everything by itself.
+                {c("secondBody", "There is no template to build first. When a flow keeps going through without corrections, you can let it send everything by itself.")}
               </p>
-              <p className={SITE.soft}>{FLOW_SENTENCE}</p>
+              <p className={SITE.soft}>{c("flowSentence", FLOW_SENTENCE)}</p>
             </div>
           </div>
         </section>
@@ -141,18 +148,16 @@ export default function RootPage() {
         <section aria-labelledby="home-decide" className={`${SITE.band} bg-surface`}>
           <div className={`${SITE.wrap} ${TWO}`}>
             <div className="flex flex-col gap-5">
-              <h2 id="home-decide" className={SITE.h2}>You decide what waits for you.</h2>
+              <h2 id="home-decide" className={SITE.h2}>{c("decideTitle", "You decide what waits for you.")}</h2>
               <p className={SITE.lead}>
-                Anything missing or hard to read is marked, and a document with a marked value waits for you, with the
-                original beside what we read. Every other document goes straight through, unless you set the flow to
-                wait on every one.
+                {c("decideLead", "Anything missing or hard to read is marked, and a document with a marked value waits for you, with the original beside what we read. Every other document goes straight through, unless you set the flow to wait on every one.")}
               </p>
               <Ticks
-                items={[
+                items={list("decideItems", [
                   "A document we have already seen always waits, so nothing goes out twice.",
                   "Download the result and send it yourself, for as long as you like.",
                   "Every read, edit and delivery is recorded on the document.",
-                ]}
+                ])}
               />
             </div>
             <ReviewPicture />
@@ -162,13 +167,13 @@ export default function RootPage() {
         {/* 5. How it works */}
         <section aria-labelledby="home-steps" className={SITE.band}>
           <div className={`${SITE.wrap} flex flex-col gap-11`}>
-            <h2 id="home-steps" className={SITE.h2}>How it works</h2>
+            <h2 id="home-steps" className={SITE.h2}>{c("stepsTitle", "How it works")}</h2>
             <ol className="m-0 grid list-none gap-x-8 gap-y-9 p-0 sm:grid-cols-2 lg:grid-cols-4">
               {STEPS.map((s, i) => (
                 <li key={s.title} className={`flex flex-col gap-2.5 border-t-[3px] pt-[18px] ${s.rule}`}>
-                  <span className={`font-display text-[15px] font-semibold ${SITE.soft}`}>Step {i + 1}</span>
-                  <h3 className={SITE.h3}>{s.title}</h3>
-                  <p>{s.body}</p>
+                  <span className={`font-display text-[15px] font-semibold ${SITE.soft}`}>{c("step", `Step ${i + 1}`, { n: i + 1 })}</span>
+                  <h3 className={SITE.h3}>{c(`steps.${i}.title`, s.title)}</h3>
+                  <p>{c(`steps.${i}.body`, s.body)}</p>
                 </li>
               ))}
             </ol>
@@ -176,11 +181,10 @@ export default function RootPage() {
               <video
                 src={DEMO_VIDEO.src} poster={DEMO_VIDEO.poster} width={1920} height={1080}
                 controls playsInline preload="none" className="h-auto w-full rounded-card-lg border border-border bg-navy"
-                aria-label="A made-up invoice is read, one marked value is corrected, and the file is sent"
+                aria-label={c("videoLabel", "A made-up invoice is read, one marked value is corrected, and the file is sent")}
               />
               <figcaption className={`${SITE.soft} text-[15px]`}>
-                One made-up invoice, from upload to sent. 58 seconds, with sound and captions. The waits while it was
-                read and sent are cut out.
+                {c("videoCaption", "One made-up invoice, from upload to sent. 58 seconds, with sound and captions. The waits while it was read and sent are cut out.")}
               </figcaption>
             </figure>
           </div>
@@ -191,30 +195,29 @@ export default function RootPage() {
           <div className={`${SITE.wrap} flex flex-col gap-11`}>
             <div className="flex flex-wrap items-start gap-x-16 gap-y-8">
               <div className="flex flex-[1_1_420px] flex-col gap-[18px]">
-                <h2 id="home-tech" className={`${SITE.h2} text-white`}>For whoever looks after the systems.</h2>
+                <h2 id="home-tech" className={`${SITE.h2} text-white`}>{c("techTitle", "For whoever looks after the systems.")}</h2>
                 <p className="text-[20px] leading-[1.5] text-navy-text">
-                  Everything above also runs without anyone clicking. Each flow can take documents in and send results out
-                  by itself.
+                  {c("techLead", "Everything above also runs without anyone clicking. Each flow can take documents in and send results out by itself.")}
                 </p>
               </div>
-              <figure aria-label="Example: send a file to a flow over the API" className="m-0 min-w-0 flex-[1_1_420px]">
+              <figure aria-label={c("apiLabel", "Example: send a file to a flow over the API")} className="m-0 min-w-0 flex-[1_1_420px]">
                 <pre tabIndex={0} className="m-0 overflow-x-auto rounded-xl bg-navy-surface px-[22px] py-5 font-mono text-[13px] leading-[1.7] text-navy-text">
                   {API_EXAMPLE}
                 </pre>
               </figure>
             </div>
             <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3 sm:[&>:last-child]:col-span-full">
-              {TECH.map(([title, body]) => (
+              {TECH.map(([title, body], i) => (
                 <div key={title} className="flex flex-col gap-2 border-t border-navy-border pt-[18px]">
-                  <h3 className={`${SITE.h3} text-white`}>{title}</h3>
-                  <p className="max-w-[68ch]">{body}</p>
+                  <h3 className={`${SITE.h3} text-white`}>{c(`tech.${i}.title`, title)}</h3>
+                  <p className="max-w-[68ch]">{c(`tech.${i}.body`, body)}</p>
                 </div>
               ))}
             </div>
             <div className="flex flex-wrap gap-x-7 gap-y-2">
-              <Link href="/help/api-reference" className={SITE.onNavyLink}>API reference</Link>
-              <Link href="/help/guides/use-from-your-ai-assistant" className={SITE.onNavyLink}>Use it from your AI assistant</Link>
-              <Link href="/security" className={SITE.onNavyLink}>Security</Link>
+              <Link href="/help/api-reference" className={SITE.onNavyLink}>{c("apiRef", "API reference")}</Link>
+              <Link href="/help/guides/use-from-your-ai-assistant" className={SITE.onNavyLink}>{c("aiLink", "Use it from your AI assistant")}</Link>
+              <Link href="/security" className={SITE.onNavyLink}>{c("securityLink", "Security")}</Link>
             </div>
           </div>
         </section>
@@ -223,27 +226,33 @@ export default function RootPage() {
         <section aria-labelledby="home-price" className={`${SITE.band} bg-surface`}>
           <div className={`${SITE.wrap} flex flex-col gap-8`}>
             <div className="flex max-w-[720px] flex-col gap-3.5">
-              <h2 id="home-price" className={SITE.h2}>One price list. Everything included.</h2>
+              <h2 id="home-price" className={SITE.h2}>{c("priceTitle", "One price list. Everything included.")}</h2>
               <p className={SITE.lead}>
-                Every plan has every way in, every file type and every check. You pay for the documents you process.
+                {c("priceLead", "Every plan has every way in, every file type and every check. You pay for the documents you process.")}
               </p>
             </div>
             <ul
-              aria-label="Plans"
+              aria-label={c("plans", "Plans")}
               className="m-0 grid list-none grid-cols-2 border-t border-border p-0 md:grid-cols-5 [&>:first-child]:col-span-2 md:[&>:first-child]:col-span-1"
             >
               {PRICE_ROW.map((p) => {
-                const limit = p.orderLimit?.toLocaleString("en-GB");
+                const limit = p.orderLimit?.toLocaleString(locale === "en" ? "en-GB" : locale) ?? "";
                 return (
                   <li key={p.id} className="flex flex-col gap-0.5 border-b border-border py-5 pr-5">
                     <h3 className={SITE.h3}>{p.name}</h3>
-                    <p className="font-semibold">{p.id === TRIAL.id ? `Free for ${p.priceCadence}` : `€${p.priceMonthly} a month`}</p>
-                    <p className={`${SITE.soft} text-[15px]`}>{p.id === TRIAL.id ? `${limit} documents` : `${limit} documents a month`}</p>
+                    <p className="font-semibold">
+                      {p.id === TRIAL.id
+                        ? c("planFree", `Free for ${p.priceCadence}`, trial)
+                        : c("planPrice", `€${p.priceMonthly} a month`, { price: euroIn(locale, p.priceMonthly) })}
+                    </p>
+                    <p className={`${SITE.soft} text-[15px]`}>
+                      {p.id === TRIAL.id ? c("planDocs", `${limit} documents`, { limit }) : c("planDocsMonth", `${limit} documents a month`, { limit })}
+                    </p>
                   </li>
                 );
               })}
             </ul>
-            <Link href="/pricing" className={`${SITE.more} self-start`}>See pricing, and what counts as a document</Link>
+            <Link href="/pricing" className={`${SITE.more} self-start`}>{c("priceMore", "See pricing, and what counts as a document")}</Link>
           </div>
         </section>
 
@@ -251,21 +260,25 @@ export default function RootPage() {
         <section aria-labelledby="home-who" className={SITE.band}>
           <div className={`${SITE.wrap} ${TWO} !items-start`}>
             <div className="flex flex-col gap-[18px]">
-              <h2 id="home-who" className={SITE.h2}>Who runs ProcuLink</h2>
+              <h2 id="home-who" className={SITE.h2}>{c("whoTitle", "Who runs ProcuLink")}</h2>
               <p className={SITE.lead}>
-                {`ProcuLink is built and run by ${LEGAL_ENTITY.legalName}, a company registered in ${REGISTERED_LOCALITY.city}, ${REGISTERED_LOCALITY.country}, under registry code ${LEGAL_ENTITY.registryCode}.`}
+                {c(
+                  "whoLead",
+                  `ProcuLink is built and run by ${LEGAL_ENTITY.legalName}, a company registered in ${REGISTERED_LOCALITY.city}, ${REGISTERED_LOCALITY.country}, under registry code ${LEGAL_ENTITY.registryCode}.`,
+                  { name: LEGAL_ENTITY.legalName, city: REGISTERED_LOCALITY.city, code: LEGAL_ENTITY.registryCode },
+                )}
               </p>
-              <p>Support answers Monday to Friday, 9am to 6pm EET, and we aim to reply within one business day.</p>
+              <p>{c("support", "Support answers Monday to Friday, 9am to 6pm EET, and we aim to reply within one business day.")}</p>
             </div>
             <div className="border-b border-border-strong">
-              {TRUST_LINKS.map(([label, href, line]) => (
+              {TRUST_LINKS.map(([label, href, line], i) => (
                 <Link
                   key={href}
                   href={href}
                   className="flex min-h-[44px] flex-wrap items-baseline gap-x-4 gap-y-0.5 border-t border-border-strong py-3 text-ink no-underline"
                 >
-                  <strong className="flex-[0_0_235px] font-semibold">{label}</strong>
-                  <span className={`${SITE.soft} flex-[1_1_220px]`}>{line}</span>
+                  <strong className="flex-[0_0_235px] font-semibold">{c(`trust.${i}.label`, label)}</strong>
+                  <span className={`${SITE.soft} flex-[1_1_220px]`}>{c(`trust.${i}.line`, line)}</span>
                 </Link>
               ))}
             </div>

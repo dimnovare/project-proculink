@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { buildVisibleNav, currentPlace, PHONE_TAB_HREFS, PINNED_ACTION_HREF, type SidebarNavItem } from "./BridgeSidebar";
+import { useCopy } from "@/i18n/useCopy";
+import { buildVisibleNav, currentPlace, navKey, PHONE_TAB_HREFS, PINNED_ACTION_HREF, type SidebarNavItem } from "./BridgeSidebar";
 import { AddSheet } from "@/components/flows/AddSheet";
 import { flowsQuery, needsYouQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
@@ -43,6 +44,7 @@ export function BottomTabBar() {
   useEffect(() => showBadge(pageTotal(needsYou.data)), [needsYou.data]);
   const flows = useQuery({ ...flowsQuery, enabled: tenantReady });
   const [adding, setAdding] = useState(false);
+  const { c } = useCopy("app");
   if (isFullScreenStep(pathname)) return null;
 
   const total = pageTotal(needsYou.data);
@@ -55,12 +57,13 @@ export function BottomTabBar() {
     const active = !!pathname && currentPlace(pathname) === href;
     const Icon = item.icon;
     const count = href === PHONE_TAB_HREFS[0] ? badge : null;
+    const label = c(navKey(href), item.label);
     return (
       <Link
         key={href}
         href={href}
         aria-current={active ? "page" : undefined}
-        aria-label={count ? `${item.label}, ${total} ${total === 1 ? "needs" : "need"} you` : undefined}
+        aria-label={count ? `${label}, ${total} ${total === 1 ? "needs" : "need"} you` : undefined}
         className={`${TAB} ${active ? "font-semibold !text-brand-blue-deep" : "font-medium"}`}
       >
         <span className="relative inline-flex">
@@ -74,7 +77,7 @@ export function BottomTabBar() {
             </span>
           )}
         </span>
-        <span className="max-w-full truncate">{item.label}</span>
+        <span className="max-w-full truncate">{label}</span>
       </Link>
     );
   };

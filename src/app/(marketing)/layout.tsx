@@ -1,6 +1,7 @@
 import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { SkipToContent } from "@/components/a11y/SkipToContent";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
+import { EnglishOnly } from "@/components/marketing/EnglishOnlyNotice";
 
 export default function MarketingLayout({
   children,
@@ -17,7 +18,9 @@ export default function MarketingLayout({
     >
       <SkipToContent />
       <MarketingNav />
-      <main id="main-content" tabIndex={-1} className="outline-none">{children}</main>
+      <main id="main-content" tabIndex={-1} className="outline-none">
+        <EnglishOnly>{children}</EnglishOnly>
+      </main>
 
       <SiteFooter />
     </div>

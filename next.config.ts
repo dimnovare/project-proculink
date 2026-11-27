@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 import createMDX from "@next/mdx";
+import createNextIntlPlugin from "next-intl/plugin";
 import remarkGfm from "remark-gfm";
 import { cspModeFromEnv, securityHeaders } from "./src/lib/security/csp";
 import { RETIRED_ROUTE_REDIRECTS } from "./src/lib/retired-routes";
@@ -84,7 +85,8 @@ const nextConfig: NextConfig = {
   },
 };
 
-const configWithMdx = withMDX(nextConfig);
+// next-intl without i18n routing: src/i18n/request.ts picks the locale from a cookie (no URL prefix).
+const configWithMdx = createNextIntlPlugin("./src/i18n/request.ts")(withMDX(nextConfig));
 
 // Only wrap with Sentry in production. The @sentry/nextjs SDK 8.x has a known
 // issue with Next.js 15.5.18 dev mode where it expects routes-manifest.json

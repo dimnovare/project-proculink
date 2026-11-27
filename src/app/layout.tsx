@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import { AnalyticsBoot } from "@/components/analytics/AnalyticsBoot";
 import { CookieConsentBanner } from "@/components/marketing/CookieConsentBanner";
 import { JsonLd } from "@/components/marketing/JsonLd";
@@ -57,7 +59,11 @@ export const metadata: Metadata = {
   ...socialMetadata({ title: SITE_TITLE, description: SITE_DESCRIPTION }),
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // The cookie, then Accept-Language, then English (src/i18n/request.ts).
+  const locale = await getLocale();
+  // The browser gets only what client components read; the page copy (home, pricing) renders on the server.
+  const { home: _home, pricing: _pricing, ...clientMessages } = await getMessages();
   const rawPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   const isMockMode = process.env.NEXT_PUBLIC_USE_MOCK === "true";
   const isQaBypass = process.env.NEXT_PUBLIC_QA_BYPASS_AUTH === "true";
@@ -80,7 +86,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const publishableKey = (isMockMode || isQaBypass) ? "" : rawPublishableKey;
 
   return (
-    <html lang="en">
+    <html lang={locale}>
       <head>
         {/* Fonts are self-hosted via @fontsource (imported at the top of this
             file) — same families and weights, font-display: swap, served from
@@ -108,12 +114,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         )}
       </head>
       <body>
-        <ClerkProvider publishableKey={publishableKey}>
-          {children}
-          <AnalyticsBoot />
-        </ClerkProvider>
-        <CookieConsentBanner />
-        <PwaBoot />
+        <NextIntlClientProvider messages={clientMessages}>
+          <ClerkProvider publishableKey={publishableKey}>
+            {children}
+            <AnalyticsBoot />
+          </ClerkProvider>
+          <CookieConsentBanner />
+          <PwaBoot />
+        </NextIntlClientProvider>
       </body>
     </html>
   );

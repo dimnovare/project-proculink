@@ -1,0 +1,327 @@
+{
+  "switcher": {
+    "language": "Sprache"
+  },
+  "nav": {
+    "how-it-works": "So geht’s",
+    "formats": "Formate",
+    "pricing": "Preise",
+    "security": "Sicherheit",
+    "help": "Hilfe",
+    "open": "ProcuLink öffnen",
+    "openShort": "Öffnen",
+    "startFree": "Kostenlos starten",
+    "signIn": "Anmelden",
+    "menu": "Menü",
+    "closeMenu": "Menü schließen",
+    "language": "Sprache"
+  },
+  "footer": {
+    "about": "Jedes Dokument rein. Saubere Daten raus. ProcuLink liest Ihre Dokumente, lässt Sie sie prüfen und sendet sie im benötigten Format weiter – jede Zustellung wird festgehalten.",
+    "Product": "Produkt",
+    "Help": "Hilfe",
+    "Company": "Unternehmen",
+    "link_how-it-works": "So funktioniert’s",
+    "link_formats": "Formate",
+    "link_pricing": "Preise",
+    "link_compare": "ProcuLink im Vergleich",
+    "link_security": "Sicherheit",
+    "link_invoice-data-extraction": "Rechnungsdaten auslesen",
+    "link_purchase-order-data-extraction": "Bestelldaten auslesen",
+    "link_changelog": "Änderungsprotokoll",
+    "link_help": "Hilfe-Center",
+    "link_help_guides": "Schritt-für-Schritt-Anleitungen",
+    "link_support": "Support",
+    "link_book-demo": "Mit uns sprechen",
+    "link_privacy": "Datenschutz",
+    "link_terms": "AGB",
+    "link_aup": "Nutzungsrichtlinie",
+    "link_dpa": "Auftragsverarbeitungsvertrag",
+    "link_subprocessors": "Unterauftragsverarbeiter",
+    "status": "Status",
+    "language": "Sprache",
+    "storage": "Dokumentenspeicherung in der EU",
+    "atRest": ", AES-GCM-verschlüsselt im Ruhezustand"
+  },
+  "closing": {
+    "title": "Testen Sie es mit Ihren eigenen Dokumenten",
+    "lead": "Laden Sie eines hoch und sehen Sie, was zurückkommt. Das dauert nur wenige Minuten, und nichts wird gesendet, bevor Sie ein Ziel festlegen.",
+    "talk": "Mit uns sprechen",
+    "start": "Kostenlos testen"
+  },
+  "home": {
+    "h1a": "Jedes Dokument rein.",
+    "h1b": "Saubere Daten raus.",
+    "lead": "ProcuLink liest die Rechnungen, Bestellungen und anderen Dokumente, die Sie erhalten, zeigt das Gelesene neben dem Original und sendet die Daten im Format weiter, das Ihr System braucht.",
+    "start": "Kostenlos testen",
+    "trialLine": "{days} Tage kostenlos · {docs} Dokumente · <nowrap>danach ab {price} im Monat.</nowrap> Keine Karte nötig.",
+    "seeHow": "So funktioniert’s",
+    "goodToKnow": "Gut zu wissen",
+    "goodToKnowItems": [
+      "Für den Start ist keine Anbindung nötig",
+      "Wer Ihnen Dokumente schickt, ändert nichts",
+      "Testen Sie mit einem Test- oder anonymisierten Dokument",
+      "Was wir nicht sicher lesen, wartet auf Sie"
+    ],
+    "formatsTitle": "Beginnen Sie mit den Dokumenten, die Sie ohnehin erhalten.",
+    "formatsLead": "Sie müssen kein technisches Format kennen und keine Anbindung einrichten. Kommt es als PDF, Tabelle, Scan oder E-Mail-Anhang bei Ihnen an, beginnen Sie damit.",
+    "formatsMore": "Alle Formate und Wege",
+    "columns": {
+      "0": {
+        "title": "Wir lesen",
+        "items": [
+          "PDF",
+          "Excel und CSV",
+          "Word und Text",
+          "XML und JSON",
+          "Scans und Handyfotos"
+        ]
+      },
+      "1": {
+        "title": "Sie erhalten",
+        "items": [
+          "CSV",
+          "Excel",
+          "JSON oder XML",
+          "PDF",
+          "Text oder feste Feldlängen",
+          "Bestellungen als cXML, UBL, EDIFACT oder X12",
+          "Rechnungen als ZUGFeRD / Factur-X"
+        ]
+      },
+      "2": {
+        "title": "Es geht an",
+        "items": [
+          "E-Mail",
+          "Einen SFTP- oder FTPS-Server",
+          "Google Drive, Sheets oder OneDrive",
+          "Einen S3-Bucket oder eine Webadresse",
+          "Oder als Download"
+        ]
+      }
+    },
+    "sharepoint": "Microsoft SharePoint auf Anfrage.",
+    "secondA": "Einmal prüfen.",
+    "secondB": "Das nächste geht leichter.",
+    "secondLead": "Beim ersten Dokument eines Absenders helfen Sie mit: Korrigieren Sie einen Wert oder zeigen Sie auf die Stelle im Dokument. Wir merken uns, wo dieser Absender ihn platziert, damit das nächste Dokument weniger Prüfung braucht.",
+    "secondBody": "Sie müssen vorab keine Vorlage bauen. Läuft ein Ablauf dauerhaft ohne Korrekturen durch, können Sie ihn alles selbstständig senden lassen.",
+    "flowSentence": "Ein Ablauf ist eine Art Dokument, die Sie erhalten, einmal eingerichtet: was gelesen wird, welche Datei entsteht und wohin sie geht. Die meisten Teams brauchen einen pro Dokumenttyp.",
+    "decideTitle": "Sie entscheiden, was auf Sie wartet.",
+    "decideLead": "Fehlendes oder schwer Lesbares wird markiert, und ein Dokument mit einem markierten Wert wartet auf Sie – mit dem Original neben dem Gelesenen. Alle anderen Dokumente laufen direkt durch, es sei denn, Sie lassen den Ablauf bei jedem Dokument warten.",
+    "decideItems": [
+      "Ein bereits bekanntes Dokument wartet immer, damit nichts doppelt hinausgeht.",
+      "Laden Sie das Ergebnis herunter und senden Sie es selbst, so lange Sie möchten.",
+      "Jedes Lesen, jede Änderung und jede Zustellung wird am Dokument festgehalten."
+    ],
+    "stepsTitle": "So funktioniert’s",
+    "step": "Schritt {n}",
+    "steps": {
+      "0": {
+        "title": "Sie schicken es uns",
+        "body": "Laden Sie eine Datei hoch, leiten Sie eine E-Mail weiter oder lassen Sie uns abholen: aus einem Postfach, von einem SFTP- oder FTP-Server, aus einem S3-Bucket, über unsere API oder Ihren KI-Assistenten."
+      },
+      "1": {
+        "title": "Wir lesen es",
+        "body": "Wir lesen jeden Wert und jede Tabelle schon beim ersten Dokument. Sie müssen vorab keine Vorlage bauen. Auch Scans und Handyfotos werden gelesen."
+      },
+      "2": {
+        "title": "Sie prüfen es",
+        "body": "Das Original bleibt neben dem Gelesenen sichtbar. Korrigieren Sie einen Wert oder zeigen Sie auf die Stelle im Dokument, damit wir ihn beim nächsten Mal finden."
+      },
+      "3": {
+        "title": "Wir senden es",
+        "body": "Wählen Sie die Datei, die Ihr System braucht, und senden Sie sie per E-Mail, an einen Server, an Google Drive, Sheets oder OneDrive – oder laden Sie sie herunter."
+      }
+    },
+    "videoLabel": "Eine erfundene Rechnung wird gelesen, ein markierter Wert korrigiert und die Datei gesendet",
+    "videoCaption": "Eine erfundene Rechnung, vom Hochladen bis zum Versand. 58 Sekunden, mit Ton und Untertiteln (auf Englisch). Die Wartezeiten beim Lesen und Senden sind herausgeschnitten.",
+    "techTitle": "Für alle, die sich um die Systeme kümmern.",
+    "techLead": "Alles oben läuft auch, ohne dass jemand klickt. Jeder Ablauf kann Dokumente selbstständig annehmen und Ergebnisse versenden.",
+    "apiLabel": "Beispiel: eine Datei über die API an einen Ablauf senden",
+    "tech": {
+      "0": {
+        "title": "Eine Adresse und eine API für jeden Ablauf",
+        "body": "Senden Sie eine E-Mail an einen Ablauf, übertragen Sie eine Datei, rufen Sie das Ergebnis ab oder lassen Sie uns Ihre Webadresse aufrufen, sobald ein Dokument gelesen oder gesendet wurde."
+      },
+      "1": {
+        "title": "Abholung alle fünf Minuten",
+        "body": "Wir prüfen alle fünf Minuten ein Postfach, einen SFTP-, FTPS- oder FTP-Server oder einen S3-Bucket. Jede Datei wird einmal abgeholt, und Dateien auf einem Server oder in einem Bucket bleiben, wo sie sind."
+      },
+      "2": {
+        "title": "Dateien nach Ihrer Dokumentation",
+        "body": "Laden Sie die Dokumentation Ihres Zielsystems oder eine Beispieldatei hoch, und wir schlagen Ihnen die Datei zur Prüfung vor."
+      },
+      "3": {
+        "title": "Ihr KI-Assistent",
+        "body": "Verbinden Sie Claude, ChatGPT, Cursor oder VS Code. Fügen Sie ein Dokument hinzu, sehen Sie, was wir gelesen haben, und senden Sie es auf Zuruf. Ein Dokument, das auf eine Prüfung wartet, wartet weiterhin."
+      },
+      "4": {
+        "title": "Wertelisten",
+        "body": "Ersetzen Sie einen Wert im Dokument durch den, den Ihr System verwendet – aus einer Liste, die Sie importieren."
+      },
+      "5": {
+        "title": "Versionen zum Zurückgehen",
+        "body": "Änderungen an einem Ablauf gelten, sobald Sie sie veröffentlichen, und jede frühere Version lässt sich wiederherstellen."
+      },
+      "6": {
+        "title": "Ein Protokoll jeder Zustellung",
+        "body": "Zu jeder Zustellung wird festgehalten, wann sie erfolgte, über welchen Kanal, wie viele Versuche nötig waren, die Antwort des Ziels, sofern es eine gibt, und bei einem Fehler die Fehlermeldung."
+      }
+    },
+    "apiRef": "API-Referenz",
+    "aiLink": "Mit Ihrem KI-Assistenten nutzen",
+    "securityLink": "Sicherheit",
+    "priceTitle": "Eine Preisliste. Alles inklusive.",
+    "priceLead": "Jeder Tarif enthält jeden Eingangsweg, jeden Dateityp und jede Prüfung. Sie zahlen für die Dokumente, die Sie verarbeiten.",
+    "plans": "Tarife",
+    "planFree": "{days} Tage kostenlos",
+    "planPrice": "{price} im Monat",
+    "planDocs": "{limit} Dokumente",
+    "planDocsMonth": "{limit} Dokumente im Monat",
+    "priceMore": "Preise ansehen – und was als Dokument zählt",
+    "whoTitle": "Wer hinter ProcuLink steht",
+    "whoLead": "ProcuLink wird von {name} entwickelt und betrieben, einem in {city}, Estland, eingetragenen Unternehmen mit der Registernummer {code}.",
+    "support": "Der Support ist Montag bis Freitag von 9 bis 18 Uhr osteuropäischer Zeit erreichbar, und wir antworten möglichst innerhalb eines Werktags.",
+    "trust": {
+      "0": {
+        "label": "Sicherheit",
+        "line": "Verschlüsselung, Dokumentenspeicherung in der EU und wie KI eingesetzt wird"
+      },
+      "1": {
+        "label": "Datenschutz",
+        "line": "Was wir erfassen und wie lange wir es aufbewahren"
+      },
+      "2": {
+        "label": "Auftragsverarbeitungsvertrag",
+        "line": "Der Vertrag für die Dokumente, die Sie uns senden"
+      },
+      "3": {
+        "label": "Unterauftragsverarbeiter",
+        "line": "Jedes Unternehmen, das Ihre Daten verarbeitet, und wo"
+      }
+    }
+  },
+  "priceHelper": {
+    "fits": "{n} im Monat passen in {plan}.",
+    "aboutCheapest": "Etwa {n} im Monat: {plan} ist am günstigsten, etwa {price} mit zusätzlichen Dokumenten.",
+    "about": "Etwa {n} im Monat: {plan}, etwa {price} mit zusätzlichen Dokumenten.",
+    "hintSame": "Ab etwa {n} im Monat kostet {plan} gleich viel, ohne zusätzliche Dokumente.",
+    "hintLess": "Ab etwa {n} im Monat kostet {plan} weniger.",
+    "hintEnterprise": "Für mehr sprechen Sie mit uns über {plan}.",
+    "period": "Abrechnungszeitraum",
+    "monthly": "Monatlich",
+    "annual": "Jährlich, {n} Monate gratis",
+    "volume": "Wie viele Dokumente etwa im Monat?",
+    "valuetext": "{n} Dokumente im Monat",
+    "fourPlans": "Die vier kostenpflichtigen Tarife",
+    "rowDocs": "Dokumente im Monat",
+    "rowFlows": "Abläufe",
+    "rowExtra": "Jedes zusätzliche Dokument",
+    "aMonth": "im Monat",
+    "cheapest": "Am günstigsten für Ihr Volumen",
+    "billedYearly": "Jährlich abgerechnet, {price}",
+    "orYearly": "Oder {price} im Jahr",
+    "docsMonth": " Dokumente im Monat",
+    "unlimited": "Unbegrenzt",
+    "flows": " Abläufe",
+    "extraDoc": "Jedes zusätzliche Dokument ",
+    "choose": "{plan} wählen",
+    "flowSentence": "Ein Ablauf ist eine Art Dokument, die Sie erhalten, einmal eingerichtet: was gelesen wird, welche Datei entsteht und wohin sie geht. Die meisten Teams brauchen einen pro Dokumenttyp."
+  },
+  "pricing": {
+    "title": "Kostenlos starten. Zahlen Sie für die Dokumente, die Sie verarbeiten.",
+    "lead": "Jeder Tarif enthält jeden Weg, Dokumente einzusenden, jeden Dateityp und jede Prüfung. Die Tarife unterscheiden sich nur darin, wie viele Dokumente Sie verarbeiten und wie viele Abläufe Sie einrichten.",
+    "flowSentence": "Ein Ablauf ist eine Art Dokument, die Sie erhalten, einmal eingerichtet: was gelesen wird, welche Datei entsteht und wohin sie geht. Die meisten Teams brauchen einen pro Dokumenttyp.",
+    "unit": "Ein Dokument ist eine Datei mit bis zu {pages} Seiten. Längere Dateien zählen je angefangene {pages} Seiten einmal, und wir lesen bis zu {max} Seiten einer Datei.",
+    "trialPrice": "{days} Tage kostenlos",
+    "trialLimits": "{docs} Dokumente, {flows} Abläufe, keine Kreditkarte.",
+    "trialEnds": "Nach dem Test ist Ihr Arbeitsbereich schreibgeschützt, bis Sie einen Tarif wählen.",
+    "trialCta": "Kostenlos testen",
+    "choose": "Nach dem Test wählen Sie nach Volumen.",
+    "everyPlan": "In jedem kostenpflichtigen Tarif",
+    "features": {
+      "0": "Jeder Eingangsweg: Upload, E-Mail, Postfach, SFTP, FTP, FTPS, S3, API und Ihr KI-Assistent",
+      "1": "Jeder Dateityp: CSV, JSON, XML, Excel, PDF, Text, feste Feldlängen, Bestellstandards und ZUGFeRD-/Factur-X-Rechnungen",
+      "2": "Verbinden Sie Claude, ChatGPT, Cursor oder VS Code",
+      "3": "Unbegrenzt viele Nutzer"
+    },
+    "enterprise": "Individuelles Volumen, persönliches Onboarding und ein SLA. Ab {price} im Monat.",
+    "enterpriseCta": "Vertrieb kontaktieren",
+    "over": "Eine Überschreitung blockiert Sie in einem kostenpflichtigen Tarif nie. Jedes zusätzliche Dokument wird zum Satz Ihres Tarifs berechnet, und wo ein größerer Tarif den Monat abgedeckt hätte, zahlen Sie nie mehr als dessen Monatspreis.",
+    "storage": "Alle Tarife enthalten <security>Dokumentenspeicherung in der EU</security> und AES-GCM-Verschlüsselung. Wo jeder Unterauftragsverarbeiter arbeitet, ist <subprocessors>vollständig aufgeführt</subprocessors>.",
+    "cancel": "Jederzeit kündbar. Sobald Ihr Abonnement endet, kommen auf keinem Kanal neue Dokumente mehr an – was Sie bereits verarbeitet haben, bleibt lesbar und exportierbar.",
+    "questions": "Fragen und Antworten",
+    "else": "Noch etwas auf dem Herzen?",
+    "talk": "Mit uns sprechen",
+    "faq": {
+      "0": {
+        "q": "Brauche ich für den Start eine Anbindung?",
+        "a": "Nein. Laden Sie eine Datei hoch oder leiten Sie eine E-Mail weiter, und Sie haben ein Ergebnis zum Prüfen. API und Server-Abholung sind dafür da, dass Dokumente später von selbst ankommen. Sie können auch Ihren KI-Assistenten verbinden."
+      },
+      "1": {
+        "q": "Müssen die Absender meiner Dokumente etwas ändern?",
+        "a": "Nein. Sie senden Dokumente weiter wie bisher. Sie laden hoch, was ankommt, leiten es an die eigene E-Mail-Adresse Ihres Ablaufs weiter oder lassen es von uns aus einem Postfach oder von einem Server abholen."
+      },
+      "2": {
+        "q": "Kann ich es mit einem Test- oder anonymisierten Dokument ausprobieren?",
+        "a": "Ja. Verwenden Sie eine Testdatei oder schwärzen Sie vorher alles Sensible. Sie wird wie jedes andere Dokument gelesen und zählt zu Ihren {docs} Testdokumenten."
+      },
+      "3": {
+        "q": "Wird während des Tests etwas automatisch gesendet?",
+        "a": "Nur, wo Sie es wollen. Eine Datei geht erst irgendwohin, wenn ihr Ablauf ein Ziel hat; bis dahin laden Sie sie herunter. Ein neuer Ablauf, den ein Admin anlegt, hält jedes Dokument mit einem markierten Wert für Sie zurück, und Sie können einen Ablauf jedes Dokument prüfen lassen."
+      },
+      "4": {
+        "q": "Was passiert, wenn der Test endet?",
+        "a": "Ihr Arbeitsbereich wird schreibgeschützt. Sie können weiterhin alles öffnen und exportieren, aber neue Dokumente werden erst angenommen, wenn Sie einen Tarif wählen."
+      },
+      "5": {
+        "q": "Kann ich den Tarif später wechseln?",
+        "a": "Ja. Ein Upgrade ist jederzeit in den Einstellungen unter „Tarif & Abrechnung“ möglich; die Differenz wird anteilig berechnet. Für einen Wechsel in einen kleineren Tarif kontaktieren Sie uns."
+      },
+      "6": {
+        "q": "Was passiert, wenn ich kündige?",
+        "a": "Wenn Sie kündigen, nimmt ProcuLink keine neuen Dokumente mehr an, sobald Ihr Abonnement endet. Alles bereits Verarbeitete bleibt lesbar und exportierbar – frühere Dokumente, Abläufe und Dateien bleiben erhalten, bis Sie uns um Löschung bitten, und Aktivitätsdaten wie Zustellversuche werden nach 180 Tagen entfernt (siehe <privacy>Datenschutzerklärung</privacy>) –, aber auf keinem Weg kommt mehr etwas Neues an: Uploads, per E-Mail gesendete Dokumente und die Datei-API stoppen, und die Abholung aus Postfach, SFTP, FTP, FTPS und S3 pausiert und lässt Ihre Dateien, wo sie sind. Danach gesendete Uploads, E-Mails und API-Aufrufe werden nicht für später aufbewahrt, informieren Sie Ihre Absender also vor der Kündigung. Ein erneutes Abonnement schaltet die Verarbeitung sofort wieder ein, Ihre Einrichtung bleibt unverändert."
+      },
+      "7": {
+        "q": "Wo werden meine Daten gespeichert?",
+        "a": "Dokumente werden in der EU gespeichert und im Ruhezustand mit AES-GCM verschlüsselt. Ein Teil der Verarbeitung läuft bei namentlich genannten US-Unterauftragsverarbeitern auf Grundlage von Standardvertragsklauseln – Anmeldung, KI-Auslesung, Zahlungen und E-Mail in beide Richtungen, einschließlich der Dokumente, die wir per E-Mail an die von Ihnen festgelegten Ziele senden. Die vollständige Darstellung finden Sie auf der <security>Sicherheitsseite</security>."
+      },
+      "8": {
+        "q": "Ich habe einen älteren Tarif. Was ändert sich?",
+        "a": "Wenn Sie {plans} nutzen, ändert sich nichts, bis Sie den Tarif wechseln. Sie behalten Ihren aktuellen Preis und Ihre Limits. Zum Wechseln gehen Sie zu Einstellungen, dann „Tarif & Abrechnung“."
+      }
+    },
+    "closingTitle": "Unsicher, welcher Tarif passt?",
+    "closingLead": "Starten Sie den kostenlosen Test und sehen Sie, wie viele Dokumente Sie verarbeiten."
+  },
+  "app": {
+    "documents": "Dokumente",
+    "flows": "Abläufe",
+    "lookups": "Wertelisten",
+    "operations_log": "Verlauf",
+    "settings": "Einstellungen",
+    "admin": "Admin",
+    "help": "Hilfe & Support",
+    "upload": "Hochladen",
+    "uploadLabel": "Dokument hochladen",
+    "search": "Suchen",
+    "helpButton": "Hilfe",
+    "settingsSections": "Bereiche der Einstellungen",
+    "tab_org": "Arbeitsbereich",
+    "tab_destinations": "Ziele",
+    "tab_billing": "Tarif & Abrechnung",
+    "workspaces": "Arbeitsbereiche",
+    "switching": "Wird gewechselt…",
+    "currentWorkspace": "Aktueller Arbeitsbereich",
+    "addCompany": "Unternehmen hinzufügen…",
+    "switchLabel": "Arbeitsbereich: {name}. Arbeitsbereich wechseln",
+    "accountLabel": "Konto: {name}. Kontomenü öffnen",
+    "account": "Konto",
+    "profile": "Profil",
+    "language": "Sprache",
+    "signOut": "Abmelden"
+  },
+  "legal": {
+    "englishOnly": "Diese Seite ist nur auf Englisch verfügbar. Die englische Fassung ist verbindlich."
+  }
+}

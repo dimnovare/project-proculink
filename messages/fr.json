@@ -1,0 +1,327 @@
+{
+  "switcher": {
+    "language": "Langue"
+  },
+  "nav": {
+    "how-it-works": "Fonctionnement",
+    "formats": "Formats",
+    "pricing": "Tarifs",
+    "security": "Sécurité",
+    "help": "Aide",
+    "open": "Ouvrir ProcuLink",
+    "openShort": "Ouvrir",
+    "startFree": "Essai gratuit",
+    "signIn": "Se connecter",
+    "menu": "Menu",
+    "closeMenu": "Fermer le menu",
+    "language": "Langue"
+  },
+  "footer": {
+    "about": "N’importe quel document en entrée. Des données propres en sortie. ProcuLink lit vos documents, vous permet de les vérifier et les envoie au format dont vous avez besoin, avec une trace de chaque livraison.",
+    "Product": "Produit",
+    "Help": "Aide",
+    "Company": "Société",
+    "link_how-it-works": "Fonctionnement",
+    "link_formats": "Formats",
+    "link_pricing": "Tarifs",
+    "link_compare": "ProcuLink face aux alternatives",
+    "link_security": "Sécurité",
+    "link_invoice-data-extraction": "Extraction des données de factures",
+    "link_purchase-order-data-extraction": "Extraction des données de bons de commande",
+    "link_changelog": "Nouveautés",
+    "link_help": "Centre d’aide",
+    "link_help_guides": "Guides pas à pas",
+    "link_support": "Assistance",
+    "link_book-demo": "Nous contacter",
+    "link_privacy": "Confidentialité",
+    "link_terms": "Conditions",
+    "link_aup": "Utilisation acceptable",
+    "link_dpa": "Accord de traitement des données",
+    "link_subprocessors": "Sous-traitants",
+    "status": "État du service",
+    "language": "Langue",
+    "storage": "Stockage des documents dans l’UE",
+    "atRest": ", chiffrement AES-GCM au repos"
+  },
+  "closing": {
+    "title": "Essayez avec vos propres documents",
+    "lead": "Importez-en un et voyez ce qui en ressort. Cela prend quelques minutes, et rien n’est envoyé tant que vous n’avez pas choisi la destination.",
+    "talk": "Nous contacter",
+    "start": "Commencer l’essai gratuit"
+  },
+  "home": {
+    "h1a": "N’importe quel document en entrée.",
+    "h1b": "Des données propres en sortie.",
+    "lead": "ProcuLink lit les factures, commandes et autres documents que vous recevez, vous montre ce qu’il a lu à côté de l’original et transmet les données au format dont votre système a besoin.",
+    "start": "Commencer l’essai gratuit",
+    "trialLine": "Gratuit pendant {days} jours · {docs} documents · <nowrap>ensuite à partir de {price} par mois.</nowrap> Sans carte bancaire.",
+    "seeHow": "Voir le fonctionnement",
+    "goodToKnow": "Bon à savoir",
+    "goodToKnowItems": [
+      "Aucune intégration nécessaire pour commencer",
+      "Les personnes qui vous envoient des documents ne changent rien",
+      "Essayez avec un document de test ou anonymisé",
+      "Tout ce dont nous ne sommes pas sûrs vous attend"
+    ],
+    "formatsTitle": "Commencez avec les documents que vous recevez déjà.",
+    "formatsLead": "Inutile de connaître un format technique ou de mettre en place une intégration. S’il vous parvient en PDF, en tableur, en scan ou en pièce jointe d’e-mail, commencez par là.",
+    "formatsMore": "Tous les formats et méthodes",
+    "columns": {
+      "0": {
+        "title": "Nous lisons",
+        "items": [
+          "PDF",
+          "Excel et CSV",
+          "Word et texte",
+          "XML et JSON",
+          "Scans et photos prises au téléphone"
+        ]
+      },
+      "1": {
+        "title": "Vous obtenez",
+        "items": [
+          "CSV",
+          "Excel",
+          "JSON ou XML",
+          "PDF",
+          "Texte ou largeur fixe",
+          "Commandes cXML, UBL, EDIFACT ou X12",
+          "Factures ZUGFeRD / Factur-X"
+        ]
+      },
+      "2": {
+        "title": "Destination",
+        "items": [
+          "E-mail",
+          "Un serveur SFTP ou FTPS",
+          "Google Drive, Sheets ou OneDrive",
+          "Un bucket S3 ou une adresse web",
+          "Ou un téléchargement"
+        ]
+      }
+    },
+    "sharepoint": "Microsoft SharePoint sur demande.",
+    "secondA": "Vérifiez une fois.",
+    "secondB": "Le suivant est plus simple.",
+    "secondLead": "Le premier document d’un expéditeur est celui où vous nous aidez : corrigez une valeur ou montrez-la sur la page. Nous retenons où cet expéditeur la place, et le document suivant demande moins de vérification.",
+    "secondBody": "Aucun modèle à créer au préalable. Lorsqu’un flux passe sans corrections, vous pouvez le laisser tout envoyer de lui-même.",
+    "flowSentence": "Un flux correspond à un type de document que vous recevez, configuré une fois : ce qu’il faut lire, quel fichier produire et où l’envoyer. La plupart des équipes en ont besoin d’un par type de document.",
+    "decideTitle": "Vous décidez de ce qui vous attend.",
+    "decideLead": "Tout ce qui manque ou est difficile à lire est signalé, et un document avec une valeur signalée vous attend, avec l’original à côté de ce que nous avons lu. Tous les autres documents passent directement, sauf si vous configurez le flux pour attendre à chaque document.",
+    "decideItems": [
+      "Un document déjà vu attend toujours, pour que rien ne parte en double.",
+      "Téléchargez le résultat et envoyez-le vous-même, aussi longtemps que vous le souhaitez.",
+      "Chaque lecture, modification et livraison est enregistrée sur le document."
+    ],
+    "stepsTitle": "Fonctionnement",
+    "step": "Étape {n}",
+    "steps": {
+      "0": {
+        "title": "Vous l’envoyez",
+        "body": "Importez un fichier, transférez un e-mail ou laissez-nous le récupérer dans une boîte mail, sur un serveur SFTP ou FTP, dans un bucket S3, via notre API ou votre assistant IA."
+      },
+      "1": {
+        "title": "Nous le lisons",
+        "body": "Nous lisons chaque valeur et chaque tableau dès le premier document. Aucun modèle à créer au préalable. Les scans et les photos prises au téléphone sont lus aussi."
+      },
+      "2": {
+        "title": "Vous le vérifiez",
+        "body": "L’original reste à l’écran à côté de ce que nous avons lu. Corrigez une valeur, ou montrez-la sur la page pour que nous la trouvions la prochaine fois."
+      },
+      "3": {
+        "title": "Nous l’envoyons",
+        "body": "Choisissez le fichier dont votre système a besoin, puis envoyez-le par e-mail, vers un serveur, vers Google Drive, Sheets ou OneDrive, ou téléchargez-le."
+      }
+    },
+    "videoLabel": "Une facture fictive est lue, une valeur signalée est corrigée et le fichier est envoyé",
+    "videoCaption": "Une facture fictive, de l’import à l’envoi. 58 secondes, avec son et sous-titres (en anglais). Les temps d’attente pendant la lecture et l’envoi ont été coupés.",
+    "techTitle": "Pour ceux qui s’occupent des systèmes.",
+    "techLead": "Tout ce qui précède fonctionne aussi sans que personne ne clique. Chaque flux peut recevoir des documents et envoyer des résultats de lui-même.",
+    "apiLabel": "Exemple : envoyer un fichier à un flux via l’API",
+    "tech": {
+      "0": {
+        "title": "Une adresse et une API pour chaque flux",
+        "body": "Envoyez un e-mail à un flux, transmettez-lui un fichier, récupérez le résultat, ou laissez-nous appeler votre adresse web quand un document est lu ou envoyé."
+      },
+      "1": {
+        "title": "Une collecte toutes les cinq minutes",
+        "body": "Nous consultons toutes les cinq minutes une boîte mail, un serveur SFTP, FTPS ou FTP, ou un bucket S3. Chaque fichier n’est collecté qu’une fois, et les fichiers sur un serveur ou dans un bucket restent en place."
+      },
+      "2": {
+        "title": "Des fichiers d’après votre documentation",
+        "body": "Importez la documentation de votre système de réception ou un fichier d’exemple, et nous vous proposons le fichier à vérifier."
+      },
+      "3": {
+        "title": "Votre assistant IA",
+        "body": "Connectez Claude, ChatGPT, Cursor ou VS Code. Ajoutez un document, voyez ce que nous avons lu et envoyez-le en le demandant. Un document qui attend une vérification continue d’attendre."
+      },
+      "4": {
+        "title": "Correspondances",
+        "body": "Remplacez une valeur du document par celle qu’utilise votre système, à partir d’une liste que vous importez."
+      },
+      "5": {
+        "title": "Des versions pour revenir en arrière",
+        "body": "Les modifications d’un flux s’appliquent dès que vous les publiez, et toute version antérieure peut être restaurée."
+      },
+      "6": {
+        "title": "Une trace de chaque livraison",
+        "body": "Chaque livraison conserve sa date, son canal, le nombre de tentatives, la réponse de la destination quand elle en donne une et, en cas d’échec, l’erreur."
+      }
+    },
+    "apiRef": "Référence de l’API",
+    "aiLink": "L’utiliser depuis votre assistant IA",
+    "securityLink": "Sécurité",
+    "priceTitle": "Une seule grille tarifaire. Tout compris.",
+    "priceLead": "Chaque offre comprend tous les modes d’entrée, tous les types de fichiers et toutes les vérifications. Vous payez les documents que vous traitez.",
+    "plans": "Offres",
+    "planFree": "Gratuit pendant {days} jours",
+    "planPrice": "{price} par mois",
+    "planDocs": "{limit} documents",
+    "planDocsMonth": "{limit} documents par mois",
+    "priceMore": "Voir les tarifs, et ce qui compte comme un document",
+    "whoTitle": "Qui est derrière ProcuLink",
+    "whoLead": "ProcuLink est développé et exploité par {name}, société immatriculée à {city}, en Estonie, sous le numéro d’immatriculation {code}.",
+    "support": "L’assistance répond du lundi au vendredi, de 9 h à 18 h (heure d’Europe de l’Est), et nous visons une réponse sous un jour ouvré.",
+    "trust": {
+      "0": {
+        "label": "Sécurité",
+        "line": "Chiffrement, stockage des documents dans l’UE et utilisation de l’IA"
+      },
+      "1": {
+        "label": "Confidentialité",
+        "line": "Ce que nous collectons et combien de temps nous le conservons"
+      },
+      "2": {
+        "label": "Accord de traitement des données",
+        "line": "Le contrat pour les documents que vous nous envoyez"
+      },
+      "3": {
+        "label": "Sous-traitants",
+        "line": "Chaque entreprise qui traite vos données, et où"
+      }
+    }
+  },
+  "priceHelper": {
+    "fits": "{n} par mois tiennent dans l’offre {plan}.",
+    "aboutCheapest": "Environ {n} par mois : {plan} est le moins cher, environ {price} avec les documents supplémentaires.",
+    "about": "Environ {n} par mois : {plan}, environ {price} avec les documents supplémentaires.",
+    "hintSame": "À partir d’environ {n} par mois, {plan} coûte autant, sans documents supplémentaires.",
+    "hintLess": "À partir d’environ {n} par mois, {plan} coûte moins cher.",
+    "hintEnterprise": "Au-delà, parlez-nous de l’offre {plan}.",
+    "period": "Période de facturation",
+    "monthly": "Mensuel",
+    "annual": "Annuel, {n} mois offerts",
+    "volume": "Environ combien de documents par mois ?",
+    "valuetext": "{n} documents par mois",
+    "fourPlans": "Les quatre offres payantes",
+    "rowDocs": "Documents par mois",
+    "rowFlows": "Flux",
+    "rowExtra": "Chaque document supplémentaire",
+    "aMonth": "par mois",
+    "cheapest": "Le moins cher pour votre volume",
+    "billedYearly": "Facturé une fois par an, {price}",
+    "orYearly": "Ou {price} par an",
+    "docsMonth": " documents par mois",
+    "unlimited": "Illimités",
+    "flows": " flux",
+    "extraDoc": "Chaque document supplémentaire ",
+    "choose": "Choisir {plan}",
+    "flowSentence": "Un flux correspond à un type de document que vous recevez, configuré une fois : ce qu’il faut lire, quel fichier produire et où l’envoyer. La plupart des équipes en ont besoin d’un par type de document."
+  },
+  "pricing": {
+    "title": "Commencez gratuitement. Payez les documents que vous traitez.",
+    "lead": "Chaque offre comprend tous les moyens d’envoyer des documents, tous les types de fichiers et toutes les vérifications. Les offres ne diffèrent que par le nombre de documents traités et le nombre de flux configurés.",
+    "flowSentence": "Un flux correspond à un type de document que vous recevez, configuré une fois : ce qu’il faut lire, quel fichier produire et où l’envoyer. La plupart des équipes en ont besoin d’un par type de document.",
+    "unit": "Un document est un fichier de {pages} pages au maximum. Les fichiers plus longs comptent une fois par tranche de {pages} pages, et nous lisons jusqu’à {max} pages d’un fichier.",
+    "trialPrice": "Gratuit pendant {days} jours",
+    "trialLimits": "{docs} documents, {flows} flux, sans carte bancaire.",
+    "trialEnds": "À la fin de l’essai, votre espace de travail passe en lecture seule jusqu’à ce que vous choisissiez une offre.",
+    "trialCta": "Commencer l’essai gratuit",
+    "choose": "Après l’essai, choisissez selon votre volume.",
+    "everyPlan": "Dans chaque offre payante",
+    "features": {
+      "0": "Tous les modes d’entrée : import, e-mail, boîte mail, SFTP, FTP, FTPS, S3, API et votre assistant IA",
+      "1": "Tous les types de fichiers : CSV, JSON, XML, Excel, PDF, texte, largeur fixe, standards de commande et factures ZUGFeRD / Factur-X",
+      "2": "Connectez Claude, ChatGPT, Cursor ou VS Code",
+      "3": "Utilisateurs illimités"
+    },
+    "enterprise": "Volume sur mesure, accompagnement dédié et SLA. À partir de {price} par mois.",
+    "enterpriseCta": "Contacter l’équipe commerciale",
+    "over": "Dépasser une offre payante ne vous bloque jamais. Chaque document supplémentaire est facturé au tarif de votre offre, et lorsqu’une offre supérieure aurait couvert le mois, vous ne payez jamais plus que son prix mensuel.",
+    "storage": "Toutes les offres incluent le <security>stockage des documents dans l’UE</security> et le chiffrement AES-GCM. Le lieu de traitement de chaque sous-traitant est <subprocessors>indiqué en détail</subprocessors>.",
+    "cancel": "Résiliable à tout moment. Les nouveaux documents cessent d’arriver sur tous les canaux à la fin de votre abonnement ; ce que vous avez déjà traité reste consultable et exportable.",
+    "questions": "Vos questions, nos réponses",
+    "else": "Une autre question ?",
+    "talk": "Nous contacter",
+    "faq": {
+      "0": {
+        "q": "Ai-je besoin d’une intégration pour commencer ?",
+        "a": "Non. Importez un fichier ou transférez un e-mail et vous obtenez un résultat à vérifier. L’API et les collectes sur serveur servent lorsque vous voulez que les documents arrivent d’eux-mêmes. Vous pouvez aussi connecter votre assistant IA."
+      },
+      "1": {
+        "q": "Les personnes qui m’envoient des documents doivent-elles changer quelque chose ?",
+        "a": "Non. Elles continuent d’envoyer leurs documents comme aujourd’hui. Vous importez ce qui arrive, le transférez à l’adresse e-mail propre à votre flux, ou nous le récupérons dans une boîte mail ou sur un serveur."
+      },
+      "2": {
+        "q": "Puis-je essayer avec un document de test ou anonymisé ?",
+        "a": "Oui. Utilisez un fichier de test, ou masquez d’abord toute information sensible. Il est lu comme n’importe quel autre document et compte dans vos {docs} documents d’essai."
+      },
+      "3": {
+        "q": "Quelque chose sera-t-il envoyé automatiquement pendant l’essai ?",
+        "a": "Seulement là où vous le décidez. Un fichier n’est envoyé que lorsque son flux a une destination ; d’ici là, vous le téléchargez. Un nouveau flux créé par un administrateur retient pour vous tout document comportant une valeur signalée, et vous pouvez configurer un flux pour vérifier chaque document."
+      },
+      "4": {
+        "q": "Que se passe-t-il à la fin de l’essai ?",
+        "a": "Votre espace de travail passe en lecture seule. Vous pouvez toujours tout ouvrir et exporter, mais les nouveaux documents ne sont plus acceptés tant que vous n’avez pas choisi d’offre."
+      },
+      "5": {
+        "q": "Puis-je changer d’offre plus tard ?",
+        "a": "Oui. Passez à une offre supérieure à tout moment dans Paramètres, rubrique Offre et facturation ; la différence est calculée au prorata. Pour passer à une offre inférieure, contactez-nous."
+      },
+      "6": {
+        "q": "Que se passe-t-il si je résilie ?",
+        "a": "Si vous résiliez, ProcuLink cesse d’accepter de nouveaux documents à la fin de votre abonnement. Tout ce que vous avez déjà traité reste consultable et exportable – documents passés, flux et fichiers sont conservés jusqu’à ce que vous nous demandiez de les supprimer, et les enregistrements d’activité tels que les tentatives de livraison sont supprimés après 180 jours (voir la <privacy>Politique de confidentialité</privacy>) –, mais plus rien de nouveau n’arrive, quel que soit le canal : les imports, les documents envoyés par e-mail et l’API de fichiers s’arrêtent, et les collectes dans les boîtes mail, sur SFTP, FTP, FTPS et S3 sont suspendues et laissent vos fichiers en place. Les imports, e-mails et appels API envoyés ensuite ne sont pas conservés pour plus tard : prévenez donc vos expéditeurs avant de résilier. Un nouvel abonnement réactive immédiatement le traitement, avec votre configuration intacte."
+      },
+      "7": {
+        "q": "Où mes données sont-elles stockées ?",
+        "a": "Les documents sont stockés dans l’UE et chiffrés au repos avec AES-GCM. Une partie du traitement est assurée par des sous-traitants américains nommément désignés, dans le cadre de clauses contractuelles types – connexion, extraction par IA, paiements et e-mails dans les deux sens, y compris les documents que nous envoyons par e-mail aux destinations que vous définissez. Consultez la <security>page Sécurité</security> pour l’ensemble du dispositif."
+      },
+      "8": {
+        "q": "J’ai une ancienne offre. Qu’est-ce qui change ?",
+        "a": "Si vous êtes sur l’offre {plans}, rien ne change tant que vous ne changez pas d’offre. Vous conservez votre prix et vos limites actuels. Pour changer d’offre, allez dans Paramètres, puis Offre et facturation."
+      }
+    },
+    "closingTitle": "Vous hésitez sur l’offre ?",
+    "closingLead": "Commencez l’essai gratuit et voyez combien de documents vous traitez."
+  },
+  "app": {
+    "documents": "Documents",
+    "flows": "Flux",
+    "lookups": "Correspondances",
+    "operations_log": "Historique",
+    "settings": "Paramètres",
+    "admin": "Admin",
+    "help": "Aide et assistance",
+    "upload": "Importer",
+    "uploadLabel": "Importer un document",
+    "search": "Rechercher",
+    "helpButton": "Aide",
+    "settingsSections": "Sections des paramètres",
+    "tab_org": "Espace de travail",
+    "tab_destinations": "Destinations",
+    "tab_billing": "Offre et facturation",
+    "workspaces": "Espaces de travail",
+    "switching": "Changement…",
+    "currentWorkspace": "Espace de travail actuel",
+    "addCompany": "Ajouter une société…",
+    "switchLabel": "Espace de travail : {name}. Changer d’espace de travail",
+    "accountLabel": "Compte : {name}. Ouvrir le menu du compte",
+    "account": "Compte",
+    "profile": "Profil",
+    "language": "Langue",
+    "signOut": "Se déconnecter"
+  },
+  "legal": {
+    "englishOnly": "Cette page n’est disponible qu’en anglais. La version anglaise fait foi."
+  }
+}
