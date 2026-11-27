@@ -33,8 +33,9 @@ beforeEach(() => vi.clearAllMocks());
 describe("RowActions", () => {
   it("gives each state its buttons", () => {
     expect(offers(doc({ status: "sent", files: [file()] }))).toEqual(["Download"]);
-    expect(offers(doc({ status: "sent", files: [file({ delivered: true, destination: "Accounting folder" })] }))).toEqual(["Download a copy"]);
+    expect(offers(doc({ status: "sent", files: [file({ delivered: true, destination: "Accounting folder" })] }))).toEqual(["Download"]);
     expect(offers(doc({ status: "sent", files: [file(), file({ deliveryId: "v2", fileName: "invoice-1042.xml" })] }))).toEqual(["link:Download"]);
+    expect(offers(doc({ status: "sent", statusReason: "downloaded" }))).toEqual(["link:Download"]);
     expect(offers(doc())).toEqual(["Review"]);
     expect(offers(doc({ statusReason: "duplicate_file" }))).toEqual(["Remove", "Read it anyway"]);
     expect(offers(doc({ status: "read_failed", statusReason: "ai_error" }))).toEqual(["Try again", "Remove"]);

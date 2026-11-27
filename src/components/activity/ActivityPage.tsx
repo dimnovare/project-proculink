@@ -222,7 +222,7 @@ export function ActivityPage() {
             <label className="sr-only" htmlFor="activity-search">Search history</label>
             <Search size={16} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
             <input
-              id="activity-search" type="search" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search by file name or document number"
+              id="activity-search" type="search" value={text} onChange={(e) => setText(e.target.value)} placeholder="File name or document number"
               className="h-11 w-full rounded-lg border border-border-strong bg-surface pl-9 pr-3 text-[14px] text-ink sm:h-10"
             />
           </div>

@@ -23,7 +23,7 @@ import type { OutputNode } from "./types";
 import { mockAuditPage } from "./mockAudit";
 import { MOCK_SAMPLE_FILE, MOCK_STATE_KEY, mockWorkspaceOn, workspaceFetch } from "./mockWorkspace";
 
-export const MOCK_ENGINE_IDS = { flow: "flow-1", setupFlow: "flow-2", document: "doc-1", lookup: "lookup-1", output: "out-1", inbox: "flow-inbox" } as const;
+export const MOCK_ENGINE_IDS = { flow: "flow-1", setupFlow: "flow-2", document: "doc-1", reading: "doc-8", lookup: "lookup-1", output: "out-1", inbox: "flow-inbox" } as const;
 /** The document number every fixture read carries — specs assert against this, never a literal. */
 export const MOCK_DOCUMENT_NUMBER = "INV-1001";
 
@@ -135,6 +135,8 @@ if (INBOX_ON) ROWS.push(
   // flow-4 also holds an invoice (so doc-in-2 has two flows to choose from), with doc-in-2's file: moving it there holds it.
   seed(7, flow4, "invoice-7781.pdf", STATUS.sent, "Invoice", "Sample Traders Ltd", { sentAt: "2026-06-01T08:03:00Z" }),
 );
+/** Reachable by URL only, so no list or count changes: a document still being read. */
+const URL_ONLY = [doc(8, flow1, STATUS.reading)];
 /** What the bare list and every other summary carry: a row without the facts only pages send. */
 const summaryOf = ({ number, sender, checks, sentAt, failedAt, stop, isSample, kind, inInbox, files, duplicateOfAt, downloadOnly, canRemove, countsThisMonth, ...s }: DocumentRow): DocumentSummary => s;
 const DOCS = ROWS.map(summaryOf);
@@ -174,7 +176,7 @@ const DELIVERIES: Record<string, DocumentDelivery[]> = {
 interface Remembered { status: string; read: ReadResult; failed: DocumentCheck[]; sentAt: string | null; deliveries: DocumentDelivery[] | null }
 const remembered = new Map<string, Remembered>();
 const fixtureOf = (r: DocumentRow): Remembered => ({
-  status: r.status, read: r.id === MOCK_ENGINE_IDS.document ? DOC_1_READ : read, failed: r.checks.map((c) => FAILED_CHECKS[c]),
+  status: r.status, read: r.id === MOCK_ENGINE_IDS.document ? DOC_1_READ : r.id === MOCK_ENGINE_IDS.reading ? { kindLabel: null, fields: [], tables: [], truncated: false } : read, failed: r.checks.map((c) => FAILED_CHECKS[c]),
   sentAt: r.sentAt, deliveries: DELIVERIES[r.id] ?? null,
 });
 const now = (id: string): Remembered => remembered.get(id) ?? fixtureOf(pick(ROWS, id, "document"));
@@ -438,7 +440,8 @@ type Handler = (m: string[], q: URLSearchParams, body: Body) => unknown;
 const missing = (what: string, id: string): never => {
   throw new ApiHttpError(`mock engine: no ${what} ${id}`, 404, { error: `${what}_not_found` });
 };
-const pick = <X extends { id: string }>(list: X[], id: string, what: string): X => list.find((x) => x.id === id) ?? missing(what, id);
+const pick = <X extends { id: string }>(list: X[], id: string, what: string): X => list.find((x) => x.id === id)
+  ?? ((list as unknown) === ROWS ? (URL_ONLY.find((x) => x.id === id) as unknown as X | undefined) : undefined) ?? missing(what, id);
 const echo = <X extends object>(base: X, body: Body): X => ({ ...base, ...body });
 export const DOCUMENT_LIST_KEYS = ["flowId", "status", "take", "page", "pageSize", "sentFrom", "sentTo", "waitingOnDestination", "q"];
 /** DocumentSearch.MaxTermLength: a longer term is cut (src/test/backendMirror.test.ts). */

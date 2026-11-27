@@ -144,11 +144,11 @@ export function RowActions({ d, sendable, onSent, onRemoved, phone = false, clas
   const drawn = (label: string) => !phone && <span key={label} aria-hidden className={buttonClass("secondary", "sm")}>{label}</span>;
   const removeButton = d.canRemove === true && removable(d.status) && button("Remove", () => void remove.ask(d), remove.pendingId === d.id);
   const files = d.status === "sent" && d.statusReason !== "downloaded" ? d.files ?? [] : [];
-  const copy = files.some((f) => f.delivered) ? "Download a copy" : "Download";
 
   let items: ReactNode[] = [];
-  if (files.length === 1) items = [button(copy, () => download.mutate(files[0]), download.isPending)];
-  else if (files.length > 1) items = [<Link key="open" href={href(d)} aria-label={`${copy} ${d.fileName}`} className={`${buttonClass("secondary", "sm")} ${z}`}>{copy}</Link>];
+  if (files.length === 1) items = [button("Download", () => download.mutate(files[0]), download.isPending)];
+  // A downloaded document is downloaded again on its own screen, where its answers are.
+  else if (files.length > 1 || (d.status === "sent" && d.statusReason === "downloaded")) items = [<Link key="open" href={href(d)} aria-label={`Download ${d.fileName}`} className={`${buttonClass("secondary", "sm")} ${z}`}>Download</Link>];
   else if (d.statusReason === "duplicate_file") items = [removeButton, button("Read it anyway", () => read.mutate(), read.isPending)];
   else if (d.status === "read_failed") items = [canRetryRead(d.statusReason, { scansOn }) && button("Try again", () => read.mutate(), read.isPending), removeButton];
   // Couldn't send: send the undelivered files again, or fix where they go first.
