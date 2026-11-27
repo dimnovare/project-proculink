@@ -209,7 +209,7 @@ function OrgSection({ developersOpen }: { developersOpen: boolean }) {
 
   return (
     <div className="flex flex-wrap items-start gap-5">
-      <div className="flex min-w-0 max-w-[800px] flex-[999_1_520px] flex-col gap-4">
+      <div className="flex min-w-0 flex-[999_1_520px] flex-col gap-4">
         {organization && <WorkspaceName organization={organization} />}
         {organization && (
           <SettingsPanel
