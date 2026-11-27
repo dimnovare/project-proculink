@@ -745,11 +745,10 @@ const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
     return undefined;
   }],
   // A test moves the destination's newest test and leaves its last real send alone, as the server records them.
-  // Object.assign: `lastTest` joins the Destination type with PR 461.
   ["POST", re`/destinations/${S}/test`, (m) => {
     const d = pick(destinations, m[1], "destination");
     const result = DESTINATION_TESTS[d.id];
-    Object.assign(d, { lastTest: { kind: "test", at: new Date().toISOString(), ok: result.success } });
+    d.lastTest = { kind: "test", at: new Date().toISOString(), ok: result.success };
     return result;
   }],
   ["GET", re`/notification-settings`, () => notifications],

@@ -115,7 +115,7 @@ describe("mock engine", () => {
     await expect(mockEngineFetch("/destinations/nope", { method: "DELETE" })).rejects.toMatchObject({ status: 404 });
     expect(await mockEngineFetch("/destinations/dest-3/test", { method: "POST" })).toEqual({ success: false, message: "The server refused the login.", responseCode: null });
     // A test is the newest test; the last real send is left alone.
-    const tested = (d: Destination) => [d.name, d.lastSend?.kind ?? null, (d as { lastTest?: { ok: boolean } | null }).lastTest?.ok ?? null];
+    const tested = (d: Destination) => [d.name, d.lastSend?.kind ?? null, d.lastTest?.ok ?? null];
     expect((await mockEngineFetch<Destination[]>("/destinations")).map(tested))
       .toEqual([["Accounting API", "test", null], ["Accounting server", null, false], ["Books", "document", null]]);
     const waiting = (id: string) => mockEngineFetch<DocumentPage>(`/documents?waitingOnDestination=${id}&page=1&pageSize=50`);
