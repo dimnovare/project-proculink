@@ -408,7 +408,7 @@ export default function AdminPage() {
               data-testid="admin-orgs-table"
               style={{ overflowX: "auto", overflow: "auto" }}
             >
-              <table style={{ width: "100%", minWidth: 1120, borderCollapse: "collapse", fontSize: 13 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: "var(--bg)", color: "var(--ink-muted)", textAlign: "left" }}>
                     <SortableTh label="Organisation" col="name" {...{ sortKey, sortDir, toggleSort }} />
@@ -701,5 +701,5 @@ function SortableTh({
   );
 }
 
-const th: React.CSSProperties = { padding: "9px 14px", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" };
-const td: React.CSSProperties = { padding: "10px 14px", color: "var(--ink)", verticalAlign: "middle" };
+const th: React.CSSProperties = { padding: "9px 10px", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" };
+const td: React.CSSProperties = { padding: "10px 10px", color: "var(--ink)", verticalAlign: "middle" };
