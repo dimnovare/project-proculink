@@ -62,7 +62,7 @@ export function StreakBand({ flow }: { flow: Flow }) {
   return (
     <Card dense className="flex flex-wrap items-center gap-3">
       <p className="m-0 min-w-0 flex-[1_1_320px] text-[13.5px] text-ink">
-        {`${streakText(streak)} With “Check only what we marked”, only a document with a marked value waits for you.`}
+        {`${streakText(streak, !!flow.downloadOnly)} With “Check only what we marked”, only a document with a marked value waits for you.`}
       </p>
       <span className="flex flex-wrap gap-2">
         <Button

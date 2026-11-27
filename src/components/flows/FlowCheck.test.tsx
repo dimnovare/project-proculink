@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiHttpError } from "@/lib/api/core";
 import type { Flow } from "@/lib/api/documents";
-import { FlowCheck } from "./FlowCheck";
+import { FlowCheck, streakText } from "./FlowCheck";
 
 const api = vi.hoisted(() => ({ updateFlow: vi.fn() }));
 vi.mock("@/lib/api/documents", () => api);
@@ -51,5 +51,12 @@ describe("FlowCheck", () => {
     expect(screen.getByText("Every document waits in Needs you until someone presses Make the file.")).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Which documents wait for you" })).toBeTruthy();
     expect(screen.queryByText(/A mark never stops/)).toBeNull();
+  });
+
+  it("a flow that only downloads never says its documents were sent", () => {
+    // L07 (audit 27 Nov): the line said "were sent" on a flow with no destination.
+    expect([0, 1, 5].map((n) => streakText(n, true))).toEqual([
+      "The last document needed a correction.", "The last document finished without a correction.", "The last 5 documents finished without a correction."]);
+    expect(streakText(5)).toBe("The last 5 documents were sent without a correction.");
   });
 });

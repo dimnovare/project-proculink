@@ -11,10 +11,12 @@ import { Pill } from "@/components/bridge/DSPrimitives";
 import { Field, INPUT } from "./DestinationForm";
 import { barPending, useFlowSaved } from "./PublishBar";
 
-export function streakText(n: number) {
-  if (n === 0) return "The last document sent needed a correction.";
-  if (n === 1) return "The last document was sent without a correction.";
-  return `The last ${n > 200 ? "200+" : n} documents were sent without a correction.`;
+/** A download-only flow sends nothing, so its documents "finished" rather than "were sent". */
+export function streakText(n: number, downloadOnly = false) {
+  const done = downloadOnly ? "finished" : "were sent";
+  if (n === 0) return downloadOnly ? "The last document needed a correction." : "The last document sent needed a correction.";
+  if (n === 1) return `The last document ${downloadOnly ? "finished" : "was sent"} without a correction.`;
+  return `The last ${n > 200 ? "200+" : n} documents ${done} without a correction.`;
 }
 
 /** The You check step. The mode is not part of a draft: a change is saved at once, and a refusal puts the radios back. */
@@ -72,7 +74,7 @@ export function FlowCheck({ flow }: { flow: Flow }) {
 
       {typeof streak === "number" && (
         <Card as="aside" dense>
-          <p className="m-0 text-[13.5px] text-ink">{streakText(streak)}</p>
+          <p className="m-0 text-[13.5px] text-ink">{streakText(streak, !!flow.downloadOnly)}</p>
           {streak >= 5 && flow.automation === "review" && <p className="m-0 mt-1 text-[13px] text-ink-muted">A good sign this flow can check only what we marked.</p>}
         </Card>
       )}

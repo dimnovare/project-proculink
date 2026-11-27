@@ -20,6 +20,7 @@ import { and } from "@/lib/flowSentences";
 import { flowAddress } from "@/lib/flowSteps";
 import { FlowLink, useOnFlowPage } from "./flowDraft";
 import { barPending } from "./PublishBar";
+import { makeFileLabel } from "./fileChoice";
 
 type Way = "quick" | "sample" | "docs" | "standards";
 const OFFERED = STANDARDS.filter((s) => (STANDARD_OUTPUTS as readonly string[]).includes(s.id));
@@ -61,7 +62,8 @@ export function StandardList({ flow, kind, onUse, busyId, pickedId }: {
   const fit = kindGroup(kind);
   const other = fit ? fams[fit === "invoices" ? "orders" : "invoices"] : [];
   const twins = fams.invoices.flatMap((f) => (f.creditNote ? [f.creditNote] : []));
-  // The version follows the name in muted text, so it never takes the description's line.
+  // The version follows the name in muted text, so it never takes the description's line. A name that already ends in
+  // "invoice" (KSeF invoice) does not get a second one.
   const row = (id: string, line: string | null, name?: string, invoice = false, version: string | null = null) => {
     const s = OFFERED.find((x) => x.id === id)!;
     name ??= s.name;
@@ -69,7 +71,7 @@ export function StandardList({ flow, kind, onUse, busyId, pickedId }: {
       <div key={id} className="flex items-center justify-between gap-3">
         <div className="grid">
           <span className="text-[14px] font-semibold text-ink">
-            {name}{invoice && <span className="text-[13px] font-normal text-ink-muted"> invoice</span>}
+            {name}{invoice && !/invoice$/i.test(name) && <span className="text-[13px] font-normal text-ink-muted"> invoice</span>}
             {version && <span className="text-[13px] font-normal text-ink-muted"> {version}</span>}
           </span>
           {line && <span className="text-[13px] text-ink-muted">{line}</span>}
@@ -115,8 +117,8 @@ type Props = {
   flow: Flow; previewDocumentId?: string; onDone(): void; onCreated(output: FlowOutput): void;
   /** R9: the kind read from this flow's latest document, e.g. "Invoice"; null when not known. */
   kind: string | null;
-  /** The flow has no file yet: the panel says "Make a file", as the button that opened it does. */
-  first?: boolean;
+  /** How many files the flow has: the panel's title is the label of the button that opened it. */
+  files?: number;
   /** The names of the flow's files, so the prefilled name is not one of them. */
   names?: readonly string[];
 };
@@ -246,10 +248,10 @@ function QuickFile({ flow, title, onDone, made, names, pick, setPick }: Props & 
 
 /** The ways to make a file: a ready CSV first; a sample, documentation or a standard format one link away. */
 export function OutputBuilder(props: Props) {
-  const { flow, previewDocumentId, onCreated, first } = props;
+  const { flow, previewDocumentId, onCreated, files = 2 } = props;
   const [way, setWay] = useState<Way>("quick");
   const [pick, setPick] = useState<Pick>(() => ({ name: null, format: "csv", off: new Set() }));
-  const title = first ? "Make a file" : "Make another file";
+  const title = makeFileLabel(files);
   const sample = useMutation({ mutationFn: (file: File) => outputFromSample(flow.id, file) });
   const docs = useMutation({ mutationFn: (file: File) => outputFromDocumentation(flow.id, file) });
   const qc = useQueryClient();

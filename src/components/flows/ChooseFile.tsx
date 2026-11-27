@@ -140,7 +140,7 @@ export function ChooseFile({ flowId }: { flowId: string }) {
         <Way title="A common file type" line="The same values, in the type your system opens.">
           <div role="group" aria-label="File type" className="grid w-full grid-cols-3 gap-2 sm:grid-cols-6">
             {COMMON_TYPES.map((id) => (
-              <Button key={id} variant={pressedType(id) ? "primary" : "secondary"} size="md" className={currentType(id) ? "h-auto w-full flex-col gap-0 py-1" : "w-full"} aria-pressed={pressedType(id)}
+              <Button key={id} variant={pressedType(id) ? "primary" : "secondary"} size="md" className={currentType(id) ? "!h-auto min-h-11 w-full flex-col gap-0.5 py-1.5" : "w-full"} aria-pressed={pressedType(id)}
                 onClick={() => setPick(id === output.format && !output.standard ? null : { by: "type", choice: typeChoice(output, id) })}>
                 {FORMATS[id]}
                 {currentType(id) && <span className="rounded-full border border-current px-1.5 text-[11px] font-semibold"><span className="sr-only">, </span>Current</span>}
@@ -175,7 +175,7 @@ export function ChooseFile({ flowId }: { flowId: string }) {
               {docId ? `Made from ${doc.data?.summary.fileName ?? "…"}. It changes as you pick above.` : "Add a document to this flow to see the file here."}
             </p>
             {preview.isError ? <StatusNotice tone="error">{documentRefusalMessage(preview.error)}</StatusNotice>
-              : <FilePreview preview={preview.data} cacheKey={`change-file-${output.id}-${JSON.stringify(choice)}`} />}
+              : <FilePreview preview={preview.data} format={choice?.format ?? output.format} cacheKey={`change-file-${output.id}-${JSON.stringify(choice)}`} />}
           </div>
         </Card>
         {blocked && <StatusNotice tone="warning">Google Sheets takes only a CSV file. Choose CSV, or change where this file goes first.</StatusNotice>}

@@ -13,9 +13,11 @@ describe("flow sentences", () => {
   it("says what is sent and what is downloaded, and nothing without a summary", () => {
     expect(sendsWords([])).toBe("Nothing is sent yet.");
     expect(sendsWords([out("Invoice CSV", "Accounting server"), out("Finance copy", "Finance inbox")]))
-      .toBe("Sends Invoice CSV to Accounting server and Finance copy to Finance inbox.");
+      .toBe("Sends “Invoice CSV” to Accounting server and “Finance copy” to Finance inbox.");
     expect(sendsWords([out("Invoice CSV", "Accounting server"), out("Remittance sheet", null)]))
-      .toBe("Sends Invoice CSV to Accounting server. You download Remittance sheet.");
+      .toBe("Sends “Invoice CSV” to Accounting server. You download “Remittance sheet”.");
+    // L14: names that read as plain words still make a sentence.
+    expect(sendsWords([out("CSV file", null), out("ZUGFeRD", null)])).toBe("You download “CSV file” and “ZUGFeRD”.");
     expect(doesLine({ summary: null })).toBeNull();
     expect(doesLine({})).toBeNull();
   });

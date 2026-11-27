@@ -490,7 +490,7 @@ test.describe("flow page", () => {
   test("Make a second file opens a ready panel, and Create shows the new file with its heading focused and the list marking it", async ({ page }) => {
     await open(page, 1440, at("send"));
     await page.getByRole("button", { name: "Make a second file" }).click();
-    await expect(page.getByRole("heading", { name: "Make another file", level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Make a second file", level: 2 })).toBeVisible();
     await expect(page.getByRole("tab")).toHaveCount(0);
     for (const way of ["Match a sample file", "A standard format"]) await expect(page.getByRole("button", { name: way, exact: true })).toBeVisible();
     // Outlined while the bar is drawn: the bar keeps the one filled button.
