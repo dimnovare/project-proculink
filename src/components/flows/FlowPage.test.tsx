@@ -156,7 +156,7 @@ describe("FlowPage", () => {
 
   it("on every step the publish bar holds the one filled button", async () => {
     // A filled button is any variant drawn with white text, read from the Button's own classes.
-    const fill = new Set((["primary", "send", "blue", "secondary", "ghost", "danger", "ai"] as const)
+    const fill = new Set((["primary", "send", "secondary", "ghost", "danger", "ai"] as const)
       .map((v) => buttonClass(v).split(" ")).filter((c) => c.includes("text-white")).map((c) => c.find((x) => x.startsWith("bg-"))!));
     const filled = (el: Element) => el.className.split(/\s+/).some((c) => fill.has(c));
     api.getFlow.mockResolvedValue({ ...flow, hasChanges: true });

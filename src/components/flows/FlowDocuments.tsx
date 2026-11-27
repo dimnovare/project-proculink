@@ -114,7 +114,7 @@ export function FlowDocuments({ flow }: { flow: Flow }) {
             </p>
           </div>
           {next && (
-            <Link href={`/flows/${next.flowId}/documents/${next.id}`} className={buttonClass("send", "lg")} aria-label={`Review next, ${needsYouWords(need!)}`}>
+            <Link href={`/flows/${next.flowId}/documents/${next.id}`} className={buttonClass("primary", "lg")} aria-label={`Review next, ${needsYouWords(need!)}`}>
               Review next
               <span className="rounded-full bg-navy/30 px-2 text-[12.5px]">{need}</span>
             </Link>

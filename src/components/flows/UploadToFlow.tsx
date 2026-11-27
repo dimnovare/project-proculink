@@ -290,12 +290,12 @@ export function UploadToFlow() {
             </p>
             <div className="flex flex-col gap-2.5 justify-self-stretch sm:justify-self-center">
               {target.scansOn && (
-                <Button variant={needing.length > 0 ? "secondary" : "blue"} size="lg" className="!h-12 w-full px-6 text-[15px] sm:hidden" disabled={!!paused} onClick={camera.open}>
+                <Button variant={needing.length > 0 ? "secondary" : "primary"} size="lg" className="!h-12 w-full px-6 text-[15px] sm:hidden" disabled={!!paused} onClick={camera.open}>
                   <Camera size={18} aria-hidden />Take a photo
                 </Button>
               )}
               {/* Outlined below 640px when Take a photo is the filled one: one filled button per width. */}
-              <Button variant={needing.length > 0 ? "secondary" : "blue"} size="lg" disabled={!!paused} onClick={() => input.current?.click()}
+              <Button variant={needing.length > 0 ? "secondary" : "primary"} size="lg" disabled={!!paused} onClick={() => input.current?.click()}
                 className={`!h-12 w-full px-6 text-[15px] sm:w-auto ${target.scansOn ? OUTLINED_ON_PHONE : ""}`}>Choose files</Button>
             </div>
             {camera.input}

@@ -80,7 +80,7 @@ export function BottomTabBar() {
   };
 
   // -mt-5 + ring-4 = 24px above the bar: --plk-tabbar-raise in globals.css. Change the two together.
-  const addClass = "mx-auto -mt-5 flex h-[52px] w-[52px] self-start items-center justify-center rounded-full bg-brand-blue text-white ring-4 ring-surface focus-visible:rounded-full";
+  const addClass = "mx-auto -mt-5 flex h-[52px] w-[52px] self-start items-center justify-center rounded-full bg-navy text-white ring-4 ring-surface focus-visible:rounded-full";
 
   return (
     <>

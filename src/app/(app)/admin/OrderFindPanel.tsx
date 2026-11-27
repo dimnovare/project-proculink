@@ -101,7 +101,7 @@ export function OrderFindPanel({
             minHeight: "var(--tap-min)",
           }}
         />
-        <Button type="submit" variant="blue" size="lg" disabled={draft.trim().length === 0}>
+        <Button type="submit" variant="primary" size="lg" disabled={draft.trim().length === 0}>
           <Search size={15} strokeWidth={2} aria-hidden style={{ marginRight: 4 }} />
           Find order
         </Button>

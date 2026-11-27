@@ -60,7 +60,7 @@ export function PhotoCheck({ file, onBack, onRetake, onUse }: { file: File; onBa
       </div>
       <div className="flex gap-2.5 border-t border-border bg-surface px-4 pt-2.5" style={{ paddingBottom: "max(26px, env(safe-area-inset-bottom))" }}>
         <Button variant="secondary" className="!h-12 rounded-[10px] text-base" onClick={onRetake}>Retake</Button>
-        <Button variant="blue" className="!h-12 flex-1 rounded-[10px] text-base"
+        <Button variant="primary" className="!h-12 flex-1 rounded-[10px] text-base"
           onClick={() => { if (used.current) return; used.current = true; onUse(); }}>Use this photo</Button>
       </div>
     </div>
