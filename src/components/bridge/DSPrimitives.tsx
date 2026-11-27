@@ -12,7 +12,7 @@ import * as React from "react";
    ===================================================================== */
 
 /* -------- Button -------- */
-type ButtonVariant = "primary" | "send" | "blue" | "secondary" | "ghost" | "danger" | "ai";
+type ButtonVariant = "primary" | "send" | "secondary" | "ghost" | "danger" | "ai";
 type ButtonSize = "sm" | "md" | "lg";
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -25,12 +25,10 @@ const BUTTON_BASE =
   "inline-flex items-center justify-center gap-2 rounded-md font-semibold border whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 
 const BUTTON_VARIANT: Record<ButtonVariant, string> = {
-  // Navy makes a change real (save, create, publish); green sends a document;
-  // blue brings something in; ghost is the quiet button. Green fills use
-  // brand-green-btn (4.6:1 AA under white text).
+  // Every filled button is navy. Green only for a press that sends a document
+  // out (Send, Send again, Issue in KSeF); brand-green-btn is 4.6:1 AA.
   primary:   "bg-navy text-white border-transparent hover:bg-navy-surface",
   send:      "bg-brand-green-btn text-white border-transparent hover:bg-brand-green-deep",
-  blue:      "bg-brand-blue text-white border-transparent hover:bg-brand-blue-deep",
   secondary: "bg-surface text-ink border-border-strong hover:bg-surface-2",
   ghost:     "bg-transparent text-ink-muted border-transparent hover:bg-surface-2 hover:text-ink",
   danger:    "bg-danger text-white border-transparent hover:opacity-90",

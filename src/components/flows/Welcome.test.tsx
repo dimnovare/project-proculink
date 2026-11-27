@@ -98,7 +98,7 @@ describe("Welcome", () => {
     expect(analytics.capture).toHaveBeenCalledWith("wizard_step_completed", { step: 1, step_name: "add", first: true });
     const drop = screen.getByTestId("welcome-drop");
     expect(within(drop).getByRole("button", { name: "Take a photo" }).className).toMatch(/\bsm:hidden\b/);
-    expect(within(drop).getByRole("button", { name: "Choose a file" }).className).toMatch(/\bbg-brand-blue\b/);
+    expect(within(drop).getByRole("button", { name: "Choose a file" }).className).toMatch(/\bbg-navy\b/);
   });
 
   it("on /flows/new another file stays in the run's flow, even once its fields are saved", async () => {

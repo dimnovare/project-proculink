@@ -139,7 +139,7 @@ export function Welcome({ flows, flowId }: { flows: readonly Flow[]; flowId?: st
               <span className="sm:hidden">Add a document</span>
             </h2>
             <FileDrop
-              accept={acceptFor(known ?? { scansOn: true })} maxBytes={MAX_UPLOAD_BYTES} prompt={welcomeKinds(known ?? undefined)} variant="blue"
+              accept={acceptFor(known ?? { scansOn: true })} maxBytes={MAX_UPLOAD_BYTES} prompt={welcomeKinds(known ?? undefined)} variant="primary"
               disabled={!!paused} busy={busy && start.variables !== "sample"} busyLabel={`Uploading ${item?.file.name ?? (start.variables instanceof File ? start.variables.name : "")}…`}
               onFile={go}
             >

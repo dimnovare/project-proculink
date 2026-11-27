@@ -256,7 +256,7 @@ export const AUDIT_ACTION_FACTS: readonly AuditActionFact[] = [
     reachable: true,
     backendSite: "ProcuLink.Api/Services/Documents/FlowDestinationService.cs:166",
     reasonKeys: [],
-    note: "A test send to a flow destination. Payload is `{ success, responseCode }`: the outcome is in the payload, not the action, so the row claims neither — `edited` because it is neutral; `validated` would render a failed test as a success.",
+    note: "A test send to a flow destination. Payload is `{ success, responseCode }`, plus `error`, `destinationId`, `destination`, `protocol` on newer rows: the outcome is in the payload, not the action, so the kind claims neither — `edited` because it is neutral; `validated` would render a failed test as a success. activityView reads `success` itself and says nothing when it is absent.",
   },
   {
     action: "SupplierSuggested",

@@ -51,7 +51,7 @@ const Empty = ({ icon, title, line, action }: { icon?: React.ReactNode; title: s
   </Card>
 );
 
-const upload = <Link href="/upload" className={buttonClass("blue", "md")}>Upload a document</Link>;
+const upload = <Link href="/upload" className={buttonClass("primary", "md")}>Upload a document</Link>;
 
 /** Nothing needs you. */
 export const CaughtUp = () => (

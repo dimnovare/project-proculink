@@ -241,11 +241,11 @@ export function DocumentsHome() {
   const reviewNext = (testId?: string, only = "") => next && (
     <Link
       href={`/flows/${next.flowId}/documents/${next.id}`} data-testid={testId}
-      className={`${buttonClass(ticked.length ? "secondary" : "send", "lg")}${only}`}
+      className={`${buttonClass(ticked.length ? "secondary" : "primary", "lg")}${only}`}
       aria-label={`Review next, ${needTotal} ${needTotal === 1 ? "needs" : "need"} you`}
     >
       Review next
-      <span className="rounded-full bg-navy/30 px-2 text-[12.5px]">{needTotal}</span>
+      <span className="rounded-full bg-white/20 px-2 text-[12.5px]">{needTotal}</span>
     </Link>
   );
   return (

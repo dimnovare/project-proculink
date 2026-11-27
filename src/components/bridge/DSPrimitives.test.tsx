@@ -3,11 +3,10 @@ import { render, screen } from "@testing-library/react";
 import { Button, BUTTON_SIZE, Pill } from "./DSPrimitives";
 
 describe("shared buttons and tags", () => {
-  it("gives each filled button its meaning: navy makes real, green sends, blue brings in", () => {
-    render(<><Button variant="primary">Publish changes</Button><Button variant="send">Send</Button><Button variant="blue">Import a table</Button></>);
+  it("gives each filled button its meaning: navy for everything, green only to send", () => {
+    render(<><Button variant="primary">Publish changes</Button><Button variant="send">Send</Button></>);
     expect(screen.getByRole("button", { name: "Publish changes" })).toHaveClass("bg-navy");
     expect(screen.getByRole("button", { name: "Send" })).toHaveClass("bg-brand-green-btn");
-    expect(screen.getByRole("button", { name: "Import a table" })).toHaveClass("bg-brand-blue");
   });
 
   it("keeps button and tag text at 12.5px or more", () => {

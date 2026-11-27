@@ -381,7 +381,7 @@ export function FirstDocumentDrop({ flow, newest, prompt, reading, sends, filled
           {`We couldn't read ${newest.fileName}.${typeof dropOnFail === "string" ? ` ${dropOnFail}` : ""}`}
         </StatusNotice>
       )}
-      {(dropOnFail || newest?.status !== STATUS.read_failed) && <FileDrop accept={acceptFor(flow)} maxBytes={MAX_UPLOAD_BYTES} variant={filled ? "blue" : "secondary"} onFile={(f) => queue.add([f], flow)}
+      {(dropOnFail || newest?.status !== STATUS.read_failed) && <FileDrop accept={acceptFor(flow)} maxBytes={MAX_UPLOAD_BYTES} variant={filled ? "primary" : "secondary"} onFile={(f) => queue.add([f], flow)}
         prompt={<>{prompt}{sends && <span className="block">{flow.automation === "marked" ? "This flow sends automatically, so this document is also sent unless we mark a value." : "This flow sends automatically, so this document is also sent."}</span>}</>} />}
     </div>
   );

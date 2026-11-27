@@ -25,20 +25,30 @@ export const ACTIVITY_TABS: readonly { key: ActivityTabKey; label: string; actio
 export const ACTIVITY_PAGE_SIZE = 50;
 
 /** Exactly one value of a key counts; anything else reads as the default. */
-export function readActivityAddress(params: { getAll(name: string): string[] }): { tab: ActivityTabKey; page: number } {
+export function readActivityAddress(params: { getAll(name: string): string[] }): { tab: ActivityTabKey; page: number; at: string | null } {
   const one = (k: string) => { const v = params.getAll(k); return v.length === 1 ? v[0] : null; };
   const show = one("show");
   const page = one("page");
+  const at = one("at");
   return {
     tab: ACTIVITY_TABS.find((t) => t.key !== "all" && t.key === show)?.key ?? "all",
     page: page !== null && /^[1-9]\d{0,8}$/.test(page) ? Number(page) : 1,
+    // The one moment an event happened, e.g. a destination's last test: History shows only that.
+    at: at !== null && !Number.isNaN(Date.parse(at)) ? at : null,
   };
 }
 
-export function activityAddress(tab: ActivityTabKey, page = 1): string {
+/** The server's window for `at`: from the exact moment to the next millisecond. */
+export function atWindow(when: string): { from: string; to: string } {
+  const from = ZONED.test(when) ? when : `${when}Z`; // full precision kept: the server stores microseconds
+  return { from, to: new Date(Date.parse(from) + 1).toISOString() };
+}
+
+export function activityAddress(tab: ActivityTabKey, page = 1, at?: string): string {
   const q = new URLSearchParams();
   if (tab !== "all") q.set("show", tab);
   if (page > 1) q.set("page", String(page));
+  if (at) q.set("at", at);
   const s = q.toString();
   return s ? `/operations/log?${s}` : "/operations/log";
 }
@@ -225,6 +235,17 @@ export function activityView(e: ActivityEvent, ctx: { who: string; destinationNa
       sentence = e.flowName ? { before: "", strong: e.flowName, after: " was deleted" } : { before: "A flow was deleted", strong: null, after: "" };
       tag = { label: "Change", tone: "neutral" };
       break;
+    case "destination.tested": {
+      // The outcome is only what the payload says: no `success` key is an unknown, so the row claims neither.
+      const ok = p("success");
+      sentence = destName ? { before: "A test to ", strong: destName, after: ok === "false" ? " failed" : ok === "true" ? " worked" : "" }
+        : { before: ok === "false" ? "A destination test failed" : "Destination tested", strong: null, after: "" };
+      tag = ok === "false" ? { label: "Test failed", tone: "danger" } : ok === "true" ? { label: "Test worked", tone: "green" } : { label: "Change", tone: "neutral" };
+      if (ok === "false") why = serverReasonOrNull(p("error"));
+      fact("Destination", destName && (channel ? `${destName}, ${channel}` : destName));
+      fact("The server's reply", p("responseCode"), { mono: true });
+      return { sentence, why, tag, facts: facts.filter((f): f is ActivityFact => !!f.value), canFix: ok === "false" && !!destId, fixHref: destId ? fixDestinationHref(destId) : null, canSendAgain: false };
+    }
     case "document.removed":
       sentence = e.flowName ? { before: "A document was removed from ", strong: e.flowName, after: "" } : { before: "A document was removed", strong: null, after: "" };
       tag = { label: "Change", tone: "neutral" };
@@ -245,7 +266,8 @@ export function activityView(e: ActivityEvent, ctx: { who: string; destinationNa
 }
 
 /** A timestamp without a zone is read as UTC. */
-const at = (iso: string) => new Date(/(Z|[+-]\d\d:?\d\d)$/i.test(iso) ? iso : `${iso}Z`);
+const ZONED = /(Z|[+-]\d\d:?\d\d)$/i;
+const at = (iso: string) => new Date(ZONED.test(iso) ? iso : `${iso}Z`);
 
 export const activityTime = (iso: string): string =>
   at(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });

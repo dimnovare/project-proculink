@@ -201,7 +201,7 @@ export function UnfreezeOrgModal({
       onClose={onClose}
       footer={
         result ? (
-          <Button variant="blue" size="md" onClick={onClose}>
+          <Button variant="primary" size="md" onClick={onClose}>
             Done
           </Button>
         ) : (
@@ -210,7 +210,7 @@ export function UnfreezeOrgModal({
               Cancel
             </Button>
             <Button
-              variant="blue"
+              variant="primary"
               size="md"
               onClick={submit}
               disabled={!acknowledged || submitting}
@@ -341,7 +341,7 @@ export function RetentionModal({
       onClose={onClose}
       footer={
         result ? (
-          <Button variant="blue" size="md" onClick={onClose}>
+          <Button variant="primary" size="md" onClick={onClose}>
             Done
           </Button>
         ) : (
@@ -350,7 +350,7 @@ export function RetentionModal({
               Cancel
             </Button>
             <Button
-              variant={mode === "clear" ? "secondary" : "blue"}
+              variant={mode === "clear" ? "secondary" : "primary"}
               size="md"
               onClick={submit}
               disabled={!canSubmit || submitting}

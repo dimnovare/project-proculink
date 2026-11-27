@@ -521,6 +521,8 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   const setUp = sends && outputs.data?.length === 0;
   const sendFailed = summary?.status === "send_failed";
   const primary = sendFailed ? "Send again" : words.primary;
+  // Green only when the press sends the document out; "Make the file" is navy.
+  const primaryVariant = /^Send\b/.test(primary) ? "send" : "primary";
   const setUpLink = (cls: string) => <Link href={`/flows/${docFlowId}?tab=outputs`} className={`${buttonClass("primary", "md")} ${cls}`}>Set up the file</Link>;
   // The document's own queries are dropped once the screen has left, so it never draws "gone" on the way out.
   const removed = useRef(false);
@@ -554,7 +556,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
   const next = here !== undefined && !sends && nextNow;
   // While an answer runs it is a disabled button: a link would still go on Enter.
   const reviewNext = (cls: string) => next && (answering ? <Button disabled className={cls}>Review next</Button>
-    : <Link replace href={documentHref(next)} className={`${buttonClass(here || summary?.status === "read_failed" ? "secondary" : "send", "md")} ${cls}`}>Review next</Link>);
+    : <Link replace href={documentHref(next)} className={`${buttonClass(here || summary?.status === "read_failed" ? "secondary" : "primary", "md")} ${cls}`}>Review next</Link>);
   const located = !!marks?.places.length || !!doc.data?.read.fields.some((f) => f.location?.box || f.location?.address)
     || !!doc.data?.read.tables.some((t) => t.rows.some((r) => Object.values(r.cells).some((c) => c.location?.box || c.location?.address)));
   // A KSeF confirmation is asked in its dialog, not said as a refusal.
@@ -596,7 +598,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
             {made ? madeActions("hidden md:inline-flex") : sends ? (
               <>
                 {canSkip && <Button variant="secondary" className="hidden md:inline-flex" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
-                {setUp ? setUpLink("hidden md:inline-flex") : <Button id="review-send" variant="send" className="hidden md:inline-flex" disabled={busy || outputs.isLoading} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}
+                {setUp ? setUpLink("hidden md:inline-flex") : <Button id="review-send" variant={primaryVariant} className="hidden md:inline-flex" disabled={busy || outputs.isLoading} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}
                   // After Enter brought the cursor here, only Enter sends: a space or a letter is typing, and goes back into the value.
                   onKeyDown={(e) => { noRepeat(e); if (walked.current && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) walked.current.focus(); }}
                   onBlur={() => { walked.current = null; }}
@@ -708,7 +710,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
           {made ? madeActions("") : sends ? (
             <>
               {canSkip && <Button variant="secondary" className="!flex-none" disabled={busy} onClick={() => press(skip)}>Skip</Button>}
-              {setUp ? setUpLink("inline-flex items-center") : <Button variant="send" disabled={busy || outputs.isLoading} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}>{primary}</Button>}
+              {setUp ? setUpLink("inline-flex items-center") : <Button variant={primaryVariant} disabled={busy || outputs.isLoading} loading={send.isPending || leaving} onClick={() => press(send)} aria-keyshortcuts={ariaOf("send-and-next")}>{primary}</Button>}
             </>
           ) : reviewNext("inline-flex items-center")}
         </ActionBar>

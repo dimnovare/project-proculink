@@ -334,7 +334,7 @@ export default function AdminPage() {
         sub="Revenue, customer health, and manual invoicing for the platform owner."
         actions={
           <Button
-            variant="blue"
+            variant="primary"
             size="md"
             onClick={() => {
               setInvoiceOrgId(null);

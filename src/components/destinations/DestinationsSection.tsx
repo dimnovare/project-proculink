@@ -142,7 +142,7 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
           {last?.tone === "failed" && (
             <>
               <span aria-hidden>{" · "}</span>
-              <Link href={d.lastSend?.kind === "document" ? documentsAddress("failed") : activityAddress("all")} className="inline-flex items-center font-semibold underline max-lg:min-h-[44px]">See why</Link>
+              <Link href={d.lastSend?.kind === "document" ? documentsAddress("failed") : activityAddress("all", 1, d.lastSend?.at)} className="inline-flex items-center font-semibold underline max-lg:min-h-[44px]">See why</Link>
             </>
           )}
         </span>
