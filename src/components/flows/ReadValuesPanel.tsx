@@ -425,7 +425,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
       {pasteNote && <StatusNotice tone="warning">{pasteNote}</StatusNotice>}
       {/* A held copy says "already here" once, in its hold above the panel (A-12). */}
       <Checks checks={detail.summary.statusReason === "duplicate_file" ? marks.unattached.filter((c) => c.code !== "duplicate") : marks.unattached} inbox={inbox}
-        flowId={detail.summary.flowId} duplicateOf={detail.duplicateOf} />
+        flowId={detail.summary.flowId} duplicateOf={detail.duplicateOf} downloadOnly={flow?.downloadOnly} />
       {(hasMore || history) && (
         <div className="flex flex-wrap items-start justify-between gap-2">
           {hasMore && (
@@ -435,7 +435,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
               const panel = !more && document.getElementById("read-more");
               if (panel) { scrollTo(panel); panel.querySelector<HTMLElement>("select, input, textarea, button")?.focus(); }
             }}>
-              Something missing or in the wrong place?
+              {more ? "Close" : "Something missing or in the wrong place?"}
             </Button>
           )}
           <div className="sm:ml-auto">{history}</div>

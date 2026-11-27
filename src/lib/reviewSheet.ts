@@ -41,6 +41,17 @@ export interface RowsSum {
 /** ISO 4217 minor units, as the backend's `DecimalPlaces`; absent or unknown means 2. */
 const DECIMALS: Record<string, number> = { JPY: 0, KRW: 0, CLP: 0, ISK: 0, VND: 0, BHD: 3, KWD: 3, OMR: 3, JOD: 3, TND: 3, IQD: 3, LYD: 3 };
 
+/** `plain` ("1303.40") written as `like` writes its number ("1 303,40"): one number style per document. */
+function writtenLike(plain: string, like: string | null): string {
+  const text = like?.trim() ?? "";
+  // Ungrouped first, so "3015.379" is a decimal point, not a thousands one.
+  const m = /^\D*\d+()(?:([.,])\d+)?\D*$/.exec(text) ?? /^\D*\d{1,3}(?:([ .,'\u00a0\u202f])\d{3})+(?:([.,])\d+)?\D*$/.exec(text);
+  if (!m) return plain;
+  const [int, frac] = plain.split(".");
+  const grouped = m[1] ? int.replace(/\B(?=(\d{3})+(?!\d))/g, m[1]) : int;
+  return frac === undefined ? grouped : `${grouped}${m[2] ?? (m[1] === "." ? "," : ".")}${frac}`;
+}
+
 /**
  * The backend's "The lines don't add up to the net total." check (`DocumentChecks.Arithmetic`), on what is on screen:
  * the line amounts added up beside the net total, or beside the gross one when the lines include tax (receipts). Meanings are the flow's once it lists fields
@@ -71,10 +82,10 @@ export function rowsSum(read: DocumentDetail["read"], flow: Pick<Flow, "fields">
     if (amount === null) return null;
     sum += units(amount);
   }
-  const show = (u: number) => (u / scale).toFixed(Math.log10(scale));
+  const show = (u: number, like: string | null) => writtenLike((u / scale).toFixed(Math.log10(scale)), like);
   const grossField = find("total_gross");
   const gross = numberOf(now(grossField));
   if (Math.abs(sum - units(net)) > 1 && grossField && gross !== null && Math.abs(sum - units(gross)) <= 1)
-    return { table: table.key, sum: show(sum), same: true, label: grossField.label, value: show(units(gross)) };
-  return { table: table.key, sum: show(sum), same: Math.abs(sum - units(net)) <= 1, label: netField.label, value: show(units(net)) };
+    return { table: table.key, sum: show(sum, now(grossField)), same: true, label: grossField.label, value: show(units(gross), now(grossField)) };
+  return { table: table.key, sum: show(sum, now(netField)), same: Math.abs(sum - units(net)) <= 1, label: netField.label, value: show(units(net), now(netField)) };
 }

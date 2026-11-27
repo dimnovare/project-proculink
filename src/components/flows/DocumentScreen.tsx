@@ -363,9 +363,11 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
     queryFn: async () => {
       const prev = qc.getQueryData<DocumentDetail>(["document", documentId]);
       const next = await getDocument(documentId);
-      // A status change means the worker did something: the deliveries and history beside it are stale.
-      if (prev && prev.summary.status !== next.summary.status)
+      // A status change means the worker did something: the deliveries and history beside it, and the lists and counts, are stale.
+      if (prev && prev.summary.status !== next.summary.status) {
         for (const k of ["deliveries", "document-history"]) qc.invalidateQueries({ queryKey: [k, documentId] });
+        qc.invalidateQueries({ queryKey: ["documents"] });
+      }
       return next;
     },
     refetchInterval: (q) => {
@@ -559,8 +561,9 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
     : <Link replace href={documentHref(next)} className={`${buttonClass(here || summary?.status === "read_failed" ? "secondary" : "primary", "md")} ${cls}`}>Review next</Link>);
   const located = !!marks?.places.length || !!doc.data?.read.fields.some((f) => f.location?.box || f.location?.address)
     || !!doc.data?.read.tables.some((t) => t.rows.some((r) => Object.values(r.cells).some((c) => c.location?.box || c.location?.address)));
-  // A KSeF confirmation is asked in its dialog, not said as a refusal.
-  const refused = (ksefAsk(send.error) ? null : send.error) ?? skip.error ?? download.error;
+  // A KSeF confirmation is asked in its dialog, not said as a refusal; a file the document is now held for is said once, by its hold.
+  const sendError = ksefAsk(send.error) || (refusalToken(send.error) === "output_invalid" && summary?.statusReason === "output_invalid") ? null : send.error;
+  const refused = sendError ?? skip.error ?? download.error;
   const failedCodes = doc.data?.checks.filter((c) => !c.passed).map((c) => c.code) ?? [];
   // A sent document says what its own files did once they are known; until then only that it is finished, never "Sent".
   const finished = summary?.status === "sent" && status?.label === DOCUMENT_STATUSES.sent.label;
@@ -592,8 +595,9 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
         actions={status && tag && (
           <div data-testid="review-header-actions" className="flex flex-wrap items-center gap-2">
             {/* A failed read says so in its own notice below. */}
-            {summary?.status !== "read_failed" && <Pill tone={tag.tone}>{tag.text}</Pill>}
-            {position && <span className="text-[12.5px] text-ink-muted">{position}</span>}
+            {/* Below 1440 the row is shared with the name: the pill shortens and the position waits, so the name stays readable (V-01). */}
+            {summary?.status !== "read_failed" && <Pill tone={tag.tone} title={tag.text} className="max-[1439px]:max-w-[8rem]">{tag.text}</Pill>}
+            {position && <span className="text-[12.5px] text-ink-muted max-[1439px]:lg:hidden">{position}</span>}
             {removeButton}
             {made ? madeActions("hidden md:inline-flex") : sends ? (
               <>
@@ -604,7 +608,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
                   onBlur={() => { walked.current = null; }}
                 >
                   {primary}
-                  <kbd aria-hidden className="hidden h-[22px] items-center rounded bg-brand-green-deep px-1.5 font-sans text-[12.5px] font-semibold lg:inline-flex">{keyWord("Mod", apple)} Enter</kbd>
+                  <kbd aria-hidden className="hidden h-[22px] items-center rounded bg-brand-green-deep px-1.5 font-sans text-[12.5px] font-semibold xl:inline-flex">{keyWord("Mod", apple)} Enter</kbd>
                 </Button>}
               </>
             ) : reviewNext("hidden items-center md:inline-flex")}
@@ -685,7 +689,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
                   {summary.status === "sending" ? <Loading>Sending…</Loading>
                     : status.tone === "working" ? <Loading>Reading the document…</Loading>
                     : <Quiet>Nothing was read from this document.</Quiet>}
-                  {summary.statusReason !== "duplicate_file" && <Checks checks={doc.data.checks} inbox={here !== false} flowId={summary.flowId} duplicateOf={doc.data.duplicateOf} />}
+                  {summary.statusReason !== "duplicate_file" && <Checks checks={doc.data.checks} inbox={here !== false} flowId={summary.flowId} duplicateOf={doc.data.duplicateOf} downloadOnly={flow.data?.downloadOnly} />}
                   <div className="mt-1">{history}</div>
                 </div>
               ) : (

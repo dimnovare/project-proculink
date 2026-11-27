@@ -33,6 +33,15 @@ describe("ReadProblem", () => {
     expect(unknown.getByText(outputFailedMessage(null, null))).toBeTruthy();
     expect(unknown.getByRole("link", { name: "Change the file" }).getAttribute("href")).toBe(flowAddress("f1", "send"));
   });
+
+  it("a file left out of a send is said once, with the others made and the way to add the values it lacks", () => {
+    const summary = { id: "d", flowId: "f1", status: "sent", statusReason: "output_invalid" };
+    const held = { output: "ZUGFeRD", detail: "This standard needs Sender country.", missing: ["sender_country"], outputId: "o1" };
+    const ui = <ReadProblem summary={summary as never} retry={{} as never} uploadHref="/flows/f1?tab=documents" />;
+    const notice = within(withClient(ui, { summary, heldOutput: held, read: { fields: [] } }).container);
+    expect(notice.getByText(`${outputFailedMessage(held.output, held.detail)} The other files were made.`)).toBeTruthy();
+    expect(notice.getByRole("link", { name: "Add them in We read" }).getAttribute("href")).toBe(flowAddress("f1", "read"));
+  });
 });
 
 describe("Checks", () => {

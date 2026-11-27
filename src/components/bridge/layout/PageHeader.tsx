@@ -48,8 +48,9 @@ export function PageHeader({ title, sub, back, actions, titleAction, compact, cl
             <span className="[overflow-wrap:anywhere]">{back.label}</span>
           </Link>
         )}
+        {/* The name shrinks last: from lg the line beside it gives way first, so the page always says what it is (V-01). */}
         <div className="flex min-w-0 flex-1 flex-col gap-1 lg:flex-row lg:items-baseline lg:gap-3">
-          <h1 title={title} className="m-0 font-display text-[22px] font-semibold leading-[1.15] tracking-[-0.01em] text-ink [overflow-wrap:anywhere] lg:truncate lg:text-[19px]">
+          <h1 title={title} className="m-0 font-display text-[22px] font-semibold leading-[1.15] tracking-[-0.01em] text-ink [overflow-wrap:anywhere] lg:max-w-full lg:shrink-0 lg:truncate lg:text-[19px]">
             {title}
           </h1>
           {sub && <p className="m-0 text-[13px] leading-[1.45] text-ink-muted [overflow-wrap:anywhere] lg:min-w-0 lg:truncate">{sub}</p>}
