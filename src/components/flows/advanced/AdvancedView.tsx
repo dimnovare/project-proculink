@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { buttonClass } from "@/components/bridge/DSPrimitives";
 import { flowAddress } from "@/lib/flowSteps";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
-import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
+import { Card } from "@/components/bridge/layout/Card";
 import { MapperWorkbench, type MapperToolbarState } from "@/components/bridge/mapper/MapperWorkbench";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { fetchDocumentSource, getDocument, getFlow, listDocuments, listOutputs } from "@/lib/api/documents";
@@ -17,12 +17,26 @@ import { Original } from "../DocumentScreen";
 import { Failed, Quiet, Loading } from "../states";
 import { flowMapperAdapter } from "./flowMapperAdapter";
 
+// Below 1440 px the three panes do not fit side by side, so the live preview starts as a rail
+// that opens on click (V-02). Server and jsdom read "wide", so tests see all three panes.
+const NARROW = "(max-width: 1439px)";
+function useNarrow() {
+  return useSyncExternalStore(
+    (cb) => { const m = window.matchMedia(NARROW); m.addEventListener("change", cb); return () => m.removeEventListener("change", cb); },
+    () => window.matchMedia(NARROW).matches,
+    () => false,
+  );
+}
+
 export function AdvancedView({ flowId, outputId, documentId }: { flowId: string; outputId: string; documentId?: string | null }) {
   const qc = useQueryClient();
   const enabled = useTenantQueriesEnabled();
   const [incomingView, setIncomingView] = useState<IncomingView>("fields");
   // The toolbar is hidden, so its save status is re-hosted in the page header's actions.
   const [bar, setBar] = useState<MapperToolbarState | null>(null);
+  const narrow = useNarrow();
+  const [previewOpen, setPreviewOpen] = useState<boolean | null>(null);
+  const preview = (previewOpen ?? !narrow) ? "1fr" : "rail";
   const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId), enabled });
   const outputs = useQuery({ queryKey: ["outputs", flowId], queryFn: () => listOutputs(flowId), enabled });
   const newest = useQuery({
@@ -65,10 +79,12 @@ export function AdvancedView({ flowId, outputId, documentId }: { flowId: string;
           </span>
         }
       />
-      <div className="lg:hidden">
-        <StatusNotice tone="working" action={<Link href={flowAddress(flowId, "send", { output: outputId })} className={buttonClass("secondary", "md")}>Back to We send</Link>}>
-          The Advanced view needs a wider screen. You can change this file on the flow&apos;s We send step.
-        </StatusNotice>
+      <div className="lg:hidden flex justify-center py-10">
+        <Card className="w-full max-w-[420px] text-center">
+          <p className="text-[15px] font-semibold text-ink">The Advanced view needs a wider screen.</p>
+          <p className="mt-2 text-[13px] text-ink-muted">You can change this file on the flow&apos;s We send step.</p>
+          <Link href={flowAddress(flowId, "send", { output: outputId })} className={`${buttonClass("secondary", "md")} mt-5`}>Back to We send</Link>
+        </Card>
       </div>
       <div className="hidden lg:block">
         {failed ? <Failed error={failed.error} retry={() => failed.refetch()} />
@@ -80,7 +96,10 @@ export function AdvancedView({ flowId, outputId, documentId }: { flowId: string;
               <MapperWorkbench
                 variant="flow" adapter={adapter} supplierName={output.name} hideToolbar hideOrientation onToolbarState={setBar}
                 emptyHint="Upload a document to this flow to see a preview."
-                layout={{ incomingView, onIncomingView: setIncomingView }}
+                layout={{
+                  incomingView, onIncomingView: setIncomingView, preview,
+                  onExpandPreview: () => setPreviewOpen(true), onCollapsePreview: () => setPreviewOpen(false),
+                }}
                 receivedDocument={{
                   slot: id && doc.data ? <Original documentId={id} fileName={doc.data.summary.fileName} /> : null,
                   available: !!source.data && source.data.size > 0,

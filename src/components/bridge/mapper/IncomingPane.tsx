@@ -331,10 +331,10 @@ function PaneFrame({
   // pane wash), title-case display title + 9px dot.
   return (
     <div style={{ border: "1px solid var(--line, #E5E8EE)", background: "var(--surface, #FFFFFF)", overflow: "hidden", height: "100%", display: "flex", flexDirection: "column" }}>
-      <div style={{ flexShrink: 0, display: "flex", alignItems: "center", height: 52, gap: 10, padding: "0 18px", borderBottom: "1px solid #E5E8EE", background: "#EAF0F844" }}>
+      <div style={{ flexShrink: 0, display: "flex", flexWrap: "wrap", alignItems: "center", minHeight: 52, gap: "6px 10px", padding: "8px 18px", borderBottom: "1px solid #E5E8EE", background: "#EAF0F844" }}>
         <span aria-hidden style={{ flexShrink: 0, width: 9, height: 9, borderRadius: "50%", background: "#1E66C9", boxShadow: "0 0 0 3px #EAF0F8" }} />
-        <span style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontSize: 13.5, fontWeight: 700, letterSpacing: "-0.01em", color: "#0B1A2F" }}>{title}</span>
-        {subtitle && <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>{subtitle}</span>}
+        <span style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontSize: 13.5, fontWeight: 700, letterSpacing: "-0.01em", color: "#0B1A2F", whiteSpace: "nowrap" }}>{title}</span>
+        {subtitle && <span style={{ fontSize: 10.5, color: "var(--ink-faint)", whiteSpace: "nowrap" }}>{subtitle}</span>}
         <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 8 }}>
           {tabs}
           {sourceType && <SourceTypeChip kind={sourceType} />}
