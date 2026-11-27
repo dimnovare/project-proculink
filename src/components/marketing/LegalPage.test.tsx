@@ -8,7 +8,7 @@ describe("LegalPage", () => {
     render(<PrivacyPage />);
     const body = screen.getByTestId("legal-body");
     const heads = within(body).getAllByRole("heading", { level: 2 });
-    expect(heads.length).toBe(14);
+    expect(heads.length).toBe(18); // 2026-11-27: "In short", 5, 7 and 16 added
     const navs = screen.getAllByRole("navigation", { name: "On this page" });
     expect(navs.length).toBe(2);
     for (const nav of navs) {

@@ -16,9 +16,26 @@ export const metadata = pageMetadata({
 export default function PrivacyPage() {
   return (
     // FOUNDER DECISION: set this date to the day the page is published.
-    <LegalPage title="Privacy Policy" updated="Last updated: 26 November 2026" path="/privacy">
+    <LegalPage title="Privacy Policy" updated="Last updated: 27 November 2026" path="/privacy">
 
-      <LegalH2>Who we are</LegalH2>
+      {/*
+        2026-11-27 polish (structure from a review of comparable EU B2B SaaS privacy notices).
+        The summary restates sections below and adds no commitment of its own. Counsel to check.
+      */}
+      <LegalH2>In short</LegalH2>
+      <ul>
+        <li>We are the controller for the data we need to run ProcuLink: your account, billing, website visits and our own logs.</li>
+        <li>For the personal data inside the documents our customers send, we normally act as their processor, under the Data Processing Addendum.</li>
+        <li>We do not sell your data, and we do not use the content of your documents to train AI models.</li>
+        <li>Some providers we use are in the US, including the AI provider that reads documents and our email provider. They work under Standard Contractual Clauses, and you can ask us to turn AI reading off.</li>
+        <li>Nothing is deleted automatically when a subscription ends. Email us to have documents or your whole workspace deleted.</li>
+        <li>You can use your GDPR rights by emailing <a href="mailto:privacy@proculink.eu">privacy@proculink.eu</a>, and complain to the Estonian Data Protection Inspectorate.</li>
+      </ul>
+      <p>
+        This summary helps you find your way. The numbered sections below are the policy.
+      </p>
+
+      <LegalH2>1. Who we are</LegalH2>
       <p>
         {PRODUCT_OPERATOR_NOTICE} In this policy, &quot;ProcuLink&quot;, &quot;we&quot;,
         &quot;us&quot;, and &quot;our&quot; refer to {LEGAL_ENTITY.legalName} as operator
@@ -34,7 +51,7 @@ export default function PrivacyPage() {
         support investigation they did not request, say), and that is a question for counsel,
         not a sentence this page should settle by omission.
       */}
-      <LegalH2>Our role: controller or processor</LegalH2>
+      <LegalH2>2. Our role: controller or processor</LegalH2>
       <p>
         <strong>We are the controller</strong> for the personal data we need to run ProcuLink
         as a business: visits to this website, the accounts of the people who sign in, billing
@@ -53,7 +70,14 @@ export default function PrivacyPage() {
         request on and help them answer it.
       </p>
 
-      <LegalH2>What data we collect</LegalH2>
+      <LegalH2>3. What data we collect</LegalH2>
+      {/* 2026-11-27: where the data comes from, and which of it is needed (GDPR Art. 13(2)(e),
+          14(2)(f)). Invitations are Clerk organisation invitations (Settings › People). */}
+      <p>
+        We get this data from you, from the person in your organisation who invites you, from
+        the documents our customers send us, and from your browser when you use the site. You
+        need to give us account data to use ProcuLink; without it we cannot open an account.
+      </p>
       <ul>
         <li><strong>Account data</strong> — name, work email, organisation name, collected via Clerk authentication on sign-up.</li>
         <li><strong>Document data</strong> — the documents you send us, such as invoices, purchase orders and delivery notes; the data we read from them; and the files we generate from them. When a document reaches us by email we also keep the address it was sent from, and the text of the message if it has no attachment we can read. These documents can carry personal data: contact names, email addresses, phone numbers and postal addresses, and bank account details such as IBAN and payment references.</li>
@@ -76,7 +100,7 @@ export default function PrivacyPage() {
 
         Counsel to check the wording of each basis; the mapping itself is the conventional one.
       */}
-      <LegalH2>How we use your data, and our legal basis</LegalH2>
+      <LegalH2>4. How we use your data, and our legal basis</LegalH2>
       <p>
         For the data we control, each use and the GDPR legal basis we rely on for it:
       </p>
@@ -95,6 +119,23 @@ export default function PrivacyPage() {
         rights&quot; below. We do not sell your data to third parties. We do not use the content
         of your documents to train AI models.
       </p>
+      {/* 2026-11-27: Art. 13(2)(f) disclosure. Automatic reading pulls values out of business
+          documents; nothing in the product decides anything about a person. Counsel to check. */}
+      <p>
+        We do not make decisions about people by automated means alone that have legal or
+        similarly significant effects on them (GDPR Art. 22). Automatic reading takes values
+        out of business documents; your organisation decides what is done with them.
+      </p>
+
+      {/* 2026-11-27: one place that lists every kind of recipient. Each item is already stated
+          further down; "authorities" is the legal-obligation basis in section 4. */}
+      <LegalH2>5. Who receives your data</LegalH2>
+      <ul>
+        <li><strong>Our subprocessors</strong> — the providers listed in section 15, who process data for us under contract.</li>
+        <li><strong>Receivers you choose</strong> — the servers, mailboxes, cloud drives, e-invoicing systems and providers your flows send files to, as described in section 6.</li>
+        <li><strong>Services you connect</strong> — your Google or Microsoft account and AI assistants, as described in sections 11 to 13.</li>
+        <li><strong>Authorities and courts</strong> — only where the law requires us to disclose data.</li>
+      </ul>
 
       {/*
         This section had one list under the heading "Data storage and residency", led by
@@ -126,7 +167,7 @@ export default function PrivacyPage() {
             through it. A sentence claiming the whole list is order storage was wrong about
             three of its five entries.
       */}
-      <LegalH2>Data storage and residency</LegalH2>
+      <LegalH2>6. Data storage and residency</LegalH2>
       <p>These providers hold your document files, the database, and the API that serves them:</p>
       <ul>
         <li><strong>File storage</strong>: Cloudflare R2 (EU-region bucket)</li>
@@ -186,6 +227,19 @@ export default function PrivacyPage() {
         page explains this in full.
       </p>
 
+      {/* 2026-11-27: each measure below is one the /security cards already state (encryption,
+          access control, delivery record); nothing is claimed here that /security does not. */}
+      <LegalH2>7. How we protect data</LegalH2>
+      <p>
+        Each workspace&apos;s data is kept apart from every other workspace. The credentials you
+        save for collecting and delivering documents are encrypted at rest with AES-256-GCM and
+        are never written to application logs. Web addresses we deliver to must use https://.
+        Every read, edit and delivery is recorded in the document&apos;s history. The{" "}
+        <Link href="/security">Security</Link> page describes these measures and their limits.
+        If a personal data breach affects data we control, we notify the supervisory authority
+        and the people affected as the GDPR requires.
+      </p>
+
       {/*
         Every line here was re-derived from the backend (origin/main, 2026-11-17):
 
@@ -204,17 +258,44 @@ export default function PrivacyPage() {
         FOUNDER DECISION: confirm the database provider's restore window for our plan and, if
         wanted, print it in the backups line.
       */}
-      <LegalH2>How long we keep data</LegalH2>
-      <ul>
-        <li><strong>Workspace data</strong> — the documents you send us, the data we read from them, the files we generate, and your flows and settings — is kept for as long as your account exists. There is no automatic age limit on it today.</li>
-        <li><strong>After a subscription ends or a Trial expires</strong>, nothing is deleted automatically. Your workspace stays readable, so you can sign in and view or download what you have processed for as long as it exists. There is no fixed export window: it stays until you ask us to delete it — see &quot;Deleting your data&quot; below.</li>
-        <li><strong>History</strong> — the record of what happened to each document, and of changes made in the workspace — is deleted automatically once it is 180 days old. The documents themselves stay.</li>
-        <li><strong>Your sign-in account</strong> is held by our authentication provider while your account exists, and is removed when you ask us to delete your account.</li>
-        <li><strong>Billing and tax records</strong> are kept for as long as accounting law requires, including after an account is deleted.</li>
-        <li><strong>Backups.</strong> Our database provider keeps a rolling point-in-time history of the database so it can be recovered after a failure. Deleted data drops out of that history automatically once it is older than the provider&apos;s recovery window. We keep no separate long-term backup copies, and we do not restore deleted data from backups.</li>
-      </ul>
+      <LegalH2>8. How long we keep data</LegalH2>
+      {/* 2026-11-27: the list became a table; every period and sentence is unchanged. */}
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>How long we keep it</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Workspace data</td>
+            <td>The documents you send us, the data we read from them, the files we generate, and your flows and settings are kept for as long as your account exists. There is no automatic age limit on it today.</td>
+          </tr>
+          <tr>
+            <td>After a subscription ends or a Trial expires</td>
+            <td>Nothing is deleted automatically. Your workspace stays readable, so you can sign in and view or download what you have processed for as long as it exists. There is no fixed export window: it stays until you ask us to delete it — see &quot;Deleting your data&quot; below.</td>
+          </tr>
+          <tr>
+            <td>History</td>
+            <td>The record of what happened to each document, and of changes made in the workspace, is deleted automatically once it is 180 days old. The documents themselves stay.</td>
+          </tr>
+          <tr>
+            <td>Your sign-in account</td>
+            <td>Held by our authentication provider while your account exists, and removed when you ask us to delete your account.</td>
+          </tr>
+          <tr>
+            <td>Billing and tax records</td>
+            <td>For as long as accounting law requires, including after an account is deleted.</td>
+          </tr>
+          <tr>
+            <td>Backups</td>
+            <td>Our database provider keeps a rolling point-in-time history of the database so it can be recovered after a failure. Deleted data drops out of that history automatically once it is older than the provider&apos;s recovery window. We keep no separate long-term backup copies, and we do not restore deleted data from backups.</td>
+          </tr>
+        </tbody>
+      </table>
 
-      <LegalH2>Your rights under GDPR</LegalH2>
+      <LegalH2>9. Your rights under GDPR</LegalH2>
       <p>As an EU/EEA data subject you have the right to:</p>
       <ul>
         <li><strong>Access</strong> the personal data we hold about you</li>
@@ -240,7 +321,7 @@ export default function PrivacyPage() {
         where you think the problem happened. You do not have to contact us first.
       </p>
 
-      <LegalH2>Deleting your data</LegalH2>
+      <LegalH2>10. Deleting your data</LegalH2>
       <p>
         To have documents deleted, email{" "}
         <a href="mailto:privacy@proculink.eu">privacy@proculink.eu</a>{" "}
@@ -285,7 +366,7 @@ export default function PrivacyPage() {
         above, and so is a short record that the deletion took place.
       </p>
 
-      <LegalH2>Google accounts you connect</LegalH2>
+      <LegalH2>11. Google accounts you connect</LegalH2>
       <p>
         If a workspace admin connects a Google account so that a flow can send files to Google
         Drive or add rows to Google Sheets:
@@ -304,7 +385,7 @@ export default function PrivacyPage() {
         including the Limited Use requirements.
       </p>
 
-      <LegalH2>Microsoft accounts you connect</LegalH2>
+      <LegalH2>12. Microsoft accounts you connect</LegalH2>
       <p>
         If a workspace admin connects an Outlook or Microsoft 365 mailbox so that a flow can pick up
         documents from it:
@@ -334,7 +415,7 @@ export default function PrivacyPage() {
         assistant's sign-in (OAuth through Clerk): it is removed from the assistant. A key is
         revoked in Settings.
       */}
-      <LegalH2>AI assistants you connect</LegalH2>
+      <LegalH2>13. AI assistants you connect</LegalH2>
       <p>
         If someone in your workspace connects an AI assistant, such as Claude, ChatGPT, Cursor or
         VS Code, the assistant can add documents and read what we made from them: the values we
@@ -345,14 +426,20 @@ export default function PrivacyPage() {
         Settings, under For developers.
       </p>
 
-      <LegalH2>Cookies</LegalH2>
+      <LegalH2>14. Cookies</LegalH2>
       <p>
         We use only functional cookies (authentication session, CSRF protection) and analytics
         cookies (product usage — pseudonymous). Analytics cookies are set only if you accept
         them in the cookie banner. We do not use advertising or cross-site tracking cookies.
       </p>
+      {/* 2026-11-27: src/lib/cookie-consent.ts keeps the choice in localStorage. */}
+      <p>
+        Your choice is kept in your browser&apos;s storage, so the banner does not ask on every
+        visit. To change it, clear this site&apos;s cookies and stored data in your browser, and
+        the banner asks again.
+      </p>
 
-      <LegalH2>Subprocessors</LegalH2>
+      <LegalH2>15. Subprocessors</LegalH2>
       <p>
         The authoritative list of subprocessors is maintained at{" "}
         <Link href="/subprocessors">/subprocessors</Link>{" "}
@@ -385,7 +472,14 @@ export default function PrivacyPage() {
       {/* Was "Contact and DPO". No data protection officer is named anywhere, so the heading
           implied an appointment the page never backs. FOUNDER DECISION: if a DPO is formally
           appointed, name the role and contact here and notify AKI as GDPR Art. 37(7) requires. */}
-      <LegalH2>Privacy contact</LegalH2>
+      {/* 2026-11-27: the same notice mechanism as Terms section 12. Counsel to check. */}
+      <LegalH2>16. Changes to this policy</LegalH2>
+      <p>
+        When we change this policy, we publish the new version here with a new date. If a change
+        is material, we also tell account holders by email before it takes effect.
+      </p>
+
+      <LegalH2>17. Privacy contact</LegalH2>
       <p>
         For privacy questions or to exercise your rights:{" "}
         <a href="mailto:privacy@proculink.eu">privacy@proculink.eu</a>
