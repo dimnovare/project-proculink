@@ -126,25 +126,23 @@ test.describe("lookups", () => {
     for (const f of flows) await expect(links.and(page.getByRole("link", { name: f.name, exact: true }))).toHaveAttribute("href", flowAddress(f.id, "send"));
   });
 
-  test("on a phone the list and a lookup are separate screens, Import sits above the tab bar, nothing runs off the side", async ({ page }) => {
+  test("on a phone the list and a lookup are separate screens, both actions sit in the list's header, nothing runs off the side", async ({ page }) => {
     await preparePage(page, { dismissCookieBanner: true });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/lookups");
     await settle(page);
-    const bar = page.getByTestId("action-bar");
-    await expect(bar.getByRole("button", { name: "Import a table" })).toBeVisible();
-    const [a, t] = [(await bar.boundingBox())!, (await page.getByTestId("tab-bar").boundingBox())!];
-    console.log(`action bar ${a.y}..${a.y + a.height}, tab bar top ${t.y}`);
-    expect(Math.abs(a.y + a.height - t.y)).toBeLessThanOrEqual(1);
+    const importButton = page.getByRole("button", { name: "Import a table" });
+    await expect(importButton).toBeVisible();
+    await expect(page.getByRole("button", { name: "New empty lookup" })).toBeVisible();
     await expect(page.getByText("Choose a lookup to see its rows.")).toBeHidden();
     await page.getByRole("navigation", { name: "All lookups" }).getByRole("link", { name: /Pallet types/ }).click();
     await expect(page).toHaveURL(/\/lookups\/lookup-4$/);
     await expect(page.getByRole("navigation", { name: "All lookups" })).toBeHidden();
     await expect(page.getByRole("link", { name: "All lookups" })).toBeVisible();
     await expect(page.getByText("No rows yet. Add a row, or replace from a file.")).toBeVisible();
-    // One lookup open on a phone: no search for 0 rows, no Import bar.
+    // One lookup open on a phone: no search for 0 rows, and the list's header and its actions are not drawn.
     await expect(page.getByLabel("Search rows")).toHaveCount(0);
-    await expect(bar).toHaveCount(0);
+    await expect(importButton).toBeHidden();
     const right = await page.locator("main").evaluate((m) => Math.max(...[...m.querySelectorAll("*")].map((el) => el.getBoundingClientRect().right)));
     console.log(`largest right edge in main ${right}`);
     expect(right).toBeLessThanOrEqual(391);
@@ -168,7 +166,7 @@ test.describe("lookups", () => {
       for (const path of ["/lookups", "/lookups/lookup-4", `/lookups/${MOCK_ENGINE_IDS.lookup}`]) {
         await page.goto(path);
         await settle(page, 300);
-        if (path === "/lookups") await expect(bar.getByRole("button", { name: "Import a table" })).toBeVisible();
+        if (path === "/lookups") await expect(importButton).toBeVisible();
         await expect(path === "/lookups" ? page.getByText("4 lookups") : page.getByRole("link", { name: "All lookups" })).toBeVisible();
         const seen = await audit(page);
         console.log(`${path} at ${width}: right edge ${seen.right.toFixed(1)}, filled ${seen.filled.length}`);

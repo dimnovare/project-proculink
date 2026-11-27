@@ -59,12 +59,16 @@ describe("RowActions", () => {
   });
 
   it("asks before removing, and says a read document still counts", () => {
-    const counted = removalDialog([{ fileName: "invoice-1043.pdf", countsThisMonth: true }]);
+    const counted = removalDialog([{ fileName: "invoice-1043.pdf", countsThisMonth: true, status: "sent" }]);
     expect(counted.title).toBe("Remove invoice-1043.pdf?");
     const text = (d: ReturnType<typeof removalDialog>) => render(<p>{d.description}</p>).container.textContent;
     expect(text(counted)).toContain("We already read it, so it still counts toward your plan's documents.");
-    expect(text(removalDialog([{ fileName: "invoice-1043.pdf", countsThisMonth: false }]))).not.toContain("We already read it");
+    expect(text(counted)).toContain("The document and the file we made from it are erased for good.");
+    // No file made yet: the dialog does not mention one.
+    const unmade = text(removalDialog([{ fileName: "invoice-1043.pdf", countsThisMonth: false, status: "needs_review" }]));
+    expect(unmade).not.toContain("We already read it");
+    expect(unmade).toContain("The document is erased for good. This can't be undone.");
     // Ticked documents only an admin may remove stay, and the dialog says so.
-    expect(text(removalDialog([{ fileName: "invoice-1043.pdf" }], 2))).toContain("2 of the ticked documents can only be removed by an admin, so they stay.");
+    expect(text(removalDialog([{ fileName: "invoice-1043.pdf", status: "ready" }], 2))).toContain("2 of the ticked documents can only be removed by an admin, so they stay.");
   });
 });

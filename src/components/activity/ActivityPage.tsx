@@ -189,7 +189,7 @@ export function ActivityPage() {
   return (
     <Frame actions={
       <Button disabled={!enabled || exporting.isPending} onClick={() => qc.isMutating({ mutationKey: EXPORT_KEY }) || exporting.mutate()}>
-        <Download size={16} aria-hidden />Export
+        <Download size={16} aria-hidden />Download CSV
       </Button>
     }>
       <div className="flex min-w-0 flex-col gap-3">
@@ -241,4 +241,4 @@ const Frame = ({ children, actions }: { children: React.ReactNode; actions?: Rea
 );
 
 /** The route's Suspense fallback: the page frame and the in-page loading line, so the first paint does not shift. */
-export const ActivityLoading = () => <Frame actions={<Button disabled><Download size={16} aria-hidden />Export</Button>}><Loading>Loading history…</Loading></Frame>;
+export const ActivityLoading = () => <Frame actions={<Button disabled><Download size={16} aria-hidden />Download CSV</Button>}><Loading>Loading history…</Loading></Frame>;

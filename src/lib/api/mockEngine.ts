@@ -623,6 +623,8 @@ const inboxAnswer = () => ({
 const deletable = (f: Flow) => f.publishedVersion == null;
 
 const ROUTES: [method: string, pattern: RegExp, run: Handler][] = [
+  // No account connected, and no Google or Microsoft connect offered: as a workspace that has not set them up.
+  ["GET", re`/linked-accounts`, () => ({ available: false, microsoftAvailable: false, accounts: [] })],
   // Like the server's list: a summary per flow, and none of the single response's draft facts.
   ["GET", re`/flows`, () => FLOWS.map((f) => ({ ...f, hasChanges: false, noCorrectionStreak: null, summary: flowSummaryOf(f), downloadOnly: downloadOnlyOf(f.id) }))],
   // As FlowsController.Create for an admin, which this mock's viewer is.

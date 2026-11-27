@@ -37,16 +37,18 @@ export function useRowSend(id: string, onSent: () => void): UseMutationResult<un
 export const removable = (status: string): boolean => !["received", "reading", "sending"].includes(status);
 
 /** The confirm before a removal (board Remove), for one document or several. `skipped`: ticked documents only an admin may remove. */
-export function removalDialog(docs: readonly Pick<ListedDocument, "fileName" | "countsThisMonth">[], skipped = 0) {
+export function removalDialog(docs: readonly Pick<ListedDocument, "fileName" | "countsThisMonth" | "status">[], skipped = 0) {
   const one = docs.length === 1;
+  // Files are made when a document is sent (or downloaded): only then is there one to mention.
+  const made = docs.some((d) => d.status === "sent" || d.status === "send_failed");
   const counted = docs.filter((d) => d.countsThisMonth).length;
   return {
     title: one ? `Remove ${docs[0].fileName}?` : `Remove ${docs.length} documents?`,
     description: (
       <>
         <span className="block">
-          {one ? "The document and the file we made from it are erased for good. This can't be undone."
-            : "The documents and the files we made from them are erased for good. This can't be undone."}
+          {one ? `${made ? "The document and the file we made from it are" : "The document is"} erased for good. This can't be undone.`
+            : `${made ? "The documents and the files we made from them are" : "The documents are"} erased for good. This can't be undone.`}
         </span>
         {counted > 0 && (
           <span className="mt-2 block">

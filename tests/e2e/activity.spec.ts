@@ -134,7 +134,7 @@ test.describe("history", () => {
     const downloads: import("@playwright/test").Download[] = [];
     page.on("download", (d) => downloads.push(d));
     const first = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Export" }).dblclick();
+    await page.getByRole("button", { name: "Download CSV" }).dblclick();
     const file = await first;
     expect(file.suggestedFilename()).toBe("history-2026-06-01.csv");
     const text = await (await file.createReadStream()).toArray().then((c) => Buffer.concat(c).toString("utf8"));
@@ -200,7 +200,7 @@ test.describe("history", () => {
         row.getByRole("button", { name: "Hide details" }),
         ...["All", "Changes"].map((n) => tab(page, n)),
         page.getByRole("searchbox", { name: "Search history" }),
-        page.getByRole("button", { name: "Export" }),
+        page.getByRole("button", { name: "Download CSV" }),
         detail.getByRole("link", { name: "Fix the destination" }),
         detail.getByRole("button", { name: "Send again" }),
         detail.getByRole("link", { name: "Open document" }),
