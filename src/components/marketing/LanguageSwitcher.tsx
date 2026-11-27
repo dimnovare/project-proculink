@@ -31,8 +31,8 @@ export function LanguageMenuButton() {
         className="inline-flex h-11 items-center gap-1.5 rounded-lg px-2.5 text-[14px] font-medium text-navy-text hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
       >
         <Globe aria-hidden="true" className="size-4" strokeWidth={1.9} />
-        {/* Beside longer words than English, the code shows once there is room. */}
-        <span className={locale === "en" ? undefined : "max-[1179px]:sr-only"}>{locale.toUpperCase()}</span>
+        {/* The code shows once the header has room; below that the globe stands alone (the name says the language). */}
+        <span className="max-[1179px]:sr-only">{locale.toUpperCase()}</span>
       </button>
       {open && (
         <div

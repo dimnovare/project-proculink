@@ -49,9 +49,10 @@ export function MarketingNav() {
   const mainNavRef = useRef<HTMLElement>(null);
   const widened = useRef(false);
   const closeMenu = useCallback(() => setOpen(false), []);
-  const { locale, c } = useCopy("nav");
-  // Longer words than English: from 900px until there is room (1180px) the links sit closer and a size smaller.
-  const pad = locale === "en" ? "px-3 text-[15px]" : "whitespace-nowrap px-1.5 text-[14px] min-[1180px]:px-3 min-[1180px]:text-[15px]";
+  const { c } = useCopy("nav");
+  // With the language button, and German or Polish words, the row is full at 900px: until 1180px the links sit
+  // closer and a size smaller.
+  const pad = "whitespace-nowrap px-1.5 text-[14px] min-[1180px]:px-3 min-[1180px]:text-[15px]";
   /** A page link's label in the reader's language, keyed by its path ("/how-it-works" is "how-it-works"). */
   const linkLabel = (label: string, href: string) => c(href.slice(1), label);
 
@@ -106,7 +107,7 @@ export function MarketingNav() {
           </span>
         </Link>
 
-        <nav ref={mainNavRef} aria-label="Main" className={`${locale === "en" ? "ml-4" : "ml-2 min-[1180px]:ml-4"} hidden items-center min-[900px]:flex`}>
+        <nav ref={mainNavRef} aria-label="Main" className="ml-2 hidden items-center min-[900px]:flex min-[1180px]:ml-4">
           {SITE_LINKS.map(([label, href]) => {
             const current = isCurrentSection(pathname, href);
             return (
