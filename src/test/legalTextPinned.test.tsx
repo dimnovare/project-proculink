@@ -38,11 +38,13 @@ const PINNED: Record<"/privacy" | "/terms" | "/aup" | "/dpa" | "/subprocessors" 
   // Re-pinned 2026-11-25 (plan 30 Part B): that section also covers saving files to a OneDrive folder.
   // Re-pinned 2026-11-26 (release pass): new "AI assistants you connect" section, destinations sentence, date line.
   // Re-pinned 2026-11-27 (legal polish): "In short" summary, numbered sections, new 5 (who receives), 7 (protection), 16 (changes); sources and Art. 22 lines; retention list as a table; cookie-choice line; date line.
-  "/privacy": "e44f2ae8f11b8ce6aa80a1793e63115cfa3f0a7c7d4d1adf0570f9013e28a13f",
+  // Re-pinned 2026-11-27 (open legal items): "In short" status sentence; 16 gives 14 days' notice of a material change, with the same two exceptions as the Terms.
+  "/privacy": "0a8700249e8d5471f2ace4e1a228bafef28fd80b70e3a9919821e051b4ccdb6a",
   // Re-pinned 2026-11-26 (release pass): §2 e-invoicing providers + KSeF confirm + early access, new §2a, §7 connected services, effective date.
   // Re-pinned 2026-11-26 (terms �5): the earlier paid plans moved under their own lead-in line, after Enterprise.
   // Re-pinned 2026-11-27 (legal polish): "In short" summary, sections renumbered 1-14, new 4 (account), 7 (confidentiality), 13 (general); support, AI provider, renewal, failed payment, objection and download lines; overage rules as a list; date line.
-  "/terms": "dad21aa13dcc56909dad3b661aebf24f86e186c6315767b798374d34b648d25f",
+  // Re-pinned 2026-11-27 (open legal items): "In short" status sentence; 7 survival; 8 failed-payment pause; new 10 (indemnities), 13 (data when the agreement ends), 14 (force majeure); 12 pause line; 15 exceptions; 16 notices, transfer, invalid terms, no waiver, survival; sections renumbered 1-17.
+  "/terms": "d0545c5c82fc9a793153b31f85b787e1577798a83a330a54807ba89d44143354",
   "/aup": "917a1e45c7f3775aad05ae6d74275ee63f522e4a2db5012bdecca0702f4c0fbf",
   // Re-pinned 2026-11-26 (release pass): §3 instructed disclosures, version 1.6.
   "/dpa": "a6cc19cf206af3bb271987f63a92532457cf72f677ab2491d56de8d2e086b585",

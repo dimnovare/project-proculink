@@ -270,7 +270,7 @@ export const clerkAppearance = {
     // Primary CTA: navy to sign in, green to start a trial. One object for both
     // pages; the page is told apart by the `data-auth` mark AuthShell sets.
     formButtonPrimary:
-      "h-12 rounded-[6px] bg-navy text-surface text-[16px] font-semibold hover:bg-navy-surface group-data-[auth=sign-up]:bg-brand-green-btn group-data-[auth=sign-up]:hover:bg-brand-green-deep active:translate-y-[0.5px] shadow-none normal-case transition-colors mt-3",
+      "h-12 rounded-[6px] bg-navy text-surface text-[16px] font-semibold hover:bg-navy-surface active:translate-y-[0.5px] shadow-none normal-case transition-colors mt-3",
     // "Forgot?" action link → a.link (brand-blue-deep)
     formFieldAction: "text-[11.5px] font-medium text-[color:var(--brand-blue-deep)] hover:underline",
     identityPreviewEditButton: "text-[color:var(--brand-blue-deep)]",

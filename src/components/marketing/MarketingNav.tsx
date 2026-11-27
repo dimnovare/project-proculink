@@ -37,8 +37,9 @@ export function isCurrentSection(pathname: string | null, href: string): boolean
 }
 
 const WIDE = "(min-width: 900px)";
+// The header is navy, so its one filled button is the inverse: white with navy text (green only sends).
 const FILLED =
-  "inline-flex h-11 min-w-[9.5rem] items-center justify-center whitespace-nowrap rounded-lg bg-brand-green-btn px-4 text-[15px] max-[389px]:min-w-[7rem] max-[389px]:px-3.5 font-semibold text-white hover:bg-brand-green-deep";
+  "inline-flex h-11 min-w-[9.5rem] items-center justify-center whitespace-nowrap rounded-lg bg-white px-4 text-[15px] max-[389px]:min-w-[7rem] max-[389px]:px-3.5 font-semibold text-navy hover:bg-navy-text";
 
 export function MarketingNav() {
   const pathname = usePathname();

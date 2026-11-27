@@ -31,8 +31,10 @@ export default function PrivacyPage() {
         <li>Nothing is deleted automatically when a subscription ends. Email us to have documents or your whole workspace deleted.</li>
         <li>You can use your GDPR rights by emailing <a href="mailto:privacy@proculink.eu">privacy@proculink.eu</a>, and complain to the Estonian Data Protection Inspectorate.</li>
       </ul>
+      {/* 2026-11-27: the status of the summary made explicit, as on /terms (PR 448 item 4). */}
       <p>
-        This summary helps you find your way. The numbered sections below are the policy.
+        This summary is for convenience only. It is not part of the policy. If it differs from
+        the numbered sections below, the numbered sections apply.
       </p>
 
       <LegalH2>1. Who we are</LegalH2>
@@ -472,11 +474,14 @@ export default function PrivacyPage() {
       {/* Was "Contact and DPO". No data protection officer is named anywhere, so the heading
           implied an appointment the page never backs. FOUNDER DECISION: if a DPO is formally
           appointed, name the role and contact here and notify AKI as GDPR Art. 37(7) requires. */}
-      {/* 2026-11-27: the same notice mechanism as Terms section 12. Counsel to check. */}
+      {/* 2026-11-27: the same notice mechanism as Terms section 15: 14 days, with the same two
+          exceptions (PR 448 item 5). Counsel to check. */}
       <LegalH2>16. Changes to this policy</LegalH2>
       <p>
         When we change this policy, we publish the new version here with a new date. If a change
-        is material, we also tell account holders by email before it takes effect.
+        is material, we also tell account holders by email at least 14 days before it takes
+        effect. A change that the law requires, or that only benefits you, can take effect
+        sooner.
       </p>
 
       <LegalH2>17. Privacy contact</LegalH2>

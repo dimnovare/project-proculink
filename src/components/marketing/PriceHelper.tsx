@@ -50,7 +50,8 @@ export function PriceHelper({ heading }: { heading?: ReactNode }) {
   const best = cheapestDocumentPlan(documents, yearly ? "yearly" : "monthly");
   const winner = best.plan;
   // English is priceAnswer's; other languages build the same two lines from the same figures.
-  const { locale, c } = useCopy("priceHelper");
+  const { locale, c, rich } = useCopy("priceHelper");
+  const bold = (chunks: ReactNode) => <span className="font-semibold">{chunks}</span>;
   const num = (n: number) => n.toLocaleString(locale === "en" ? NUMBER_LOCALE : locale);
   const money = (n: number) => (locale === "en" ? euro(n) : euroIn(locale, n));
   const shown = {
@@ -173,7 +174,10 @@ export function PriceHelper({ heading }: { heading?: ReactNode }) {
                       key={i}
                       className="min-[1100px]:-mx-5 min-[1100px]:flex min-[1100px]:min-h-[52px] min-[1100px]:items-center min-[1100px]:border-t min-[1100px]:border-border min-[1100px]:px-5 min-[1100px]:last:border-b"
                     >
-                      {i < 2 ? (
+                      {i === 1 && plan.flowLimit == null ? (
+                        // One phrase per language, so each can put "unlimited" where its grammar wants it.
+                        <><span className="min-[1100px]:hidden">{rich("unlimitedFlows", <>{bold("Unlimited")} flows</>, { b: bold })}</span><span className="hidden font-semibold min-[1100px]:inline">{a}</span></>
+                      ) : i < 2 ? (
                         <><span className="font-semibold">{a}</span><span className="min-[1100px]:sr-only">{b}</span></>
                       ) : (
                         <><span className="min-[1100px]:sr-only">{a}</span><span className="font-semibold">{b}</span></>
