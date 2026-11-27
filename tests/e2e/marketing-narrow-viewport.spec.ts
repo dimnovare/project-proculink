@@ -135,6 +135,7 @@ test.describe(`marketing pages at ${NARROW_WIDTH}px`, () => {
 // F-01 (audit 2026-11-27): at 360px the German "Kostenlos starten" pushed the header's Menu button half
 // off-screen and every page scrolled sideways. The label is per language, so every language is measured.
 test("the header fits at 320 and 360 in every language", async ({ page, baseURL }) => {
+  test.slow(); // ten page loads; a cold dev server compiles /pricing on the first
   for (const locale of LOCALES) {
     await page.context().addCookies([{ name: LOCALE_COOKIE, value: locale, url: baseURL! }]);
     for (const width of [320, 360]) {

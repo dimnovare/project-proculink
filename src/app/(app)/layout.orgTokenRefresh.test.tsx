@@ -32,6 +32,7 @@ let setActiveImpl: ((args: { organization: string }) => Promise<void>) | undefin
 const MEMBERSHIP = { organization: { id: "org_test" } };
 
 vi.mock("@clerk/nextjs", () => ({
+  useClerk: () => null,
   useAuth: () => ({ isLoaded: true, isSignedIn: true }),
   useOrganization: () => ({ organization: null }),
   useOrganizationList: () => ({
