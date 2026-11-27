@@ -21,6 +21,11 @@ const withMDX = createMDX({
 
 const nextConfig: NextConfig = {
   pageExtensions: ["ts", "tsx", "mdx"],
+  // intl-messageformat (via next-intl) ships ES2022 class `static {}` blocks, which
+  // Safari < 16.4 cannot parse: the whole shared chunk failed and nothing hydrated.
+  // Transpiling it lowers them to Next's browserslist target. Guarded by
+  // scripts/check-client-syntax.mjs.
+  transpilePackages: ["intl-messageformat"],
   // Tree-shake the lucide-react icon barrel into per-icon imports so a route
   // that uses a handful of icons doesn't pull the whole set into its bundle.
   // Zero behavior change — Next rewrites the imports at build time.

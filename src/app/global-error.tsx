@@ -17,7 +17,9 @@ export default function GlobalError({
   reset,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  // Absent when Next renders this boundary from the server error shell (seen on
+  // iOS 15 when a chunk failed to parse): then a reload is the only retry.
+  reset?: () => void;
 }) {
   useEffect(() => {
     captureException(error, {
@@ -97,7 +99,7 @@ export default function GlobalError({
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center" }}>
             <button
               type="button"
-              onClick={() => reset()}
+              onClick={() => (typeof reset === "function" ? reset() : window.location.reload())}
               style={{
                 display: "inline-flex",
                 alignItems: "center",

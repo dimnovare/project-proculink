@@ -30,6 +30,7 @@
     "lint:tokens:report": "node scripts/check-tokens.mjs",
     "lint:emitted-css": "node scripts/check-emitted-css.mjs",
     "lint:emitted-css:built": "node scripts/check-emitted-css.mjs --built",
+    "lint:client-syntax": "node scripts/check-client-syntax.mjs",
     "lint:vocab": "node scripts/check-vocabulary.mjs --all",
     "lint:vocab:warn": "node scripts/check-vocabulary.mjs --warn",
     "prepare": "node scripts/install-hooks.mjs",
