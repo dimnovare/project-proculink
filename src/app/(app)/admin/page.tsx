@@ -397,14 +397,14 @@ export default function AdminPage() {
           </div>
         ) : (
           <>
-            {/* Desktop table */}
+            {/* Desktop table: from xl, as its columns need about 1500px and scroll sideways below that. */}
             {/* `overflow` is spelled out as well as `overflowX`: Card emits the
                 `overflow` shorthand last, so leaving it unset would resolve to
                 `hidden` and kill this table's horizontal scroll. */}
             <Card
               flush
               radius={12}
-              className="hidden lg:block"
+              className="hidden xl:block"
               data-testid="admin-orgs-table"
               style={{ overflowX: "auto", overflow: "auto" }}
             >
@@ -520,7 +520,7 @@ export default function AdminPage() {
             </Card>
 
             {/* Mobile cards — MobileListRow */}
-            <div className="lg:hidden flex flex-col gap-3" data-testid="admin-orgs-mobile">
+            <div className="xl:hidden flex flex-col gap-3" data-testid="admin-orgs-mobile">
               {sortedOrgs.map((org) => (
                 <MobileListRow key={org.id}>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>

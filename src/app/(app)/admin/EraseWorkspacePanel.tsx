@@ -84,7 +84,7 @@ export function EraseWorkspacePanel({ org, onClose }: { org: AdminOrganisation; 
   return (
     <div data-testid="admin-erase-panel" style={panel}>
       <div style={{ fontSize: 13, color: "var(--ink)" }}>
-        Permanently erases <strong>{org.name}</strong> — every order, supplier, mapping, setting and stored
+        Permanently erases <strong>{org.name}</strong> — every document, flow, destination, lookup, setting and stored
         file. This cannot be undone.
       </div>
       <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5, color: "var(--ink-muted)" }}>

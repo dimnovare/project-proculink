@@ -83,6 +83,11 @@ describe("mock engine", () => {
     await expect(mockEngineFetch("/nope")).rejects.toThrow("no fixture for GET /nope");
   });
 
+  it("opens a document still being read by URL, without adding it to any list", async () => {
+    expect((await mockEngineFetch<DocumentDetail>(`/documents/${MOCK_ENGINE_IDS.reading}`)).summary.status).toBe("reading");
+    expect((await mockEngineFetch<DocumentPage>("/documents?page=1&pageSize=50")).items.map((d) => d.id)).not.toContain(MOCK_ENGINE_IDS.reading);
+  });
+
   it("matches the numeric restore-version route", async () => {
     const flow = await mockEngineFetch<Flow>(`/flows/${MOCK_ENGINE_IDS.flow}/versions/1/restore`, { method: "POST" });
     expect(flow.id).toBe(MOCK_ENGINE_IDS.flow);

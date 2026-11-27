@@ -65,8 +65,8 @@ export function GuideShot({
       {/* A plain <img>, like the MDX `img` override: these are static PNGs in
           public/ whose intrinsic size the manifest already knows, so next/image
           would add an optimiser round-trip for no benefit. */}
-      {/* On a phone the picture is a third of its size: tapping it opens the full image. */}
-      <a href={`/guides/${key}.png`} className="block">
+      {/* On a phone the picture is a third of its size, so it runs edge to edge; tapping it opens the full image. */}
+      <a href={`/guides/${key}.png`} className="block max-sm:ml-[calc(50%-50vw)] max-sm:w-screen">
         <img
           src={`/guides/${key}.png`}
           alt={alt}
@@ -74,12 +74,7 @@ export function GuideShot({
           height={meta.h}
           loading="lazy"
           decoding="async"
-          className="block h-auto w-full"
-          style={{
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-md)",
-            background: "var(--surface)",
-          }}
+          className="block h-auto w-full rounded-[var(--radius-md)] border border-border bg-surface max-sm:rounded-none max-sm:border-x-0"
         />
       </a>
       {caption && (

@@ -119,7 +119,7 @@ async function renderAdmin(rows: AdminOrganisation[]): Promise<HTMLElement> {
     </QueryClientProvider>,
   );
   await screen.findByText("Customers");
-  // jsdom has no Tailwind, so the `hidden lg:block` desktop table AND the
+  // jsdom has no Tailwind, so the `hidden xl:block` desktop table AND the
   // `lg:hidden` mobile list BOTH mount. Every query below is scoped to the
   // mobile list, whose row controls are plain buttons (the desktop row keeps
   // only Adjust limits and folds the rest into a More menu, pinned below), so a
