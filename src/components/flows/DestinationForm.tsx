@@ -440,8 +440,8 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
       )}
       {folded.length > 0 && (
         <button type="button" aria-expanded={more} aria-label="More options" aria-describedby={hintId} onClick={() => setMore((m) => !m)}
-          className="col-span-full inline-flex min-h-11 items-center gap-2 justify-self-start text-[13px] font-semibold text-ink">
-          <ChevronRight size={16} aria-hidden className={more ? "rotate-90" : undefined} />More options <span id={hintId} className="font-normal text-ink-muted">{FOLD_HINT[protocol]}</span>
+          className="col-span-full inline-flex min-h-11 items-center gap-2 justify-self-start text-left text-[13px] font-semibold text-ink">
+          <ChevronRight size={16} aria-hidden className={more ? "rotate-90" : undefined} /><span className="shrink-0">More options</span> <span id={hintId} className="font-normal text-ink-muted">{FOLD_HINT[protocol]}</span>
         </button>
       )}
       {more && folded}

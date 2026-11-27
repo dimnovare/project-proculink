@@ -159,7 +159,8 @@ export function LookupsHome({ lookupId }: { lookupId?: string }) {
               </Button>
               {importButton("hidden md:inline-flex")}
             </div>
-            <p className="m-0 hidden text-[13px] text-ink-muted md:block">{HINT}</p>
+            {/* Capped so the long hint never squeezes the title into one word a line (768). */}
+            <p className="m-0 hidden max-w-[22rem] text-right text-[13px] text-ink-muted md:block">{HINT}</p>
             <input
               ref={fileInput}
               type="file"

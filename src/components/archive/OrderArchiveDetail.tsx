@@ -30,7 +30,8 @@ export function OrderArchiveDetail({ orderId }: { orderId: string }) {
   const dl = useMutation({ mutationFn: (artifactId: string) => download(orderId, artifactId) });
 
   return (
-    <PageShell variant="wide">
+    // Narrow: one order and a four-column lines table read badly stretched across an HD screen.
+    <PageShell variant="narrow">
       <PageHeader title={o?.poNumber ?? "Old orders"} back={{ href: "/archive", label: "Old orders" }} />
       {q.isError ? <Failed error={q.error} retry={() => q.refetch()} /> : !o ? <Loading>Loading…</Loading> : (
         <div className="grid gap-6">

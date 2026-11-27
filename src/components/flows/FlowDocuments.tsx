@@ -66,7 +66,8 @@ export function StreakBand({ flow }: { flow: Flow }) {
       </p>
       <span className="flex flex-wrap gap-2">
         <Button
-          variant="secondary" className="border-brand-green text-brand-green-deep" loading={update.isPending}
+          // Phones: the long label wraps inside the card instead of running past its edge (360).
+          variant="secondary" className="border-brand-green text-brand-green-deep max-sm:h-auto max-sm:min-h-[44px] max-sm:whitespace-normal max-sm:py-2" loading={update.isPending}
           onClick={() => { if (!update.isPending) update.mutate(); }}
         >
           Send unmarked documents automatically
