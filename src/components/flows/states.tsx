@@ -125,8 +125,10 @@ export const Failed = ({ error, retry, what, lead = "We couldn't load this." }: 
 
 /** Failed checks are a heads-up; they never stop a send. In the inbox nothing is set up (so "fields not confirmed" is no news)
  *  and nothing is sent from the document, so neither is said. */
-export function Checks({ checks, inbox = false, flowId, duplicateOf }: {
+export function Checks({ checks, inbox = false, flowId, duplicateOf, downloadOnly }: {
   checks: DocumentCheck[]; inbox?: boolean;
+  /** The flow only makes files to download: nothing is sent, so the server's "before sending" is said as making the file. */
+  downloadOnly?: boolean;
   /** A repeated number's earlier copy: its check says when it came, with a way to it (when it is still there). */
   flowId?: string; duplicateOf?: DuplicateOf | null;
 }) {
@@ -136,7 +138,7 @@ export function Checks({ checks, inbox = false, flowId, duplicateOf }: {
     <div className="grid gap-2">
       {failed.map((c, i) => c.code === "duplicate" && duplicateOf
         ? <StatusNotice key={`${c.code}-${i}`} tone="warning" action={flowId && <EarlierLink flowId={flowId} of={duplicateOf} className={buttonClass("secondary", "sm")} />}>{duplicateLine(duplicateOf)}</StatusNotice>
-        : <StatusNotice key={`${c.code}-${i}`} tone="warning">{c.message}</StatusNotice>)}
+        : <StatusNotice key={`${c.code}-${i}`} tone="warning">{downloadOnly ? c.message.replace(/ before sending\.$/, " before you make the file.") : c.message}</StatusNotice>)}
       {!inbox && <p className="m-0 text-[12.5px] text-ink-muted">Checks are a heads-up; they never stop you sending.</p>}
     </div>
   );
@@ -151,12 +153,20 @@ export function ReadProblem({ summary, retry, scansOn, uploadHref, held }: {
   held?: string;
 }) {
   // The screen's own ["document", id] query already holds the detail; read, never fetched again here.
-  const failed = useQueryClient().getQueryData<DocumentDetail>(["document", summary.id])?.heldOutput;
-  if (summary.statusReason === "output_invalid") return (
-    <StatusNotice tone="warning" action={
-      <Link href={flowAddress(summary.flowId, "send", { output: failed?.outputId ?? undefined })} className={buttonClass("secondary", "sm")}>Change the file</Link>
-    }>{outputFailedMessage(failed?.output, failed?.detail)}</StatusNotice>
-  );
+  const detail = useQueryClient().getQueryData<DocumentDetail>(["document", summary.id]);
+  const failed = detail?.heldOutput;
+  if (summary.statusReason === "output_invalid") {
+    // Values the flow doesn't read are added in its "We read" step; values it reads but this document lacks are typed here.
+    const missing = failed?.missing ?? [];
+    const typed = summary.status === "needs_review" && missing.every((m) => detail?.read.fields.some((f) => f.meaning === m));
+    const link = (href: string, text: string) => <Link href={href} className={buttonClass("secondary", "sm")}>{text}</Link>;
+    return (
+      <StatusNotice tone="warning" action={!missing.length ? link(flowAddress(summary.flowId, "send", { output: failed?.outputId ?? undefined }), "Change the file")
+        : !typed && link(flowAddress(summary.flowId, "read"), "Add them in We read")}>
+        {outputFailedMessage(failed?.output, failed?.detail)}{summary.status !== "needs_review" && " The other files were made."}
+      </StatusNotice>
+    );
+  }
   if (AUTOMATIC_HOLDS.has(summary.statusReason ?? "")) return <StatusNotice tone="warning">{readFailureMessage(summary.statusReason)}</StatusNotice>;
   // A held duplicate always shows its hold and "Read it anyway", even when values were read (a moved inbox document was).
   const duplicate = summary.statusReason === "duplicate_file";

@@ -29,11 +29,12 @@ export const STATUS = Object.fromEntries(Object.keys(ROWS).map((k) => [k, k])) a
  *  Mirrors `ProcuLink.Core/Documents/DocumentChecks.cs` (pinned by backendMirror.test.ts). */
 export const WHOLE_DOCUMENT_CHECKS = ["fields_unconfirmed", "duplicate", "text_truncated", "new_sender"] as const;
 
-/** A reason's own label, by `status/reason`: how the inbox sorted a document. Every other fact stays the status's. */
+/** A reason's own label, by `status/reason`: how the inbox sorted a document, or why it waits. Every other fact stays the status's. */
 export const REASON_LABELS: Record<string, string> = {
   "needs_review/new_kind": "First of its kind",
   "needs_review/choose_flow": "Where should it go?",
   "needs_review/check_sort": "Check where we put it",
+  "needs_review/output_invalid": "A file can't be made",
   "sent/downloaded": "Downloaded",
 };
 

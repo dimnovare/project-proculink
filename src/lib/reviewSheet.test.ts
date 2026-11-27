@@ -35,6 +35,8 @@ describe("reviewSheet", () => {
     const net = header("net", "1303.40", "total_net");
     const lines = ["490.00", "673.40", "140.00"];
     expect(rowsSum(read(lines, [net]), unlisted, {})).toEqual({ table: "lines", sum: "1303.40", same: true, label: "net", value: "1303.40" });
+    // Said in the document's own number style.
+    expect(rowsSum(read(["490,00", "673,40", "140,00"], [header("net", "1 303,40", "total_net")]), unlisted, {})).toMatchObject({ sum: "1 303,40", same: true });
     // What is being typed counts.
     expect(rowsSum(read(lines, [net]), unlisted, { "cell:lines/2/amount": "150" })).toMatchObject({ sum: "1313.40", same: false, value: "1303.40" });
     // Never against the gross total: an invoice with VAT is not a mismatch.

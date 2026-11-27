@@ -1,4 +1,5 @@
 import type { OutputFieldRule, OutputNode, OutputNodeTemplate } from "@/lib/api/types";
+import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
 import type { FlowFieldList, SendWhen } from "@/lib/api/documents";
 
 export type SimpleRow = {
@@ -38,9 +39,12 @@ export function uniqueNames(names: string[]): string[] {
   });
 }
 
-/** Each field's label as shown on screen, numbered in read order so two "Supplier" fields read "Supplier" and "Supplier 2". */
-export const shownLabels = (fields: { key: string; label: string }[]) => {
-  const names = uniqueNames(fields.map((f) => f.label));
+/** Each field's label as shown on screen. A repeated label is named by the value's meaning when it has one ("Sender city",
+ *  "Receiver city"); otherwise it is numbered in read order, so two "Supplier" fields read "Supplier" and "Supplier 2". */
+export const shownLabels = (fields: { key: string; label: string; meaning?: string | null }[]) => {
+  const repeated = (l: string) => fields.filter((f) => f.label.toUpperCase() === l.toUpperCase()).length > 1;
+  const meant = (m: string | null | undefined) => (m && Object.hasOwn(FIELD_MEANINGS, m) ? FIELD_MEANINGS[m as keyof typeof FIELD_MEANINGS].label : null);
+  const names = uniqueNames(fields.map((f) => (repeated(f.label) && meant(f.meaning)) || f.label));
   return new Map(fields.map((f, i) => [f.key, names[i]]));
 };
 
