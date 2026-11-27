@@ -19,7 +19,7 @@ import { documentRefusalMessage, refusalToken } from "@/lib/documentRefusals";
 import { activityAddress } from "@/lib/activityRows";
 import { documentsAddress } from "@/lib/documentTabs";
 import { GoogleAccounts } from "./GoogleAccounts";
-import { TestOutcome } from "./TestOutcome";
+import { TestOutcome, WaitingDocuments } from "./TestOutcome";
 
 /** Name, where, used by, last send, the buttons. Below lg a row stacks: name and where left, buttons right, the rest under. */
 const COLUMNS = "lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.6fr)_minmax(0,0.7fr)_minmax(0,1fr)_9rem]";
@@ -101,8 +101,12 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
     // An output saved since the list loaded: ask again, so its name appears.
     onError: (e) => { if (refusalToken(e) === "destination_in_use") refresh(); },
   });
-  // An older server may send neither key: absent says nothing; only an explicit null is "Never sent".
-  const last = d.lastSend === undefined ? null : lastSendWords(d.lastSend, new Date());
+  // An older server may send neither key: absent says nothing; only an explicit null is "Never sent". It also sent the newer of the
+  // last real send and the last test as one: a test there is read as the test, so it never stands in for the real send.
+  const sent = d.lastSend?.kind === "test" ? undefined : d.lastSend;
+  const tested = d.lastTest ?? (d.lastSend?.kind === "test" ? d.lastSend : null);
+  const last = sent === undefined ? null : lastSendWords(sent, new Date(), d.protocol);
+  const lastTest = tested && lastSendWords(tested, new Date(), d.protocol);
   const uses: number | undefined = d.usedBy?.length;
   // Focus follows the panel: into its first field on opening (also on arriving from an address, so the panel is
   // brought into view once), back to this row's Edit when it closes.
@@ -142,9 +146,10 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
           {last?.tone === "failed" && (
             <>
               <span aria-hidden>{" · "}</span>
-              <Link href={d.lastSend?.kind === "document" ? documentsAddress("failed") : activityAddress("all", 1, d.lastSend?.at)} className="inline-flex items-center font-semibold underline max-lg:min-h-[44px]">See why</Link>
+              <Link href={sent?.kind === "document" ? documentsAddress("failed") : activityAddress("all", 1, sent?.at)} className="inline-flex items-center font-semibold underline max-lg:min-h-[44px]">See why</Link>
             </>
           )}
+          {lastTest && <span className={`block text-[12.5px] ${TONE[lastTest.tone]}`}>{lastTest.text}</span>}
         </span>
         <span className="col-span-full flex items-start gap-2 sm:col-span-1 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:justify-end lg:col-start-5 lg:row-span-1 lg:items-center">
           {open ? (
@@ -182,11 +187,15 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
           {del.isError && <StatusNotice tone="error">{documentRefusalMessage(del.error)}</StatusNotice>}
         </div>
       ) : (
-        (test.data || test.isError) && (
-          <div className="px-4 pb-3">
-            <TestOutcome destinationId={d.id} protocol={d.protocol} result={test.data ?? null} error={test.error} at={test.submittedAt} place="row" />
-          </div>
-        )
+        <>
+          {(test.data || test.isError) && (
+            <div className="px-4 pb-3">
+              <TestOutcome destinationId={d.id} protocol={d.protocol} result={test.data ?? null} error={test.error} at={test.submittedAt} place="row" />
+            </div>
+          )}
+          {/* From the server, so it stays after a reload while documents wait; a passed test above already shows it. */}
+          {sent?.ok === false && !test.data?.success && <div className="px-4 pb-3 empty:hidden"><WaitingDocuments destinationId={d.id} at={0} /></div>}
+        </>
       )}
     </li>
   );

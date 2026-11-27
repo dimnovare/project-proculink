@@ -190,6 +190,8 @@ describe("DestinationForm", () => {
     fireEvent.change(ui.getByLabelText("Send by"), { target: { value: "google_drive" } });
     expect(ui.getByText("user@example.com")).toBeTruthy();
     expect(ui.queryByRole("button", { name: "Reconnect" })).toBeNull();
+    expect(ui.queryByRole("button", { name: "Disconnect" })).toBeNull(); // accounts are removed in Settings only
+    expect(ui.getByRole("link", { name: "Manage accounts in Workspace › Connected accounts" })).toHaveAttribute("href", "/settings?tab=org");
     expect(document.querySelector("input[type=password], textarea")).toBeNull();
     fireEvent.click(ui.getByRole("button", { name: "Choose folder" }));
     expect(await ui.findByText("Invoices")).toBeTruthy();
@@ -347,6 +349,8 @@ describe("DestinationForm", () => {
     expect((ui.getByLabelText("Google account") as HTMLSelectElement).value).toBe("");
     expect(ui.queryByText("Old folder")).toBeNull();
     expect(ui.queryByRole("button", { name: "Choose folder" })).toBeNull();
+    expect(ui.getByRole("button", { name: "Save" })).toBeDisabled(); // nothing to send with until an account is chosen
+    expect(ui.getByText("Choose an account before you save.")).toBeTruthy();
   });
 
   it("Save and send a test saves, then tests, keeps the login write-only, and folds what is rarely changed", async () => {
@@ -365,7 +369,7 @@ describe("DestinationForm", () => {
     expect(ui.getByLabelText("New password")).toHaveAttribute("placeholder", "Leave blank to keep the saved one");
     fireEvent.click(ui.getByRole("button", { name: /^More options/ }));
     expect(ui.getByLabelText("Port")).toHaveValue(22);
-    expect(ui.queryByRole("button", { name: "Save" })).toBeNull();
+    expect(ui.getByRole("button", { name: "Save" })).toBeInTheDocument(); // a plain save, which sends no test
     expect(ui.queryByRole("button", { name: "Send a test" })).toBeNull();
     const saveAndTest = ui.getByRole("button", { name: "Save and send a test" });
     fireEvent.click(saveAndTest);

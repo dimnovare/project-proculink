@@ -37,10 +37,10 @@ describe("TestOutcome", () => {
     render(<QueryClientProvider client={qc}><TestOutcome destinationId="dest-1" protocol="sftp" result={{ success: true, message: null, responseCode: null }} error={null} at={at} place="form" /></QueryClientProvider>);
     expect(screen.getByRole("status")).toHaveTextContent("Test file arrived at 14:05.");
     const band = await screen.findByTestId("destination-waiting");
-    expect(band).toHaveTextContent("1 document was waiting for this destination.");
+    expect(band).toHaveTextContent("1 document is waiting for this destination.");
     expect(band).toHaveTextContent("invoice-2290.pdf couldn't be sent at 09:12. We stopped trying.");
     expect(api.listDocumentPage).toHaveBeenCalledWith({ waitingOnDestination: "dest-1", page: 1, pageSize: 50 });
-    const now = within(band).getByRole("button", { name: "Send it now" });
+    const now = within(band).getByRole("button", { name: /^Send (it|all \d+) now$/ });
     fireEvent.click(now);
     fireEvent.click(now);
     expect(api.sendDocument).toHaveBeenCalledTimes(1);
@@ -55,11 +55,11 @@ describe("TestOutcome", () => {
     expect(await screen.findByText("invoice-2290.pdf is on its way again.")).toBeInTheDocument();
     await act(() => new Promise((r) => setTimeout(r, 0)));
     // Only a list fetched after the run ended is offered: not the old one, not the mid-run one.
-    expect(screen.queryByRole("button", { name: "Send it now" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Send (it|all \d+) now$/ })).toBeNull();
     api.listDocumentPage.mockResolvedValue(page([row("doc-4", "invoice-2290.pdf", null)]));
     vi.setSystemTime(new Date(2026, 5, 1, 15, 3));
     await act(() => qc.refetchQueries(waitingKey));
-    expect(await screen.findByRole("button", { name: "Send it now" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /^Send (it|all \d+) now$/ })).toBeInTheDocument();
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["documents"] });
     cleanup();
     api.listDocumentPage.mockResolvedValue(page([row("doc-4", "invoice-2290.pdf", null), row("doc-8", "invoice-2291.pdf", null)]));
@@ -67,9 +67,9 @@ describe("TestOutcome", () => {
     api.sendDocument.mockResolvedValueOnce([]).mockRejectedValueOnce(new ApiHttpError("refused", 409, { error: "not_ready" }));
     render(<QueryClientProvider client={new QueryClient()}><TestOutcome destinationId="dest-1" protocol="sftp" result={{ success: true, message: null, responseCode: null }} error={null} at={at} place="form" /></QueryClientProvider>);
     const two = await screen.findByTestId("destination-waiting");
-    expect(two).toHaveTextContent("2 documents were waiting for this destination.");
+    expect(two).toHaveTextContent("2 documents are waiting for this destination.");
     expect(two).toHaveTextContent("The latest couldn't be sent. We stopped trying.");
-    fireEvent.click(within(two).getByRole("button", { name: "Send it now" }));
+    fireEvent.click(within(two).getByRole("button", { name: /^Send (it|all \d+) now$/ }));
     const refused = await screen.findByRole("alert");
     expect(refused).toHaveTextContent("1 of 2 couldn't be sent again: This document can't be sent right now. Reload to see its latest state.");
     expect(within(refused).getByRole("link", { name: "Show what couldn't be sent" })).toHaveAttribute("href", "/documents?show=failed");
@@ -90,7 +90,7 @@ describe("TestOutcome", () => {
       await waitFor(() => expect(qc.getQueryState(["documents", "waiting", "dest-1", at])?.status).toBe(state));
       await act(() => new Promise((r) => setTimeout(r, 0))); // TanStack tells the component on the next tick
       expect(api.listDocumentPage).toHaveBeenCalled();
-      expect(screen.getByRole("status")).toHaveTextContent("Test file arrived at 14:05.");
+      expect(screen.getByRole("status")).toHaveTextContent("Test accepted by the mail server at 14:05.");
       expect(screen.queryByTestId("destination-waiting")).toBeNull();
       expect(document.body).not.toHaveTextContent(/waiting|0 documents/);
       cleanup();
@@ -104,7 +104,7 @@ describe("TestOutcome", () => {
     api.sendDocument.mockResolvedValueOnce([]).mockRejectedValueOnce(new ApiHttpError("refused", 409, { error: "not_ready" }))
       .mockRejectedValueOnce(new ApiHttpError("limit", 429, { error: "order_limit_reached" })).mockResolvedValue([]);
     render(<QueryClientProvider client={new QueryClient()}><TestOutcome destinationId="dest-1" protocol="sftp" result={{ success: true, message: null, responseCode: null }} error={null} at={at} place="form" /></QueryClientProvider>);
-    fireEvent.click(within(await screen.findByTestId("destination-waiting")).getByRole("button", { name: "Send it now" }));
+    fireEvent.click(within(await screen.findByTestId("destination-waiting")).getByRole("button", { name: /^Send (it|all \d+) now$/ }));
     const [own, stop] = await screen.findAllByRole("alert");
     expect(stop).toHaveTextContent("1 sent. You've reached your plan's document limit for this month.");
     expect(screen.getAllByText(/document limit/)).toHaveLength(1);
@@ -116,7 +116,7 @@ describe("TestOutcome", () => {
     api.sendDocument.mockReset().mockResolvedValueOnce([]).mockRejectedValueOnce(new ApiHttpError("paused", 409, { error: "processing_paused" }))
       .mockResolvedValue([]);
     render(<QueryClientProvider client={new QueryClient()}><TestOutcome destinationId="dest-1" protocol="sftp" result={{ success: true, message: null, responseCode: null }} error={null} at={at} place="form" /></QueryClientProvider>);
-    fireEvent.click(within(await screen.findByTestId("destination-waiting")).getByRole("button", { name: "Send it now" }));
+    fireEvent.click(within(await screen.findByTestId("destination-waiting")).getByRole("button", { name: /^Send (it|all \d+) now$/ }));
     expect(await screen.findByRole("alert")).toHaveTextContent("1 sent. Processing is paused on this workspace.");
     expect(api.sendDocument.mock.calls).toEqual([["doc-1"], ["doc-2"]]);
   });

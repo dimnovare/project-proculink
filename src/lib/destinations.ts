@@ -56,15 +56,18 @@ export function sendMoment(iso: string, now: Date): string | null {
   return `on ${at.toLocaleDateString(DATE_LOCALE, { day: "numeric", month: "long", ...year })}`;
 }
 
-const LAST_SEND: Record<string, [ok: string, failed: string]> = {
-  document: ["Sent", "Couldn't send"],
-  test: ["Test arrived", "Test failed"],
+/** What a passed test proves, by kind: a file put in place, a server's acceptance, or only a working sign-in (nothing sent). */
+const TEST_PASSED: Record<string, string> = {
+  sftp: "Test file arrived", ftps: "Test file arrived", s3: "Test file arrived", google_drive: "Test file arrived", microsoft_onedrive: "Test file arrived",
+  email: "Test accepted by the mail server", http: "Test accepted by the web address",
+  google_sheets: "Connection check passed", ksef: "Connection check passed", b2brouter: "Connection check passed",
 };
+export const testPassedWords = (protocol: string) => TEST_PASSED[protocol] ?? "Test passed";
 
 /** An unknown `kind` reads "Last used", muted: unknown is never a success. */
-export function lastSendWords(last: DestinationLastSend | null, now: Date): { text: string; tone: "ok" | "failed" | "never" } {
+export function lastSendWords(last: DestinationLastSend | null, now: Date, protocol = ""): { text: string; tone: "ok" | "failed" | "never" } {
   if (!last) return { text: "Never sent", tone: "never" };
-  const words = LAST_SEND[last.kind];
+  const words = ({ document: ["Sent", "Couldn't send"], test: [testPassedWords(protocol), "Test failed"] } as Record<string, string[]>)[last.kind];
   const lead = words ? words[last.ok ? 0 : 1] : "Last used";
   const text = [lead, sendMoment(last.at, now)].filter(Boolean).join(" ");
   return { text, tone: words ? (last.ok ? "ok" : "failed") : "never" };

@@ -40,7 +40,7 @@ describe("destination words", () => {
     expect(sendMoment("nonsense", now)).toBeNull();
     expect(lastSendWords({ kind: "document", at: at(2026, 5, 1, 8, 2), ok: true }, now)).toEqual({ text: "Sent at 08:02", tone: "ok" });
     expect(lastSendWords({ kind: "document", at: at(2026, 4, 24, 9, 10), ok: false }, now)).toEqual({ text: "Couldn't send on 24 May", tone: "failed" });
-    expect(lastSendWords({ kind: "test", at: at(2026, 5, 1, 14, 5), ok: true }, now)).toEqual({ text: "Test arrived at 14:05", tone: "ok" });
+    expect(lastSendWords({ kind: "test", at: at(2026, 5, 1, 14, 5), ok: true }, now, "b2brouter")).toEqual({ text: "Connection check passed at 14:05", tone: "ok" });
     expect(lastSendWords({ kind: "test", at: at(2026, 4, 31, 9, 0), ok: false }, now)).toEqual({ text: "Test failed yesterday", tone: "failed" });
     expect(lastSendWords({ kind: "replay", at: at(2026, 5, 1, 14, 5), ok: true }, now)).toEqual({ text: "Last used at 14:05", tone: "never" });
     expect(lastSendWords(null, now)).toEqual({ text: "Never sent", tone: "never" });

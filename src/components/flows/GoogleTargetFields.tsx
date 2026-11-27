@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import {
-  GOOGLE_CONNECT_CHANNEL, deleteLinkedAccount, getGooglePicker, listLinkedAccounts, startGoogleConnect, startMicrosoftConnect, type GoogleStart,
+  GOOGLE_CONNECT_CHANNEL, getGooglePicker, listLinkedAccounts, startGoogleConnect, startMicrosoftConnect, type GoogleStart,
 } from "@/lib/api/linkedAccounts";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { openGooglePicker } from "@/lib/googlePicker";
+import { settingsAddress } from "@/lib/settingsTabs";
 import { Field, INPUT } from "./DestinationForm";
 import { useOnFlowPage } from "./flowDraft";
 
@@ -60,7 +62,6 @@ export function GoogleTargetFields({ protocol, config, onChange }: {
   const filled = useOnFlowPage() ? "secondary" : "primary";
   const linked = useLinkedAccounts();
   const [problem, setProblem] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState(false);
   const drive = protocol === "google_drive";
   // OneDrive (plan 30 Part B): a pasted sharing link instead of Google's Picker; the server resolves it and keeps the folder.
   const ms = protocol === "microsoft_onedrive";
@@ -76,15 +77,6 @@ export function GoogleTargetFields({ protocol, config, onChange }: {
       openGooglePicker({ kind: drive ? "folder" : "spreadsheet", ...(await getGooglePicker(accountId)) }),
     onSuccess: (doc, accountId) => doc && onChange({ accountId, [idKey]: doc.id, [nameKey]: doc.name }),
     onError: (e) => { fail(e); void qc.invalidateQueries({ queryKey: KEY }); }, // a removed grant shows as "reconnect"
-  });
-  const disconnect = useMutation({
-    mutationFn: deleteLinkedAccount,
-    onSuccess: (_v, id) => {
-      if (config.accountId === id) onChange({ accountId: "", [idKey]: "", [nameKey]: "" });
-      void qc.invalidateQueries({ queryKey: KEY });
-    },
-    onError: fail,
-    onSettled: () => setConfirming(false),
   });
 
   if (!linked.data) return null;
@@ -126,22 +118,11 @@ export function GoogleTargetFields({ protocol, config, onChange }: {
       <div className="flex flex-wrap gap-2">
         {reconnect && <Button type="button" variant={filled} onClick={start}>Reconnect</Button>}
         <Button type="button" variant="ghost" onClick={start}>Connect another account</Button>
-        {account && !confirming && <Button type="button" variant="ghost" onClick={() => setConfirming(true)}>Disconnect</Button>}
+        {/* Accounts are shared by every destination and pickup, so they are removed in one place only. */}
+        <Link href={settingsAddress("org")} className="inline-flex min-h-11 items-center text-[13px] font-semibold text-ink underline">
+          Manage accounts in Workspace › Connected accounts
+        </Link>
       </div>
-      {account && confirming && (
-        <StatusNotice tone="warning" action={
-          <span className="flex gap-2">
-            <Button type="button" variant={filled === "primary" ? "danger" : "secondary"} size="sm" loading={disconnect.isPending}
-              className={filled === "primary" ? undefined : "border-danger text-danger"}
-              onClick={() => disconnect.mutate(account.id)}>Disconnect</Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)}>Keep connected</Button>
-          </span>
-        }>
-          {ms
-            ? "Disconnect this Microsoft account? ProcuLink deletes its access now. You can also remove ProcuLink from your Microsoft account's app permissions."
-            : "Disconnect this Google account? ProcuLink deletes its access now. You can also remove ProcuLink from your Google account's third-party access."}
-        </StatusNotice>
-      )}
       {ms ? (
         <div className="grid gap-1">
           <Field label="Folder link">

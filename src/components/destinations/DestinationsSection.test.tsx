@@ -144,4 +144,18 @@ describe("DestinationsSection", () => {
     expect(within(fresh).getByLabelText("Send by")).toBeInTheDocument();
     expect(within(fresh).getByRole("button", { name: "Save and send a test" })).toBeInTheDocument();
   });
+
+  it("a later passed test never hides a failed real send, and what still waits is offered from the server, by count", async () => {
+    const b2b: Destination = { ...inbox, protocol: "b2brouter", config: {}, lastTest: { kind: "test", at: "2026-06-01T12:29:00Z", ok: true } };
+    const waiting = ["a.pdf", "b.pdf", "c.pdf"].map((fileName, i) => ({ id: `doc-${i}`, fileName, failedAt: "2026-05-24T09:10:00Z" }));
+    api.listDestinations.mockResolvedValue([b2b]);
+    api.listDocumentPage.mockResolvedValue({ items: waiting, totalCount: 3, page: 1, pageSize: 50, sampleCount: 0 });
+    search.q = "tab=destinations";
+    renderSection();
+    const row = within(await screen.findByRole("list", { name: "Destinations" })).getAllByRole("listitem")[0];
+    expect(row).toHaveTextContent(/Couldn't send on 24 May.*See why.*Connection check passed at \d\d:\d\d/);
+    expect(row).not.toHaveTextContent(/arrived/);
+    expect(await within(row).findByTestId("destination-waiting")).toHaveTextContent("3 documents are waiting for this destination.");
+    expect(within(row).getByRole("button", { name: "Send all 3 now" })).toBeInTheDocument();
+  });
 });

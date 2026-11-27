@@ -149,8 +149,10 @@ export interface Destination {
   id: string; name: string; protocol: string; config: Record<string, unknown>; hasCredentials: boolean; createdAt: string;
   /** One row per output that sends here, editable or live. */
   usedBy: DestinationUse[];
-  /** Null when nothing was ever sent or tested here. */
+  /** The newest finished real send; null when none. An older server sent the newer of it and the last test here. */
   lastSend: DestinationLastSend | null;
+  /** The newest test, apart, so it never hides how the last real send went. Absent from an older server. */
+  lastTest?: DestinationLastSend | null;
 }
 export interface DestinationRequest {
   name: string; protocol: string; config: Record<string, unknown>; credentials?: Record<string, unknown> | null;
