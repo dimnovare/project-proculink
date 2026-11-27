@@ -36,8 +36,8 @@
     "link_privacy": "Datenschutz",
     "link_terms": "AGB",
     "link_aup": "Nutzungsrichtlinie",
-    "link_dpa": "Auftragsverarbeitungsvertrag",
-    "link_subprocessors": "Unterauftragsverarbeiter",
+    "link_dpa": "Auftrags­verarbeitungs­vertrag",
+    "link_subprocessors": "Unterauftrags­verarbeiter",
     "status": "Status",
     "language": "Sprache",
     "storage": "Dokumentenspeicherung in der EU",
@@ -192,11 +192,11 @@
         "line": "Was wir erfassen und wie lange wir es aufbewahren"
       },
       "2": {
-        "label": "Auftragsverarbeitungsvertrag",
+        "label": "Auftrags­verarbeitungs­vertrag",
         "line": "Der Vertrag für die Dokumente, die Sie uns senden"
       },
       "3": {
-        "label": "Unterauftragsverarbeiter",
+        "label": "Unterauftrags­verarbeiter",
         "line": "Jedes Unternehmen, das Ihre Daten verarbeitet, und wo"
       }
     }

@@ -15,8 +15,8 @@ export function SiteFooter() {
   return (
     <footer className="on-navy bg-navy text-navy-text text-[15px] leading-normal">
       <div className="mx-auto flex max-w-[1160px] flex-col gap-10 px-6 pb-7 pt-14">
-        <div className="grid gap-x-10 gap-y-8 sm:grid-cols-3 lg:grid-cols-[2fr_1fr_1fr_1fr]">
-          <div className="flex max-w-[420px] flex-col gap-3.5 sm:col-span-3 lg:col-span-1">
+        <div className="grid gap-x-10 gap-y-8 sm:grid-cols-4 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr]">
+          <div className="flex max-w-[420px] flex-col gap-3.5 sm:col-span-4 lg:col-span-1">
             <Link href="/" className="flex min-h-[44px] items-center gap-2.5 self-start font-display text-[20px] font-bold tracking-[-0.02em] text-white no-underline">
               <span aria-hidden="true" className="inline-flex">
                 <ProcuLinkMark size={26} mono />
