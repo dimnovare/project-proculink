@@ -26,6 +26,9 @@ const nextConfig: NextConfig = {
   // Transpiling it lowers them to Next's browserslist target. Guarded by
   // scripts/check-client-syntax.mjs.
   transpilePackages: ["intl-messageformat"],
+  // Pages render per request (the language cookie), so Next would stream the metadata into <body> for
+  // browser user agents. Every agent gets it in <head> instead: the description and title are read there.
+  htmlLimitedBots: /.*/,
   // Tree-shake the lucide-react icon barrel into per-icon imports so a route
   // that uses a handful of icons doesn't pull the whole set into its bundle.
   // Zero behavior change — Next rewrites the imports at build time.

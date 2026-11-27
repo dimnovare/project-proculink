@@ -1,5 +1,6 @@
 import { Children, isValidElement } from "react";
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 import { COMPANY_TRUST_LINE } from "@/lib/legal-entity";
 import { SITE } from "@/components/marketing/sitePictures";
 
@@ -49,8 +50,12 @@ export const INK_CTA =
 export function OnThisPage({ items, className = "" }: { items: readonly (readonly [id: string, label: string])[]; className?: string }) {
   return (
     <nav aria-label="On this page" className={className}>
-      <details className="rounded-[10px] border border-border px-4">
-        <summary className="flex min-h-[52px] cursor-pointer items-center font-semibold">On this page</summary>
+      <details className="group rounded-[10px] border border-border px-4">
+        {/* `flex` drops the native marker, so the chevron says the box opens. */}
+        <summary className="flex min-h-[52px] cursor-pointer items-center justify-between font-semibold">
+          On this page
+          <ChevronDown aria-hidden="true" className="size-5 shrink-0 transition-transform group-open:rotate-180" />
+        </summary>
         {items.map(([id, label]) => (
           <a key={id} href={`#${id}`} className="flex min-h-[44px] items-center border-t border-border-faint text-[16px] text-ink no-underline">
             {label}

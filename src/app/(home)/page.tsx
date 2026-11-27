@@ -66,8 +66,10 @@ export default function RootPage() {
           <div className={`${SITE.wrap} flex flex-col gap-14`}>
             <div className="flex flex-wrap items-end gap-x-16 gap-y-10">
               <div className="flex min-w-0 flex-[1_1_560px] flex-col gap-[26px]">
+                {/* From 640px each half stays on one line (the German first half otherwise left "Jedes" alone);
+                    at 5.6vw it always fits the page, and the column widens instead. */}
                 <h1 className={SITE.h1}>
-                  <span className="text-brand-blue">{c("h1a", "Any document in.")}</span>{" "}
+                  <span className="text-brand-blue sm:whitespace-nowrap">{c("h1a", "Any document in.")}</span>{" "}
                   <span className="block text-brand-green-deep">{c("h1b", "Clean data out.")}</span>
                 </h1>
                 <p className={`${SITE.lead} max-w-[620px]`}>{c("lead", SITE_DESCRIPTION)}</p>

@@ -38,6 +38,7 @@ const captured: {
 } = {};
 
 vi.mock("@clerk/nextjs", () => ({
+  useClerk: () => null,
   useAuth: () => ({ isLoaded: true, isSignedIn: false }),
   SignIn: (props: { appearance?: unknown }) => {
     captured.signIn = props.appearance;

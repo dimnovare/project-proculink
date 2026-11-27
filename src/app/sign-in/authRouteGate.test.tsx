@@ -25,6 +25,7 @@ import { act, render, screen, cleanup } from "@testing-library/react";
 let clerkLoaded = false;
 let clerkSignedIn = false;
 vi.mock("@clerk/nextjs", () => ({
+  useClerk: () => null,
   useAuth: () => ({ isLoaded: clerkLoaded, isSignedIn: clerkSignedIn }),
   SignIn: () => <div>clerk sign-in form</div>,
   SignUp: () => <div>clerk sign-up form</div>,

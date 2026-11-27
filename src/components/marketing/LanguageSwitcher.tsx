@@ -27,7 +27,7 @@ export function LanguageMenuButton() {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls="language-menu"
-        aria-label={`${c("language", "Language")}: ${ENDONYMS[locale]}`}
+        aria-label={`${locale.toUpperCase()}, ${c("language", "Language")}: ${ENDONYMS[locale]}`}
         className="inline-flex h-11 items-center gap-1.5 rounded-lg px-2.5 text-[14px] font-medium text-navy-text hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
       >
         <Globe aria-hidden="true" className="size-4" strokeWidth={1.9} />

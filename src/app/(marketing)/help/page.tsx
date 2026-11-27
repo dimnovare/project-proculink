@@ -91,7 +91,9 @@ export default function HelpIndex() {
             <h1 className={SITE.docH1}>
               How can we help?
             </h1>
-            <p className={`${SITE.soft} m-0 text-[19px]`}>
+            {/* Three lines held on phones: this line wraps 2 or 3 times depending on whether the web font has
+                arrived, and the late line pushed everything below it down (CLS 0.218). */}
+            <p className={`${SITE.soft} m-0 text-[19px] max-[639px]:min-h-[3lh]`}>
               Search for what you are trying to do, follow a step-by-step guide, or{" "}
               <a href="#ask" className={LINK}>
                 ask a person

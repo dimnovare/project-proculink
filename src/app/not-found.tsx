@@ -57,9 +57,8 @@ export default function NotFound() {
                   <div className={`${LINE} mt-3 w-[88%]`} />
                   <div className={`${LINE} w-[88%]`} />
                   <div className={`${LINE} w-[61%]`} />
-                  <p className="mt-auto self-end font-display text-[54px] font-semibold leading-none tracking-[-0.03em] text-border-strong">
-                    404
-                  </p>
+                  {/* Drawn as CSS content, not text: the faded numeral is part of the picture (axe reads aria-hidden text for contrast). */}
+                  <p className="mt-auto self-end font-display text-[54px] font-semibold leading-none tracking-[-0.03em] text-border-strong before:content-['404']" />
                 </div>
               </div>
             </div>

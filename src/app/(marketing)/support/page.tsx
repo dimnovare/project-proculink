@@ -49,9 +49,10 @@ export default function SupportPage() {
 
       <section className="bg-surface pb-[88px] pt-16">
         {/* One column below 860px: the address and hours first, then the form, then what
-            to include. `contents` lets the aside's two blocks take their own places. */}
+            to include. `contents` lets the aside's two blocks take their own places. From 860px
+            the form is on the right, as on /book-demo. */}
         <div className={`${SITE.wrap} flex flex-col gap-10 min-[860px]:flex-row min-[860px]:items-start min-[860px]:gap-x-[88px]`}>
-          <Card className="min-w-0 min-[860px]:flex-[1.4_1_480px]">
+          <Card className="min-w-0 min-[860px]:order-last min-[860px]:flex-[1.4_1_480px]">
             {/* ContactFormFromAddress prefills its subject from ?order= / ?problem= (the
                 "Get help with this order" link on a stuck order), which means it reads
                 useSearchParams. This boundary is REQUIRED, not decorative: without it

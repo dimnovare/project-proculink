@@ -64,6 +64,7 @@ vi.mock("@/lib/plans", async () => {
 // /sign-up mounts Clerk's <SignUp/> behind <ClerkAvailabilityGate>, which reads
 // useAuth().isLoaded. Same stubs as src/app/sign-in/authRouteGate.test.tsx.
 vi.mock("@clerk/nextjs", () => ({
+  useClerk: () => null,
   useAuth: () => ({ isLoaded: true, isSignedIn: false }),
   SignUp: () => <div>clerk sign-up form</div>,
 }));
