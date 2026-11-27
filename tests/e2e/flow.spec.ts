@@ -195,7 +195,7 @@ test.describe("flow page", () => {
     const test1 = page.getByRole("button", { name: "Send a test" });
     await expect(test1).toBeEnabled();
     await test1.click();
-    await expect(page.getByText(/^Test file arrived at /)).toBeVisible();
+    await expect(page.getByText(/^Test accepted by the mail server at /)).toBeVisible();
     await page.waitForTimeout(1000);   // the waiting-documents question would have been asked and answered by now
     await expect(page.getByTestId("destination-waiting")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Send it now" })).toHaveCount(0);
@@ -446,7 +446,7 @@ test.describe("flow page", () => {
     expect(await sends(page), "nothing was sent on the walk").toEqual([]);
   });
 
-  test("We send: with a new destination open, the changes bar waits until it is closed, the form's Save is the one filled button, and Disconnect is outlined", async ({ page }) => {
+  test("We send: with a new destination open, the changes bar waits until it is closed, the form's Save is the one filled button, and accounts are managed in Settings", async ({ page }) => {
     const google = { available: true, accounts: [{ id: "account-1", provider: "google", email: "sheets@example.test", status: "reconnect", createdAt: "2026-05-20T09:00:00Z" }] };
     await open(page, 1440, at("send"), { "GET /linked-accounts": google });
     await expect(page.getByRole("combobox", { name: "Goes to" })).toHaveCount(0);
@@ -454,8 +454,8 @@ test.describe("flow page", () => {
     await page.getByRole("combobox", { name: "Goes to" }).selectOption({ label: "New destination…" });
     await page.getByRole("combobox", { name: "Send by" }).selectOption({ label: "Google Sheets" });
     await expect(page.getByRole("button", { name: "Reconnect" })).toBeVisible();
-    await page.getByRole("button", { name: "Disconnect" }).click();
-    await expect(page.getByText(/^Disconnect this Google account\?/)).toBeVisible();
+    await expect(page.getByRole("link", { name: "Manage accounts in Workspace › Connected accounts" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Disconnect" })).toHaveCount(0);
     // The form is the task in hand: the bar, and its filled Use these changes, wait until it closes.
     await expect(bar(page)).toBeHidden();
     expect(await filledOtherThanAi(page)).toEqual(["Save and send a test"]);

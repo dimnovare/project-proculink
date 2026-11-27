@@ -9,7 +9,7 @@ import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { listDocumentPage } from "@/lib/api/documents";
 import type { DestinationTestResult, DocumentRow } from "@/lib/api/documents";
-import { sendMoment } from "@/lib/destinations";
+import { sendMoment, testPassedWords } from "@/lib/destinations";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { eachDocument, sendOne, type Each } from "@/lib/eachDocument";
 import { documentsAddress } from "@/lib/documentTabs";
@@ -19,7 +19,7 @@ import { serverReasonOrNull } from "@/lib/serverText";
 const GO_ON = { form: "Check the details above, save, and test again.", row: "Press Edit to check the details, then test again." };
 const sentence = (s: string) => (/[.!?]$/.test(s) ? s : `${s}.`);
 
-/** A test's result where it was pressed, and, after a pass, the documents that were waiting with "Send it now". */
+/** A test's result where it was pressed, worded by what that kind of test proves, and, after a pass, the documents still waiting. */
 export function TestOutcome({ destinationId, protocol, result, error, at, place, offerResend = true }: {
   destinationId: string;
   protocol: string;
@@ -33,25 +33,6 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place,
   /** False: no "Send it now", e.g. after a test of a flow's draft, which a resend would not use. */
   offerResend?: boolean;
 }) {
-  const qc = useQueryClient();
-  const waiting = useQuery({
-    queryKey: ["documents", "waiting", destinationId, at],
-    queryFn: () => listDocumentPage({ waitingOnDestination: destinationId, page: 1, pageSize: 50 }),
-    enabled: useTenantQueriesEnabled() && !!result?.success && offerResend,
-  });
-  // Held from the press itself, so a second press before the next render sends nothing.
-  const busy = useRef(false);
-  // When the last run ended: a list fetched before then (even mid-run) may name documents already on their way.
-  const [ranAt, setRanAt] = useState(0);
-  const send = useMutation({
-    mutationFn: (run: Promise<Each<DocumentRow, unknown>>) => run,
-    onSettled: () => {
-      busy.current = false;
-      setRanAt(Date.now());
-      for (const key of ["documents", "destinations", "activity"]) qc.invalidateQueries({ queryKey: [key] });
-    },
-  });
-
   if (!result && !error) return null;
   // A new element per press (key), scrolled into view as it mounts: clear of a phone's tab bar, and once per test.
   const shown = (body: ReactNode) => <div key={at} ref={scrollTo} className="grid gap-2">{body}</div>;
@@ -66,28 +47,56 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place,
       </StatusNotice>
     );
 
-  const n = pageTotal(waiting.data) ?? 0;
-  const items = waiting.data?.items ?? [];
-  const latest = items.reduce<string | null>((m, d) => (d.failedAt && (!m || Date.parse(d.failedAt) > Date.parse(m)) ? d.failedAt : m), null);
-  const when = latest && sendMoment(latest, new Date());
-  const done = send.data;
-  const tried = done ? done.done.length + done.refused.length : 0;
   return shown(
     <>
       <StatusNotice tone="success">
         {protocol === "ksef" || protocol === "b2brouter" ? reason : <>
           {protocol === "google_sheets"
             ? `We could open the spreadsheet and the tab${moment ? ` ${moment}` : ""}. No rows were added.`
-            : `Test file arrived${moment ? ` ${moment}` : ""}.`}
+            : `${testPassedWords(protocol)}${moment ? ` ${moment}` : ""}.`}
           {reason && <> <span>{reason}</span></>}
         </>}
       </StatusNotice>
+      {offerResend && <WaitingDocuments destinationId={destinationId} at={at} />}
+    </>
+  );
+}
+
+/** The documents this destination stopped trying, with one button that sends them all. Nothing while none wait. */
+export function WaitingDocuments({ destinationId, at }: { destinationId: string; /** Keys the list, so a new test asks again. */ at: number }) {
+  const qc = useQueryClient();
+  const waiting = useQuery({
+    queryKey: ["documents", "waiting", destinationId, at],
+    queryFn: () => listDocumentPage({ waitingOnDestination: destinationId, page: 1, pageSize: 50 }),
+    enabled: useTenantQueriesEnabled(),
+  });
+  // Held from the press itself, so a second press before the next render sends nothing.
+  const busy = useRef(false);
+  // When the last run ended: a list fetched before then (even mid-run) may name documents already on their way.
+  const [ranAt, setRanAt] = useState(0);
+  const send = useMutation({
+    mutationFn: (run: Promise<Each<DocumentRow, unknown>>) => run,
+    onSettled: () => {
+      busy.current = false;
+      setRanAt(Date.now());
+      for (const key of ["documents", "destinations", "activity"]) qc.invalidateQueries({ queryKey: [key] });
+    },
+  });
+
+  const n = pageTotal(waiting.data) ?? 0;
+  const items = waiting.data?.items ?? [];
+  const latest = items.reduce<string | null>((m, d) => (d.failedAt && (!m || Date.parse(d.failedAt) > Date.parse(m)) ? d.failedAt : m), null);
+  const when = latest && sendMoment(latest, new Date());
+  const done = send.data;
+  const tried = done ? done.done.length + done.refused.length : 0;
+  return (
+    <>
       {/* After a run, only a list fetched since it ended is offered. During the run the band stays, its button loading. */}
-      {offerResend && n > 0 && (send.isPending || waiting.dataUpdatedAt > ranAt) && (
+      {n > 0 && (send.isPending || waiting.dataUpdatedAt > ranAt) && (
         <div data-testid="destination-waiting"
           className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-amber-soft px-3 py-2.5 text-[13px] text-amber-text">
           <p className="m-0">
-            <strong>{n === 1 ? "1 document was waiting for this destination." : `${n} documents were waiting for this destination.`}</strong>{" "}
+            <strong>{n === 1 ? "1 document is waiting for this destination." : `${n} documents are waiting for this destination.`}</strong>{" "}
             {`${n === 1 && items[0] ? items[0].fileName : "The latest"} couldn't be sent${when ? ` ${when}` : ""}. We stopped trying.`}
           </p>
           <Button type="button" variant="secondary" size="sm" loading={send.isPending}
@@ -97,7 +106,8 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place,
               busy.current = true;
               send.mutate(eachDocument(items, sendOne));
             }}>
-            Send it now
+            {/* It sends every document listed (one page of 50 at most), so it says how many. */}
+            {items.length === 1 ? "Send it now" : items.length < n ? `Send the first ${items.length} now` : `Send all ${n} now`}
           </Button>
         </div>
       )}

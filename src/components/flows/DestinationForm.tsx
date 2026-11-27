@@ -178,7 +178,7 @@ export const Field = ({ label, look, error, help, hideLabel, children }: {
 export function DestinationForm({ destination, preset, inline, testAfterSave, chosen, onSaved, onCancel }: {
   destination?: Destination; /** Seeds a new web-address destination. */ preset?: { url: string; method?: string; authType?: string };
   /** No card: the fields sit in the panel's grid. */ inline?: boolean;
-  /** One "Save and send a test" instead of "Save" and "Send a test". */ testAfterSave?: boolean;
+  /** "Save and send a test" (and, outside the first run, a plain "Save") instead of "Save" and "Send a test". */ testAfterSave?: boolean;
   /** First run (14.5): the protocols it may save ("Send by" hidden for one), the name it saves under instead of a Name box,
    *  and each finished test of the saved destination. After a save, or with `outlined` (the step's own button is filled), its button is outlined. */
   chosen?: { protocols: readonly string[]; name: string; onTested(outcome: { destinationId: string; ok: boolean }): void; outlined?: boolean };
@@ -205,6 +205,14 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
   const microsoftOn = linked?.microsoftAvailable === true;
   const ksefOn = linked?.ksefAvailable === true;
   const peppolOn = linked?.peppolAvailable === true;
+  // A Google or Microsoft kind saves nothing useful without an account of that provider: Save waits for one, and says so.
+  const who = protocol === "microsoft_onedrive" ? "Microsoft" : "Google";
+  const mine = linked?.accounts.filter((a) => a.provider === who.toLowerCase()) ?? [];
+  const pickedAccount = typeof config.accountId === "string" && config.accountId ? config.accountId : null;
+  const noAccount = isLinked(protocol) && (pickedAccount ? !mine.some((a) => a.id === pickedAccount) : !mine.length)
+    ? (mine.length ? "Choose an account before you save." : `Connect a ${who} account before you save.`) : null;
+  // Whether this save is followed by a test: the plain "Save" next to "Save and send a test" sends none.
+  const andTest = useRef(!!testAfterSave);
   const [issuer, setIssuer] = useState(false);
   // P2-2: each box's problem under it; after a refused save the first one takes the focus.
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -243,7 +251,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
     onSuccess: (d) => {
       setCurrent(d); setCreds({}); setProblem(null); setSaved(true); test.reset(); onSaved(d);
       if (protocol === "microsoft_onedrive") setConfig(d.config); // the pasted link is gone; the resolved folder shows
-      if (testAfterSave) test.mutate(d.id);
+      if (andTest.current) test.mutate(d.id);
     },
     onError: (e) => setProblem(documentRefusalMessage(e)),
   });
@@ -264,8 +272,9 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
     return e;
   };
 
-  function submit() {
-    if (busy.current || save.isPending || test.isPending) return;
+  function submit(thenTest = !!testAfterSave) {
+    if (busy.current || save.isPending || test.isPending || noAccount) return;
+    andTest.current = thenTest;
     const found = check();
     setErrors(found);
     if (Object.keys(found).length) { setProblem(null); setTries((t) => t + 1); return; }
@@ -448,9 +457,13 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
       {problem && <StatusNotice tone="error" className="col-span-full">{problem}</StatusNotice>}
       <div className="col-span-full flex flex-wrap gap-2">
         {testAfterSave ? (
-          <Button type="button" variant={chosen && (saved || chosen.outlined) ? "secondary" : filled} loading={save.isPending || test.isPending} onClick={submit}>Save and send a test</Button>
+          <>
+            <Button type="button" variant={chosen && (saved || chosen.outlined) ? "secondary" : filled} disabled={!!noAccount}
+              loading={(save.isPending && andTest.current) || test.isPending} onClick={() => submit()}>Save and send a test</Button>
+            {!chosen && <Button type="button" variant="secondary" disabled={!!noAccount} loading={save.isPending && !andTest.current} onClick={() => submit(false)}>Save</Button>}
+          </>
         ) : (
-          <Button type="button" variant={filled} loading={save.isPending} onClick={submit}>Save</Button>
+          <Button type="button" variant={filled} disabled={!!noAccount} loading={save.isPending} onClick={() => submit()}>Save</Button>
         )}
         <Button type="button" variant="ghost" onClick={onCancel}>{saved ? "Close" : "Cancel"}</Button>
         {!testAfterSave && (
@@ -459,6 +472,7 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
           </Button>
         )}
       </div>
+      {noAccount && <p className="col-span-full m-0 text-[13px] text-ink-muted">{noAccount}</p>}
       {(note || !testAfterSave) && (
         <p className="col-span-full text-[13px] text-ink-muted">
           {[!testAfterSave && "A test sends the saved settings, so save your changes first.", note].filter(Boolean).join(" ")}

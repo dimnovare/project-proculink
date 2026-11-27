@@ -89,9 +89,9 @@ test.describe("destinations", () => {
     const panel = page.getByRole("region", { name: "Edit Accounting inbox" });
     await expect(panel).toContainText("One file uses this destination, so it can't be deleted.");
     await panel.getByRole("button", { name: "Save and send a test" }).click();
-    await expect(panel.getByText(/^Test file arrived at \d\d:\d\d\.$/)).toBeVisible();
+    await expect(panel.getByText(/^Test accepted by the mail server at \d\d:\d\d\.$/)).toBeVisible();
     const band = panel.getByTestId("destination-waiting");
-    await expect(band).toContainText("1 document was waiting for this destination.");
+    await expect(band).toContainText("1 document is waiting for this destination.");
     await expect(band).toContainText(/invoice-1004\.csv couldn't be sent on 24 May/); // the year follows once it is not this year
     await band.getByRole("button", { name: "Send it now" }).click();
     await expect(panel).toContainText("invoice-1004.csv is on its way again.");
