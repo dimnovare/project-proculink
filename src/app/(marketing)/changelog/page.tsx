@@ -27,6 +27,20 @@ export const metadata = pageMetadata({
 // one is formatting, not a rewrite: the words stay as they were.
 const ENTRIES = [
   {
+    version: "v2.18",
+    date: "27 November 2026",
+    items: [
+      "The website, **Pricing** and the app's menus can now be read in German, French, Polish and Estonian. Choose a language from the globe button at the top of the site, the footer, or **Language** in your account menu. The legal pages stay in English, which is the binding version.",
+      "Invoice pages ProcuLink draws for ZUGFeRD and Factur-X, and the default message of an email destination, are now in the document's language: German, French, Polish or Estonian from the seller's country, otherwise English. Dates and amounts on the page follow that language. An email destination can set it under **More options**, in **Language of the default message**.",
+      "A CSV or spreadsheet that writes numbers the European way, such as 1.234,56, is now read correctly. Each document's clear numbers decide its decimal mark. A value that could be read two ways, such as 1.500 in a document with nothing to decide it, is marked for you to check instead of guessed.",
+      "The line under **Documents** now counts what **finished** this week, including documents you downloaded instead of sending.",
+      "**See why** after a failed test send opens that test in **History**, with the reason and a link to fix the destination.",
+      "The main button on each screen is navy. Green is kept for buttons that send a document out, such as **Send** and **Send again**.",
+      "A pass on phones, tablets and large screens: grids no longer leave one card alone on a row, wide tables fit at laptop width, and on a phone the buttons in **Settings › Destinations** sit under each destination so addresses no longer break mid-word.",
+      "The **Terms** and **Privacy** pages now open with a short summary and have numbered sections, including new ones on accounts and users, confidentiality, who receives your data and how we protect it.",
+    ],
+  },
+  {
     version: "v2.17",
     date: "27 November 2026",
     items: [
