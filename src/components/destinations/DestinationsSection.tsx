@@ -134,7 +134,8 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
     <li ref={item} className="border-b border-border last:border-b-0">
       <div className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 px-4 py-3 lg:items-center ${COLUMNS}`}>
         <span className="min-w-0 break-words text-[14.5px] font-semibold text-ink">{d.name}</span>
-        <span className="min-w-0 break-words text-[13px] text-ink-muted">{destinationWhere(d)}</span>
+        {/* Below sm the "where" goes under the name, so a narrow phone never splits the name mid-word. */}
+        <span className="min-w-0 break-words text-[13px] text-ink-muted max-sm:col-span-full">{destinationWhere(d)}</span>
         <span className="col-span-full min-w-0 break-words text-[13px] text-ink lg:col-span-1">
           {/* Phones have no column heading, so the line names itself. */}
           {!!uses && <span className="text-ink-muted lg:hidden">Used by </span>}
