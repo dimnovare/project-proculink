@@ -10,6 +10,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
+import { useCopy } from "@/i18n/useCopy";
+import { LanguageList, LanguageMenuButton } from "./LanguageSwitcher";
 
 // Clerk is the heaviest dependency of the public pages (~140 kB). The probe is
 // code-split (ssr: false), renders nothing, and only reports a signed-in
@@ -47,6 +49,12 @@ export function MarketingNav() {
   const mainNavRef = useRef<HTMLElement>(null);
   const widened = useRef(false);
   const closeMenu = useCallback(() => setOpen(false), []);
+  const { c } = useCopy("nav");
+  // With the language button, and German or Polish words, the row is full at 900px: until 1180px the links sit
+  // closer and a size smaller.
+  const pad = "whitespace-nowrap px-1.5 text-[14px] min-[1180px]:px-3 min-[1180px]:text-[15px]";
+  /** A page link's label in the reader's language, keyed by its path ("/how-it-works" is "how-it-works"). */
+  const linkLabel = (label: string, href: string) => c(href.slice(1), label);
 
   // The sheet is navigation by content but an opaque `fixed inset-0` layer by
   // behaviour, so it is a modal: trap, Escape, focus back to the Menu button.
@@ -82,8 +90,8 @@ export function MarketingNav() {
   }, [open]);
 
   const action = signedIn
-    ? { label: "Open ProcuLink", href: "/documents" }
-    : { label: "Start free", href: "/sign-up" };
+    ? { label: c("open", "Open ProcuLink"), href: "/documents" }
+    : { label: c("startFree", "Start free"), href: "/sign-up" };
 
   return (
     <header className="on-navy sticky top-0 z-40 bg-navy">
@@ -99,7 +107,7 @@ export function MarketingNav() {
           </span>
         </Link>
 
-        <nav ref={mainNavRef} aria-label="Main" className="ml-4 hidden items-center min-[900px]:flex">
+        <nav ref={mainNavRef} aria-label="Main" className="ml-2 hidden items-center min-[900px]:flex min-[1180px]:ml-4">
           {SITE_LINKS.map(([label, href]) => {
             const current = isCurrentSection(pathname, href);
             return (
@@ -107,34 +115,35 @@ export function MarketingNav() {
                 key={href}
                 href={href}
                 aria-current={current ? "page" : undefined}
-                className={`inline-flex h-11 items-center px-3 text-[15px] ${
+                className={`inline-flex h-11 items-center ${pad} ${
                   current ? "font-semibold text-white" : "font-medium text-navy-text hover:text-white"
                 }`}
               >
-                {label}
+                {linkLabel(label, href)}
               </Link>
             );
           })}
         </nav>
 
         <div className="ml-auto flex items-center gap-1.5">
+          <LanguageMenuButton />
           {/* Signed in, "Sign in" keeps its box (so nothing moves) but leaves the reading and tab order. */}
           <Link
             href="/sign-in"
             aria-hidden={signedIn || undefined}
             tabIndex={signedIn ? -1 : undefined}
-            className={`hidden h-11 items-center px-3 text-[15px] font-medium text-navy-text hover:text-white min-[900px]:inline-flex ${
+            className={`hidden h-11 items-center ${pad} font-medium text-navy-text hover:text-white min-[900px]:inline-flex ${
               signedIn ? "invisible" : ""
             }`}
           >
-            Sign in
+            {c("signIn", "Sign in")}
           </Link>
           <Link href={action.href} className={FILLED}>
             {/* Below 390px the box keeps one width for both labels (nothing moves when sign-in resolves): it shows
                 "Open" and still reads out "Open ProcuLink". */}
             {signedIn ? (
               <>
-                <span aria-hidden className="min-[390px]:hidden">Open</span>
+                <span aria-hidden className="min-[390px]:hidden">{c("openShort", "Open")}</span>
                 <span className="max-[389px]:sr-only">{action.label}</span>
               </>
             ) : action.label}
@@ -143,7 +152,7 @@ export function MarketingNav() {
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
-            aria-label="Menu"
+            aria-label={c("menu", "Menu")}
             aria-expanded={open}
             aria-controls="marketing-mobile-menu"
             className="inline-flex h-11 w-11 items-center justify-center text-white min-[900px]:hidden"
@@ -161,7 +170,7 @@ export function MarketingNav() {
           tabIndex={-1}
           role="dialog"
           aria-modal="true"
-          aria-label="Menu"
+          aria-label={c("menu", "Menu")}
           className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-navy outline-none min-[900px]:hidden"
         >
           <div className="flex h-[60px] shrink-0 items-center justify-between border-b border-navy-line px-6">
@@ -172,7 +181,7 @@ export function MarketingNav() {
             <button
               type="button"
               onClick={closeMenu}
-              aria-label="Close menu"
+              aria-label={c("closeMenu", "Close menu")}
               className="inline-flex h-11 w-11 items-center justify-center text-white"
             >
               <X aria-hidden="true" className="size-6" />
@@ -192,7 +201,7 @@ export function MarketingNav() {
                     current ? "font-semibold text-white" : "font-medium text-navy-text"
                   }`}
                 >
-                  {label}
+                  {linkLabel(label, href)}
                 </Link>
               );
             })}
@@ -202,13 +211,20 @@ export function MarketingNav() {
                 onClick={closeMenu}
                 className="flex min-h-12 items-center border-b border-navy-line px-3 text-[17px] font-medium text-navy-text"
               >
-                Sign in
+                {c("signIn", "Sign in")}
               </Link>
             )}
             <Link href={action.href} onClick={closeMenu} className={`${FILLED} mt-5 !min-h-12 w-full`}>
               {action.label}
             </Link>
           </nav>
+
+          <div role="group" aria-labelledby="mobile-language" className="px-4 pb-8 pt-8">
+            <p id="mobile-language" className="mb-1 px-3 text-[13px] font-semibold uppercase tracking-[0.06em] text-navy-faint">
+              {c("language", "Language")}
+            </p>
+            <LanguageList variant="sheet" />
+          </div>
         </div>
       )}
     </header>

@@ -14,6 +14,7 @@ import { getBillingStatus, checkAdminAccess } from "@/lib/api-client";
 import { SIDEBAR_AUTO_COLLAPSE_EVENT } from "@/lib/sidebar-auto-collapse";
 import { planDisplayName } from "@/lib/plans";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { useCopy } from "@/i18n/useCopy";
 import { ProcuLinkMark } from "./DSPrimitives";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { UserChipMenu } from "./UserChipMenu";
@@ -36,6 +37,8 @@ export type SidebarNavSection = { group?: string; items: SidebarNavItem[] };
 
 /** The pinned primary action at the top of the rail (not a nav item). */
 export const PINNED_ACTION_HREF = "/upload";
+/** A nav item's message key, from its path: "/operations/log" is "operations_log". */
+export const navKey = (href: string) => href.slice(1).replaceAll("/", "_");
 
 /** The pages the phone tab bar carries. The navigation panel hides them on phones. */
 export const PHONE_TAB_HREFS: readonly string[] = ["/documents", "/flows", "/settings"];
@@ -213,13 +216,14 @@ export function BridgeSidebar({
   // Forced rail in the tablet band wins; then a screen-requested auto-collapse;
   // otherwise honor the persisted preference.
   const isCollapsed = (collapseBelowLg && belowLg) || (collapsible && autoCollapsed) || (collapsible && collapsed);
+  const { c: tr } = useCopy("app");
 
   const renderItem = (item: SidebarNavItem) => {
     // A document's review lights Documents (as the top bar and the phone bar do); every other address its own item.
     const active = isReviewAddress(pathname) ? item.href === "/documents" : isItemActive(pathname, item);
     const Ico = item.icon;
     // Collapsed rail → the label (icons only); expanded items show their label.
-    const title = isCollapsed ? item.label : undefined;
+    const title = isCollapsed ? tr(navKey(item.href), item.label) : undefined;
     return (
       <Link
         key={item.href}
@@ -243,7 +247,7 @@ export function BridgeSidebar({
           />
         )}
         <Ico size={16} strokeWidth={1.9} style={{ flexShrink: 0, color: active ? "#FFFFFF" : "#7C8DA6", opacity: active ? 1 : 0.82 }} />
-        {!isCollapsed && <span className="flex-1 truncate">{item.label}</span>}
+        {!isCollapsed && <span className="flex-1 truncate">{tr(navKey(item.href), item.label)}</span>}
       </Link>
     );
   };

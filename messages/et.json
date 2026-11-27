@@ -1,0 +1,327 @@
+{
+  "switcher": {
+    "language": "Keel"
+  },
+  "nav": {
+    "how-it-works": "Kuidas see töötab",
+    "formats": "Vormingud",
+    "pricing": "Hinnad",
+    "security": "Turvalisus",
+    "help": "Abi",
+    "open": "Ava ProcuLink",
+    "openShort": "Ava",
+    "startFree": "Alusta tasuta",
+    "signIn": "Logi sisse",
+    "menu": "Menüü",
+    "closeMenu": "Sulge menüü",
+    "language": "Keel"
+  },
+  "footer": {
+    "about": "Iga dokument sisse. Puhtad andmed välja. ProcuLink loeb teie dokumendid, laseb need üle kontrollida ja saadab need edasi vajalikus vormingus, salvestades iga edastuse.",
+    "Product": "Toode",
+    "Help": "Abi",
+    "Company": "Ettevõte",
+    "link_how-it-works": "Kuidas see töötab",
+    "link_formats": "Vormingud",
+    "link_pricing": "Hinnad",
+    "link_compare": "ProcuLink võrdluses",
+    "link_security": "Turvalisus",
+    "link_invoice-data-extraction": "Arvete andmete lugemine",
+    "link_purchase-order-data-extraction": "Ostutellimuste andmete lugemine",
+    "link_changelog": "Muudatuste logi",
+    "link_help": "Abikeskus",
+    "link_help_guides": "Juhendid samm-sammult",
+    "link_support": "Tugi",
+    "link_book-demo": "Võta meiega ühendust",
+    "link_privacy": "Privaatsus",
+    "link_terms": "Tingimused",
+    "link_aup": "Lubatud kasutus",
+    "link_dpa": "Andmetöötluslepe",
+    "link_subprocessors": "Alamtöötlejad",
+    "status": "Olek",
+    "language": "Keel",
+    "storage": "Dokumentide hoidmine ELis",
+    "atRest": ", AES-GCM-krüpteering salvestatuna"
+  },
+  "closing": {
+    "title": "Proovige oma dokumentidega",
+    "lead": "Laadige üks üles ja vaadake, mis tagasi tuleb. See võtab mõne minuti ja midagi ei saadeta enne, kui olete valinud, kuhu see läheb.",
+    "talk": "Võta meiega ühendust",
+    "start": "Alusta tasuta prooviperioodi"
+  },
+  "home": {
+    "h1a": "Iga dokument sisse.",
+    "h1b": "Puhtad andmed välja.",
+    "lead": "ProcuLink loeb teile saabuvad arved, tellimused ja muud dokumendid, näitab loetut originaali kõrval ja saadab andmed edasi vormingus, mida teie süsteem vajab.",
+    "start": "Alusta tasuta prooviperioodi",
+    "trialLine": "{days} päeva tasuta · {docs} dokumenti · <nowrap>seejärel alates {price} kuus.</nowrap> Kaarti pole vaja.",
+    "seeHow": "Vaadake, kuidas see töötab",
+    "goodToKnow": "Hea teada",
+    "goodToKnowItems": [
+      "Alustamiseks pole liidestust vaja",
+      "Dokumentide saatjad ei pea midagi muutma",
+      "Proovige test- või anonüümitud dokumendiga",
+      "Kõik, milles me kindlad pole, ootab teie järele"
+    ],
+    "formatsTitle": "Alustage dokumentidest, mida juba saate.",
+    "formatsLead": "Te ei pea tundma tehnilisi vorminguid ega seadistama liidestust. Kui dokument jõuab teieni PDF-i, tabeli, skaneeringu või e-kirja manusena, alustage sellest.",
+    "formatsMore": "Kõik vormingud ja viisid",
+    "columns": {
+      "0": {
+        "title": "Me loeme",
+        "items": [
+          "PDF",
+          "Excel ja CSV",
+          "Word ja tekst",
+          "XML ja JSON",
+          "Skaneeringud ja telefonifotod"
+        ]
+      },
+      "1": {
+        "title": "Te saate",
+        "items": [
+          "CSV",
+          "Excel",
+          "JSON või XML",
+          "PDF",
+          "Tekst või fikseeritud laiusega väljad",
+          "cXML-, UBL-, EDIFACT- või X12-tellimused",
+          "ZUGFeRD / Factur-X arved"
+        ]
+      },
+      "2": {
+        "title": "See läheb",
+        "items": [
+          "E-postiga",
+          "SFTP- või FTPS-serverisse",
+          "Google Drive’i, Sheetsi või OneDrive’i",
+          "S3-ämbrisse või veebiaadressile",
+          "Või allalaadimiseks"
+        ]
+      }
+    },
+    "sharepoint": "Microsoft SharePoint soovi korral.",
+    "secondA": "Kontrollige üks kord.",
+    "secondB": "Järgmine on lihtsam.",
+    "secondLead": "Saatja esimese dokumendi juures aitate teie: parandage väärtus või näidake see lehel kätte. Jätame meelde, kuhu see saatja selle paneb, nii et järgmine dokument vajab vähem kontrolli.",
+    "secondBody": "Malli pole vaja eelnevalt koostada. Kui voog liigub pidevalt ilma parandusteta, võite lasta sel kõik ise saata.",
+    "flowSentence": "Voog on üks teile saabuv dokumendiliik, mis seadistatakse üks kord: mida lugeda, milline fail teha ja kuhu see läheb. Enamik meeskondi vajab ühte voogu dokumendiliigi kohta.",
+    "decideTitle": "Teie otsustate, mis teid ootab.",
+    "decideLead": "Puuduv või raskesti loetav märgitakse ja märgitud väärtusega dokument ootab teid, originaal loetu kõrval. Kõik teised dokumendid lähevad otse läbi, kui te ei seadista voogu iga dokumendi juures ootama.",
+    "decideItems": [
+      "Juba nähtud dokument ootab alati, nii et midagi ei lähe välja kaks korda.",
+      "Laadige tulemus alla ja saatke see ise, nii kaua kui soovite.",
+      "Iga lugemine, muudatus ja edastus salvestatakse dokumendi juurde."
+    ],
+    "stepsTitle": "Kuidas see töötab",
+    "step": "{n}. samm",
+    "steps": {
+      "0": {
+        "title": "Te saadate selle",
+        "body": "Laadige fail üles, edastage e-kiri või laske meil see kätte saada postkastist, SFTP- või FTP-serverist, S3-ämbrist, meie API kaudu või teie tehisaru assistendi kaudu."
+      },
+      "1": {
+        "title": "Me loeme selle",
+        "body": "Loeme iga väärtuse ja tabeli juba esimesest dokumendist. Malli pole vaja eelnevalt koostada. Loeme ka skaneeringuid ja telefonifotosid."
+      },
+      "2": {
+        "title": "Te kontrollite seda",
+        "body": "Originaal jääb ekraanile loetu kõrvale. Parandage väärtus või näidake see lehel kätte, et me selle järgmisel korral leiaksime."
+      },
+      "3": {
+        "title": "Me saadame selle",
+        "body": "Valige fail, mida teie süsteem vajab, ja saatke see e-postiga, serverisse, Google Drive’i, Sheetsi või OneDrive’i või laadige see alla."
+      }
+    },
+    "videoLabel": "Väljamõeldud arve loetakse, üks märgitud väärtus parandatakse ja fail saadetakse",
+    "videoCaption": "Üks väljamõeldud arve üleslaadimisest saatmiseni. 58 sekundit, heli ja subtiitritega (inglise keeles). Lugemise ja saatmise ooteajad on välja lõigatud.",
+    "techTitle": "Neile, kes süsteemide eest hoolitsevad.",
+    "techLead": "Kõik ülaltoodu töötab ka ilma, et keegi klõpsaks. Iga voog saab dokumente ise vastu võtta ja tulemusi välja saata.",
+    "apiLabel": "Näide: faili saatmine voogu API kaudu",
+    "tech": {
+      "0": {
+        "title": "Aadress ja API igale voole",
+        "body": "Saatke voole e-kiri, postitage sinna fail, laadige tulemus alla või laske meil teie veebiaadressi välja kutsuda, kui dokument on loetud või saadetud."
+      },
+      "1": {
+        "title": "Kättesaamine iga viie minuti järel",
+        "body": "Kontrollime iga viie minuti järel postkasti, SFTP-, FTPS- või FTP-serverit või S3-ämbrit. Iga fail võetakse üks kord ning serveris või ämbris olevad failid jäävad oma kohale."
+      },
+      "2": {
+        "title": "Failid teie dokumentatsiooni järgi",
+        "body": "Laadige üles vastuvõtva süsteemi dokumentatsioon või näidisfail ja me pakume teile kontrollimiseks faili välja."
+      },
+      "3": {
+        "title": "Teie tehisaru assistent",
+        "body": "Ühendage Claude, ChatGPT, Cursor või VS Code. Lisage dokument, vaadake, mida me lugesime, ja saatke see lihtsalt palvega. Kontrolli ootav dokument ootab edasi."
+      },
+      "4": {
+        "title": "Vastavustabelid",
+        "body": "Asendage dokumendis olev väärtus sellega, mida teie süsteem kasutab, imporditud loendi põhjal."
+      },
+      "5": {
+        "title": "Versioonid, mille juurde naasta",
+        "body": "Voo muudatused jõustuvad avaldamisel ja iga varasema versiooni saab taastada."
+      },
+      "6": {
+        "title": "Iga edastuse logi",
+        "body": "Iga edastuse kohta salvestatakse, millal see toimus, millise kanali kaudu, mitu katset kulus, sihtkoha vastus, kui see vastab, ning nurjumisel viga."
+      }
+    },
+    "apiRef": "API viide",
+    "aiLink": "Kasutage seda oma tehisaru assistendist",
+    "securityLink": "Turvalisus",
+    "priceTitle": "Üks hinnakiri. Kõik on hinnas.",
+    "priceLead": "Igas paketis on kõik sisestusviisid, kõik failitüübid ja kõik kontrollid. Maksate töödeldud dokumentide eest.",
+    "plans": "Paketid",
+    "planFree": "{days} päeva tasuta",
+    "planPrice": "{price} kuus",
+    "planDocs": "{limit} dokumenti",
+    "planDocsMonth": "{limit} dokumenti kuus",
+    "priceMore": "Vaadake hindu ja seda, mida loetakse dokumendiks",
+    "whoTitle": "Kes on ProcuLinki taga",
+    "whoLead": "ProcuLinki arendab ja haldab {name}, Eestis registreeritud ettevõte (registrikood {code}, asukoht {city}).",
+    "support": "Tugi vastab esmaspäevast reedeni kell 9–18 Eesti aja järgi ja püüame vastata ühe tööpäeva jooksul.",
+    "trust": {
+      "0": {
+        "label": "Turvalisus",
+        "line": "Krüpteerimine, dokumentide hoidmine ELis ja see, kuidas tehisaru kasutatakse"
+      },
+      "1": {
+        "label": "Privaatsus",
+        "line": "Mida me kogume ja kui kaua seda hoiame"
+      },
+      "2": {
+        "label": "Andmetöötluslepe",
+        "line": "Leping dokumentide kohta, mida meile saadate"
+      },
+      "3": {
+        "label": "Alamtöötlejad",
+        "line": "Iga ettevõte, kes teie andmeid töötleb, ja kus"
+      }
+    }
+  },
+  "priceHelper": {
+    "fits": "{n} kuus mahub paketti {plan}.",
+    "aboutCheapest": "Umbes {n} kuus: {plan} on soodsaim, lisadokumentidega umbes {price}.",
+    "about": "Umbes {n} kuus: {plan}, lisadokumentidega umbes {price}.",
+    "hintSame": "Alates umbes {n} dokumendist kuus maksab {plan} sama palju, ilma lisadokumentideta.",
+    "hintLess": "Alates umbes {n} dokumendist kuus on {plan} soodsam.",
+    "hintEnterprise": "Suurema mahu puhul rääkige meiega paketist {plan}.",
+    "period": "Arveldusperiood",
+    "monthly": "Igakuiselt",
+    "annual": "Aastane, {n} kuud tasuta",
+    "volume": "Umbes mitu dokumenti kuus?",
+    "valuetext": "{n} dokumenti kuus",
+    "fourPlans": "Neli tasulist paketti",
+    "rowDocs": "Dokumente kuus",
+    "rowFlows": "Voogusid",
+    "rowExtra": "Iga lisadokument",
+    "aMonth": "kuus",
+    "cheapest": "Soodsaim teie mahu jaoks",
+    "billedYearly": "Arveldatakse kord aastas, {price}",
+    "orYearly": "Või {price} aastas",
+    "docsMonth": " dokumenti kuus",
+    "unlimited": "Piiramatult",
+    "flows": " voogu",
+    "extraDoc": "Iga lisadokument ",
+    "choose": "Vali {plan}",
+    "flowSentence": "Voog on üks teile saabuv dokumendiliik, mis seadistatakse üks kord: mida lugeda, milline fail teha ja kuhu see läheb. Enamik meeskondi vajab ühte voogu dokumendiliigi kohta."
+  },
+  "pricing": {
+    "title": "Alustage tasuta. Makske töödeldud dokumentide eest.",
+    "lead": "Igas paketis on kõik dokumentide saatmise viisid, kõik failitüübid ja kõik kontrollid. Paketid erinevad ainult selle poolest, mitu dokumenti töötlete ja mitu voogu seadistate.",
+    "flowSentence": "Voog on üks teile saabuv dokumendiliik, mis seadistatakse üks kord: mida lugeda, milline fail teha ja kuhu see läheb. Enamik meeskondi vajab ühte voogu dokumendiliigi kohta.",
+    "unit": "Dokument on üks kuni {pages}-leheküljeline fail. Pikemad failid loetakse iga {pages} lehekülje kohta üks kord ja me loeme failist kuni {max} lehekülge.",
+    "trialPrice": "{days} päeva tasuta",
+    "trialLimits": "{docs} dokumenti, {flows} voogu, krediitkaarti pole vaja.",
+    "trialEnds": "Prooviperioodi lõppedes muutub teie tööruum kirjutuskaitstuks, kuni valite paketi.",
+    "trialCta": "Alusta tasuta prooviperioodi",
+    "choose": "Pärast prooviperioodi valige mahu järgi.",
+    "everyPlan": "Igas tasulises paketis",
+    "features": {
+      "0": "Kõik sisestusviisid: üleslaadimine, e-post, postkast, SFTP, FTP, FTPS, S3, API ja teie tehisaru assistent",
+      "1": "Kõik failitüübid: CSV, JSON, XML, Excel, PDF, tekst, fikseeritud laiusega väljad, tellimusstandardid ning ZUGFeRD / Factur-X arved",
+      "2": "Ühendage Claude, ChatGPT, Cursor või VS Code",
+      "3": "Piiramatu arv kasutajaid"
+    },
+    "enterprise": "Kokkulepitud maht, isiklik juurutus ja SLA. Alates {price} kuus.",
+    "enterpriseCta": "Võta ühendust müügiga",
+    "over": "Tasulise paketi ületamine ei blokeeri teid kunagi. Iga lisadokument arveldatakse teie paketi hinnaga ja kui suurem pakett oleks kuu katnud, ei maksa te kunagi rohkem kui selle paketi kuuhind.",
+    "storage": "Kõikides pakettides on <security>dokumentide hoidmine ELis</security> ja AES-GCM-krüpteering. Kus iga alamtöötleja tegutseb, on <subprocessors>täielikult loetletud</subprocessors>.",
+    "cancel": "Saate igal ajal loobuda. Pärast tellimuse lõppemist ei saabu uusi dokumente ühegi kanali kaudu – juba töödeldu jääb lugemiseks ja eksportimiseks kättesaadavaks.",
+    "questions": "Küsimused ja vastused",
+    "else": "Kas teil on veel küsimusi?",
+    "talk": "Võta meiega ühendust",
+    "faq": {
+      "0": {
+        "q": "Kas alustamiseks on vaja liidestust?",
+        "a": "Ei. Laadige fail üles või edastage e-kiri ja teil on tulemus kontrollimiseks. API ja serveritest kättesaamine on mõeldud selleks, et dokumendid jõuaksid hiljem ise kohale. Võite ühendada ka oma tehisaru assistendi."
+      },
+      "1": {
+        "q": "Kas minu dokumentide saatjad peavad midagi muutma?",
+        "a": "Ei. Nad saadavad dokumente edasi nii nagu praegu. Teie laadite saabunu üles, edastate selle oma voo e-posti aadressile või lasete meil selle postkastist või serverist kätte saada."
+      },
+      "2": {
+        "q": "Kas saan proovida test- või anonüümitud dokumendiga?",
+        "a": "Jah. Kasutage testfaili või katke enne kõik tundlik kinni. Seda loetakse nagu iga teist dokumenti ja see läheb arvesse teie {docs} prooviperioodi dokumendi hulka."
+      },
+      "3": {
+        "q": "Kas prooviperioodi ajal saadetakse midagi automaatselt?",
+        "a": "Ainult seal, kus te ise valite. Fail läheb kuhugi alles siis, kui selle voole on määratud sihtkoht; seni laadite selle alla. Administraatori loodud uus voog hoiab iga märgitud väärtusega dokumendi teie jaoks kinni ja voo saab seadistada iga dokumenti kontrollima."
+      },
+      "4": {
+        "q": "Mis juhtub prooviperioodi lõppedes?",
+        "a": "Teie tööruum muutub kirjutuskaitstuks. Saate endiselt kõike avada ja eksportida, kuid uusi dokumente vastu ei võeta, kuni te paketi valite."
+      },
+      "5": {
+        "q": "Kas saan paketti hiljem muuta?",
+        "a": "Jah. Suuremale paketile saate igal ajal üle minna seadetes jaotises „Pakett ja arveldus“; vahe arvestatakse proportsionaalselt. Väiksemale paketile üleminekuks võtke meiega ühendust."
+      },
+      "6": {
+        "q": "Mis juhtub, kui loobun?",
+        "a": "Kui loobute, lõpetab ProcuLink tellimuse lõppedes uute dokumentide vastuvõtmise. Kõik juba töödeldu jääb loetavaks ja eksporditavaks – varasemad dokumendid, vood ja failid jäävad alles, kuni palute need kustutada, ning tegevuskirjed, nagu edastuskatsed, eemaldatakse 180 päeva järel (vt <privacy>privaatsuspoliitika</privacy>) –, kuid ühegi tee kaudu ei saabu enam midagi uut: üleslaadimised, e-postiga saadetud dokumendid ja faili-API peatuvad ning postkasti, SFTP, FTP, FTPS ja S3 kättesaamine peatatakse ja teie failid jäävad oma kohale. Pärast seda saadetud üleslaadimisi, e-kirju ja API-päringuid hiljemaks ei säilitata, seega teavitage oma saatjaid enne loobumist. Uus tellimus lülitab töötlemise kohe uuesti sisse ja teie seadistus jääb puutumata."
+      },
+      "7": {
+        "q": "Kus mu andmeid hoitakse?",
+        "a": "Dokumente hoitakse ELis ja salvestatuna krüpteeritakse need AES-GCM-iga. Osa töötlemisest toimub nimeliselt nimetatud USA alamtöötlejate juures tüüptingimuste alusel – sisselogimine, tehisaruga lugemine, maksed ja e-post mõlemas suunas, sealhulgas dokumendid, mida saadame e-postiga teie määratud sihtkohtadesse. Täielik ülevaade on <security>turvalisuse lehel</security>."
+      },
+      "8": {
+        "q": "Mul on vanem pakett. Mis muutub?",
+        "a": "Kui teil on pakett {plans}, ei muutu midagi enne, kui paketti vahetate. Teie praegune hind ja piirangud jäävad alles. Paketi vahetamiseks avage seaded ja seejärel „Pakett ja arveldus“."
+      }
+    },
+    "closingTitle": "Pole kindel, milline pakett sobib?",
+    "closingLead": "Alustage tasuta prooviperioodi ja vaadake, mitu dokumenti töötlete."
+  },
+  "app": {
+    "documents": "Dokumendid",
+    "flows": "Vood",
+    "lookups": "Vastavustabelid",
+    "operations_log": "Ajalugu",
+    "settings": "Seaded",
+    "admin": "Admin",
+    "help": "Abi ja tugi",
+    "upload": "Laadi üles",
+    "uploadLabel": "Laadi dokument üles",
+    "search": "Otsi",
+    "helpButton": "Abi",
+    "settingsSections": "Seadete jaotised",
+    "tab_org": "Tööruum",
+    "tab_destinations": "Sihtkohad",
+    "tab_billing": "Pakett ja arveldus",
+    "workspaces": "Tööruumid",
+    "switching": "Vahetamine…",
+    "currentWorkspace": "Praegune tööruum",
+    "addCompany": "Lisa ettevõte…",
+    "switchLabel": "Tööruum: {name}. Vaheta tööruumi",
+    "accountLabel": "Konto: {name}. Ava konto menüü",
+    "account": "Konto",
+    "profile": "Profiil",
+    "language": "Keel",
+    "signOut": "Logi välja"
+  },
+  "legal": {
+    "englishOnly": "See leht on saadaval ainult inglise keeles. Siduv on ingliskeelne versioon."
+  }
+}

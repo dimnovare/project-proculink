@@ -17,7 +17,9 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useClerk, useOrganization, useUser } from "@clerk/nextjs";
-import { MoreHorizontal } from "lucide-react";
+import { Check, ChevronDown, Globe, MoreHorizontal } from "lucide-react";
+import { chooseLocale, ENDONYMS, LOCALES } from "@/i18n/locales";
+import { useCopy } from "@/i18n/useCopy";
 import { useConfirm } from "@/components/ui/confirm";
 import { clearHeldUploads, heldCount } from "@/lib/pwa/heldUploads";
 import { turnOffAlerts } from "@/lib/pwa/push";
@@ -61,6 +63,10 @@ const ITEM_STYLE: React.CSSProperties = {
   textDecoration: "none",
 };
 
+/** A Language row: ITEM_STYLE's look in classes, 44px tall on phones. */
+const LANG_ROW =
+  "flex w-full items-center gap-2 bg-surface px-3 py-2 text-left text-[13px] font-medium text-ink hover:bg-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue max-md:min-h-11";
+
 interface UserChipMenuProps {
   collapsed: boolean;
   /** Mobile drawer: close the drawer after an in-app navigation. */
@@ -91,6 +97,8 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up", onLight 
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   useMenuDismiss(open, () => setOpen(false), btnRef, menuRef);
+  const { locale, c } = useCopy("app");
+  const [langOpen, setLangOpen] = useState(false);
 
   const name =
     user?.fullName ||
@@ -144,7 +152,10 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up", onLight 
     setOpen((v) => !v);
   };
 
-  const closeMenu = () => setOpen(false);
+  const closeMenu = () => {
+    setOpen(false);
+    setLangOpen(false);
+  };
 
   // Files added while offline, and files shared to this phone, must not stay on a device nobody is signed in to: ask, then remove them.
   // Neither step can hold the sign-out up for more than about two seconds (heldUploads.ts).
@@ -175,7 +186,7 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up", onLight 
         onClick={toggle}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Account: ${name}. Open account menu`}
+        aria-label={c("accountLabel", `Account: ${name}. Open account menu`, { name })}
         title={collapsed ? name : undefined}
         className={`flex w-full items-center flex-shrink-0 ${collapsed ? "justify-center" : "gap-2.5"}${onLight
           ? " rounded-card-sm p-1 hover:bg-surface-2 aria-expanded:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" : ""}`}
@@ -193,7 +204,7 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up", onLight 
       >
         <AvatarCircle initials={initials} onLight={onLight} />
         {/* On a light page (Settings on a phone) the chip stands alone, so it names itself. */}
-        {onLight && <span className="pl-2 pr-1 text-[13px] font-semibold text-ink">Account</span>}
+        {onLight && <span className="pl-2 pr-1 text-[13px] font-semibold text-ink">{c("account", "Account")}</span>}
         {!collapsed && (
           <>
             <div className="min-w-0 flex-1 text-left" style={{ lineHeight: 1.25 }}>
@@ -209,7 +220,7 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up", onLight 
         <div
           ref={menuRef}
           role="menu"
-          aria-label="Account"
+          aria-label={c("account", "Account")}
           style={{ ...MENU_SURFACE, top: anchor.top, bottom: anchor.bottom, right: anchor.right, width: anchor.width }}
         >
           {/* Identity header — real name + primary email from Clerk. */}
@@ -240,7 +251,7 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up", onLight 
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#F6F7FA"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#FFFFFF"; }}
             >
-              Profile
+              {c("profile", "Profile")}
             </button>
 
             {/* "Preferences" from the design mock is intentionally skipped —
@@ -257,8 +268,36 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up", onLight 
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#F6F7FA"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#FFFFFF"; }}
             >
-              Settings
+              {c("settings", "Settings")}
             </Link>
+
+            {/* Language: the current one; pressing it shows the five as rows. 44px on phones. */}
+            <button
+              type="button"
+              role="menuitem"
+              aria-expanded={langOpen}
+              className={LANG_ROW}
+              onClick={() => setLangOpen((v) => !v)}
+            >
+              <Globe size={14} strokeWidth={1.9} aria-hidden />
+              <span className="flex-1">{c("language", "Language")}</span>
+              <span className="text-ink-muted">{ENDONYMS[locale]}</span>
+              <ChevronDown size={14} aria-hidden className={langOpen ? "rotate-180" : undefined} />
+            </button>
+            {langOpen && LOCALES.map((l) => (
+              <button
+                key={l}
+                type="button"
+                role="menuitem"
+                lang={l}
+                aria-current={l === locale ? "true" : undefined}
+                className={`${LANG_ROW} justify-between !pl-[34px]`}
+                onClick={() => chooseLocale(l)}
+              >
+                {ENDONYMS[l]}
+                {l === locale && <Check size={14} strokeWidth={2.4} aria-hidden className="text-brand-green-deep" />}
+              </button>
+            ))}
           </div>
 
           <div style={{ height: 1, background: "#E5E8EE" }} aria-hidden />
@@ -272,7 +311,7 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up", onLight 
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#FBF1F1"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#FFFFFF"; }}
             >
-              Sign out
+              {c("signOut", "Sign out")}
             </button>
           </div>
         </div>

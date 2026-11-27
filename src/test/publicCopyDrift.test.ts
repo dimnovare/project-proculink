@@ -50,6 +50,8 @@ const files = [
   ...walk(join(SRC, "components/marketing"), SOURCE),
   ...walk(join(SRC, "components/help"), SOURCE),
   join(SRC, EARLY_ACCESS_FILE),
+  // The translations of that copy (src/i18n/useCopy.tsx): another language must not say what English may not.
+  ...walk(join(SRC, "../messages"), /\.json$/),
 ]
   .map((f) => relative(SRC, f).replace(/\\/g, "/"))
   .filter((f) => !EXCLUDED.has(f));
@@ -58,6 +60,9 @@ const files = [
 // survive it (security/page.tsx did). Dropping whole-line `//` comments afterwards removes that false positive; the
 // stripper itself is shared and left alone. Nothing real hides: a surviving literal is still scanned.
 const readCopy = (f: string) => {
+  // A translation's one "SharePoint on request" line is the translated home.sharepoint sentence, whose English is
+  // checked in the page source; dropping that line keeps every other SharePoint mention in a translation caught.
+  if (f.endsWith(".json")) return readFileSync(join(SRC, f), "utf8").replace(/^\s*"sharepoint": ".*$/m, "");
   const mdx = f.endsWith(".mdx");
   const src = stripComments(readFileSync(join(SRC, f), "utf8"), mdx ? "mdx" : "js");
   return mdx ? src : src.replace(/^\s*\/\/.*$/gm, "");
@@ -86,6 +91,7 @@ describe("public copy drift", () => {
     // C26 is found exactly once, on the pricing page.
     const c26 = [...stripped].filter(([, src]) => src.includes(C26_TEMPLATE)).map(([f]) => f);
     expect(c26).toEqual(["app/(marketing)/pricing/page.tsx"]);
+    expect(files.filter((f) => f.startsWith("../messages/"))).toHaveLength(5);
   });
 
   it("never sells the old product", () => {

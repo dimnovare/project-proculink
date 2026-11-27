@@ -24,6 +24,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useClerk, useOrganization, useOrganizationList } from "@clerk/nextjs";
 import { Check, ChevronDown, Plus } from "lucide-react";
+import { useCopy } from "@/i18n/useCopy";
 
 /** Initials for an identity tile — first letters of up to two words. */
 export function orgInitials(name: string): string {
@@ -107,6 +108,7 @@ export function OrgSwitcher({ collapsed = false, compact = false, orgName, planL
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   useMenuDismiss(open, () => setOpen(false), btnRef, menuRef);
+  const { c } = useCopy("app");
 
   // Hard-navigate to the dashboard whenever the active org CHANGES (not on the
   // first activation from none). Covers both the row-click switch and an org
@@ -198,14 +200,14 @@ export function OrgSwitcher({ collapsed = false, compact = false, orgName, planL
       <div
         ref={menuRef}
         role="menu"
-        aria-label="Workspaces"
+        aria-label={c("workspaces", "Workspaces")}
         style={{ ...MENU_SURFACE, top: anchor.top, left: anchor.left, width: anchor.width }}
       >
         <div
           className="uppercase"
           style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.12em", color: "var(--ink-faint)", padding: "10px 12px 5px" }}
         >
-          Workspaces
+          {c("workspaces", "Workspaces")}
         </div>
 
         {rows.map((org) => {
@@ -236,11 +238,11 @@ export function OrgSwitcher({ collapsed = false, compact = false, orgName, planL
                 )}
                 {switchingId === org.id && (
                   <span className="block" style={{ fontSize: 10.5, color: "var(--ink-faint)", marginTop: 1 }}>
-                    Switching…
+                    {c("switching", "Switching…")}
                   </span>
                 )}
               </span>
-              {isActiveRow && <Check size={15} strokeWidth={2.4} style={{ color: "#2E8E3A", flexShrink: 0 }} aria-label="Current workspace" />}
+              {isActiveRow && <Check size={15} strokeWidth={2.4} style={{ color: "#2E8E3A", flexShrink: 0 }} aria-label={c("currentWorkspace", "Current workspace")} />}
             </button>
           );
         })}
@@ -262,7 +264,7 @@ export function OrgSwitcher({ collapsed = false, compact = false, orgName, planL
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#FFFFFF"; }}
         >
           <Plus size={14} strokeWidth={2.2} aria-hidden />
-          Add company…
+          {c("addCompany", "Add company…")}
         </button>
       </div>
     );
@@ -278,7 +280,7 @@ export function OrgSwitcher({ collapsed = false, compact = false, orgName, planL
           onClick={toggle}
           aria-haspopup="menu"
           aria-expanded={open}
-          aria-label={`Workspace: ${orgName}. Switch workspace`}
+          aria-label={c("switchLabel", `Workspace: ${orgName}. Switch workspace`, { name: orgName })}
           title={`${orgName} · ${planLabel}`}
           className="flex h-10 min-w-0 max-w-full items-center gap-2 rounded-[8px] border border-navy-border bg-navy-surface px-[9px] cursor-pointer transition-colors hover:border-navy-muted"
         >
@@ -304,7 +306,7 @@ export function OrgSwitcher({ collapsed = false, compact = false, orgName, planL
         onClick={toggle}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Workspace: ${orgName}. Switch workspace`}
+        aria-label={c("switchLabel", `Workspace: ${orgName}. Switch workspace`, { name: orgName })}
         title={collapsed ? `${orgName} · ${planLabel}` : undefined}
         className={`flex items-center text-left rounded-[10px] ${collapsed ? "mx-auto justify-center w-[44px] py-[9px]" : "gap-2.5"}`}
         style={{

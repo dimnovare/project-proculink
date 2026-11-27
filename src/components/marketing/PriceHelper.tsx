@@ -11,6 +11,7 @@ import {
   cheapestDocumentPlan,
   type BillingPeriod,
 } from "@/lib/plans";
+import { euroIn, useCopy } from "@/i18n/useCopy";
 import { FLOW_SENTENCE, SITE, Tag } from "./sitePictures";
 
 // The one client island on /pricing: the billing period, the volume slider, its answer and the
@@ -46,7 +47,20 @@ export function PriceHelper({ heading }: { heading?: ReactNode }) {
   const yearly = ANNUAL_BILLING_ENABLED && period === "yearly";
   const documents = PRICE_STOPS[stop];
   const { answer, hint } = priceAnswer(documents, yearly ? "yearly" : "monthly");
-  const winner = cheapestDocumentPlan(documents, yearly ? "yearly" : "monthly").plan;
+  const best = cheapestDocumentPlan(documents, yearly ? "yearly" : "monthly");
+  const winner = best.plan;
+  // English is priceAnswer's; other languages build the same two lines from the same figures.
+  const { locale, c } = useCopy("priceHelper");
+  const num = (n: number) => n.toLocaleString(locale === "en" ? NUMBER_LOCALE : locale);
+  const money = (n: number) => (locale === "en" ? euro(n) : euroIn(locale, n));
+  const shown = {
+    answer: best.fits
+      ? c("fits", answer, { n: num(documents), plan: best.plan.name })
+      : c(best.next ? "aboutCheapest" : "about", answer, { n: num(documents), plan: best.plan.name, price: money(best.euros) }),
+    hint: best.next
+      ? c(best.next.same ? "hintSame" : "hintLess", hint, { n: num(best.next.from), plan: best.next.plan.name })
+      : c("hintEnterprise", hint, { plan: PLAN_BY_ID.enterprise.name }),
+  };
 
   const segment = (value: BillingPeriod, label: string) => (
     <button
@@ -68,11 +82,11 @@ export function PriceHelper({ heading }: { heading?: ReactNode }) {
         {ANNUAL_BILLING_ENABLED && (
           <div
             role="group"
-            aria-label="Billing period"
+            aria-label={c("period", "Billing period")}
             className="grid w-full grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)] rounded-[11px] bg-surface-2 p-[3px] min-[660px]:inline-flex min-[660px]:w-auto"
           >
-            {segment("monthly", "Monthly")}
-            {segment("yearly", `Annual, ${monthsFree(DOCUMENT_PLANS[0])} months free`)}
+            {segment("monthly", c("monthly", "Monthly"))}
+            {segment("yearly", c("annual", `Annual, ${monthsFree(DOCUMENT_PLANS[0])} months free`, { n: monthsFree(DOCUMENT_PLANS[0]) ?? 0 }))}
           </div>
         )}
       </div>
@@ -81,7 +95,7 @@ export function PriceHelper({ heading }: { heading?: ReactNode }) {
         <div className={`flex flex-col gap-2 rounded-[14px] bg-bg px-[18px] pb-[18px] pt-4 min-[1100px]:grid ${DESK} min-[1100px]:items-center min-[1100px]:gap-0 min-[1100px]:px-0 min-[1100px]:py-5`}>
           <div className="flex flex-col gap-0.5 min-[1100px]:col-span-2 min-[1100px]:pl-6 min-[1100px]:pr-8">
             <label htmlFor="plk-volume" className="text-[16px] font-semibold [text-wrap:balance]">
-              About how many documents a month?
+              {c("volume", "About how many documents a month?")}
             </label>
             <input
               id="plk-volume"
@@ -90,30 +104,30 @@ export function PriceHelper({ heading }: { heading?: ReactNode }) {
               max={PRICE_STOPS.length - 1}
               step={1}
               value={stop}
-              aria-valuetext={`${fmt(documents)} documents a month`}
+              aria-valuetext={c("valuetext", `${fmt(documents)} documents a month`, { n: num(documents) })}
               onChange={(e) => setStop(Number(e.target.value))}
               className="block h-11 w-full cursor-pointer accent-brand-blue focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue"
             />
             <div aria-hidden="true" className="flex justify-between text-[13.5px] text-ink-muted">
-              <span>{fmt(PRICE_STOPS[0])}</span>
-              <span>{fmt(PRICE_STOPS[PRICE_STOPS.length - 1])}</span>
+              <span>{num(PRICE_STOPS[0])}</span>
+              <span>{num(PRICE_STOPS[PRICE_STOPS.length - 1])}</span>
             </div>
           </div>
           <div data-testid="price-answer" aria-live="polite" className="mt-1.5 flex min-w-0 flex-col gap-1.5 min-[1100px]:col-span-3 min-[1100px]:mt-0 min-[1100px]:pl-5 min-[1100px]:pr-6">
-            <p className="font-display text-[22px] font-semibold leading-[1.2] tracking-[-0.01em] [text-wrap:balance] min-[1100px]:text-[24px]">{answer}</p>
-            <p className={`${SITE.soft} text-[15.5px]`}>{hint}</p>
+            <p className="font-display text-[22px] font-semibold leading-[1.2] tracking-[-0.01em] [text-wrap:balance] min-[1100px]:text-[24px]">{shown.answer}</p>
+            <p className={`${SITE.soft} text-[15.5px]`}>{shown.hint}</p>
           </div>
         </div>
 
         <div
           role="group"
-          aria-label="The four paid plans"
+          aria-label={c("fourPlans", "The four paid plans")}
           className={`mt-3 grid gap-3 min-[660px]:grid-cols-2 ${DESK} min-[1100px]:mt-4 min-[1100px]:grid-rows-[repeat(8,auto)] min-[1100px]:gap-0`}
         >
           <div aria-hidden="true" className="hidden min-[1100px]:row-span-8 min-[1100px]:grid min-[1100px]:grid-rows-subgrid">
-            <span className={`${ROW_LABEL} row-start-5`}>Documents a month</span>
-            <span className={`${ROW_LABEL} row-start-6`}>Flows</span>
-            <span className={`${ROW_LABEL} row-start-7 border-b`}>Each extra document</span>
+            <span className={`${ROW_LABEL} row-start-5`}>{c("rowDocs", "Documents a month")}</span>
+            <span className={`${ROW_LABEL} row-start-6`}>{c("rowFlows", "Flows")}</span>
+            <span className={`${ROW_LABEL} row-start-7 border-b`}>{c("rowExtra", "Each extra document")}</span>
           </div>
           {DOCUMENT_PLANS.map((plan) => {
             const on = plan === winner;
@@ -129,13 +143,13 @@ export function PriceHelper({ heading }: { heading?: ReactNode }) {
                 <h3 className={`${SITE.h3} min-[1100px]:row-start-2 min-[1100px]:mt-2.5`}>{plan.name}</h3>
                 <p className="whitespace-nowrap text-right min-[1100px]:row-start-3 min-[1100px]:mt-3.5 min-[1100px]:flex min-[1100px]:items-baseline min-[1100px]:text-left">
                   <span className="font-display text-[28px] font-semibold leading-none tracking-[-0.02em] min-[1100px]:text-[clamp(38px,3.2vw,44px)]">
-                    {euro(yearly ? plan.priceYearly! / 12 : plan.priceMonthly!)}
+                    {money(yearly ? plan.priceYearly! / 12 : plan.priceMonthly!)}
                   </span>
-                  <span className={`${SITE.soft} ml-2 text-[15px] min-[1100px]:text-[17px]`}>a month</span>
+                  <span className={`${SITE.soft} ml-2 text-[15px] min-[1100px]:text-[17px]`}>{c("aMonth", "a month")}</span>
                 </p>
                 {on ? (
                   <Tag tone="in" className="col-span-2 mt-2 justify-self-start min-[1100px]:col-span-1 min-[1100px]:row-start-1 min-[1100px]:mt-[18px]">
-                    Cheapest for your volume
+                    {c("cheapest", "Cheapest for your volume")}
                   </Tag>
                 ) : (
                   <span aria-hidden="true" className="col-span-2 mt-2 hidden h-[26px] min-[660px]:block min-[1100px]:col-span-1 min-[1100px]:row-start-1 min-[1100px]:mt-[18px]" />
@@ -145,13 +159,15 @@ export function PriceHelper({ heading }: { heading?: ReactNode }) {
                     yearly ? "" : "hidden"
                   }`}
                 >
-                  {yearly ? `Billed once a year, ${euro(plan.priceYearly!)}` : `Or ${priceWords(plan, "yearly")}`}
+                  {yearly
+                    ? c("billedYearly", `Billed once a year, ${euro(plan.priceYearly!)}`, { price: money(plan.priceYearly!) })
+                    : c("orYearly", `Or ${priceWords(plan, "yearly")}`, { price: money(plan.priceYearly!) })}
                 </p>
                 <ul className="col-span-2 m-0 mt-2 list-none p-0 text-[16.5px] leading-[1.5] min-[1100px]:col-span-1 min-[1100px]:row-span-3 min-[1100px]:row-start-5 min-[1100px]:mt-0 min-[1100px]:grid min-[1100px]:grid-rows-subgrid min-[1100px]:text-[17px]">
                   {[
-                    [fmt(plan.orderLimit!), " documents a month"],
-                    [plan.flowLimit == null ? "Unlimited" : fmt(plan.flowLimit), " flows"],
-                    ["Each extra document ", euro(plan.overageEur!)],
+                    [num(plan.orderLimit!), c("docsMonth", " documents a month")],
+                    [plan.flowLimit == null ? c("unlimited", "Unlimited") : num(plan.flowLimit), c("flows", " flows")],
+                    [c("extraDoc", "Each extra document "), money(plan.overageEur!)],
                   ].map(([a, b], i) => (
                     <li
                       key={i}
@@ -169,13 +185,13 @@ export function PriceHelper({ heading }: { heading?: ReactNode }) {
                   href={plan.cta.href}
                   className="col-span-2 mt-3.5 inline-flex h-12 items-center justify-center whitespace-nowrap rounded-[10px] border-[1.5px] border-ink bg-surface px-5 text-[16px] font-semibold text-ink no-underline hover:bg-ink hover:text-white min-[1100px]:col-span-1 min-[1100px]:row-start-8 min-[1100px]:mb-[22px] min-[1100px]:mt-5 min-[1100px]:px-2"
                 >
-                  Choose {plan.name}
+                  {c("choose", `Choose ${plan.name}`, { plan: plan.name })}
                 </Link>
               </article>
             );
           })}
         </div>
-        <p className={`${SITE.soft} mt-3 text-[15px]`}>{FLOW_SENTENCE}</p>
+        <p className={`${SITE.soft} mt-3 text-[15px]`}>{c("flowSentence", FLOW_SENTENCE)}</p>
       </div>
     </div>
   );

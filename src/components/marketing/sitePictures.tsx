@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Check, FileText } from "lucide-react";
 import { Card } from "@/components/bridge/layout/Card";
+import { useCopy } from "@/i18n/useCopy";
 
 // The drawings Home and How it works share. Server-safe: no hooks, no handlers.
 // Every word inside a picture is the app's own word for the same thing, and no
@@ -280,17 +281,21 @@ export function ReviewPicture({ teach = false }: { teach?: boolean }) {
 }
 
 export function ClosingCta({
-  title = "Try it on your own documents",
-  lead = "Upload one and see what comes back. It takes a few minutes, and nothing is sent until you choose where it goes.",
-  more = { href: "/book-demo", label: "Talk to us" },
+  title,
+  lead,
+  more,
 }: { title?: string; lead?: string; more?: { href: string; label: string } } = {}) {
+  const { c } = useCopy("closing");
+  title ??= c("title", "Try it on your own documents");
+  lead ??= c("lead", "Upload one and see what comes back. It takes a few minutes, and nothing is sent until you choose where it goes.");
+  more ??= { href: "/book-demo", label: c("talk", "Talk to us") };
   return (
     <section aria-labelledby="closing-title" className="bg-surface py-20 sm:py-[104px]">
       <div className={`${SITE.wrap} flex flex-col items-start gap-6`}>
         <h2 id="closing-title" className={`${SITE.h2} !text-[clamp(34px,4.4vw,60px)]`}>{title}</h2>
         <p className={`${SITE.lead} max-w-[620px]`}>{lead}</p>
         <div className="flex w-full flex-col gap-x-7 gap-y-2.5 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
-          <Link href="/sign-up" className={SITE.cta}>Start your free trial</Link>
+          <Link href="/sign-up" className={SITE.cta}>{c("start", "Start your free trial")}</Link>
           <Link href={more.href} className={`${SITE.more} self-center sm:self-auto`}>{more.label}</Link>
         </div>
       </div>

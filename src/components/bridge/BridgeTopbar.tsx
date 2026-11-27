@@ -11,6 +11,8 @@ import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useApple, useShortcut } from "@/hooks/useShortcut";
 import { OPEN_SEARCH_EVENT, ariaOf, keyWord } from "@/lib/shortcuts";
 import { useOrganization } from "@clerk/nextjs";
+import { useCopy } from "@/i18n/useCopy";
+import { navKey } from "./BridgeSidebar";
 import { CommandPalette } from "./CommandPalette";
 import { ProcuLinkMark } from "./DSPrimitives";
 import { useHelpPanel } from "./HelpPanel";
@@ -87,6 +89,7 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [keysOpen, setKeysOpen] = useState(false);
   const help = useHelpPanel();
+  const { c } = useCopy("app");
 
   // Ctrl/Cmd K and ? (src/lib/shortcuts.ts); a page opens search through openSearch().
   const apple = useApple();
@@ -130,7 +133,7 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
                 aria-current={active ? "page" : undefined}
                 className={`inline-flex items-center whitespace-nowrap border-y-2 border-t-transparent px-2.5 text-[14.5px] no-underline transition-colors xl:px-3 ${active ? "border-b-white font-semibold text-white" : "border-b-transparent font-medium text-navy-text hover:text-white"}`}
               >
-                {item.label}
+                {c(navKey(item.href), item.label)}
               </Link>
             );
           })}
@@ -179,15 +182,15 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
             A quiet outline, so the page's own filled button is the one main action. Phones reach it through the tab bar's Add. */}
         <Link
           href={PINNED_ACTION_HREF}
-          aria-label="Upload a document"
+          aria-label={c("uploadLabel", "Upload a document")}
           className="hidden h-10 shrink-0 items-center justify-center gap-2 rounded-[8px] border border-navy-muted bg-transparent px-[13px] text-[13px] font-semibold text-white no-underline transition-colors hover:bg-navy-surface md:inline-flex"
         >
           <Upload size={15} strokeWidth={2} aria-hidden />
-          <span>Upload</span>
+          <span>{c("upload", "Upload")}</span>
         </Link>
 
         {/* Search — the one trigger for the command palette (Ctrl/Cmd K). */}
-        <button type="button" aria-label="Search" aria-keyshortcuts={ariaOf("search")} title={`Search, ${keyWord("Mod", apple)} K`} onClick={() => setPaletteOpen(true)} className={ICON_BUTTON}>
+        <button type="button" aria-label={c("search", "Search")} aria-keyshortcuts={ariaOf("search")} title={`${c("search", "Search")}, ${keyWord("Mod", apple)} K`} onClick={() => setPaletteOpen(true)} className={ICON_BUTTON}>
           <Search size={17} strokeWidth={1.9} aria-hidden />
         </button>
 
@@ -204,12 +207,12 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
         {/* Help — opens the help panel beside the page. */}
         <button
           type="button"
-          aria-label="Help"
+          aria-label={c("helpButton", "Help")}
           aria-expanded={help.open}
           aria-controls="help-panel"
           onClick={help.toggle}
           className={ICON_BUTTON}
-          title="Help"
+          title={c("helpButton", "Help")}
         >
           <HelpCircle size={17} strokeWidth={1.9} aria-hidden />
         </button>
