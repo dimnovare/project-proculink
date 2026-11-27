@@ -142,7 +142,7 @@ describe("DocumentsHome", () => {
   it("says what is known under the title, and Review next opens the newest document that needs you", async () => {
     answers({ needs: 3, week: 24, rows: [{ ...row(0), id: "d-new", flowId: "f1" }] });
     const first = mount();
-    expect(await screen.findByText("3 need you. 24 sent this week.")).toBeInTheDocument();
+    expect(await screen.findByText("3 need you. 24 finished this week.")).toBeInTheDocument();
     expect(screen.getByTestId("review-next")).toHaveAttribute("href", "/flows/f1/documents/d-new");
     expect(screen.getByTestId("review-next")).toHaveTextContent(/^Review next\s*3$/);
     expect(screen.getByTestId("review-next")).toHaveAccessibleName("Review next, 3 need you");
@@ -167,15 +167,15 @@ describe("DocumentsHome", () => {
   it("says how many are being read only from an answered count, and drops it when a refresh fails", { timeout: 20_000 }, async () => {
     answers({ needs: 3, week: 24, reading: "pending" });
     const first = mount();
-    expect(await screen.findByText("3 need you. 24 sent this week.")).toBeInTheDocument();
+    expect(await screen.findByText("3 need you. 24 finished this week.")).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: /In progress/ })).toBeNull();
     first.unmount();
     answers({ needs: 3, week: 24, reading: 2 });
     const { client } = mount();
-    expect(await screen.findByText("3 need you. 2 being read. 24 sent this week.")).toBeInTheDocument();
+    expect(await screen.findByText("3 need you. 2 being read. 24 finished this week.")).toBeInTheDocument();
     answers({ needs: 3, week: 24, reading: new Error("down") });
     await act(() => client.refetchQueries({ queryKey: ["documents", "count", "received,reading"] }));
-    expect(await screen.findByText("3 need you. 24 sent this week.")).toBeInTheDocument();
+    expect(await screen.findByText("3 need you. 24 finished this week.")).toBeInTheDocument();
     expect(screen.queryByText(/being read/)).toBeNull();
   });
 

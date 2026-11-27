@@ -46,11 +46,10 @@ export function startOfWeek(now: Date): Date {
 
 /** The line under the title. null while the needs-you number is unknown (the caller keeps the plain line);
  *  the other clauses only for a number above zero. Problems need a person too, so with any, it is never "Nothing needs you".
- *  `sentThisWeek` counts what a delivery sent or stored this week: a document finished by a one-off download is under
- *  Finished but not in it, so the line says "sent", not "finished". */
-export function documentsHelper(needsYou: number | undefined, sentThisWeek: number | undefined, beingRead?: number, problems?: number): string | null {
+ *  `finishedThisWeek` counts what the Finished tab holds that finished this week: sent, stored, or done by a one-off download. */
+export function documentsHelper(needsYou: number | undefined, finishedThisWeek: number | undefined, beingRead?: number, problems?: number): string | null {
   if (needsYou === undefined) return null;
   const needs = needsYou ? `${needsYou} ${needsYou === 1 ? "needs" : "need"} you.` : problems ? `Nothing to check. ${problems} under Problems.` : "Nothing needs you.";
   const reading = beingRead ? ` ${beingRead} being read.` : "";
-  return `${needs}${reading}${sentThisWeek ? ` ${sentThisWeek} sent this week.` : ""}`;
+  return `${needs}${reading}${finishedThisWeek ? ` ${finishedThisWeek} finished this week.` : ""}`;
 }
