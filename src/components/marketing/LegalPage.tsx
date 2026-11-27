@@ -41,7 +41,7 @@ export function LegalH2({ children }: { children: string }) {
 /** The page frame of the small site pages: warm paper, 17px text. */
 export const SITE_PAGE = "bg-bgWarm text-[17px] leading-[1.55] text-ink";
 
-/** The navy button that makes a request real, sized like SITE.cta (the green one sends). */
+/** The navy button that makes a request real, sized like SITE.cta. */
 export const INK_CTA =
   "inline-flex h-[52px] items-center justify-center gap-2 rounded-[10px] bg-navy px-[26px] text-[17px] font-semibold text-white no-underline hover:bg-navy-surface hover:text-white disabled:cursor-not-allowed disabled:opacity-60";
 

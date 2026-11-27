@@ -27,6 +27,15 @@ export const metadata = pageMetadata({
 // one is formatting, not a rewrite: the words stay as they were.
 const ENTRIES = [
   {
+    version: "v2.19",
+    date: "27 November 2026",
+    items: [
+      "The German, French, Polish and Estonian text on the website, **Pricing** and the app's menus was reviewed on the screens where it appears and reworded where it read as a word-for-word translation.",
+      "Buttons on the website and the sign-up page are now navy, like the app's. The button in the dark top bar is white. Green is kept for sending.",
+      "The **Terms** have new sections on indemnities, on your data when the agreement ends, and on force majeure. They now say how long confidentiality lasts and what an overdue payment pauses. Both the **Terms** and the **Privacy Policy** say that their short summary is not part of them, and the **Privacy Policy** gives 14 days' notice of a material change. The changes to the Terms take effect on 14 December 2026.",
+    ],
+  },
+  {
     version: "v2.18",
     date: "27 November 2026",
     items: [

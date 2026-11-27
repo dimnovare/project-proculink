@@ -15,7 +15,7 @@ export const SITE = {
   soft: "text-ink-muted",
   more: "inline-flex min-h-[44px] items-center font-semibold text-ink underline decoration-border-strong underline-offset-[5px] hover:text-brand-blue-deep",
   h3: "font-display text-[20px] font-semibold leading-[1.25] tracking-[-0.01em]",
-  cta: "inline-flex h-[52px] items-center justify-center rounded-[10px] bg-brand-green-btn px-[26px] text-[17px] font-semibold text-white no-underline hover:bg-brand-green-deep hover:text-white",
+  cta: "inline-flex h-[52px] items-center justify-center rounded-[10px] bg-navy px-[26px] text-[17px] font-semibold text-white no-underline hover:bg-navy-surface hover:text-white",
   // Phones scale with the width so "Any document in." keeps one line at 360px (312px of text, about 37px).
   h1: "m-0 font-display text-[clamp(34px,10.4vw,42px)] sm:text-[clamp(42px,5.6vw,76px)] font-semibold leading-[.98] tracking-[-0.03em] [text-wrap:balance]",
   /** The title of a document-like page: legal, help, support, changelog. Hero pages use h1. */

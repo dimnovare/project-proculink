@@ -38,4 +38,11 @@ describe("button colours", () => {
       }
     expect(found.length).toBeGreaterThanOrEqual(2); // the scan still finds the send buttons
   });
+  it("public pages and sign-up fill green only where the label sends", () => {
+    const pub = files.filter(({ f }) => /^(components[\\/](marketing|auth)|app[\\/]\((home|marketing|auth)\))[\\/]/.test(f));
+    const labels = pub.flatMap(({ code }) =>
+      [...code.matchAll(/bg-brand-green-btn/g)].map((m) => /^[^>]*>\s*([^<{]*)/.exec(code.slice(m.index))?.[1].trim() ?? ""));
+    expect(pub.length).toBeGreaterThan(20); // the scan still reads the public pages
+    for (const label of labels) expect(label).toMatch(SENDS);
+  });
 });

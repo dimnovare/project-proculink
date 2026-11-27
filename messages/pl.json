@@ -17,64 +17,64 @@
     "language": "Język"
   },
   "footer": {
-    "about": "Dowolny dokument na wejściu. Czyste dane na wyjściu. ProcuLink odczytuje dokumenty, pozwala je sprawdzić i wysyła je dalej w potrzebnym formacie, z zapisem każdego dostarczenia.",
+    "about": "Dowolny dokument na wejściu. Czyste dane na wyjściu. ProcuLink odczytuje Twoje dokumenty, pozwala je sprawdzić i wysyła je dalej w potrzebnym formacie, z zapisem każdej wysyłki.",
     "Product": "Produkt",
     "Help": "Pomoc",
     "Company": "Firma",
     "link_how-it-works": "Jak to działa",
     "link_formats": "Formaty",
     "link_pricing": "Cennik",
-    "link_compare": "Porównanie ProcuLink",
+    "link_compare": "ProcuLink na tle innych",
     "link_security": "Bezpieczeństwo",
-    "link_invoice-data-extraction": "Odczyt danych z faktur",
-    "link_purchase-order-data-extraction": "Odczyt danych z zamówień",
+    "link_invoice-data-extraction": "Odczyt danych z faktur",
+    "link_purchase-order-data-extraction": "Odczyt danych z zamówień",
     "link_changelog": "Lista zmian",
     "link_help": "Centrum pomocy",
     "link_help_guides": "Przewodniki krok po kroku",
     "link_support": "Wsparcie",
-    "link_book-demo": "Porozmawiaj z nami",
+    "link_book-demo": "Porozmawiaj z nami",
     "link_privacy": "Prywatność",
     "link_terms": "Regulamin",
-    "link_aup": "Zasady dopuszczalnego użytkowania",
+    "link_aup": "Zasady korzystania z usługi",
     "link_dpa": "Umowa powierzenia przetwarzania danych",
-    "link_subprocessors": "Podmioty przetwarzające",
+    "link_subprocessors": "Podmioty podprzetwarzające",
     "status": "Status",
     "language": "Język",
-    "storage": "Przechowywanie dokumentów w UE",
-    "atRest": ", szyfrowanie AES-GCM w spoczynku"
+    "storage": "Przechowywanie dokumentów w UE",
+    "atRest": ", szyfrowanie AES-GCM w spoczynku"
   },
   "closing": {
     "title": "Wypróbuj na własnych dokumentach",
-    "lead": "Prześlij jeden i zobacz, co otrzymasz. Zajmuje to kilka minut, a nic nie zostanie wysłane, dopóki nie wybierzesz miejsca docelowego.",
-    "talk": "Porozmawiaj z nami",
-    "start": "Rozpocznij bezpłatny okres próbny"
+    "lead": "Prześlij jeden dokument i zobacz, co otrzymasz. To zajmie kilka minut, a nic nie zostanie wysłane, dopóki nie wybierzesz, dokąd ma trafić.",
+    "talk": "Porozmawiaj z nami",
+    "start": "Wypróbuj bezpłatnie"
   },
   "home": {
     "h1a": "Dowolny dokument na wejściu.",
     "h1b": "Czyste dane na wyjściu.",
-    "lead": "ProcuLink odczytuje otrzymywane faktury, zamówienia i inne dokumenty, pokazuje odczytane dane obok oryginału i wysyła je dalej w formacie, którego potrzebuje Twój system.",
-    "start": "Rozpocznij bezpłatny okres próbny",
+    "lead": "ProcuLink odczytuje otrzymywane faktury, zamówienia i inne dokumenty, pokazuje odczytane dane obok oryginału i wysyła je dalej w formacie, którego potrzebuje Twój system.",
+    "start": "Wypróbuj bezpłatnie",
     "trialLine": "Bezpłatnie przez {days} dni · {docs} dokumentów · <nowrap>potem od {price} miesięcznie.</nowrap> Bez karty płatniczej.",
     "seeHow": "Zobacz, jak to działa",
     "goodToKnow": "Warto wiedzieć",
     "goodToKnowItems": [
-      "Na początek nie potrzeba żadnej integracji",
-      "Osoby wysyłające dokumenty niczego nie zmieniają",
-      "Można zacząć od dokumentu testowego lub zanonimizowanego",
-      "Wszystko, czego nie jesteśmy pewni, czeka na sprawdzenie"
+      "Na początek nie potrzebujesz żadnej integracji",
+      "Nadawcy dokumentów nie muszą niczego zmieniać",
+      "Wypróbuj na dokumencie testowym lub zanonimizowanym",
+      "Wszystko, co budzi wątpliwości, czeka na Ciebie"
     ],
     "formatsTitle": "Zacznij od dokumentów, które już otrzymujesz.",
-    "formatsLead": "Nie trzeba znać formatów technicznych ani konfigurować integracji. Jeśli dokument przychodzi jako PDF, arkusz, skan lub załącznik e-mail, wystarczy od niego zacząć.",
-    "formatsMore": "Wszystkie formaty i sposoby",
+    "formatsLead": "Nie musisz znać formatów technicznych ani konfigurować integracji. Jeśli dokument przychodzi jako PDF, arkusz kalkulacyjny, skan lub załącznik do e-maila, po prostu od niego zacznij.",
+    "formatsMore": "Wszystkie formaty i sposoby przesyłania",
     "columns": {
       "0": {
         "title": "Odczytujemy",
         "items": [
           "PDF",
-          "Excel i CSV",
-          "Word i tekst",
-          "XML i JSON",
-          "Skany i zdjęcia z telefonu"
+          "Excel i CSV",
+          "Word i tekst",
+          "XML i JSON",
+          "Skany i zdjęcia z telefonu"
         ]
       },
       "1": {
@@ -84,45 +84,45 @@
           "Excel",
           "JSON lub XML",
           "PDF",
-          "Tekst lub stała szerokość pól",
+          "Tekst lub format o stałej szerokości pól",
           "Zamówienia cXML, UBL, EDIFACT lub X12",
           "Faktury ZUGFeRD / Factur-X"
         ]
       },
       "2": {
-        "title": "Trafia do",
+        "title": "Dokąd trafia",
         "items": [
           "E-mail",
           "Serwer SFTP lub FTPS",
           "Google Drive, Sheets lub OneDrive",
-          "Zasobnik S3 lub adres internetowy",
-          "Albo do pobrania"
+          "Zasobnik S3 lub adres URL",
+          "Albo plik do pobrania"
         ]
       }
     },
-    "sharepoint": "Microsoft SharePoint na życzenie.",
+    "sharepoint": "Microsoft SharePoint dostępny na życzenie.",
     "secondA": "Sprawdź raz.",
-    "secondB": "Następny pójdzie łatwiej.",
-    "secondLead": "Przy pierwszym dokumencie od nadawcy potrzebna jest Twoja pomoc: popraw wartość albo wskaż ją na stronie. Zapamiętujemy, gdzie ten nadawca ją umieszcza, więc kolejny dokument wymaga mniej sprawdzania.",
-    "secondBody": "Nie trzeba wcześniej budować szablonu. Gdy obieg działa bez poprawek, można pozwolić mu wysyłać wszystko samodzielnie.",
-    "flowSentence": "Obieg to jeden rodzaj otrzymywanego dokumentu, skonfigurowany raz: co odczytać, jaki plik utworzyć i dokąd go wysłać. Większość zespołów potrzebuje jednego obiegu na typ dokumentu.",
+    "secondB": "Kolejny będzie łatwiejszy.",
+    "secondLead": "Przy pierwszym dokumencie od danego nadawcy potrzebna jest Twoja pomoc: popraw wartość albo wskaż ją na stronie. Zapamiętujemy, gdzie ten nadawca ją umieszcza, więc kolejny dokument wymaga mniej sprawdzania.",
+    "secondBody": "Nie musisz najpierw tworzyć szablonu. Gdy dokumenty w obiegu regularnie przechodzą bez poprawek, możesz pozwolić mu wysyłać wszystko samodzielnie.",
+    "flowSentence": "Obieg to ustawienia dla jednego rodzaju otrzymywanych dokumentów, konfigurowane raz: co odczytać, jaki plik utworzyć i dokąd go wysłać. Większości zespołów wystarcza jeden obieg na każdy typ dokumentu.",
     "decideTitle": "Ty decydujesz, co czeka na sprawdzenie.",
-    "decideLead": "Brakujące lub nieczytelne dane są oznaczane, a dokument z oznaczoną wartością czeka na Ciebie, z oryginałem obok odczytanych danych. Pozostałe dokumenty przechodzą od razu, chyba że ustawisz obieg tak, by czekał przy każdym dokumencie.",
+    "decideLead": "Brakujące lub nieczytelne dane są oznaczane, a dokument z oznaczoną wartością czeka na Ciebie – z oryginałem obok odczytanych danych. Pozostałe dokumenty przechodzą od razu, chyba że ustawisz obieg tak, aby każdy dokument czekał na sprawdzenie.",
     "decideItems": [
-      "Dokument, który już widzieliśmy, zawsze czeka, więc nic nie zostanie wysłane dwa razy.",
-      "Wynik można pobrać i wysłać samodzielnie, tak długo, jak chcesz.",
-      "Każdy odczyt, zmiana i dostarczenie są zapisywane przy dokumencie."
+      "Dokument, który już do nas trafił, zawsze czeka, więc nic nie zostanie wysłane dwa razy.",
+      "Możesz pobierać wynik i wysyłać go samodzielnie – tak długo, jak chcesz.",
+      "Każdy odczyt, każda zmiana i każda wysyłka są zapisywane przy dokumencie."
     ],
     "stepsTitle": "Jak to działa",
     "step": "Krok {n}",
     "steps": {
       "0": {
         "title": "Przesyłasz dokument",
-        "body": "Prześlij plik, przekaż e-mail albo pozwól nam pobierać dokumenty ze skrzynki pocztowej, serwera SFTP lub FTP, zasobnika S3, przez nasze API lub Twojego asystenta AI."
+        "body": "Prześlij plik, przekaż e-mail albo pozwól nam pobierać dokumenty ze skrzynki pocztowej, serwera SFTP lub FTP czy zasobnika S3. Możesz też skorzystać z naszego API lub swojego asystenta AI."
       },
       "1": {
         "title": "Odczytujemy go",
-        "body": "Odczytujemy każdą wartość i tabelę już w pierwszym dokumencie. Nie trzeba wcześniej budować szablonu. Odczytujemy też skany i zdjęcia z telefonu."
+        "body": "Odczytujemy każdą wartość i tabelę już w pierwszym dokumencie. Nie musisz najpierw tworzyć szablonu. Odczytujemy też skany i zdjęcia z telefonu."
       },
       "2": {
         "title": "Sprawdzasz go",
@@ -130,87 +130,87 @@
       },
       "3": {
         "title": "Wysyłamy go",
-        "body": "Wybierz plik, którego potrzebuje Twój system, i wyślij go e-mailem, na serwer, do Google Drive, Sheets lub OneDrive albo pobierz go."
+        "body": "Wybierz plik, którego potrzebuje Twój system, i wyślij go e-mailem, na serwer, do Google Drive, Sheets lub OneDrive albo po prostu go pobierz."
       }
     },
-    "videoLabel": "Przykładowa faktura zostaje odczytana, jedna oznaczona wartość poprawiona, a plik wysłany",
-    "videoCaption": "Jedna przykładowa faktura, od przesłania do wysłania. 58 sekund, z dźwiękiem i napisami (po angielsku). Czas oczekiwania na odczyt i wysyłkę został wycięty.",
-    "techTitle": "Dla osób, które zajmują się systemami.",
-    "techLead": "Wszystko powyższe działa także bez klikania. Każdy obieg może samodzielnie przyjmować dokumenty i wysyłać wyniki.",
+    "videoLabel": "Fikcyjna faktura zostaje odczytana, jedna oznaczona wartość – poprawiona, a plik – wysłany",
+    "videoCaption": "Jedna fikcyjna faktura – od przesłania do wysyłki. 58 sekund, z dźwiękiem i napisami (po angielsku). Oczekiwanie na odczyt i wysyłkę zostało wycięte.",
+    "techTitle": "Dla osób, które opiekują się systemami.",
+    "techLead": "Wszystko to działa również bez klikania. Każdy obieg może sam przyjmować dokumenty i wysyłać wyniki.",
     "apiLabel": "Przykład: wysłanie pliku do obiegu przez API",
     "tech": {
       "0": {
-        "title": "Adres i API dla każdego obiegu",
-        "body": "Wyślij e-mail do obiegu, prześlij do niego plik, pobierz wynik albo pozwól nam wywołać Twój adres internetowy, gdy dokument zostanie odczytany lub wysłany."
+        "title": "Adres e-mail i API dla każdego obiegu",
+        "body": "Wyślij e-mail na adres obiegu, prześlij do niego plik, pobierz wynik albo pozwól nam wywoływać Twój adres URL, gdy dokument zostanie odczytany lub wysłany."
       },
       "1": {
         "title": "Pobieranie co pięć minut",
-        "body": "Co pięć minut sprawdzamy skrzynkę pocztową, serwer SFTP, FTPS lub FTP albo zasobnik S3. Każdy plik jest pobierany raz, a pliki na serwerze lub w zasobniku pozostają na miejscu."
+        "body": "Co pięć minut sprawdzamy skrzynkę pocztową, serwer SFTP, FTPS lub FTP albo zasobnik S3. Każdy plik jest pobierany tylko raz, a pliki na serwerze lub w zasobniku pozostają na miejscu."
       },
       "2": {
         "title": "Pliki tworzone według Twojej dokumentacji",
-        "body": "Prześlij dokumentację systemu docelowego lub przykładowy plik, a zaproponujemy plik do sprawdzenia."
+        "body": "Prześlij dokumentację systemu docelowego lub przykładowy plik, a zaproponujemy plik, który sprawdzisz."
       },
       "3": {
         "title": "Twój asystent AI",
-        "body": "Połącz Claude, ChatGPT, Cursor lub VS Code. Dodaj dokument, zobacz, co odczytaliśmy, i wyślij go jednym poleceniem. Dokument czekający na sprawdzenie nadal czeka."
+        "body": "Podłącz Claude, ChatGPT, Cursor lub VS Code. Dodaj dokument, zobacz, co odczytaliśmy, i wyślij go jednym poleceniem. Dokument, który czeka na sprawdzenie, nadal czeka."
       },
       "4": {
-        "title": "Słowniki",
-        "body": "Zamień wartość z dokumentu na tę, której używa Twój system, na podstawie zaimportowanej listy."
+        "title": "Tabele konwersji",
+        "body": "Zamień wartość z dokumentu na tę, której używa Twój system, na podstawie zaimportowanej listy – np. kod towaru dostawcy na Twój własny."
       },
       "5": {
         "title": "Wersje, do których można wrócić",
-        "body": "Zmiany w obiegu zaczynają obowiązywać po ich opublikowaniu, a każdą wcześniejszą wersję można przywrócić."
+        "body": "Zmiany w obiegu zaczynają obowiązywać po ich opublikowaniu, a każdą wcześniejszą wersję można przywrócić."
       },
       "6": {
-        "title": "Zapis każdego dostarczenia",
-        "body": "Przy każdym dostarczeniu zapisujemy, kiedy nastąpiło, jakim kanałem, ile było prób, odpowiedź miejsca docelowego, jeśli ją podaje, a w razie niepowodzenia – błąd."
+        "title": "Zapis każdej wysyłki",
+        "body": "Przy każdej wysyłce zapisujemy jej czas, kanał, liczbę prób, odpowiedź miejsca docelowego (jeśli ją zwraca), a w razie niepowodzenia – błąd."
       }
     },
     "apiRef": "Dokumentacja API",
     "aiLink": "Korzystaj przez asystenta AI",
     "securityLink": "Bezpieczeństwo",
-    "priceTitle": "Jeden cennik. Wszystko w cenie.",
-    "priceLead": "Każdy plan obejmuje wszystkie sposoby przesyłania, wszystkie typy plików i wszystkie kontrole. Płacisz za przetworzone dokumenty.",
+    "priceTitle": "Jeden cennik. Wszystko w cenie.",
+    "priceLead": "Każdy plan obejmuje wszystkie sposoby przyjmowania dokumentów, wszystkie typy plików i wszystkie kontrole. Płacisz za przetworzone dokumenty.",
     "plans": "Plany",
     "planFree": "Bezpłatnie przez {days} dni",
     "planPrice": "{price} miesięcznie",
     "planDocs": "Dokumenty: {limit}",
     "planDocsMonth": "Dokumenty: {limit} miesięcznie",
-    "priceMore": "Zobacz cennik i co liczy się jako dokument",
-    "whoTitle": "Kto prowadzi ProcuLink",
-    "whoLead": "ProcuLink tworzy i prowadzi {name}, spółka zarejestrowana w {city} w Estonii pod numerem rejestrowym {code}.",
-    "support": "Wsparcie odpowiada od poniedziałku do piątku w godz. 9:00–18:00 czasu wschodnioeuropejskiego; staramy się odpowiadać w ciągu jednego dnia roboczego.",
+    "priceMore": "Zobacz cennik i to, co liczy się jako dokument",
+    "whoTitle": "Kto stoi za ProcuLink",
+    "whoLead": "ProcuLink tworzy i prowadzi {name}, spółka z siedzibą w Estonii ({city}), wpisana do rejestru pod numerem {code}.",
+    "support": "Pomoc techniczna działa od poniedziałku do piątku w godz. 9:00–18:00 czasu wschodnioeuropejskiego (EET). Staramy się odpowiadać w ciągu jednego dnia roboczego.",
     "trust": {
       "0": {
         "label": "Bezpieczeństwo",
-        "line": "Szyfrowanie, przechowywanie dokumentów w UE i sposób wykorzystania AI"
+        "line": "Szyfrowanie, przechowywanie dokumentów w UE i sposób wykorzystania AI"
       },
       "1": {
         "label": "Prywatność",
-        "line": "Jakie dane zbieramy i jak długo je przechowujemy"
+        "line": "Jakie dane zbieramy i jak długo je przechowujemy"
       },
       "2": {
         "label": "Umowa powierzenia przetwarzania danych",
-        "line": "Umowa dotycząca przesyłanych nam dokumentów"
+        "line": "Umowa dotycząca dokumentów, które nam przesyłasz"
       },
       "3": {
-        "label": "Podmioty przetwarzające",
-        "line": "Każda firma, która przetwarza Twoje dane, i gdzie"
+        "label": "Podmioty podprzetwarzające",
+        "line": "Wszystkie firmy, które przetwarzają Twoje dane, i miejsce przetwarzania"
       }
     }
   },
   "priceHelper": {
-    "fits": "{n} miesięcznie mieści się w planie {plan}.",
-    "aboutCheapest": "Około {n} miesięcznie: {plan} jest najtańszy, około {price} z dodatkowymi dokumentami.",
-    "about": "Około {n} miesięcznie: {plan}, około {price} z dodatkowymi dokumentami.",
-    "hintSame": "Od około {n} miesięcznie {plan} kosztuje tyle samo, bez dodatkowych dokumentów.",
-    "hintLess": "Od około {n} miesięcznie {plan} kosztuje mniej.",
-    "hintEnterprise": "Przy większej liczbie porozmawiaj z nami o planie {plan}.",
+    "fits": "Przy {n} dokumentach miesięcznie wystarczy plan {plan}.",
+    "aboutCheapest": "Przy około {n} dokumentach miesięcznie najtańszy jest plan {plan}: około {price} z dodatkowymi dokumentami.",
+    "about": "Przy około {n} dokumentach miesięcznie: plan {plan}, około {price} z dodatkowymi dokumentami.",
+    "hintSame": "Od około {n} dokumentów miesięcznie plan {plan} kosztuje tyle samo, bez opłat za dodatkowe dokumenty.",
+    "hintLess": "Od około {n} dokumentów miesięcznie plan {plan} wychodzi taniej.",
+    "hintEnterprise": "Przy większej liczbie dokumentów porozmawiaj z nami o planie {plan}.",
     "period": "Okres rozliczeniowy",
     "monthly": "Miesięcznie",
-    "annual": "Rocznie, {n, plural, one {# miesiąc} few {# miesiące} many {# miesięcy} other {# miesiąca}} gratis",
+    "annual": "Rocznie, {n} mies. gratis",
     "volume": "Ile mniej więcej dokumentów miesięcznie?",
     "valuetext": "Dokumenty miesięcznie: {n}",
     "fourPlans": "Cztery płatne plany",
@@ -218,90 +218,91 @@
     "rowFlows": "Obiegi",
     "rowExtra": "Każdy dodatkowy dokument",
     "aMonth": "miesięcznie",
-    "cheapest": "Najtańszy przy Twojej liczbie",
-    "billedYearly": "Płatne raz w roku, {price}",
+    "cheapest": "Najtańszy przy Twoim wolumenie",
+    "billedYearly": "Płatność raz w roku: {price}",
     "orYearly": "Lub {price} rocznie",
     "docsMonth": " dokumentów miesięcznie",
     "unlimited": "Bez limitu",
     "flows": " obiegów",
-    "extraDoc": "Każdy dodatkowy dokument ",
-    "choose": "Wybierz {plan}",
-    "flowSentence": "Obieg to jeden rodzaj otrzymywanego dokumentu, skonfigurowany raz: co odczytać, jaki plik utworzyć i dokąd go wysłać. Większość zespołów potrzebuje jednego obiegu na typ dokumentu."
+    "unlimitedFlows": "<b>Bez limitu</b> obiegów",
+    "extraDoc": "Każdy dodatkowy dokument: ",
+    "choose": "Wybierz plan {plan}",
+    "flowSentence": "Obieg to ustawienia dla jednego rodzaju otrzymywanych dokumentów, konfigurowane raz: co odczytać, jaki plik utworzyć i dokąd go wysłać. Większości zespołów wystarcza jeden obieg na każdy typ dokumentu."
   },
   "pricing": {
     "title": "Zacznij za darmo. Płać za przetworzone dokumenty.",
-    "lead": "Każdy plan obejmuje wszystkie sposoby przesyłania dokumentów, wszystkie typy plików i wszystkie kontrole. Plany różnią się tylko liczbą przetwarzanych dokumentów i liczbą skonfigurowanych obiegów.",
-    "flowSentence": "Obieg to jeden rodzaj otrzymywanego dokumentu, skonfigurowany raz: co odczytać, jaki plik utworzyć i dokąd go wysłać. Większość zespołów potrzebuje jednego obiegu na typ dokumentu.",
-    "unit": "Dokument to jeden plik o długości do {pages} stron. Dłuższe pliki liczą się raz za każde rozpoczęte {pages} stron, a odczytujemy do {max} stron jednego pliku.",
+    "lead": "Każdy plan obejmuje wszystkie sposoby przyjmowania dokumentów, wszystkie typy plików i wszystkie kontrole. Plany różnią się wyłącznie liczbą przetwarzanych dokumentów i liczbą skonfigurowanych obiegów.",
+    "flowSentence": "Obieg to ustawienia dla jednego rodzaju otrzymywanych dokumentów, konfigurowane raz: co odczytać, jaki plik utworzyć i dokąd go wysłać. Większości zespołów wystarcza jeden obieg na każdy typ dokumentu.",
+    "unit": "Dokument to jeden plik liczący do {pages} stron. Dłuższy plik liczy się jako jeden dokument za każde {pages} stron, a z jednego pliku odczytujemy do {max} stron.",
     "trialPrice": "Bezpłatnie przez {days} dni",
     "trialLimits": "Dokumenty: {docs}, obiegi: {flows}, bez karty płatniczej.",
-    "trialEnds": "Po zakończeniu okresu próbnego obszar roboczy jest tylko do odczytu, dopóki nie wybierzesz planu.",
-    "trialCta": "Rozpocznij bezpłatny okres próbny",
+    "trialEnds": "Po zakończeniu okresu próbnego obszar roboczy przechodzi w tryb tylko do odczytu, dopóki nie wybierzesz planu.",
+    "trialCta": "Wypróbuj bezpłatnie",
     "choose": "Po okresie próbnym wybierz plan według liczby dokumentów.",
-    "everyPlan": "W każdym płatnym planie",
+    "everyPlan": "W każdym płatnym planie",
     "features": {
-      "0": "Wszystkie sposoby przesyłania: przesyłanie plików, e-mail, skrzynka pocztowa, SFTP, FTP, FTPS, S3, API i Twój asystent AI",
-      "1": "Wszystkie typy plików: CSV, JSON, XML, Excel, PDF, tekst, stała szerokość pól, standardy zamówień i faktury ZUGFeRD / Factur-X",
-      "2": "Połącz Claude, ChatGPT, Cursor lub VS Code",
+      "0": "Wszystkie sposoby przyjmowania dokumentów: przesyłanie plików, e-mail, skrzynka pocztowa, SFTP, FTP, FTPS, S3, API i Twój asystent AI",
+      "1": "Wszystkie typy plików: CSV, JSON, XML, Excel, PDF, tekst, format o stałej szerokości pól, standardy zamówień i faktury ZUGFeRD / Factur-X",
+      "2": "Podłącz Claude, ChatGPT, Cursor lub VS Code",
       "3": "Bez limitu użytkowników"
     },
-    "enterprise": "Indywidualna liczba dokumentów, dedykowane wdrożenie i SLA. Od {price} miesięcznie.",
-    "enterpriseCta": "Skontaktuj się z działem sprzedaży",
-    "over": "Przekroczenie płatnego planu nigdy nie blokuje pracy. Każdy dodatkowy dokument jest rozliczany według stawki Twojego planu, a gdy większy plan pokryłby dany miesiąc, nigdy nie płacisz więcej niż jego miesięczna cena.",
-    "storage": "Wszystkie plany obejmują <security>przechowywanie dokumentów w UE</security> i szyfrowanie AES-GCM. Miejsce działania każdego podmiotu przetwarzającego jest <subprocessors>podane w pełnym wykazie</subprocessors>.",
-    "cancel": "Możesz zrezygnować w każdej chwili. Po zakończeniu subskrypcji nowe dokumenty przestają docierać wszystkimi kanałami – to, co już przetworzono, pozostaje dostępne do odczytu i eksportu.",
-    "questions": "Pytania i odpowiedzi",
+    "enterprise": "Liczba dokumentów ustalana indywidualnie, dedykowane wdrożenie i umowa SLA. Od {price} miesięcznie.",
+    "enterpriseCta": "Skontaktuj się z działem sprzedaży",
+    "over": "Przekroczenie limitu w płatnym planie nigdy nie blokuje pracy. Każdy dodatkowy dokument jest rozliczany według stawki Twojego planu, a jeśli większy plan objąłby dany miesiąc, nigdy nie zapłacisz więcej niż jego miesięczna cena.",
+    "storage": "Wszystkie plany obejmują <security>przechowywanie dokumentów w UE</security> i szyfrowanie AES-GCM. Miejsce działania każdego podmiotu podprzetwarzającego <subprocessors>podajemy w pełnym wykazie</subprocessors>.",
+    "cancel": "Możesz zrezygnować w każdej chwili. Po zakończeniu subskrypcji nowe dokumenty przestają docierać wszystkimi kanałami – to, co już przetworzono, pozostaje dostępne do odczytu i eksportu.",
+    "questions": "Pytania i odpowiedzi",
     "else": "Masz inne pytanie?",
-    "talk": "Porozmawiaj z nami",
+    "talk": "Porozmawiaj z nami",
     "faq": {
       "0": {
         "q": "Czy na początek potrzebna jest integracja?",
-        "a": "Nie. Prześlij plik lub przekaż e-mail, a otrzymasz wynik do sprawdzenia. API i pobieranie z serwerów przydają się, gdy dokumenty mają docierać samodzielnie. Możesz też połączyć swojego asystenta AI."
+        "a": "Nie. Prześlij plik lub przekaż e-mail, a otrzymasz wynik do sprawdzenia. API i pobieranie z serwerów przydają się wtedy, gdy chcesz, aby dokumenty docierały automatycznie. Możesz też podłączyć swojego asystenta AI."
       },
       "1": {
-        "q": "Czy osoby wysyłające mi dokumenty muszą coś zmienić?",
-        "a": "Nie. Wysyłają dokumenty tak jak dotąd. Przesyłasz to, co przychodzi, przekazujesz to na własny adres e-mail obiegu albo pozwalasz nam pobierać dokumenty ze skrzynki pocztowej lub serwera."
+        "q": "Czy osoby, które wysyłają mi dokumenty, muszą coś zmienić?",
+        "a": "Nie. Wysyłają dokumenty tak jak dotąd. Ty przesyłasz to, co przychodzi, przekazujesz to na adres e-mail przypisany do obiegu albo pozwalasz nam pobierać dokumenty ze skrzynki pocztowej lub serwera."
       },
       "2": {
         "q": "Czy mogę wypróbować usługę na dokumencie testowym lub zanonimizowanym?",
-        "a": "Tak. Użyj pliku testowego albo najpierw zamaskuj dane wrażliwe. Taki plik jest odczytywany jak każdy inny dokument i wlicza się do limitu dokumentów okresu próbnego ({docs})."
+        "a": "Tak. Użyj pliku testowego albo najpierw zamaskuj dane wrażliwe. Taki plik jest odczytywany jak każdy inny dokument i wlicza się do limitu {docs} dokumentów w okresie próbnym."
       },
       "3": {
-        "q": "Czy w okresie próbnym coś zostanie wysłane automatycznie?",
-        "a": "Tylko tam, gdzie zdecydujesz. Plik zostaje wysłany dopiero wtedy, gdy jego obieg ma miejsce docelowe; do tego czasu go pobierasz. Nowy obieg utworzony przez administratora zatrzymuje dla Ciebie każdy dokument z oznaczoną wartością, a obieg można też ustawić tak, by sprawdzać każdy dokument."
+        "q": "Czy w okresie próbnym coś zostanie wysłane automatycznie?",
+        "a": "Tylko tam, gdzie zdecydujesz. Plik zostanie wysłany dopiero wtedy, gdy ustawisz miejsce docelowe dla jego obiegu; do tego czasu możesz go pobrać. Nowy obieg utworzony przez administratora zatrzymuje do Twojego sprawdzenia każdy dokument z oznaczoną wartością, a obieg można też ustawić tak, aby sprawdzać każdy dokument."
       },
       "4": {
         "q": "Co się dzieje po zakończeniu okresu próbnego?",
-        "a": "Obszar roboczy staje się dostępny tylko do odczytu. Nadal można wszystko otwierać i eksportować, ale nowe dokumenty nie są przyjmowane, dopóki nie wybierzesz planu."
+        "a": "Obszar roboczy przechodzi w tryb tylko do odczytu. Nadal możesz wszystko otwierać i eksportować, ale nowe dokumenty nie są przyjmowane, dopóki nie wybierzesz planu."
       },
       "5": {
         "q": "Czy mogę później zmienić plan?",
-        "a": "Tak. Plan można w każdej chwili podnieść w Ustawieniach, w sekcji Plan i płatności; różnica jest rozliczana proporcjonalnie. Aby przejść na mniejszy plan, skontaktuj się z nami."
+        "a": "Tak. Na wyższy plan możesz przejść w każdej chwili w Ustawieniach, w sekcji „Plan i płatności”; różnicę rozliczamy proporcjonalnie. Aby przejść na mniejszy plan, skontaktuj się z nami."
       },
       "6": {
         "q": "Co się stanie, jeśli zrezygnuję?",
-        "a": "Po rezygnacji ProcuLink przestaje przyjmować nowe dokumenty z chwilą zakończenia subskrypcji. Wszystko, co już przetworzono, pozostaje dostępne do odczytu i eksportu – wcześniejsze dokumenty, obiegi i pliki pozostają, dopóki nie poprosisz o ich usunięcie, a zapisy aktywności, takie jak próby dostarczenia, są usuwane po 180 dniach (zob. <privacy>Politykę prywatności</privacy>) – ale żadną drogą nie dociera nic nowego: przesyłanie plików, dokumenty wysyłane e-mailem i API plików przestają działać, a pobieranie ze skrzynek pocztowych, SFTP, FTP, FTPS i S3 zostaje wstrzymane, a pliki pozostają na miejscu. Przesłane później pliki, e-maile i wywołania API nie są przechowywane na później, dlatego przed rezygnacją uprzedź nadawców. Ponowna subskrypcja natychmiast włącza przetwarzanie, a konfiguracja pozostaje bez zmian."
+        "a": "Jeśli zrezygnujesz, ProcuLink przestanie przyjmować nowe dokumenty z chwilą zakończenia subskrypcji. Wszystko, co już przetworzono, pozostaje dostępne do odczytu i eksportu: wcześniejsze dokumenty, obiegi i pliki przechowujemy, dopóki nie poprosisz o ich usunięcie, a zapisy aktywności, takie jak próby wysyłki, usuwamy po 180 dniach (zob. <privacy>Politykę prywatności</privacy>). Nic nowego nie dotrze jednak żadną drogą: przesyłanie plików, dokumenty wysyłane e-mailem i API plików przestają działać, a pobieranie ze skrzynek pocztowych, SFTP, FTP, FTPS i S3 zostaje wstrzymane, przy czym pliki pozostają na miejscu. Pliki, e-maile i wywołania API wysłane później nie są zachowywane do późniejszego przetworzenia, dlatego przed rezygnacją uprzedź nadawców. Ponowne wykupienie subskrypcji od razu przywraca przetwarzanie, a Twoja konfiguracja pozostaje nienaruszona."
       },
       "7": {
         "q": "Gdzie są przechowywane moje dane?",
-        "a": "Dokumenty są przechowywane w UE i szyfrowane w spoczynku algorytmem AES-GCM. Część przetwarzania odbywa się u wskazanych z nazwy podmiotów przetwarzających z USA na podstawie standardowych klauzul umownych – logowanie, odczyt przez AI, płatności oraz e-mail w obu kierunkach, w tym dokumenty, które wysyłamy e-mailem do ustawionych przez Ciebie miejsc docelowych. Pełny opis znajdziesz na <security>stronie Bezpieczeństwo</security>."
+        "a": "Dokumenty są przechowywane w UE i szyfrowane w spoczynku algorytmem AES-GCM. Część przetwarzania odbywa się u wymienionych z nazwy podmiotów podprzetwarzających z USA na podstawie standardowych klauzul umownych: logowanie, odczyt przez AI, płatności oraz e-mail w obu kierunkach, w tym dokumenty, które wysyłamy e-mailem do ustawionych przez Ciebie miejsc docelowych. Pełny opis znajdziesz na <security>stronie Bezpieczeństwo</security>."
       },
       "8": {
         "q": "Mam starszy plan. Co się zmienia?",
-        "a": "Jeśli korzystasz z planu {plans}, nic się nie zmienia, dopóki nie zmienisz planu. Zachowujesz obecną cenę i limity. Aby zmienić plan, przejdź do Ustawień, a następnie do sekcji Plan i płatności."
+        "a": "Jeśli korzystasz z planu {plans}, nic się nie zmienia, dopóki nie zmienisz planu. Zachowujesz obecną cenę i limity. Aby zmienić plan, przejdź do Ustawień, a następnie do sekcji „Plan i płatności”."
       }
     },
     "closingTitle": "Nie wiesz, który plan wybrać?",
-    "closingLead": "Rozpocznij bezpłatny okres próbny i sprawdź, ile dokumentów przetwarzasz."
+    "closingLead": "Rozpocznij bezpłatny okres próbny i sprawdź, ile dokumentów przetwarzasz."
   },
   "app": {
     "documents": "Dokumenty",
     "flows": "Obiegi",
-    "lookups": "Słowniki",
+    "lookups": "Tabele konwersji",
     "operations_log": "Historia",
     "settings": "Ustawienia",
-    "admin": "Admin",
-    "help": "Pomoc i wsparcie",
+    "admin": "Administracja",
+    "help": "Pomoc i wsparcie",
     "upload": "Prześlij",
     "uploadLabel": "Prześlij dokument",
     "search": "Szukaj",
@@ -309,7 +310,7 @@
     "settingsSections": "Sekcje ustawień",
     "tab_org": "Obszar roboczy",
     "tab_destinations": "Miejsca docelowe",
-    "tab_billing": "Plan i płatności",
+    "tab_billing": "Plan i płatności",
     "workspaces": "Obszary robocze",
     "switching": "Przełączanie…",
     "currentWorkspace": "Bieżący obszar roboczy",
@@ -322,6 +323,6 @@
     "signOut": "Wyloguj się"
   },
   "legal": {
-    "englishOnly": "Ta strona jest dostępna tylko w języku angielskim. Wiążąca jest wersja angielska."
+    "englishOnly": "Ta strona jest dostępna wyłącznie w języku angielskim. Wiążąca jest wersja angielska."
   }
 }
