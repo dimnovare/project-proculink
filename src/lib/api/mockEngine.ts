@@ -176,7 +176,7 @@ const DELIVERIES: Record<string, DocumentDelivery[]> = {
 interface Remembered { status: string; read: ReadResult; failed: DocumentCheck[]; sentAt: string | null; deliveries: DocumentDelivery[] | null }
 const remembered = new Map<string, Remembered>();
 const fixtureOf = (r: DocumentRow): Remembered => ({
-  status: r.status, read: r.id === MOCK_ENGINE_IDS.document ? DOC_1_READ : read, failed: r.checks.map((c) => FAILED_CHECKS[c]),
+  status: r.status, read: r.id === MOCK_ENGINE_IDS.document ? DOC_1_READ : r.id === MOCK_ENGINE_IDS.reading ? { kindLabel: null, fields: [], tables: [], truncated: false } : read, failed: r.checks.map((c) => FAILED_CHECKS[c]),
   sentAt: r.sentAt, deliveries: DELIVERIES[r.id] ?? null,
 });
 const now = (id: string): Remembered => remembered.get(id) ?? fixtureOf(pick(ROWS, id, "document"));
