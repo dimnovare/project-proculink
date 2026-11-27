@@ -161,7 +161,7 @@ export function FlowOutputs({ flow, outputId, previewDocumentId }: { flow: Flow;
 
       {adding ? (
         <OutputBuilder
-          flow={flow} previewDocumentId={preview} kind={source.data?.read?.kindLabel ?? null} first={outputs.data.length === 0}
+          flow={flow} previewDocumentId={preview} kind={source.data?.read?.kindLabel ?? null} files={outputs.data.length}
           names={outputs.data.map((o) => o.name)} onDone={() => setAdding(false)}
           onCreated={(o) => { setMade({ id: o.id, from: outputId }); setFocusFor(o.id); open(o); }}
         />

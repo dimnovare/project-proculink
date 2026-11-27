@@ -76,7 +76,7 @@ describe("FlowPage", () => {
   it("says what the flow does, and puts Documents and History in the same row as the four steps (B-10)", async () => {
     api.listFlows.mockResolvedValue([{ ...flow, summary: { needsYou: 0, couldNotSend: 0, couldNotRead: 0, lastDocumentAt: null, waysIn: ["email"], outputs: [{ name: "Invoices CSV", format: "csv", standard: null, destination: null }] } }]);
     renderPage();
-    expect(await screen.findByText("Reads documents from email and upload. You download Invoices CSV.")).toBeInTheDocument();
+    expect(await screen.findByText("Reads documents from email and upload. You download “Invoices CSV”.")).toBeInTheDocument();
     const [steps, rest] = strip().getAllByRole("list");
     expect(within(steps).getAllByRole("listitem")).toHaveLength(4);
     expect(within(rest).getByRole("link", { name: /^Documents/ })).toHaveAttribute("aria-current", "page");
@@ -88,7 +88,7 @@ describe("FlowPage", () => {
     api.getFlow.mockResolvedValue({ ...flow, hasChanges: true });
     api.listFlows.mockResolvedValue([{ ...flow, summary: { needsYou: 0, couldNotSend: 0, couldNotRead: 0, lastDocumentAt: null, waysIn: ["email"], outputs: [{ name: "Invoices CSV", format: "csv", standard: null, destination: null }] } }]);
     renderPage();
-    expect(await screen.findByText("In use now: Reads documents from email and upload. You download Invoices CSV.")).toBeInTheDocument();
+    expect(await screen.findByText("In use now: Reads documents from email and upload. You download “Invoices CSV”.")).toBeInTheDocument();
     expect(screen.getByText("You have changes that aren't in use yet.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Review changes" })).toHaveAttribute("href", "/flows/flow-1?tab=send");
   });

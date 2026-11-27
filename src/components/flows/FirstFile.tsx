@@ -105,7 +105,7 @@ export function FirstFile({ flow, docId }: { flow: Flow; docId: string }) {
       <Card as="section" aria-labelledby="first-file-looks" pad={20} radius={12}>
         <div className="grid gap-3">
           <h2 id="first-file-looks" className={H2}>What the file looks like</h2>
-          <FilePreview preview={preview.data} cacheKey={`first-file-${docId}-${output?.format}-${output?.standard}`} />
+          <FilePreview preview={preview.data} format={output?.format} cacheKey={`first-file-${docId}-${output?.format}-${output?.standard}`} />
           <p className={LINE}><Link href={columns} className={LINK}>Change the columns</Link></p>
         </div>
       </Card>

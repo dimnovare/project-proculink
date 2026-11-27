@@ -14,10 +14,12 @@ export function waysInWords(kinds: readonly string[]): string {
   return and([...new Set(words), "upload"]);
 }
 
+/** A file's name is whatever the person typed ("CSV file", "ZUGFeRD"), so it is quoted: the sentence reads for any name. */
 export function sendsWords(outputs: readonly FlowSummaryOutput[]): string {
   if (!outputs.length) return "Nothing is sent yet.";
-  const sent = outputs.filter((o) => o.destination !== null).map((o) => `${o.name} to ${o.destination}`);
-  const kept = outputs.filter((o) => o.destination === null).map((o) => o.name);
+  const q = (o: FlowSummaryOutput) => `“${o.name}”`;
+  const sent = outputs.filter((o) => o.destination !== null).map((o) => `${q(o)} to ${o.destination}`);
+  const kept = outputs.filter((o) => o.destination === null).map(q);
   return [sent.length ? `Sends ${and(sent)}.` : "", kept.length ? `You download ${and(kept)}.` : ""].filter(Boolean).join(" ");
 }
 

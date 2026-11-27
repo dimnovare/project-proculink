@@ -28,7 +28,7 @@ const invoices = flow("flow-1", "Supplier invoices", 3, summary({
   needsYou: 1, couldNotRead: 2, lastDocumentAt: "2026-05-20T09:00:00Z", waysIn: ["email"],
   outputs: [{ name: "Invoice CSV", format: "csv", standard: null, destination: "Accounting inbox" }],
 }));
-const SENTENCE = "Reads documents from email and upload. Sends Invoice CSV to Accounting inbox.";
+const SENTENCE = "Reads documents from email and upload. Sends “Invoice CSV” to Accounting inbox.";
 
 const show = () => render(<QueryClientProvider client={new QueryClient()}><UploadQueueProvider><FlowsHome /></UploadQueueProvider></QueryClientProvider>);
 const welcome = () => screen.queryByRole("heading", { level: 1, name: /Let's read your first document/ });
@@ -134,7 +134,7 @@ describe("FlowsHome", () => {
     for (const [n, lead] of [[limit, `${limit} of ${limit} flows on the ${planName("pilot")}.`], [limit + 1, "You have more flows than your plan includes."]] as const) {
       listFlows.mockResolvedValue(Array.from({ length: n }, (_, i) => flow(`flow-${i}`, `Flow ${i}`, 0)));
       const full = show();
-      expect(await screen.findByText(`${lead} To try another file, such as the KSeF invoice, add it to a flow you have: open the flow, then We send, then Make another file.`)).toBeTruthy();
+      expect(await screen.findByText(`${lead} To try another file, such as the KSeF invoice, add it to a flow you have: open the flow, go to We send and make another file there.`)).toBeTruthy();
       expect(screen.getByRole("link", { name: "Open Flow 0" })).toHaveAttribute("href", "/flows/flow-0");
       expect(screen.getByRole("link", { name: "See plans" }).className).toBe(buttonClass("secondary", "md"));
       expect(screen.queryByRole("button", { name: "New flow" })).toBeNull();
