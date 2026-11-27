@@ -773,7 +773,7 @@ function OutgoingRow({
             as before — the classic screen is visually unchanged. */}
         <div style={pickerMode
           ? { display: "flex", alignItems: "center", flex: "0 1 auto", minWidth: 0, marginLeft: "auto" }
-          : { display: "flex", alignItems: "center", marginLeft: "auto", minWidth: 0 }}>
+          : { display: "flex", alignItems: "center", marginLeft: "auto", flexShrink: 0 }}>
 
 
           {pickerMode && onPickSource ? (
@@ -1100,7 +1100,7 @@ function OutgoingStatusTag({
   // computeOutgoingStatus and arrives with kind "auto", never "none". The marker now hangs off
   // `needsSourceStatus` in the row itself, which is a question about the VALUE and can be true.
   return (
-    <span style={{ fontSize: 11, fontWeight: 600, color: "#5E6779", flexShrink: 0 }}>{fromSetup ? "from file setup" : "not set"}</span>
+    <span style={{ fontSize: 11, fontWeight: 600, color: "#5E6779", flexShrink: 0, whiteSpace: "nowrap" }}>{fromSetup ? "from file setup" : "not set"}</span>
   );
 }
 

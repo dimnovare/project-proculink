@@ -109,4 +109,14 @@ describe("AdvancedView", () => {
     expect((await bench.findAllByText("Invoice number")).length).toBeGreaterThan(0);
     expect((await bench.findAllByText("Upload a document to this flow to see a preview.")).length).toBeGreaterThan(0);
   });
+  it("below 1440 px the preview starts folded and opens on click (V-02)", async () => {
+    const spy = vi.spyOn(window, "matchMedia").mockImplementation((q) => ({ matches: q === "(max-width: 1439px)", media: q, addEventListener: () => {}, removeEventListener: () => {} }) as unknown as MediaQueryList);
+    api.listDocuments.mockResolvedValue([]);
+    renderView();
+    const bench = within(await screen.findByTestId("advanced-workbench"));
+    expect(bench.queryByText("Upload a document to this flow to see a preview.")).toBeNull();
+    fireEvent.click(bench.getByRole("button", { name: "Expand Preview" }));
+    expect((await bench.findAllByText("Upload a document to this flow to see a preview.")).length).toBeGreaterThan(0);
+    spy.mockRestore();
+  });
 });
