@@ -240,7 +240,7 @@ export default function SecurityPage() {
                 phone; the page itself never does. */}
             <Card flush className="w-full">
               <TableScroller label="Subprocessors">
-                <table className="w-full min-w-[560px] border-collapse text-[15.5px] leading-[1.4]">
+                <table className="w-full min-w-[520px] border-collapse text-[15.5px] leading-[1.4]">
                   <thead>
                     <tr>
                       {["Company", "What it does for us", "Where"].map((h) => (

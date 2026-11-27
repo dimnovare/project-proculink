@@ -72,7 +72,7 @@ export function HomeExample() {
           <span className="absolute right-0 top-0 size-3.5 rounded-full border-[3px] border-brand-green bg-surface" />
         </div>
       </div>
-      <div aria-hidden="true" className="grid items-start gap-x-8 gap-y-7 [grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))]">
+      <div aria-hidden="true" className="grid items-start gap-x-8 gap-y-7 min-[680px]:grid-cols-2 lg:grid-cols-3">
         <div className="flex min-w-0 flex-col gap-4">
           <StageHead dot="bg-brand-blue">What arrived</StageHead>
           <InvoiceSheet marked className="-rotate-1" />
@@ -98,7 +98,8 @@ export function HomeExample() {
           </Card>
           <p className={`${SITE.soft} text-[14px]`}>Anything missing or hard to read is marked, so you know where to look.</p>
         </div>
-        <div className="flex min-w-0 flex-col gap-4">
+        {/* Spans both columns at two-up widths, so it is never left beside an empty half. */}
+        <div className="flex min-w-0 flex-col gap-4 min-[680px]:max-lg:col-span-2">
           <StageHead dot="bg-brand-green">What we send</StageHead>
           <CsvFile sent />
           <p className={`${SITE.soft} text-[14px]`}>The file your system expects, sent where it needs to go.</p>

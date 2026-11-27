@@ -198,7 +198,7 @@ export default function HelpIndex() {
                 </h2>
                 {/* Only topics with an article: a topic that filters to nothing is a dead control. Each is a
                     <button> that filters this page in place; there is no topic page. */}
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {CATEGORY_ORDER.filter((c) => articleCount(c) > 0).map((c) => (
                     <button
                       key={c}

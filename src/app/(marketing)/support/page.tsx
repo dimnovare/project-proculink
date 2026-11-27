@@ -108,7 +108,7 @@ export default function SupportPage() {
       </section>
 
       <section className="bg-surface pb-[104px] pt-[88px]">
-        <div className={`${SITE.wrap} grid grid-cols-[repeat(auto-fit,minmax(min(300px,100%),1fr))] items-start gap-x-14 gap-y-10`}>
+        <div className={`${SITE.wrap} grid items-start lg:grid-cols-3 gap-x-14 gap-y-10`}>
           <div className={BLOCK}>
             <h2 className={SITE.h3}>Find it yourself</h2>
             <p>Most questions about documents, flows and destinations are answered in the help centre.</p>

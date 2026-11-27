@@ -36,7 +36,7 @@ export default function SubprocessorsPage() {
           viewport gives this page a 311px content box, so the table used to push
           the document out to 497px and hide the Contract column off-screen. */}
       <TableScroller label="Current subprocessors">
-        <table className="min-w-[640px]">
+        <table className="min-w-[600px]">
           <thead>
             <tr>
               <th>Subprocessor</th>
@@ -69,7 +69,7 @@ export default function SubprocessorsPage() {
         // renders the moment a planned change is published. Wrapped now, not later:
         // it is only invisible today because SUBPROCESSOR_PLANNED_CHANGES is empty.
         <TableScroller label="Planned subprocessor changes">
-          <table className="min-w-[640px]">
+          <table className="min-w-[600px]">
             <thead>
               <tr>
                 <th>Subprocessor</th>

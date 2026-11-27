@@ -146,7 +146,7 @@ function DestinationRow({ d, open, go, refresh, onDeleted }: {
             </>
           )}
         </span>
-        <span className="col-start-2 row-span-2 row-start-1 flex items-start justify-end gap-2 lg:col-start-5 lg:row-span-1 lg:items-center">
+        <span className="col-span-full flex items-start gap-2 sm:col-span-1 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:justify-end lg:col-start-5 lg:row-span-1 lg:items-center">
           {open ? (
             <span className="text-[13px] font-semibold text-ink-muted">Editing</span>
           ) : (
