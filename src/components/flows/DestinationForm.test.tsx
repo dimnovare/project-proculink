@@ -109,6 +109,10 @@ describe("DestinationForm", () => {
     expect(within(container).getByLabelText("Subject")).toBeTruthy();
     expect(within(container).getByLabelText("Message")).toBeTruthy();
     expect(within(container).queryByLabelText(/attachment/i)).toBeNull();
+    const language = within(container).getByLabelText("Language of the default message");
+    expect(language).toHaveValue("");
+    expect(within(language).getAllByRole("option").map((o) => o.textContent))
+      .toEqual(["Same as the document", "English", "Deutsch", "Français", "Polski", "Eesti"]);
   });
 
   it("takes an SFTP private key in a textarea that keeps its line breaks, and does not show it after saving", async () => {

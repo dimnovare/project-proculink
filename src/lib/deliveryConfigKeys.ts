@@ -31,7 +31,7 @@ export const MANAGED_CONFIG_KEYS: Record<DeliveryProtocol, readonly string[]> = 
     "timeoutSeconds",
     "allowInvalidCertificate",
   ],
-  email: ["toAddresses", "replyTo", "subjectTemplate", "bodyTemplate", "attachmentFileName"],
+  email: ["toAddresses", "replyTo", "subjectTemplate", "bodyTemplate", "attachmentFileName", "language"],
   smtp: [
     "host",
     "port",

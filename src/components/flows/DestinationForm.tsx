@@ -13,7 +13,7 @@ import { MANAGED_CONFIG_KEYS } from "@/lib/deliveryConfigKeys";
 import { documentRefusalMessage } from "@/lib/documentRefusals";
 import { GoogleTargetFields, useLinkedAccounts } from "./GoogleTargetFields";
 
-type Kind = "text" | "number" | "check" | "method" | "environment";
+type Kind = "text" | "number" | "check" | "method" | "environment" | "language";
 const CONFIG_FIELDS: Record<string, [label: string, kind: Kind]> = {
   url: ["Web address", "text"],
   method: ["Request method", "method"],
@@ -28,6 +28,7 @@ const CONFIG_FIELDS: Record<string, [label: string, kind: Kind]> = {
   replyTo: ["Reply-to address", "text"],
   subjectTemplate: ["Subject", "text"],
   bodyTemplate: ["Message", "text"],
+  language: ["Language of the default message", "language"],
   bucket: ["Bucket", "text"],
   prefix: ["Folder", "text"],
   region: ["Region", "text"],
@@ -38,6 +39,9 @@ const CONFIG_FIELDS: Record<string, [label: string, kind: Kind]> = {
   account: ["B2Brouter account ID", "text"],
   // No attachmentFileName box: a flow send always names the attachment after the document.
 };
+
+/** Each language in its own name; none chosen follows the document (the sender's country), else English. */
+const LANGUAGES = { "": "Same as the document", en: "English", de: "Deutsch", fr: "Français", pl: "Polski", et: "Eesti" };
 
 /** The common places first; then the server kinds (plan 16a R17) and the e-invoice networks, each in its group. */
 const PROTOCOLS = {
@@ -74,6 +78,7 @@ const ISSUER_TICK = "I confirm that every invoice sent from this destination is 
 const HELP: Record<string, string> = {
   serviceUrl: "Only for R2, MinIO or another S3-compatible service",
   nip: "10 digits: your company's tax number.",
+  language: "Used when the message box is empty. The document's language comes from the sender's country.",
   "ksef.token": "Made in Aplikacja Podatnika KSeF for this NIP, with permission to issue invoices.",
   "b2brouter.apiKey": "A key that starts with test_ sends to B2Brouter's test system.",
 };
@@ -118,10 +123,10 @@ const SECRETS = new Set(["password", "token", "value", "secretKey", "privateKey"
 
 /** What is rarely changed sits behind "More options"; the hint says what is there. */
 const FOLDED = new Set(["port", "timeoutSeconds", "makeDirectories", "overwriteExisting", "allowInvalidCertificate", "method",
-  "replyTo", "subjectTemplate", "bodyTemplate", "region", "serviceUrl", "privateKey", "privateKeyPassphrase"]);
+  "replyTo", "subjectTemplate", "bodyTemplate", "language", "region", "serviceUrl", "privateKey", "privateKeyPassphrase"]);
 const FOLD_HINT: Record<string, string> = {
   sftp: "port, private key, folder and file rules", ftps: "port, certificate, folder and file rules",
-  http: "request method, time limit", email: "reply-to address, subject, message", s3: "region, endpoint",
+  http: "request method, time limit", email: "reply-to address, subject, message, language", s3: "region, endpoint",
 };
 const FILES = "The test file's name starts with TEST_, so it is easy to spot.";
 const TEST_NOTE: Record<string, string> = {
@@ -313,7 +318,11 @@ export function DestinationForm({ destination, preset, inline, testAfterSave, ch
       );
     return (
       <Field key={key} label={label} error={errors[key] ?? ""} help={HELP[key]}>
-          {kind === "method" ? (
+          {kind === "language" ? (
+            <select className={INPUT} value={String(value ?? "")} onChange={(e) => setValue(key, e.target.value)}>
+              {Object.entries(LANGUAGES).map(([code, text]) => <option key={code} value={code} lang={code || undefined}>{text}</option>)}
+            </select>
+          ) : kind === "method" ? (
             <select className={INPUT} value={String(value ?? "POST")} onChange={(e) => setValue(key, e.target.value)}>
               <option>POST</option>
               <option>PUT</option>
