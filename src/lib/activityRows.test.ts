@@ -100,6 +100,10 @@ describe("activityRows", () => {
     expect(plainSentence(added.sentence)).toBe("A line on invoice-1003.csv was added");
     expect(added.facts).toEqual([]);
     expect(view(ev({ action: "document.value_taught", payload: { key: "invoice_number" } })).facts).toContainEqual({ term: "Value", value: "invoice number" });
+    // A row that carries the value's own name shows it, accents and all.
+    expect(view(ev({ action: "document.value_edited", payload: { target: "field:sposob_platnosci", old: null, new: "Przelew", label: "Sposób płatności" } })).facts)
+      .toContainEqual({ term: "Value", value: "Sposób płatności" });
+    expect(view(ev({ action: "document.value_taught", payload: { key: "sposob_platnosci", label: "Sposób płatności" } })).facts).toContainEqual({ term: "Value", value: "Sposób płatności" });
   });
 
   test("server text is sanitised, and unknown is never green", () => {

@@ -37,6 +37,15 @@ const sideways = (page: Page) =>
 
 test.describe("one way in", () => {
   test.describe.configure({ timeout: 120_000 });
+  // The review screen and /flows/new are the heaviest dev compiles; under parallel local load a cold one outlasted the
+  // whole-test timeout mid-click. Compile them once up front, and give single steps room of their own.
+  test.use({ actionTimeout: 30_000, navigationTimeout: 60_000 });
+  test.beforeAll(async ({ playwright }, info) => {
+    test.setTimeout(300_000); // a hook gets the 30 s default, not the describe's 120 s
+    const request = await playwright.request.newContext({ baseURL: info.project.use.baseURL });
+    for (const url of ["/documents", inboxDoc("doc-in-1"), "/flows/new"]) await request.get(url, { timeout: 90_000 });
+    await request.dispose();
+  });
 
   test("Add documents at 1440 and 390: no flow question, one filled button, and a new kind says so", async ({ page }) => {
     await preparePage(page, { dismissCookieBanner: true });
@@ -70,9 +79,9 @@ test.describe("one way in", () => {
     await expect(page.getByTestId("topbar-nav").getByRole("link")).toHaveText(["Documents", "Flows", "Settings"]);
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.getByRole("table").getByRole("link", { name: "statement-0412.pdf" }).click();
-    await expect(page).toHaveURL(/\/flows\/flow-inbox\/documents\/doc-in-1$/);
+    await expect(page).toHaveURL(/\/flows\/flow-inbox\/documents\/doc-in-1$/, { timeout: 30_000 });
     const answers = answersOf(page);
-    await expect(answers.getByRole("heading", { name: "This is the first statement here." })).toBeVisible();
+    await expect(answers.getByRole("heading", { name: "This is the first statement here." })).toBeVisible({ timeout: 30_000 });
     const waiting = page.getByRole("complementary", { name: "Documents that need you" });
     const listed = waiting.getByRole("listitem").filter({ hasText: "statement-0412.pdf" });
     await expect(listed).toContainText("A statement from Example Bank Ltd");
@@ -87,8 +96,8 @@ test.describe("one way in", () => {
     expect({ outside: m.outside, small: m.small, filled: m.filled }).toEqual({ outside: [], small: [], filled: 1 });
 
     await answers.getByRole("button", { name: "Set it up" }).click();
-    await expect(page).toHaveURL(/\/flows\/new\?step=send&flow=flow-set-up-\d+&doc=doc-in-1$/);
-    await expect(page.getByText("Step 3 of 3. Choose where the file goes.")).toBeVisible();
+    await expect(page).toHaveURL(/\/flows\/new\?step=send&flow=flow-set-up-\d+&doc=doc-in-1$/, { timeout: 30_000 });
+    await expect(page.getByText("Step 3 of 3. Choose where the file goes.")).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole("radiogroup", { name: "Where should the file go?" })).toBeVisible();
     expect(await sends(page), "setting it up sends nothing").toEqual([]);
   });

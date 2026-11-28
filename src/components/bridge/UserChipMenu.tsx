@@ -23,7 +23,8 @@ import { useCopy } from "@/i18n/useCopy";
 import { useConfirm } from "@/components/ui/confirm";
 import { clearHeldUploads, heldCount } from "@/lib/pwa/heldUploads";
 import { turnOffAlerts } from "@/lib/pwa/push";
-import { useMenuDismiss } from "./OrgSwitcher";
+import { useMenuDismiss } from "@/hooks/useMenuDismiss";
+import { forgetWorkspace, useRememberedInitials } from "@/hooks/useWorkspaceName";
 
 /** "org:admin" → "Administrator"; "org:member" → "Member"; else title-case. */
 export function membershipRoleLabel(role: string | null | undefined): string | null {
@@ -108,6 +109,7 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up", onLight 
   const email = user?.primaryEmailAddress?.emailAddress ?? "";
   const subline = membershipRoleLabel(membership?.role) ?? email;
   const initials = nameInitials(name);
+  const keptInitials = useRememberedInitials(user ? initials : null);
 
   // Clerk not configured (mock/QA shells) or no session yet: render the chip
   // shape without a menu — none of the menu actions could work (offer ⇔ works).
@@ -118,7 +120,7 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up", onLight 
         style={placement === "down" ? undefined : { borderTop: "1px solid #1F3252", padding: collapsed ? "10px 0" : "10px 14px" }}
         title={clerkConfigured ? undefined : "Clerk is not configured"}
       >
-        <AvatarCircle initials={clerkConfigured ? "…" : "MK"} onLight={onLight} />
+        <AvatarCircle initials={clerkConfigured ? (keptInitials ?? "…") : "MK"} onLight={onLight} />
         {!collapsed && (
           <div className="min-w-0 flex-1" style={{ lineHeight: 1.25 }}>
             <div className="truncate text-[12.5px] font-semibold text-white">
@@ -175,6 +177,7 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up", onLight 
     }
     await turnOffAlerts();
     await clearHeldUploads();
+    forgetWorkspace();
     void clerk.signOut({ redirectUrl: "/" });
   };
 

@@ -66,7 +66,10 @@ export interface FlowSummary {
   needsYou: number; couldNotSend: number; couldNotRead: number; lastDocumentAt: string | null;
   waysIn: string[]; outputs: FlowSummaryOutput[];
 }
-export interface FlowVersion { versionNo: number; publishedAt: string; publishedBy: string | null; live: boolean }
+/** One kind of change a version made, as FlowVersionDiff names it: labels, output names, or standard ids for `standard.added`. */
+export interface FlowVersionChange { section: string; action: string; names: string[] }
+/** `changes`: what it changed from the version before; null beyond the latest 50, absent on an older backend. */
+export interface FlowVersion { versionNo: number; publishedAt: string; publishedBy: string | null; live: boolean; changes?: FlowVersionChange[] | null }
 
 export interface DocumentSummary {
   id: string; flowId: string; flowName: string; fileName: string; status: string; statusReason: string | null;

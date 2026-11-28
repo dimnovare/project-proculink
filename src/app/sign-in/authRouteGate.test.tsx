@@ -1,7 +1,7 @@
 // /sign-in and /sign-up are behind the same bounded wait (WP-32 follow-up, F1).
 //
 // THE DEFECT THIS PINS. The gate shipped in the (app) layout, and /sign-in is
-// not in (app) — its only ancestor layout is src/app/layout.tsx. Meanwhile
+// not in (app) — its own layout only mounts the Clerk provider. Meanwhile
 // src/middleware.ts sends EVERY signed-out request on a protected route to
 // /sign-in, so the most common real-world instance of "the sign-in service is
 // blocked" landed on the one page the gate could not reach.
@@ -14,7 +14,7 @@
 // WHY isLoaded IS THE RIGHT READY SIGNAL HERE. The failure being bounded is
 // "the hosted script never arrived", and useAuth().isLoaded is precisely the
 // flag that flips when it does arrive and initialises. It does not throw when
-// the script is missing (ClerkProvider is mounted in the root layout either
+// the script is missing (ClerkProvider is mounted by its layout either
 // way) — it simply stays false, which is the condition. Waiting on the form's
 // own DOM instead would mean waiting on markup that a blocked script never
 // produces, i.e. reading the symptom rather than the dependency.
@@ -112,8 +112,8 @@ describe("/sign-in", () => {
 });
 
 describe("/sign-up", () => {
-  // Same file shape as /sign-in: a server component outside (app) whose only
-  // ancestor is the root layout, rendering a Clerk component that never mounts
+  // Same file shape as /sign-in: a server component outside (app) whose layout only
+  // mounts the Clerk provider, rendering a Clerk component that never mounts
   // without the hosted script. Middleware does not route anyone here, but the
   // marketing "Start for free" call to action does.
   it("explains itself instead of hanging blank when the service never loads", () => {

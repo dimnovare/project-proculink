@@ -2,7 +2,7 @@
   "src/app/(app)/admin/AdjustLimitsModal.tsx": 33,
   "src/app/(app)/admin/CreateInvoiceModal.tsx": 42,
   "src/app/(app)/admin/page.tsx": 1,
-  "src/app/(app)/layout.tsx": 2,
+  "src/app/(app)/AppShell.tsx": 2,
   "src/app/global-error.tsx": 10,
   "src/app/layout.tsx": 2,
   "src/app/onboarding/select-organization/page.tsx": 1,

@@ -10,7 +10,7 @@ import { planDisplayName, planName } from "@/lib/plans";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useApple, useShortcut } from "@/hooks/useShortcut";
 import { OPEN_SEARCH_EVENT, ariaOf, keyWord } from "@/lib/shortcuts";
-import { useOrganization } from "@clerk/nextjs";
+import { useWorkspaceName } from "@/hooks/useWorkspaceName";
 import { useCopy } from "@/i18n/useCopy";
 import { navKey } from "./BridgeSidebar";
 import { CommandPalette } from "./CommandPalette";
@@ -61,7 +61,6 @@ function useTopNav() {
 /** Live workspace name + billing plan for the compact OrgSwitcher. */
 function useWorkspaceCardData() {
   const queryEnabled = useTenantQueriesEnabled();
-  const { organization } = useOrganization();
   const { c } = useCopy("app");
   const { data: billing } = useQuery({
     queryKey: ["billing-status"],
@@ -75,7 +74,7 @@ function useWorkspaceCardData() {
   // `billing.plan` agrees with the ladder only by coincidence — it is a string operation on
   // an identifier, and it would render a future two-word tier as "Highvolume plan".
   const planLabel = billing ? c("planLabel", planDisplayName(billing.plan), { name: planName(billing.plan) }) : c("loading", "Loading…");
-  const orgName = organization?.name ?? c("yourWorkspace", "Your workspace");
+  const orgName = useWorkspaceName(c("yourWorkspace", "Your workspace"));
   return { orgName, planLabel, activePlan: billing ? planLabel : null };
 }
 

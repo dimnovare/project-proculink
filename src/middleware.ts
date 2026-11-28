@@ -1,5 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { NextRequest, NextResponse } from "next/server";
+import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
 
 /**
  * Every URL segment that `src/app/(app)/` serves. One entry per top-level
@@ -250,10 +250,21 @@ export async function applyProtectedRouteGuards(
   }
 }
 
+/**
+ * The only paths Clerk sees at the edge: the app, and the pages that load sign-in code (their layouts mount
+ * AppClerkProvider). Everything else is public and loads no Clerk script, so nothing there keeps the
+ * short-lived session cookie fresh — and Clerk answers a document GET carrying a stale one (or arriving from
+ * another site) with a handshake redirect to its own domain and back. Skipping Clerk on public paths spares a
+ * signed-in visitor that round trip on every full page load. Nothing public calls `auth()`.
+ */
+const CLERK_EDGE_PATTERNS = [...PROTECTED_ROUTE_PATTERNS, "/sign-in(.*)", "/sign-up(.*)", "/onboarding(.*)", "/welcome(.*)"];
+const clerkRunsFor = createRouteMatcher(CLERK_EDGE_PATTERNS);
+const clerk = clerkMiddleware(async (auth, req) => applyProtectedRouteGuards(req, auth));
+
 const middleware = isQaAuthBypass
   ? () => NextResponse.next()
   : isClerkConfigured
-    ? clerkMiddleware(async (auth, req) => applyProtectedRouteGuards(req, auth))
+    ? (req: NextRequest, event: NextFetchEvent) => (clerkRunsFor(req) ? clerk(req, event) : NextResponse.next())
     : fallbackMiddleware;
 
 export default middleware;

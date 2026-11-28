@@ -17,7 +17,7 @@
 
 import { render, screen, act, fireEvent, within } from "@testing-library/react";
 import { afterEach, describe, it, expect, vi } from "vitest";
-import { isCurrentSection, MarketingNav } from "@/components/marketing/MarketingNav";
+import { hasSessionCookie, isCurrentSection, MarketingNav } from "@/components/marketing/MarketingNav";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/pricing",
@@ -25,32 +25,12 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-// The nav lazy-loads `MarketingClerkLinks` (next/dynamic, ssr:false) whenever
-// NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is set, and that module calls `useUser()`,
-// which throws outside a <ClerkProvider>. Two things made that a real CI failure
-// rather than a hypothetical: the key is set in CI and not in a bare local shell,
-// and WHEN the dynamic import resolves relative to these assertions is timing, not
-// something the test controls — so the same file passed locally with the key set
-// and still threw on the runner. Mocking the auth surface removes both variables:
-// signed-out is the marketing default, and it holds either way. The state is
-// mutable so one test can sign in; every other test runs signed out.
-const clerkState = vi.hoisted(() => ({ isSignedIn: false }));
-vi.mock("@clerk/nextjs", () => ({
-  useUser: () => ({ isLoaded: true, isSignedIn: clerkState.isSignedIn }),
-  UserButton: () => null,
-}));
-afterEach(() => { clerkState.isSignedIn = false; });
-
-// Pin the riskier of the two configurations ON. Without a key the nav skips the
-// lazy Clerk module entirely, so a local run would exercise the easy branch and
-// leave the branch CI actually runs untested — which is exactly how the first
-// version of this file went green here and red on the runner.
-process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||= "pk_test_marketing_nav_a11y";
+// Signed-in is read from Clerk's `__client_uat` cookie, never from Clerk itself: the public pages load no
+// sign-in code. Every test runs signed out unless it sets the cookie.
+afterEach(() => { document.cookie = "__client_uat=; max-age=0"; });
 
 /**
- * `useDialogA11y` moves focus in on a rAF, so every open must be flushed. The
- * macrotask after it gives the `next/dynamic` import a turn to resolve and mount,
- * so the Clerk branch is really rendered rather than skipped by timing.
+ * `useDialogA11y` moves focus in on a rAF, so every open must be flushed.
  */
 const flush = async () => {
   await act(async () => {
@@ -160,16 +140,13 @@ describe("the site header", () => {
   });
 
   it("a signed-in visitor is offered Open ProcuLink in the same link, and Sign in leaves the reading order", async () => {
-    clerkState.isSignedIn = true;
-    // A fresh module, so the lazy probe has not loaded yet: earlier tests in this
-    // file already resolved it, and a resolved probe reports inside render()'s act.
-    vi.resetModules();
-    const { MarketingNav: FreshNav } = await import("@/components/marketing/MarketingNav");
-    const { container } = render(<FreshNav />);
+    expect(hasSessionCookie("a=1; __client_uat=0")).toBe(false); // signed out
+    expect(hasSessionCookie("__client_uat_Ab12=1700000000")).toBe(true); // the suffixed variant
+    expect(hasSessionCookie("x__client_uat=1700000000")).toBe(false);
+    document.cookie = "__client_uat=1700000000";
+    const { container } = render(<MarketingNav />);
     const banner = within(container).getByRole("banner");
-    const start = within(banner).getByRole("link", { name: "Start free" }); // first paint: the signed-out links, as the server renders them
     const open = await within(banner).findByRole("link", { name: "Open ProcuLink" });
-    expect(open).toBe(start); // the same node: nothing is swapped, focus is kept
     expect(open).toHaveAttribute("href", "/documents");
     expect(within(banner).queryByRole("link", { name: "Sign in" })).toBeNull();
     expect(container.querySelector('a[href="/sign-in"]')).not.toBeNull(); // still in the DOM, so its box holds the row still

@@ -643,6 +643,31 @@ describe("the module wires that decision to the guard it replaces", () => {
   });
 });
 
+describe("public pages skip Clerk at the edge", () => {
+  // A cookie that says "signed in" with no session token: Clerk answers a document GET carrying it with a
+  // handshake redirect to its own domain. The public pages load no Clerk script to refresh the token, so
+  // they must not be sent there.
+  const STALE = { cookie: "__client_uat=1700000000" };
+  afterEach(() => { vi.unstubAllEnvs(); vi.resetModules(); });
+
+  it("a signed-in visitor's public page load is not redirected, while /documents still is", async () => {
+    vi.resetModules();
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", `pk_test_${btoa("example.clerk.accounts.dev$")}`);
+    vi.stubEnv("CLERK_SECRET_KEY", "sk_test_placeholder");
+    vi.stubEnv("PROCULINK_QA_BYPASS_AUTH", "false");
+    const mod = (await import("./middleware")) as {
+      default: (req: NextRequest, event: unknown) => Promise<Response> | Response;
+    };
+    for (const path of ["/", "/pricing", "/help/flows", "/privacy"]) {
+      const res = await mod.default(documentRequest(path, STALE), {});
+      expect(res.headers.get("location"), path).toBeNull();
+    }
+    // The control: the same request on an app route does reach Clerk, which starts its handshake.
+    const app = await mod.default(documentRequest("/documents", STALE), {});
+    expect(new URL(app.headers.get("location")!).host).toBe("example.clerk.accounts.dev");
+  });
+});
+
 describe("an address that does not exist", () => {
   it("under a protected prefix still sends a signed-out visitor to sign in", async () => {
     for (const path of ["/documents/nothing-here", "/flows/f-1/extra/deep", "/settings/unknown", "/admin/x"]) {
