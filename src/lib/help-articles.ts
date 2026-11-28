@@ -113,7 +113,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     title: "Files we make",
     blurb: "The formats a flow can produce, and how each field gets its value.",
     category: "Files and destinations",
-    keywords: ["output", "csv", "json", "xml", "excel", "xlsx", "pdf", "text", "fixed-width", "format", "separator", "semicolon", "comma", "delimiter", "decimal", "date"],
+    keywords: ["output", "csv", "json", "xml", "excel", "xlsx", "pdf", "text", "fixed-width", "format", "separator", "semicolon", "comma", "delimiter", "decimal", "date", "e-invoice", "zugferd", "factur-x", "xrechnung"],
     readMin: 5,
   },
   {
@@ -121,7 +121,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     title: "Destinations",
     blurb: "Where a flow sends its file: email, a web address, an SFTP or FTPS server, an S3 bucket, Google Drive, Google Sheets, OneDrive, or a download.",
     category: "Files and destinations",
-    keywords: ["destination", "email", "webhook", "http", "sftp", "ftps", "s3", "google drive", "google sheets", "download", "delivery"],
+    keywords: ["destination", "email", "webhook", "http", "sftp", "ftps", "s3", "google drive", "google sheets", "download", "delivery", "e-invoice", "peppol", "ksef", "b2brouter"],
     readMin: 4,
   },
   {

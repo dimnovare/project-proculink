@@ -42,7 +42,7 @@ export const articleHit = (a: HelpArticle): HelpHit => ({ kind: "article", title
 export function buildSiteHelpFuse(): Fuse<HelpHit> {
   const hits: HelpHit[] = [
     ...HELP_ARTICLES.map(articleHit),
-    ...liveClientGuides().map((g): HelpHit => ({ kind: "guide", title: g.title, blurb: g.blurb, href: g.href, minutes: g.minutes, keywords: [] })),
+    ...liveClientGuides().map((g): HelpHit => ({ kind: "guide", title: g.title, blurb: g.blurb, href: g.href, minutes: g.minutes, keywords: g.keywords ?? [] })),
   ];
   return new Fuse(hits, {
     keys: [

@@ -55,6 +55,8 @@ export function PickupForm({ flowId, intake, onDone }: { flowId: string; intake?
   const [kind, setKind] = useState(intake?.kind ?? "sftp");
   const [values, setValues] = useState(() => startValues(kind, intake?.config));
   const [secret, setSecret] = useState("");
+  // As on the destination form: Cancel leaves unsaved edits behind; after a save, with nothing changed since, it is Close.
+  const [saved, setSaved] = useState(false);
   // The Microsoft mailbox is offered only where the backend says so; a saved one always shows its own kind.
   const microsoft = useLinkedAccounts().data?.microsoftAvailable === true;
 
@@ -71,6 +73,7 @@ export function PickupForm({ flowId, intake, onDone }: { flowId: string; intake?
     onSuccess: (saved) => {
       setCurrent(saved);
       setSecret("");
+      setSaved(true);
       test.reset();
       qc.invalidateQueries({ queryKey: ["intakes", flowId] });
     },
@@ -82,7 +85,7 @@ export function PickupForm({ flowId, intake, onDone }: { flowId: string; intake?
         <Field label="Type">
           <select
             className={INPUT} value={kind} disabled={!!current}
-            onChange={(e) => { setKind(e.target.value); setValues(startValues(e.target.value)); setSecret(""); }}
+            onChange={(e) => { setSaved(false); setKind(e.target.value); setValues(startValues(e.target.value)); setSecret(""); }}
           >
             {!isKind(kind) && <option value={kind}>{kind}</option>}
             {Object.entries(PICKUP_KINDS)
@@ -96,13 +99,13 @@ export function PickupForm({ flowId, intake, onDone }: { flowId: string; intake?
         {isKind(kind) && (
           <>
             {FIELDS[kind].map(([key, label]) => key === "accountId" ? (
-              <MicrosoftAccountField key={key} value={values.accountId ?? ""} onChange={(id) => setValues((v) => ({ ...v, accountId: id }))} />
+              <MicrosoftAccountField key={key} value={values.accountId ?? ""} onChange={(id) => { setSaved(false); setValues((v) => ({ ...v, accountId: id })); }} />
             ) : (
               <Fragment key={key}>
                 <Field label={label}>
                   <input
                     className={INPUT} type={key === "port" ? "number" : "text"} value={values[key] ?? ""}
-                    onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
+                    onChange={(e) => { setSaved(false); setValues((v) => ({ ...v, [key]: e.target.value })); }}
                   />
                 </Field>
                 {kind === "outlook" && key === "folder" && (
@@ -115,7 +118,7 @@ export function PickupForm({ flowId, intake, onDone }: { flowId: string; intake?
                 <input
                   className={INPUT} type="password" autoComplete="new-password" value={secret}
                   placeholder={current?.hasCredentials ? "Leave blank to keep the saved one" : ""}
-                  onChange={(e) => setSecret(e.target.value)}
+                  onChange={(e) => { setSaved(false); setSecret(e.target.value); }}
                 />
               </Field>
             )}
@@ -132,7 +135,7 @@ export function PickupForm({ flowId, intake, onDone }: { flowId: string; intake?
           <Button type="button" variant="secondary" disabled={!current} loading={test.isPending} onClick={() => test.mutate()}>
             Test connection
           </Button>
-          <Button type="button" variant="ghost" onClick={onDone}>Done</Button>
+          <Button type="button" variant="ghost" onClick={onDone}>{saved ? "Close" : "Cancel"}</Button>
         </div>
         {test.isError && <StatusNotice tone="error">{documentRefusalMessage(test.error)}</StatusNotice>}
         {test.data && (
