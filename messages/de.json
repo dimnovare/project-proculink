@@ -318,13 +318,21 @@
     "workspaces": "Arbeitsbereiche",
     "switching": "Wird gewechselt…",
     "currentWorkspace": "Aktueller Arbeitsbereich",
-    "addCompany": "Unternehmen hinzufügen…",
+    "addWorkspace": "Arbeitsbereich hinzufügen…",
     "switchLabel": "Arbeitsbereich: {name}. Arbeitsbereich wechseln",
     "accountLabel": "Konto: {name}. Kontomenü öffnen",
     "account": "Konto",
     "profile": "Profil",
     "language": "Sprache",
-    "signOut": "Abmelden"
+    "signOut": "Abmelden",
+    "homeLink": "ProcuLink, zu den Dokumenten",
+    "mainNav": "Hauptnavigation",
+    "openNavigation": "Navigation öffnen",
+    "closeNavigation": "Navigation schließen",
+    "addDocument": "Dokument hinzufügen",
+    "planLabel": "Tarif {name}",
+    "loading": "Wird geladen…",
+    "yourWorkspace": "Ihr Arbeitsbereich"
   },
   "legal": {
     "englishOnly": "Diese Seite ist nur auf Englisch verfügbar. Die englische Fassung ist verbindlich."
@@ -1144,6 +1152,8 @@
     "guideHelped": "Hat Ihnen diese Anleitung geholfen?",
     "notQuite": "Nicht ganz",
     "guideThanks": "Gut, danke für Ihre Rückmeldung.",
-    "guideThanksNo": "Danke. Sagen Sie dem Support, bei welchem Schritt Sie nicht weiterkamen, dann verbessern wir die Anleitung."
+    "guideThanksNo": "Danke. Sagen Sie dem Support, bei welchem Schritt Sie nicht weiterkamen, dann verbessern wir die Anleitung.",
+    "ifThisFails": "Wenn es nicht klappt",
+    "youllNeed": "Das brauchen Sie"
   }
 }

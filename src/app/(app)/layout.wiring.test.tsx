@@ -27,6 +27,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, cleanup } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
 
 let clerkLoaded = false;
 let clerkSignedIn = false;
@@ -134,5 +135,13 @@ describe("(app) layout — sign-in gate wiring", () => {
 
     expect(shell()).not.toBeNull();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("marks the still-English page body as English only when another language is chosen", () => {
+    const { unmount } = render(<AppShellLayout><div /></AppShellLayout>);
+    expect(shell()).not.toHaveAttribute("lang");
+    unmount();
+    render(<NextIntlClientProvider locale="de" messages={{}}><AppShellLayout><div /></AppShellLayout></NextIntlClientProvider>);
+    expect(shell()).toHaveAttribute("lang", "en");
   });
 });
