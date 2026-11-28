@@ -7,12 +7,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
+import { getBillingStatus } from "@/lib/api/billing";
 import { ApiHttpError } from "@/lib/api/core";
 import { downloadDocument, getSortFlows, moveDocument, setUpDocument, type DocumentDetail, type DocumentSummary } from "@/lib/api/documents";
 import { COPY, documentRefusalMessage, rateLimited, refusalToken } from "@/lib/documentRefusals";
 import { kindWords } from "@/lib/documentKind";
 import { firstRunAddress } from "@/lib/firstRun";
 import { LIMIT_CODES } from "@/lib/limitRefusal";
+import { PLAN_BY_ID, type PlanId } from "@/lib/plans";
 import { saveBlob } from "@/lib/saveBlob";
 import { flowsQuery } from "@/hooks/useDocumentEngine";
 import { INPUT } from "./DestinationForm";
@@ -43,6 +45,10 @@ export function useAnswers(s: DocumentSummary | undefined, { enabled, flush }: {
   const qc = useQueryClient();
   const router = useRouter();
   const flows = useQuery({ ...flowsQuery, enabled });
+  // The plan's flow limit, said before Set it up is pressed rather than as its refusal (L17). Same key as the flows home.
+  const billing = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, enabled, staleTime: 60_000 });
+  const limit = billing.data ? PLAN_BY_ID[billing.data.plan as PlanId]?.flowLimit : null;
+  const full = typeof limit === "number" && (flows.data?.length ?? 0) >= limit;
   // P1: the flows that take this kind come first; if that answer fails, every flow in name order.
   const fits = useQuery({ queryKey: ["sort-flows", s?.id], queryFn: () => getSortFlows(s!.id), enabled: enabled && s?.statusReason === "choose_flow" });
   const fitIds = new Set(fits.data?.map((f) => f.id));
@@ -95,7 +101,7 @@ export function useAnswers(s: DocumentSummary | undefined, { enabled, flush }: {
     });
   };
   const refused = GONE.has(refusalToken(act.error) ?? "") ? null : act.error;
-  return { list, none: !!flows.data && list.length === 0, flows, press, clear, pending: running, busy: running !== null, error: refused, act: act.variables, gone };
+  return { list, none: !!flows.data && list.length === 0, full, flows, press, clear, pending: running, busy: running !== null, error: refused, act: act.variables, gone };
 }
 export type Answers = ReturnType<typeof useAnswers>;
 
@@ -166,8 +172,9 @@ export function InboxAnswers({ detail, a }: { detail: DocumentDetail; a: Answers
   const kind = k && /[\p{L}\p{N}]/u.test(k) ? kindWords(k) : null;
   const several = statusReason === "choose_flow";
   const rows: [string, string, ReactNode][] = [
-    ["Do the same every time", "Choose once where documents like this go. The next one is read and handled by itself.",
-      <Button variant={several ? "secondary" : "primary"} disabled={a.busy} loading={a.pending === "set-up"} onClick={() => a.press("set-up")}>Set it up</Button>],
+    ["Do the same every time", a.full ? COPY.flow_limit_reached : "Choose once where documents like this go. The next one is read and handled by itself.",
+      a.full ? <Link href="/settings?tab=billing" className={buttonClass("secondary", "md")}>Open Plan &amp; billing</Link>
+        : <Button variant={several ? "secondary" : "primary"} disabled={a.busy} loading={a.pending === "set-up"} onClick={() => a.press("set-up")}>Set it up</Button>],
     ["Just this one", "Download what we read. Nothing is set up, and nothing is sent anywhere.", <Downloads a={a} />],
   ];
   // With no flow at all there is nothing to move it to. Several flows fit: moving it is the first answer.

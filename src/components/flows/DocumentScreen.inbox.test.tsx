@@ -118,6 +118,16 @@ describe("DocumentScreen, a document in the inbox", () => {
     }
   });
 
+  it("at the plan's flow limit, Set it up is not offered: the limit is said before any press (L17)", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(["billing-status"], { plan: "pilot" }); // 2 flows on the trial; the mock workspace has 4
+    mount("doc-in-1", "flow-inbox", client);
+    const panel = await answers();
+    expect(await within(panel).findByText(COPY.flow_limit_reached)).toBeVisible();
+    expect(within(panel).getByRole("link", { name: "Open Plan & billing" })).toHaveAttribute("href", "/settings?tab=billing");
+    expect(within(panel).queryByRole("button", { name: "Set it up" })).toBeNull();
+  });
+
   it("a correction is saved before a download, and the rate limiter's sentence is shown as it is", async () => {
     const LIMIT = "Rate limit exceeded. Please slow down and retry shortly.";
     spy().answer = { "POST /documents/doc-in-1/download": { refuse: [429, LIMIT] } };

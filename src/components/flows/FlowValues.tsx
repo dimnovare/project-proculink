@@ -115,10 +115,10 @@ function ValueRow({ field, scope, on, example, columns, indent, failed, onInclud
           {/* A problem holds the panel open, so More could not close it: it is not drawn until the problem is gone. */}
           {!forced && (
             <button
-              ref={more} type="button" className={buttonClass("ghost", "sm")} aria-label={`More for ${field.label.trim() || "this value"}`} aria-expanded={shown} aria-controls={id}
+              ref={more} type="button" className={buttonClass("ghost", "sm")} aria-label={`${shown ? "Less" : "More"} for ${field.label.trim() || "this value"}`} aria-expanded={shown} aria-controls={id}
               disabled={!on} onClick={toggle}
             >
-              More
+              {shown ? "Less" : "More"}
             </button>
           )}
         </td>

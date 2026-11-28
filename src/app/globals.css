@@ -1055,6 +1055,9 @@ details[open] > summary [data-disclosure-chevron] {
    it is saved or closed. No :has(): the bar stays (accepted). */
 :root:has([data-plk-destform]) .plk-changesbar { display: none; }
 
+/* A keyboard hint (Ctrl Enter, Enter, arrow keys) says nothing on a touch screen, which usually has no keyboard (D-05). */
+@media (pointer: coarse) { .plk-keyhint { display: none !important; } }
+
 /* The hidden attribute always hides. Without this a display utility on the same element (grid, flex) wins over
    the browser's own rule, and a closed section stays open. */
 [hidden]:where(:not([hidden="until-found"])) { display: none !important; }

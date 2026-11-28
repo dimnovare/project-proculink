@@ -237,7 +237,7 @@ function TableValues({ table: t, marks, edits, onLocate, sum, editable }: { tabl
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {editable && <Button size="sm" variant="secondary" onClick={() => edits.rows({ addRowToTables: [t.key] })}>Add row</Button>}
-          {editable && <p className="m-0 hidden text-[12.5px] text-ink-muted lg:block">Arrow keys move between cells. You can paste rows from a spreadsheet.</p>}
+          {editable && <p className="plk-keyhint m-0 hidden text-[12.5px] text-ink-muted lg:block">Arrow keys move between cells. You can paste rows from a spreadsheet.</p>}
         </div>
       </div>
     </div>
@@ -247,9 +247,9 @@ function TableValues({ table: t, marks, edits, onLocate, sum, editable }: { tabl
 /** A value shown, not offered: no box edge, on the grey surface (A-05). */
 const READ_ONLY = "h-10 w-full rounded-md border border-transparent bg-surface-2 px-3 text-[14px] font-medium text-ink";
 /** Why the values of a document that cannot be edited are fixed, by its real state. */
-function lockedWords(s: Pick<DocumentDetail["summary"], "status" | "statusReason">): string {
+function lockedWords(s: Pick<DocumentDetail["summary"], "status" | "statusReason">, downloadOnly?: boolean): string {
   if (s.statusReason === "duplicate_file") return "This is a copy of a file already here, so its values can't be changed.";
-  const state = s.statusReason === "downloaded" ? "Downloaded. " : s.status === "sent" ? "Sent. " : s.status === "sending" ? "Sending. " : "";
+  const state = s.statusReason === "downloaded" ? "Downloaded. " : s.status === "sent" ? (downloadOnly ? "File ready. " : "Sent. ") : s.status === "sending" ? "Sending. " : "";
   return `${state}Values can't be changed now.`;
 }
 
@@ -293,7 +293,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
     started.current = true;
     if (!values.current?.contains(document.activeElement)) values.current?.querySelector<HTMLInputElement>("input[data-look]")?.focus();
   }, [walk]);
-  const intro = !editable ? lockedWords(detail.summary)
+  const intro = !editable ? lockedWords(detail.summary, flow?.downloadOnly)
     : marks.count === 0 ? (marks.allClear ? "Everything was read clearly." : null)
     : `${needsWords(marks.count)}${marks.allClear ? " The rest were read clearly." : ""}`;
   const hasMore = !!flow && (flow.fieldsConfirmed || !!onTeach);
@@ -385,7 +385,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
           <p className="m-0 text-[13px] text-ink">{intro}</p>
           {walk && marked.length > 0 && (
-            <p className="m-0 hidden items-center gap-1.5 text-[12.5px] text-ink-muted lg:flex">
+            <p className="plk-keyhint m-0 hidden items-center gap-1.5 text-[12.5px] text-ink-muted lg:flex">
               <kbd className={KBD}>Enter</kbd> {marked.length + cellLooks > 1 ? "goes to the next one" : "goes to Send"}
             </p>
           )}

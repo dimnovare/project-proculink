@@ -90,9 +90,9 @@ describe("FlowValues", () => {
     expect(document.activeElement).toBe(screen.getByRole("checkbox", { name: "Invoice number is required" }));
     expect(screen.getByText("We mark the value when it is missing from a document.")).toBeTruthy();
     expect(screen.queryByText(/Required means we mark|save as a draft/)).toBeNull();
-    // With its name emptied, the row's More still has a name a person can hear.
+    // Open, it reads Less (L15); with its name emptied, it still has a name a person can hear.
     fireEvent.change(screen.getByRole("textbox", { name: "Name for Invoice number" }), { target: { value: "" } });
-    expect(within(row).getByRole("button", { name: "More for this value" })).toBeInTheDocument();
+    expect(within(row).getByRole("button", { name: "Less for this value" })).toHaveTextContent("Less");
   });
 
   it("a More opened by a problem stays open while the person fixes it, with focus in the control", async () => {
@@ -103,7 +103,7 @@ describe("FlowValues", () => {
     fireEvent.change(type, { target: { value: "text" } });
     expect(type).toBeInTheDocument();
     expect(document.activeElement).toBe(type);
-    expect(screen.getByRole("button", { name: "More for Invoice number" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Less for Invoice number" })).toHaveAttribute("aria-expanded", "true");
   });
 
   it("before the first document, a drop zone adds one to this flow", async () => {
