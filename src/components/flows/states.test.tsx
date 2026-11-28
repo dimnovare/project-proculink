@@ -39,8 +39,9 @@ describe("ReadProblem", () => {
     const held = { output: "ZUGFeRD", detail: "This standard needs Sender country.", missing: ["sender_country"], outputId: "o1" };
     const ui = <ReadProblem summary={summary as never} retry={{} as never} uploadHref="/flows/f1?tab=documents" />;
     const notice = within(withClient(ui, { summary, heldOutput: held, read: { fields: [] } }).container);
-    expect(notice.getByText(`${outputFailedMessage(held.output, held.detail)} The other files were made.`)).toBeTruthy();
-    expect(notice.getByRole("link", { name: "Add them in We read" }).getAttribute("href")).toBe(flowAddress("f1", "read"));
+    // The way on is where a meaning is set (a read value's More), not an "add" that We read does not have (N-01).
+    expect(notice.getByText(`${outputFailedMessage(held.output, held.detail)} The other files were made. To fix it, open We read, choose More on the value that holds it, and set its Meaning.`)).toBeTruthy();
+    expect(notice.getByRole("link", { name: "Open We read" }).getAttribute("href")).toBe(flowAddress("f1", "read"));
   });
 });
 

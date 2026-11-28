@@ -139,7 +139,7 @@ export function Checks({ checks, inbox = false, flowId, duplicateOf, downloadOnl
       {failed.map((c, i) => c.code === "duplicate" && duplicateOf
         ? <StatusNotice key={`${c.code}-${i}`} tone="warning" action={flowId && <EarlierLink flowId={flowId} of={duplicateOf} className={buttonClass("secondary", "sm")} />}>{duplicateLine(duplicateOf)}</StatusNotice>
         : <StatusNotice key={`${c.code}-${i}`} tone="warning">{downloadOnly ? c.message.replace(/ before sending\.$/, " before you make the file.") : c.message}</StatusNotice>)}
-      {!inbox && <p className="m-0 text-[12.5px] text-ink-muted">Checks are a heads-up; they never stop you sending.</p>}
+      {!inbox && <p className="m-0 text-[12.5px] text-ink-muted">{downloadOnly ? "Checks are a heads-up; they never stop you making the file." : "Checks are a heads-up; they never stop you sending."}</p>}
     </div>
   );
 }
@@ -156,14 +156,15 @@ export function ReadProblem({ summary, retry, scansOn, uploadHref, held }: {
   const detail = useQueryClient().getQueryData<DocumentDetail>(["document", summary.id]);
   const failed = detail?.heldOutput;
   if (summary.statusReason === "output_invalid") {
-    // Values the flow doesn't read are added in its "We read" step; values it reads but this document lacks are typed here.
+    // A missing meaning is set on a read value in the flow's "We read" (More, Meaning); a value it reads but this document lacks is typed here.
     const missing = failed?.missing ?? [];
     const typed = summary.status === "needs_review" && missing.every((m) => detail?.read.fields.some((f) => f.meaning === m));
     const link = (href: string, text: string) => <Link href={href} className={buttonClass("secondary", "sm")}>{text}</Link>;
     return (
       <StatusNotice tone="warning" action={!missing.length ? link(flowAddress(summary.flowId, "send", { output: failed?.outputId ?? undefined }), "Change the file")
-        : !typed && link(flowAddress(summary.flowId, "read"), "Add them in We read")}>
+        : !typed && link(flowAddress(summary.flowId, "read"), "Open We read")}>
         {outputFailedMessage(failed?.output, failed?.detail)}{summary.status !== "needs_review" && " The other files were made."}
+        {missing.length > 0 && !typed && ` To fix it, open We read, choose More on the value that holds it, and set its Meaning.${summary.status === "needs_review" ? " If we don't read that value yet, add it here first with Something missing." : ""}`}
       </StatusNotice>
     );
   }

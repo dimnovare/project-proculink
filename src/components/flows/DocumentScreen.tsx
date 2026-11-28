@@ -608,7 +608,7 @@ function Review({ flowId, documentId }: { flowId: string; documentId: string }) 
                   onBlur={() => { walked.current = null; }}
                 >
                   {primary}
-                  <kbd aria-hidden className="hidden h-[22px] items-center rounded bg-brand-green-deep px-1.5 font-sans text-[12.5px] font-semibold xl:inline-flex">{keyWord("Mod", apple)} Enter</kbd>
+                  <kbd aria-hidden className="plk-keyhint hidden h-[22px] items-center rounded bg-brand-green-deep px-1.5 font-sans text-[12.5px] font-semibold xl:inline-flex">{keyWord("Mod", apple)} Enter</kbd>
                 </Button>}
               </>
             ) : reviewNext("hidden items-center md:inline-flex")}

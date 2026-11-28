@@ -105,12 +105,13 @@ export function PublishBar({ flow, onDiscarding }: { flow: Flow; onDiscarding?(o
     // already ends above the tab bar's raised round Add, inside main's bottom padding (--plk-tabbar-raise), so bottom-0 clears it.
     // Named for what it says: a setup never saved, changes waiting, or (after a press) its result.
     <section role="region" aria-label={live === null ? "Save this setup" : pending ? "Changes not in use yet" : "Your changes"} className="plk-changesbar sticky bottom-0 z-sticky">
-      <Card dense className="flex flex-wrap items-center gap-3">
+      {/* On a phone it shares the screen with the tab bar, so it keeps to the one line that matters (D-06). */}
+      <Card dense className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div aria-live="polite" className="grid min-w-0 flex-1 gap-1 text-[13px]">
           {pending && (
             <p className="m-0 text-ink">
               {live === null ? "You're still setting up, so changes apply right away. Save this setup when it works." : (
-                <><span className="block">{waitingLine(flow)}</span><span className="block">New documents still follow the last saved setup.</span></>
+                <><span className="block">{waitingLine(flow)}</span><span className="block max-sm:hidden">New documents still follow the last saved setup.</span></>
               )}
             </p>
           )}
