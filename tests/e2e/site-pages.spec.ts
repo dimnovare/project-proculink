@@ -65,6 +65,16 @@ async function measure(page: Page, checkTaps: boolean): Promise<Miss[]> {
 }
 
 test.describe("the small website pages", () => {
+  // Under parallel local load a cold dev compile of /changelog outlasted the default navigation timeout.
+  // Compile the routes once up front, and give single steps room of their own (as in one-way-in.spec.ts).
+  test.use({ actionTimeout: 30_000, navigationTimeout: 60_000 });
+  test.beforeAll(async ({ playwright }, info) => {
+    test.setTimeout(300_000); // a hook gets the 30 s default
+    const request = await playwright.request.newContext({ baseURL: info.project.use.baseURL });
+    for (const url of ROUTES) await request.get(url, { timeout: 90_000 });
+    await request.dispose();
+  });
+
   test("no page of this piece scrolls sideways, shrinks text or shrinks a tap target", async ({ page }) => {
     test.setTimeout(240_000);
     await preparePage(page, { dismissCookieBanner: true });

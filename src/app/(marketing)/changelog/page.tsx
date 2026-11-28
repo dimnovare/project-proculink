@@ -27,6 +27,18 @@ export const metadata = pageMetadata({
 // one is formatting, not a rewrite: the words stay as they were.
 const ENTRIES = [
   {
+    version: "v2.21",
+    date: "28 November 2026",
+    items: [
+      "Value names keep the document's own language, accents included, such as **Sposób płatności**. A name you change in **What we read** shows on documents read after it and in **History**.",
+      "Numbers and dates we read are shown the way your language writes them: 1.303,40 in German, 1 303,40 in French, Polish and Estonian, and 21/05/2026 in English. What is saved and sent doesn't change, and a value that could be read two ways is shown as printed.",
+      "In **History**, each flow version says what changed, for example **Added a standard file: UBL Order · Renamed 2 values**.",
+      "Standard files that need the sender's or receiver's country now take it from that company's EU VAT number when the document doesn't print a country. With neither, the held document offers to add the country as a field, so you can type it.",
+      "The website, help and legal pages load faster on phones: the sign-in code now loads only where you sign in or work.",
+      "Changing the language keeps your workspace name in the header, instead of showing **Your workspace** for a moment.",
+    ],
+  },
+  {
     version: "v2.20",
     date: "28 November 2026",
     items: [
