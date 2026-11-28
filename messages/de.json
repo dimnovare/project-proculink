@@ -1113,8 +1113,7 @@
       "toCheck": "1 Wert zu prüfen",
       "point": "Darauf zeigen",
       "saved": "Gespeichert. Wenn das nächste Dokument von {supplier} kommt, suchen wir den Wert Gesamt dort.",
-      "to": "Rechnungs-CSV an Buchhaltungsserver",
-      "send": "Senden"
+      "to": "Rechnungs-CSV an Buchhaltungsserver"
     }
   },
   "helpChrome": {

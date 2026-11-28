@@ -1113,8 +1113,7 @@
       "toCheck": "1 väärtus kontrollida",
       "point": "Näita see ära",
       "saved": "Salvestatud. Kui järgmine dokument saatjalt {supplier} saabub, otsime väärtust Kokku sealt.",
-      "to": "Arve CSV raamatupidamisserverisse",
-      "send": "Saada"
+      "to": "Arve CSV raamatupidamisserverisse"
     }
   },
   "helpChrome": {

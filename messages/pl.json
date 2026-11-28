@@ -1113,8 +1113,7 @@
       "toCheck": "1 wartość do sprawdzenia",
       "point": "Wskaż ją",
       "saved": "Zapisano. Gdy przyjdzie kolejny dokument od {supplier}, poszukamy w tym miejscu wartości Suma.",
-      "to": "CSV faktury na Serwer księgowy",
-      "send": "Wyślij"
+      "to": "CSV faktury na Serwer księgowy"
     }
   },
   "helpChrome": {

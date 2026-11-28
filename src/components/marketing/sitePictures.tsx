@@ -276,7 +276,7 @@ export function ReviewPicture({ teach = false }: { teach?: boolean }) {
         ) : (
           <div className="flex items-center gap-3 border-t border-border px-[18px] py-3">
             <p className={`${SITE.soft} flex-1 text-[14px]`}>{c("review.to", "Invoice CSV to Accounting server")}</p>
-            <span className="inline-flex h-10 items-center rounded-lg bg-brand-green-btn px-[18px] font-semibold text-white">{c("review.send", "Send")}</span>
+            <span className="inline-flex h-10 items-center rounded-lg bg-brand-green-btn px-[18px] font-semibold text-white">Send</span>
           </div>
         )}
       </div>

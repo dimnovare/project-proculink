@@ -1113,8 +1113,7 @@
       "toCheck": "1 valeur à vérifier",
       "point": "Le montrer",
       "saved": "Enregistré. La prochaine fois qu’un document de {supplier} arrive, nous chercherons le Total à cet endroit.",
-      "to": "CSV de facture vers Serveur comptable",
-      "send": "Envoyer"
+      "to": "CSV de facture vers Serveur comptable"
     }
   },
   "helpChrome": {
