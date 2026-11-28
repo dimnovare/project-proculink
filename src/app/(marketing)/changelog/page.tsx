@@ -27,6 +27,22 @@ export const metadata = pageMetadata({
 // one is formatting, not a rewrite: the words stay as they were.
 const ENTRIES = [
   {
+    version: "v2.20",
+    date: "28 November 2026",
+    items: [
+      "When one of a flow's files can't be made, the other files are now still made and sent. The document says once which file was left out and what it needs, and a document held for it shows **A file can't be made**.",
+      "After you move a document to another flow, the document, the lists and the count of what needs you show the same status.",
+      "In **Destinations**, a test no longer hides the last real send: **Last send** shows the send, and the last test has its own line under it. A passed test says what it proved, such as **Test file arrived**, **Test accepted by the mail server**, **Test accepted by the web address** or **Connection check passed**. Documents waiting for a destination whose last send failed stay listed after a reload, and the button sends them all.",
+      "The destination form has a plain **Save** beside **Save and send a test**. Google Drive, Google Sheets and OneDrive destinations need an account chosen or connected before you save, and accounts are managed in **Connected accounts**. A web address that can't be found now says so in plain words.",
+      "**History** names the person who pressed a destination test. On a flow where you download the file, it says a file was made, tagged **File made**, instead of that sending started.",
+      "On a flow where you download the file instead of sending it, the screens no longer say the document was sent. The document says **File ready**, **You check** says the last documents finished, and checks say they never stop you making the file.",
+      "The website and the app now load on iPhones and iPads with iOS 15.4 to 16.3. Before, the site's buttons didn't respond and the app showed an error. The PDF preview there still needs iOS 16.4 or later.",
+      "On a slow connection, an app page no longer shows the message that sign-in can't be reached while sign-in is still loading. When sign-in really is blocked, the message shows at once.",
+      "A new help guide, **Send e-invoices**, shows how to make a ZUGFeRD or Factur-X invoice and, with early access, how to make e-invoice files and send them through the e-invoice networks.",
+      "On **Arrives**, the box that switches a pickup on reads **Collect from here**, and the one for the flow's own address reads **Accept mail sent here**. The pickup form's button reads **Cancel** until you save and **Close** after.",
+    ],
+  },
+  {
     version: "v2.19",
     date: "27 November 2026",
     items: [
