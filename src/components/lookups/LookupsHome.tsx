@@ -9,7 +9,6 @@ import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
-import { ActionBar } from "@/components/bridge/layout/ActionBar";
 import { Button, Pill } from "@/components/bridge/DSPrimitives";
 import { Failed, Loading } from "@/components/flows/states";
 import { flowsQuery, useDocumentEngine } from "@/hooks/useDocumentEngine";
@@ -71,12 +70,6 @@ export function LookupsHome({ lookupId }: { lookupId?: string }) {
     },
   });
   const chooseFile = () => fileInput.current?.click();
-  const importButton = (className?: string) => (
-    <Button variant="secondary" className={className} loading={importTable.isPending} onClick={chooseFile}>
-      <Upload size={16} aria-hidden />
-      Import a table
-    </Button>
-  );
 
   const current = lookups.data?.find((l) => l.id === lookupId);
   let list;
@@ -146,21 +139,24 @@ export function LookupsHome({ lookupId }: { lookupId?: string }) {
   return (
     <PageShell variant="wide">
       <PageHeader
-        // Phones with a lookup open start at its back link, like every other detail screen.
-        className={lookupId ? "hidden md:flex" : undefined}
+        // Below lg a lookup open starts at its back link, like every other detail screen: the list's header is the list's.
+        className={lookupId ? "hidden lg:flex" : undefined}
         title="Lookups"
         sub="Tables that swap one value for another, for example a supplier's item code for your own."
         actions={engine === "on" ? (
-          // A phone with one lookup open shows only that lookup: no header actions, hint or Import bar.
-          <div className={`flex-col items-start gap-1 sm:items-end ${lookupId ? "hidden md:flex" : "flex"}`}>
-            <div className="flex flex-wrap items-center gap-4">
+          // The two actions, in one place at every width, with the import's hint under them.
+          <div className="flex flex-col items-start gap-1 sm:items-end">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <Button variant="secondary" loading={startNew.isPending} onClick={() => startNew.mutate()}>
                 New empty lookup
               </Button>
-              {importButton("hidden md:inline-flex")}
+              <Button variant="secondary" loading={importTable.isPending} onClick={chooseFile}>
+                <Upload size={16} aria-hidden />
+                Import a table
+              </Button>
             </div>
             {/* Capped so the long hint never squeezes the title into one word a line (768). */}
-            <p className="m-0 hidden max-w-[22rem] text-right text-[13px] text-ink-muted md:block">{HINT}</p>
+            <p className="m-0 max-w-[22rem] text-[13px] text-ink-muted sm:text-right">{HINT}</p>
             <input
               ref={fileInput}
               type="file"
@@ -178,13 +174,6 @@ export function LookupsHome({ lookupId }: { lookupId?: string }) {
       />
       <LookupNoticeBanner />
       {body}
-      {engine === "on" && !lookupId && (
-        <>
-          {/* Phones: the hint sits right above the sticky Import, at the foot of the page. */}
-          <p className="m-0 mt-4 text-[13px] text-ink-muted md:hidden">{HINT}</p>
-          <ActionBar>{importButton()}</ActionBar>
-        </>
-      )}
     </PageShell>
   );
 }

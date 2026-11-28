@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Download } from "lucide-react";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
@@ -114,7 +114,7 @@ export function OrderArchive() {
         title="Old orders"
         back={{ href: "/documents", label: "Documents" }}
         sub="Orders received before your workspace moved to flows. They are read-only."
-        actions={<Button size="sm" variant="secondary" disabled={exp.isPending} onClick={() => exp.mutate()}>Download CSV</Button>}
+        actions={<Button disabled={exp.isPending} onClick={() => exp.mutate()}><Download size={16} aria-hidden />Download CSV</Button>}
       />
       {exp.isError && <Failed error={exp.error} retry={() => exp.mutate()} lead="We couldn't make the CSV file." />}
       {body}

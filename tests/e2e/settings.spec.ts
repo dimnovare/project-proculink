@@ -130,10 +130,12 @@ test.describe("settings", () => {
     await page.goto("/settings?tab=destinations&open=dest-1");
     await expect(current).toHaveText("Destinations");
     await expect(page.getByRole("region", { name: "Edit Accounting inbox" })).toBeVisible();
-    // The board's width for the tab at 1440: 1,230px, not the page's full width.
+    // At 1440 the tab fills the page's width, like its sibling pages, and lines up with the tab strip (V-12).
     const width = (await box(page.getByText("Every place your files can be sent.", { exact: false }).locator("xpath=../.."))).width;
-    test.info().annotations.push({ type: "destinations width at 1440", description: width.toFixed(0) });
-    expect(width).toBeLessThanOrEqual(1230);
+    const strip = (await box(page.getByRole("navigation", { name: "Settings sections" }))).width;
+    test.info().annotations.push({ type: "destinations width at 1440", description: `${width.toFixed(0)} of ${strip.toFixed(0)}` });
+    expect(width).toBeGreaterThan(1230);
+    expect(Math.abs(width - strip)).toBeLessThanOrEqual(1);
   });
 
   test("at 1440: tab=api opens Workspace with For developers open; plain Settings has it closed and no keys drawn", async ({ page }) => {

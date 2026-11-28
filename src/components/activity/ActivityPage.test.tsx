@@ -138,7 +138,7 @@ describe("ActivityPage", () => {
     mount();
     await panel().findAllByTestId("activity-row");
 
-    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
     expect(await screen.findByText("The file has the newest 2,000 of 2,500 events.")).toBeInTheDocument();
 
     const walks = listActivity.mock.calls.map(([q]) => q).filter((q) => q.pageSize === 200);
@@ -151,7 +151,7 @@ describe("ActivityPage", () => {
     expect(csv.split("\r\n")[0]).toBe('"Date","Time","What happened","Flow","Who","Result","Details"');
 
     listActivity.mockRejectedValue(new Error("offline"));
-    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
     expect(await screen.findByText("We couldn't prepare the file. Try again.")).toBeInTheDocument();
     expect(saveBlob).toHaveBeenCalledTimes(1);
   });
@@ -164,7 +164,7 @@ describe("ActivityPage", () => {
     search.q = "show=changes";
     const { again } = mount();
     await panel().findAllByTestId("activity-row");
-    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
     await waitFor(() => expect(listActivity).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 200 })));
 
     fireEvent.click(screen.getByRole("tab", { name: "All" }));

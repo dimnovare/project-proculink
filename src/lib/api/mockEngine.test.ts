@@ -114,8 +114,10 @@ describe("mock engine", () => {
     await expect(mockEngineFetch("/destinations/dest-1", { method: "DELETE" })).rejects.toMatchObject({ status: 409, body: { error: "destination_in_use" } });
     await expect(mockEngineFetch("/destinations/nope", { method: "DELETE" })).rejects.toMatchObject({ status: 404 });
     expect(await mockEngineFetch("/destinations/dest-3/test", { method: "POST" })).toEqual({ success: false, message: "The server refused the login.", responseCode: null });
-    expect((await mockEngineFetch<Destination[]>("/destinations")).map((d) => [d.name, d.lastSend?.kind ?? null, d.lastSend?.ok ?? null]))
-      .toEqual([["Accounting API", "test", true], ["Accounting server", "test", false], ["Books", "document", false]]);
+    // A test is the newest test; the last real send is left alone.
+    const tested = (d: Destination) => [d.name, d.lastSend?.kind ?? null, d.lastTest?.ok ?? null];
+    expect((await mockEngineFetch<Destination[]>("/destinations")).map(tested))
+      .toEqual([["Accounting API", "test", null], ["Accounting server", null, false], ["Books", "document", null]]);
     const waiting = (id: string) => mockEngineFetch<DocumentPage>(`/documents?waitingOnDestination=${id}&page=1&pageSize=50`);
     expect([(await waiting("dest-1")).totalCount, (await waiting("dest-1")).items.map((d) => d.id), (await waiting("dest-2")).totalCount]).toEqual([1, ["doc-4"], 0]);
     await mockEngineFetch("/documents/doc-4/send", { method: "POST" });

@@ -74,8 +74,8 @@ function SettingsScreen() {
           <UserChipMenu collapsed placement="down" onLight />
         </div>}
       />
-      {/* The tab rule and every tab's content share one width. */}
-      <div className="w-full max-w-[1230px]">
+      {/* The tab rule and every tab's content share one width: the page's, like its siblings. */}
+      <div className="w-full">
       <nav aria-label={c("settingsSections", "Settings sections")} className="mb-5 flex gap-1 overflow-x-auto shadow-[inset_0_-1px_0_var(--border)]">
         {SETTINGS_TABS.map((t) => {
           const on = tab === t.id;
@@ -85,7 +85,7 @@ function SettingsScreen() {
               type="button"
               aria-current={on ? "page" : undefined}
               onClick={() => router.replace(settingsAddress(t.id), { scroll: false })}
-              className={`h-11 shrink-0 whitespace-nowrap border-b-2 px-3.5 text-[14px] max-[480px]:flex-1 max-[480px]:px-0.5 max-[480px]:text-[13.5px] ${
+              className={`h-11 shrink-0 whitespace-nowrap border-b-2 px-3.5 text-[14px] max-[480px]:flex-1 max-[480px]:shrink max-[480px]:whitespace-normal max-[480px]:px-0.5 max-[480px]:text-[13.5px] max-[480px]:leading-tight ${
                 on ? "border-brand-blue font-semibold text-ink" : "border-transparent font-medium text-ink-muted hover:text-ink"
               }`}
             >
@@ -209,7 +209,7 @@ function OrgSection({ developersOpen }: { developersOpen: boolean }) {
 
   return (
     <div className="flex flex-wrap items-start gap-5">
-      <div className="flex min-w-0 max-w-[800px] flex-[999_1_520px] flex-col gap-4">
+      <div className="flex min-w-0 flex-[999_1_520px] flex-col gap-4">
         {organization && <WorkspaceName organization={organization} />}
         {organization && (
           <SettingsPanel
