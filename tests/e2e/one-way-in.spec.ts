@@ -41,6 +41,7 @@ test.describe("one way in", () => {
   // whole-test timeout mid-click. Compile them once up front, and give single steps room of their own.
   test.use({ actionTimeout: 30_000, navigationTimeout: 60_000 });
   test.beforeAll(async ({ playwright }, info) => {
+    test.setTimeout(300_000); // a hook gets the 30 s default, not the describe's 120 s
     const request = await playwright.request.newContext({ baseURL: info.project.use.baseURL });
     for (const url of ["/documents", inboxDoc("doc-in-1"), "/flows/new"]) await request.get(url, { timeout: 90_000 });
     await request.dispose();
