@@ -284,7 +284,8 @@ const ROUTES: Route[] = [
   }],
   ["GET", re`/flows/${S}/versions`, (m, s) => {
     const v = find(s.flows, m[1], "flow").publishedVersion;
-    return v ? Array.from({ length: v }, (_, i) => ({ versionNo: v - i, publishedAt: new Date().toISOString(), publishedBy: null, live: i === 0 })) : [];
+    return v ? Array.from({ length: v }, (_, i) => ({ versionNo: v - i, publishedAt: new Date().toISOString(), publishedBy: null, live: i === 0,
+      changes: i === v - 1 ? [{ section: "version", action: "first", names: [] }] : [{ section: "output", action: "contents", names: ["Output"] }] })) : [];
   }],
   ["GET", re`/flows/${S}/intakes`, (m, s) => (find(s.flows, m[1], "flow"), [])],
   ["POST", re`/flows/${S}/documents`, (m, s, _q, b) => {

@@ -68,7 +68,7 @@ const FLOWS = [flow1, flow2, flow3, flow4];
 const INBOX: Flow = { ...flow2, id: MOCK_ENGINE_IDS.inbox, name: "New documents", documentCount: 0, automation: "review" };
 /** The kind each default flow's documents were read as. */
 const KINDS: Record<string, string> = { [flow1.id]: "Invoice", [flow2.id]: "Delivery note", [flow3.id]: "Purchase order", [flow4.id]: "Remittance advice" };
-const versions: FlowVersion[] = [{ versionNo: 1, publishedAt: T, publishedBy: null, live: true }];
+const versions: FlowVersion[] = [{ versionNo: 1, publishedAt: T, publishedBy: null, live: true, changes: [{ section: "version", action: "first", names: [] }] }];
 
 const cell = (value: string, r: number, c: number): ReadCell => ({
   value, confidence: 0.97, location: { page: null, box: null, address: `cell:r${r}c${c}` }, notOnPage: false, edited: false,
