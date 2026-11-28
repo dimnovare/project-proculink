@@ -128,7 +128,7 @@ test.describe("Review", () => {
     await page.getByRole("table").getByRole("link", { name: "invoice-1001.csv" }).click();
     await expect(page).toHaveURL(/\/documents\/doc-1$/);
     await expect(page.getByRole("region", { name: "What we read" }).getByLabel("Supplier")).toHaveValue("Example Supplier Ltd");
-    await expect(page.getByRole("region", { name: "What we read" }).getByLabel("Date")).toHaveValue("2026-05-21");
+    await expect(page.getByRole("region", { name: "What we read" }).getByLabel("Date")).toHaveValue("21/05/2026");   // shown the reader's way; saved as read
     await expect(page.getByTestId("review-header-actions")).toContainText("Ready to send");
   });
 

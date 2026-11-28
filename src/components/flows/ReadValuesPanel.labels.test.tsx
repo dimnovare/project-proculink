@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { DocumentDetail, Flow } from "@/lib/api/documents";
 import { useDocumentEdits } from "@/hooks/useDocumentEdits";
@@ -44,4 +44,17 @@ it("a finished download-only document says its file is ready and never speaks of
   render(<QueryClientProvider client={new QueryClient()}><Panel d={made} editable={false} flow={flow} /></QueryClientProvider>);
   expect(screen.getByText("File ready. Values can't be changed now.")).toBeInTheDocument();
   expect(screen.getByText("Checks are a heads-up; they never stop you making the file.")).toBeInTheDocument();
+});
+
+it("a number is shown the reader's way out of focus, and as read while it is typed in", () => {
+  const money = { ...field("total", "1303.40"), label: "Total", type: "money", meaning: "total_net" };
+  const d = { ...detail, read: { ...detail.read, fields: [money] } } as unknown as DocumentDetail;
+  render(<QueryClientProvider client={new QueryClient()}><Panel d={d} /></QueryClientProvider>);
+  const box = screen.getByLabelText("Total");
+  expect(box).toHaveValue("1,303.40");
+  fireEvent.focus(box);
+  expect(box).toHaveValue("1303.40");
+  fireEvent.change(box, { target: { value: "1303.50" } });
+  fireEvent.blur(box);
+  expect(box).toHaveValue("1303.50");                                       // the draft, exactly as typed
 });

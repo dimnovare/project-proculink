@@ -16,6 +16,8 @@ import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
 import { addReadExtra, FIELD_CHECK_OPS, FIELD_TYPES, fieldCheckProblem, fieldListFromRead, replaceField, withReadExtras } from "@/lib/flowFieldModel";
 import { acceptFor, MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
 import { flowAddress } from "@/lib/flowSteps";
+import { formatReadValue } from "@/lib/format-number";
+import { useCopy } from "@/i18n/useCopy";
 import { Field, INPUT } from "./DestinationForm";
 import { FieldCheckEditor } from "./FieldCheckEditor";
 import { FileDrop } from "./FileDrop";
@@ -170,16 +172,19 @@ function ValueTable({ rows, edit, read, fileName, failed }: {
   // a Read tick included, clears it: a failed save never forces open a More the person did not just change.
   const [last, setLast] = useState<string | null>(null);
   const showExample = !!read && !!fileName;
+  const { locale } = useCopy("app");
   const columns = showExample ? 4 : 3;
   const fieldExample = (key: string) => {
     if (!showExample) return undefined;
     const f = read!.fields.find((x) => x.key === key);
-    return f && !f.notOnPage && f.value ? f.value : null;
+    return f && !f.notOnPage && f.value ? formatReadValue(f.value, f.type, f.meaning, locale) : null;
   };
   const cellExample = (table: string, column: string) => {
     if (!showExample) return undefined;
-    const c = read!.tables.find((t) => t.key === table)?.rows[0]?.cells[column];
-    return c && !c.notOnPage && c.value ? c.value : null;
+    const t = read!.tables.find((x) => x.key === table);
+    const c = t?.rows[0]?.cells[column];
+    const col = t?.columns.find((x) => x.key === column);
+    return c && !c.notOnPage && c.value ? (col ? formatReadValue(c.value, col.type, col.meaning, locale) : c.value) : null;
   };
   const noticed = read ? withReadExtras(list, read) : null;
   const extras = noticed

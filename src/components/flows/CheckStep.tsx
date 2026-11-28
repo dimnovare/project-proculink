@@ -145,7 +145,7 @@ export function CheckStep({ flow, docId, first }: { flow: Flow; docId: string | 
                   {keep(f.key, labels.get(f.key)!)}
                   <div className="min-w-0 flex-1">
                     <Field label={labels.get(f.key)!} look={marks.looks.get(editKey({ field: f.key }))?.text}>
-                      <ValueInput target={{ field: f.key }} value={f.value} edits={edits} />
+                      <ValueInput target={{ field: f.key }} value={f.value} edits={edits} kind={f} />
                     </Field>
                   </div>
                 </div>

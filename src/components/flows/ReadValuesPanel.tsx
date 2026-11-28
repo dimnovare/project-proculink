@@ -16,6 +16,8 @@ import { shownLabels } from "@/lib/flowOutputModel";
 import { editKey, type EditTarget, type Look, type ReviewMarks } from "@/lib/reviewMarks";
 import { parseAddress, spreadsheetColumnName } from "@/lib/sourceAddress";
 import { pasteGrid, rowsSum, type RowsSum } from "@/lib/reviewSheet";
+import { formatReadValue } from "@/lib/format-number";
+import { useCopy } from "@/i18n/useCopy";
 import type { DocumentEdits } from "@/hooks/useDocumentEdits";
 import { Field, ICON_BUTTON, INPUT } from "./DestinationForm";
 import { Checks } from "./states";
@@ -43,15 +45,32 @@ function Meta({ read, inTable, className = "" }: { read: { edited: boolean; loca
   );
 }
 
-/** Shows what is being typed over the server's value; saves on a pause, on Enter and on leaving the box. */
-export function ValueInput({ target, value, edits, className = "", base = INPUT, ...rest }: {
+/**
+ * Shows what is being typed over the server's value; saves on a pause, on Enter and on leaving the box.
+ * Out of focus a number or date is written the reader's way (`kind`); in focus, and in what is saved, it is the text as read.
+ */
+export function ValueInput({ target, value, edits, kind, className = "", base = INPUT, onFocus, ...rest }: {
   target: EditTarget; value: string | null; edits: DocumentEdits; /** The box's own look; a table cell passes its own. */ base?: string;
+  kind?: { type: string; meaning: string | null };
 } & Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "onBlur" | "onKeyDown"> & { "data-look"?: string; "data-table"?: string; "data-cell"?: string }) {
+  const { locale } = useCopy("app");
+  const [focused, setFocused] = useState(false);
+  const shown = focused || !kind ? value : formatReadValue(value, kind.type, kind.meaning, locale);
+  const clicked = useRef(false);
+  // The text as read goes in at once. Not from a click it is all selected, as a Tab into a box selects it, so a select()
+  // around focus() selects the raw text, not the formatted one; a click leaves the caret at the end.
+  const asRead = (el: HTMLInputElement) => {
+    const raw = edits.drafts[editKey(target)] ?? value ?? "";
+    if (el.value !== raw) { el.value = raw; if (!clicked.current) el.select(); }
+    clicked.current = false;
+  };
   return (
     <input
-      {...rest} data-value={editKey(target)} className={`${base} ${className}`} value={edits.drafts[editKey(target)] ?? value ?? ""}
+      {...rest} data-value={editKey(target)} className={`${base} ${className}`} value={edits.drafts[editKey(target)] ?? shown ?? ""}
       onChange={(e) => edits.type(target, e.target.value)}
-      onBlur={edits.commit}
+      onPointerDown={() => { clicked.current = true; }}
+      onFocus={(e) => { asRead(e.currentTarget); setFocused(true); onFocus?.(e); }}
+      onBlur={() => { clicked.current = false; setFocused(false); edits.commit(); }}
       onKeyDown={(e) => e.key === "Enter" && edits.commit()}
     />
   );
@@ -162,9 +181,9 @@ const KBD = "inline-flex h-[22px] items-center rounded border border-border bg-s
 const PASTE_ROWS = 200;
 
 /** A column is as wide as the longest thing in it (4 to 28 characters), and right-aligned when every value is a number. */
-export function columnShape(t: Pick<Table, "rows">, key: string, label: string): { size: number; numeric: boolean } {
+export function columnShape(t: Pick<Table, "rows">, key: string, label: string, shown: (v: string) => string = (v) => v): { size: number; numeric: boolean } {
   const values = t.rows.map((r) => r.cells[key]?.value ?? "").filter(Boolean);
-  const longest = Math.max(label.length, ...values.map((v) => v.length));
+  const longest = Math.max(label.length, ...values.map((v) => Math.max(v.length, shown(v).length)));
   return { size: Math.min(28, Math.max(4, longest)), numeric: values.length > 0 && values.every((v) => NUMBER.test(v)) };
 }
 
@@ -177,10 +196,12 @@ function TableValues({ table: t, marks, edits, onLocate, sum, editable }: { tabl
   const marked = t.rows.reduce((n, row, r) => n + Object.keys(row.cells).filter((c) => marks.looks.has(editKey({ table: t.key, row: r, column: c }))).length, 0);
   const [open, setOpen] = useState(marked > 0);
   const id = `table-${t.key}`;
-  const shapes = new Map(t.columns.map((c) => [c.key, columnShape(t, c.key, c.label)]));
+  const { locale } = useCopy("app");
+  const shapes = new Map(t.columns.map((c) => [c.key, columnShape(t, c.key, c.label, (v) => formatReadValue(v, c.type, c.meaning, locale) ?? v)]));
+  const money = (v: string) => formatReadValue(v, "money", null, locale);
   const adds = sum && (
     <p data-testid="rows-sum" className={`m-0 text-[12.5px] ${sum.same ? "font-medium text-brand-green-deep" : "text-ink-muted"}`}>
-      {sum.same ? `The rows add up to ${sum.sum}, the same as ${sum.label}.` : `The rows add up to ${sum.sum}. ${sum.label} says ${sum.value}.`}
+      {sum.same ? `The rows add up to ${money(sum.sum)}, the same as ${sum.label}.` : `The rows add up to ${money(sum.sum)}. ${sum.label} says ${money(sum.value)}.`}
     </p>
   );
   return (
@@ -219,7 +240,7 @@ function TableValues({ table: t, marks, edits, onLocate, sum, editable }: { tabl
                     return (
                       <td key={c.key} className="border-b border-r border-border p-0 [&_p]:px-2.5 [&_p]:pb-1.5" style={{ minWidth: `calc(${shape.size}ch + 1.75rem)` }} {...pointAt(onLocate, cell?.location ?? null)}>
                         <Field hideLabel label={`${t.label} row ${r + 1} ${c.label}`} look={marks.looks.get(editKey(target))?.text}>
-                          <ValueInput target={target} value={cell?.value ?? null} edits={edits} size={shape.size} base={CELL} data-table={t.key} data-cell={`${r}:${col}`} className={shape.numeric ? "text-right tabular-nums" : ""} {...(marks.looks.has(editKey(target)) && { "data-look": "" })} />
+                          <ValueInput target={target} value={cell?.value ?? null} edits={edits} kind={c} size={shape.size} base={CELL} data-table={t.key} data-cell={`${r}:${col}`} className={shape.numeric ? "text-right tabular-nums" : ""} {...(marks.looks.has(editKey(target)) && { "data-look": "" })} />
                         </Field>
                         {cell && <Meta read={cell} inTable className="px-2.5 pb-1.5" />}
                       </td>
@@ -311,7 +332,7 @@ export function ReadValuesPanel({ detail, editable, edits, marks, onLocate, flow
         </div>
         <div className="group/value relative">
           <ValueInput
-            id={id} target={{ field: f.key }} value={f.value} edits={edits} aria-describedby={look ? `${id}-look` : undefined}
+            id={id} target={{ field: f.key }} value={f.value} edits={edits} kind={f} aria-describedby={look ? `${id}-look` : undefined}
             base={editable ? INPUT : READ_ONLY} className={teach ? "lg:pr-10" : ""} {...(look && { "data-look": "" })}
           />
           {teach && (
