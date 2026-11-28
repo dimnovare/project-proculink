@@ -19,6 +19,7 @@ import { UploadQueueProvider } from "@/components/flows/UploadQueue";
 import { OfflineNotice } from "@/components/pwa/OfflineNotice";
 import { HeldUploads, SharedWaiting } from "@/components/pwa/HeldUploads";
 import { useDeviceOwner } from "@/hooks/useDeviceOwner";
+import { useCopy } from "@/i18n/useCopy";
 
 /**
  * Auto-activates the user's first Clerk organization when they have one but
@@ -109,6 +110,7 @@ export default function AppShellLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
   const owner = useDeviceOwner();
+  const { locale } = useCopy("app");
 
   const openSidebar = useCallback(() => setSidebarOpen(true), []);
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
@@ -218,7 +220,8 @@ export default function AppShellLayout({
             <BridgeTopbar onMenuClick={openSidebar} menuOpen={sidebarOpen} />
             <OfflineNotice />
             <div className="relative flex min-h-0 flex-1">
-              <main id="main-content" tabIndex={-1} className="plk-main min-w-0 flex-1 overflow-auto outline-none mb-[var(--plk-tabbar-h)]">
+              {/* Page bodies are English until they are translated (WCAG 3.1.2); the chrome around them follows the chosen language. */}
+              <main id="main-content" lang={locale === "en" ? undefined : "en"} tabIndex={-1} className="plk-main min-w-0 flex-1 overflow-auto outline-none mb-[var(--plk-tabbar-h)]">
                 <WorkspaceNameNudge />
                 <HeldUploads />
                 <SharedWaiting />

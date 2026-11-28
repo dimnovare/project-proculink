@@ -318,13 +318,21 @@
     "workspaces": "Obszary robocze",
     "switching": "Przełączanie…",
     "currentWorkspace": "Bieżący obszar roboczy",
-    "addCompany": "Dodaj firmę…",
+    "addWorkspace": "Dodaj obszar roboczy…",
     "switchLabel": "Obszar roboczy: {name}. Zmień obszar roboczy",
     "accountLabel": "Konto: {name}. Otwórz menu konta",
     "account": "Konto",
     "profile": "Profil",
     "language": "Język",
-    "signOut": "Wyloguj się"
+    "signOut": "Wyloguj się",
+    "homeLink": "ProcuLink, przejdź do dokumentów",
+    "mainNav": "Nawigacja główna",
+    "openNavigation": "Otwórz nawigację",
+    "closeNavigation": "Zamknij nawigację",
+    "addDocument": "Dodaj dokument",
+    "planLabel": "Plan {name}",
+    "loading": "Wczytywanie…",
+    "yourWorkspace": "Twój obszar roboczy"
   },
   "legal": {
     "englishOnly": "Ta strona jest dostępna wyłącznie w języku angielskim. Wiążąca jest wersja angielska."
