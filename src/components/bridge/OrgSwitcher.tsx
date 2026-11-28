@@ -91,7 +91,7 @@ export function OrgSwitcher({ collapsed = false, compact = false, orgName, planL
       return; // page is unloading — keep prev id so a re-render can't re-fire
     }
     prevOrgId.current = id;
-  }, [activeOrg?.id]);
+  }, [activeOrg?.id, activeOrg?.name]);
 
   // If the membership list is paginated, pull the rest once the menu opens so
   // the WORKSPACES list is complete (typical users have 1–2 orgs; this no-ops).
