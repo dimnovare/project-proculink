@@ -1152,6 +1152,8 @@
     "guideHelped": "Czy ten przewodnik pomógł Ci dojść do celu?",
     "notQuite": "Nie do końca",
     "guideThanks": "Świetnie, dziękujemy za informację.",
-    "guideThanksNo": "Dziękujemy. Napisz do pomocy, na którym kroku się zgubiłeś, a poprawimy przewodnik."
+    "guideThanksNo": "Dziękujemy. Napisz do pomocy, na którym kroku się zgubiłeś, a poprawimy przewodnik.",
+    "ifThisFails": "Jeśli to nie zadziała",
+    "youllNeed": "Czego potrzebujesz"
   }
 }

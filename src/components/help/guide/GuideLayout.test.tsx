@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
+import de from "../../../../messages/de.json";
 import GuideLayout from "./GuideLayout";
 import { Step, Prereqs, IfThisFails, Outcome } from "./Step";
 import { GuideShot } from "./GuideShot";
@@ -130,6 +132,20 @@ describe("guide callouts", () => {
     expect(screen.getByText("If this fails")).toBeInTheDocument();
     expect(screen.getByText("Check the slug.")).toBeInTheDocument();
     expect(screen.getByText("It arrived.")).toBeInTheDocument();
+  });
+
+  it("translates both callout headings, leaving the guide body English", () => {
+    render(
+      <NextIntlClientProvider locale="de" messages={de}>
+        <Step n={1} title="Copy the address">
+          <Prereqs>An account</Prereqs>
+          <IfThisFails>Check the slug.</IfThisFails>
+        </Step>
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByRole("complementary", { name: "Das brauchen Sie" })).toBeInTheDocument();
+    expect(screen.getByText("Wenn es nicht klappt")).toBeInTheDocument();
+    expect(screen.getByText("Check the slug.")).toBeInTheDocument();
   });
 });
 
