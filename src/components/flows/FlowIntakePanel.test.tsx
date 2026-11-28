@@ -120,13 +120,13 @@ describe("FlowIntakePanel", () => {
     expect(api.newIntakeAddress).toHaveBeenCalledWith("f1", "e1");
   });
 
-  it("unticking On switches a pickup off", async () => {
+  it("unticking Collect from here switches a pickup off", async () => {
     // Live 2026-11-25: the box sent enabled:true, because the handler read the checkbox after React had reset it.
     api.listIntakes.mockResolvedValue([email, { ...email, id: "p1", kind: "sftp", address: null, config: { host: "sftp.example.test" } }]);
     api.updateIntake.mockResolvedValue({});
     mount();
     const row = (await screen.findByText("sftp.example.test")).closest(".grid") as HTMLElement;
-    fireEvent.click(within(row).getByRole("checkbox"));
+    fireEvent.click(within(row).getByRole("checkbox", { name: "Collect from here" }));
     await waitFor(() => expect(api.updateIntake).toHaveBeenCalledWith("f1", "p1", expect.objectContaining({ enabled: false })));
   });
 });

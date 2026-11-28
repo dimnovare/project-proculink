@@ -46,7 +46,8 @@ function LastRun({ intake }: { intake: FlowIntake }) {
 
 const request = (i: FlowIntake, enabled: boolean): IntakeRequest => ({ kind: i.kind, config: i.config, credentials: null, enabled });
 
-function OnOff({ intake, flowId, run }: { intake: FlowIntake; flowId: string; run: Run }) {
+/** The box that turns this way in on or off. Its label says what a tick does, so it is true ticked or not. */
+function OnOff({ intake, flowId, run, label }: { intake: FlowIntake; flowId: string; run: Run; label: string }) {
   return (
     <label className="inline-flex cursor-pointer items-center gap-2 text-[13px]">
       <input
@@ -57,7 +58,7 @@ function OnOff({ intake, flowId, run }: { intake: FlowIntake; flowId: string; ru
           run.mutate(() => updateIntake(flowId, intake.id, request(intake, on)));
         }}
       />
-      On
+      {label}
     </label>
   );
 }
@@ -72,7 +73,7 @@ const Address = ({ value, className }: { value: string; className?: string }) =>
   );
 };
 
-/** This flow's own address: address and Copy, On, the last run, and a new address (asks first) or a first one (does not). */
+/** This flow's own address: address and Copy, its on box, the last run, and a new address (asks first) or a first one (does not). */
 function OwnAddress({ flowId, intake }: { flowId: string; intake: FlowIntake }) {
   const confirm = useConfirm();
   const run = useRun(flowId);
@@ -89,7 +90,7 @@ function OwnAddress({ flowId, intake }: { flowId: string; intake: FlowIntake }) 
         </div>
       )}
       <div className="flex flex-wrap items-center gap-3">
-        <OnOff intake={intake} flowId={flowId} run={run} />
+        <OnOff intake={intake} flowId={flowId} run={run} label="Accept mail sent here" />
         {intake.address
           ? <Button variant="secondary" size="sm" loading={run.isPending} onClick={ask}>Get a new address</Button>
           : <Button variant="secondary" size="sm" loading={run.isPending} onClick={() => run.mutate(() => newIntakeAddress(flowId, intake.id))}>Get an address</Button>}
@@ -204,7 +205,7 @@ function PickupsCard({ flowId, pickups }: { flowId: string; pickups: FlowIntake[
                   {typeof where === "string" && <span className="ml-2 font-mono text-[12.5px] text-ink-muted">{where}</span>}
                 </span>
                 <span className="flex flex-wrap items-center gap-2">
-                  <OnOff intake={i} flowId={flowId} run={run} />
+                  <OnOff intake={i} flowId={flowId} run={run} label="Collect from here" />
                   <Button size="sm" variant="secondary" onClick={() => setEditing(i)}>Edit</Button>
                   <Button size="sm" variant="ghost" disabled={run.isPending} onClick={() => remove(i)}>Remove</Button>
                 </span>

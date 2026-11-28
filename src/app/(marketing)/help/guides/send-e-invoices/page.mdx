@@ -1,0 +1,36 @@
+import { guideMetadata } from "@/lib/seo";
+
+export const metadata = guideMetadata({
+  slug: "send-e-invoices",
+  title: "Send e-invoices — ProcuLink guide",
+  description: "Make a ZUGFeRD or Factur-X invoice from what we read, and, with early access, make and send e-invoices through the e-invoice networks, step by step.",
+});
+
+import { Step, Prereqs, Outcome } from "@/components/help/guide";
+import { EInvoiceSteps } from "@/components/help/EInvoiceSteps";
+
+<Prereqs>
+- A flow whose documents are invoices or credit notes. See [Set up your first flow](/help/guides/set-up-your-first-flow).
+- A workspace admin account. Only admins add and change files.
+- For steps 2 to 6, early access switched on for your workspace. Until then, those formats and destinations are not offered.
+</Prereqs>
+
+<Step n={1} title="Make a ZUGFeRD or Factur-X invoice">
+
+Open the flow, go to the **We send** step, make a file and choose **A standard format**. Pick ZUGFeRD / Factur-X. It is on for every workspace.
+
+It is a PDF invoice people can read, with the invoice data inside as XML. The readable page is in the invoice's language: German, French, Polish or Estonian from the seller's country, otherwise English. The data inside it is the same in every language.
+
+Send it like any other file: by email, to a server or a folder, or as a download. See [Send files to a destination](/help/guides/send-to-a-destination).
+
+<Outcome>
+Each invoice in the flow gives a ZUGFeRD / Factur-X PDF.
+</Outcome>
+
+</Step>
+
+<EInvoiceSteps from={2} />
+
+## Good to know
+
+We fill a standard in from what each value means. See [Files we make](/help/outputs) and [Destinations](/help/destinations).

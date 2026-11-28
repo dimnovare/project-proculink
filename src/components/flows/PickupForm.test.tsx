@@ -43,6 +43,8 @@ describe("PickupForm", () => {
   it("keeps the saved password and fingerprint when the password is left blank", async () => {
     api.updateIntake.mockResolvedValue(saved);
     wrap(saved);
+    // Unsaved: leaving is Cancel; once saved with nothing changed, Close.
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
     expect(screen.getByLabelText("Password").getAttribute("placeholder")).toBe("Leave blank to keep the saved one");
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(api.updateIntake).toHaveBeenCalled());
@@ -50,6 +52,9 @@ describe("PickupForm", () => {
     expect(id).toBe("i1");
     expect(req.credentials).toBeNull();
     expect(req.config).not.toHaveProperty("hostKeyFingerprints");
+    expect(await screen.findByRole("button", { name: "Close" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Server"), { target: { value: "sftp2.example.test" } });
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
   it("warns that FTP is unencrypted", () => {

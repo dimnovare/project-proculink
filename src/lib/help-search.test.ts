@@ -49,4 +49,13 @@ describe("help search over articles and guides", () => {
     for (const g of liveClientGuides()) expect(searchHelpArticles(fuse, g.title, 6)[0]?.href, g.title).toBe(g.href);
     expect(searchHelpArticles(fuse, "imap", 6)[0]?.href).toBe("/help/intake-channels");
   });
+
+  it("finds the e-invoice guide by the names of the formats and networks, on the help home and in the panel", () => {
+    const site = buildSiteHelpFuse();
+    const panel = buildHelpFuse();
+    for (const q of ["peppol", "ksef", "e-invoice", "xrechnung", "zugferd"]) {
+      expect(searchHelpArticles(site, q, 6).map((h) => h.href), q).toContain("/help/guides/send-e-invoices");
+      expect(searchHelpArticles(panel, q, 6).map((a) => a.slug), q).toEqual(expect.arrayContaining([expect.stringMatching(/^(outputs|destinations)$/)]));
+    }
+  });
 });

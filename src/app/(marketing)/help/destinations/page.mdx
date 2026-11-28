@@ -34,6 +34,8 @@ A destination needs a name, and the details for its kind. Passwords, keys and to
 
 <EarlyAccessNote />
 
+The steps are in [Send e-invoices](/help/guides/send-e-invoices).
+
 ## The file name
 
 Every file is named after the original document, then a dash and a short code, then the format's ending. The code makes each send a different file. For example, an invoice called `march.pdf` becomes something like `march-3f9a1c2e.csv`.
@@ -58,11 +60,11 @@ Some failures are not tried again: the destination was deleted, its saved passwo
 
 ## Test a destination
 
-When you set up a new flow, **Save and send a test** saves the destination and sends a small file marked `TEST_` that holds no document data. An email subject starts with `[TEST]`, and a web request carries an `X-ProcuLink-Test` header. A Google Sheets test adds no rows: it checks that we can open the spreadsheet and the tab you chose.
+When you set up a new flow, **Save and send a test** saves the destination and sends a small file marked `TEST_` that holds no document data. An email subject starts with `[TEST]`, and a web request carries an `X-ProcuLink-Test` header. A Google Sheets test adds no rows: it checks that we can open the spreadsheet and the tab you chose. A passed test says what it proved: **Test file arrived** for SFTP, FTPS, S3, Google Drive and OneDrive, **Test accepted by the mail server** for email, **Test accepted by the web address** for a web address, and **Connection check passed** where no file is sent.
 
 A file built from documentation needs a passing test before it can be created. That test sends the file made from a real document in the flow, so it holds that document's values.
 
-You can also test a destination at any time under **Settings**, then **Destinations**. **Save and send a test** saves your changes and tests them in one go. When documents stopped because the destination failed, a passing test offers **Send it now** to send them again. See [Send files to a destination](/help/guides/send-to-a-destination).
+You can also test a destination at any time under **Settings**, then **Destinations**. **Save and send a test** saves your changes and tests them in one go. **Save** keeps them without a test. When documents stopped because the destination failed, a passing test offers **Send it now** to send them again. See [Send files to a destination](/help/guides/send-to-a-destination).
 
 ## Rules we apply
 

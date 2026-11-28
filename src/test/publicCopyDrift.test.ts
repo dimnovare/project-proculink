@@ -12,6 +12,7 @@ import PricingPage from "@/app/(marketing)/pricing/page";
 import { EARLY_ACCESS } from "@/lib/marketing/earlyAccess";
 import { GUIDES } from "@/lib/guides";
 import { EarlyAccessNote } from "@/components/help/EarlyAccessNote";
+import { EInvoiceSteps } from "@/components/help/EInvoiceSteps";
 import { HELP_ARTICLES } from "@/lib/help-articles";
 import { NEVER_CLAIM } from "@/lib/neverClaim";
 import { LEGACY_PAID_PLANS } from "@/lib/plans";
@@ -117,7 +118,7 @@ describe("public copy drift", () => {
     ]);
     expect(EARLY_ACCESS.cta).toEqual({ label: "Ask for early access", href: "mailto:sales@proculink.eu?subject=Early%20access" });
     // Rendered, so an interpolated name is caught too.
-    for (const Page of [FormatsPage, PricingPage, ChangelogPage, EarlyAccessNote] as ComponentType[]) {
+    for (const Page of [FormatsPage, PricingPage, ChangelogPage, EarlyAccessNote, () => createElement(EInvoiceSteps, { from: 2 })] as ComponentType[]) {
       const { container, unmount } = render(createElement(Page));
       const named = [...container.querySelectorAll("*")].filter((el) =>
         [...el.childNodes].some((n) => n.nodeType === 3 && /ksef|peppol|b2brouter/i.test(n.textContent ?? "")),

@@ -59,6 +59,8 @@ export interface Guide {
   status: "live" | "planned";
   /** Estimated minutes end to end. Set only on live guides. */
   minutes?: number;
+  /** Search terms the title and blurb miss, for the help home's search. */
+  keywords?: string[];
   /**
    * Help-article slugs this guide is the procedure for. Live guides link down
    * to them for reference detail; planned guides offer them as the interim
@@ -221,6 +223,18 @@ export const GUIDES: Guide[] = [
     status: "live",
     minutes: 15,
     related: ["destinations", "destination-sign-in", "troubleshooting"],
+  },
+  {
+    slug: "send-e-invoices",
+    href: "/help/guides/send-e-invoices",
+    title: "Send e-invoices",
+    blurb: "Make a ZUGFeRD or Factur-X invoice, and, with early access, make e-invoice files and send them through the e-invoice networks.",
+    section: "Files and destinations",
+    audience: "client",
+    status: "live",
+    minutes: 15,
+    related: ["outputs", "destinations"],
+    keywords: ["e-invoice", "e-invoicing", "peppol", "ksef", "b2brouter", "xrechnung", "zugferd", "factur-x", "en 16931"],
   },
   {
     slug: "import-a-lookup",
