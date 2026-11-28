@@ -8,6 +8,9 @@ import { ApiHttpError } from "@/lib/api/core";
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { buttonClass } from "@/components/bridge/DSPrimitives";
 
+const saveFlowFields = vi.hoisted(() => vi.fn(async (id: string, fields: unknown) => ({ id, fields })));
+vi.mock("@/lib/api/documents", async (actual) => ({ ...(await actual<object>()), saveFlowFields }));
+
 /** ReadProblem reads the screen's cached document detail, so it renders inside a client; `detail` seeds that cache. */
 const withClient = (ui: React.ReactElement, detail?: unknown) => {
   const qc = new QueryClient();
@@ -42,6 +45,20 @@ describe("ReadProblem", () => {
     // The way on is where a meaning is set (a read value's More), not an "add" that We read does not have (N-01).
     expect(notice.getByText(`${outputFailedMessage(held.output, held.detail)} The other files were made. To fix it, open We read, choose More on the value that holds it, and set its Meaning.`)).toBeTruthy();
     expect(notice.getByRole("link", { name: "Open We read" }).getAttribute("href")).toBe(flowAddress("f1", "read"));
+  });
+
+  it("a country no document prints is added as a field of the flow, to type on the held document", async () => {
+    const summary = { id: "d", flowId: "f1", status: "needs_review", statusReason: "output_invalid" };
+    const held = { output: "ZUGFeRD", detail: "This standard needs Receiver country.", missing: ["receiver_country"], outputId: "o1" };
+    const qc = new QueryClient();
+    qc.setQueryData(["document", "d"], { summary, heldOutput: held, read: { fields: [] } });
+    qc.setQueryData(["flow", "f1"], { id: "f1", fields: { fields: [{ key: "number", label: "Number", type: "text", meaning: "document_number", required: false }], tables: [] } });
+    const notice = within(render(<QueryClientProvider client={qc}><ReadProblem summary={summary as never} retry={{} as never} uploadHref="/flows/f1?tab=documents" /></QueryClientProvider>).container);
+    expect(notice.getByText(`${outputFailedMessage(held.output, held.detail)} This document doesn't print the country, and has no EU VAT number to take it from. Add it as a field, then type it in What we read.`)).toBeTruthy();
+    expect(notice.queryByRole("link", { name: "Open We read" })).toBeNull();
+    fireEvent.click(notice.getByRole("button", { name: "Add it as a field" }));
+    await notice.findByText(/Type it in What we read, then send it\.$/);
+    expect(saveFlowFields.mock.calls[0][1]).toMatchObject({ fields: [{ key: "number" }, { key: "receiver_country", label: "Receiver country", meaning: "receiver_country" }] });
   });
 });
 

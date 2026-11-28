@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useQueryClient, type UseMutationResult } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import { Check, TriangleAlert } from "lucide-react";
 import { Button, buttonClass } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { Loading, LogoLoader } from "@/components/bridge/LogoLoader";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
-import type { DocumentCheck, DocumentDetail, DocumentSummary, DuplicateOf } from "@/lib/api/documents";
+import { saveFlowFields, type DocumentCheck, type DocumentDetail, type DocumentSummary, type DuplicateOf, type Flow } from "@/lib/api/documents";
+import { FIELD_MEANINGS } from "@/lib/fieldMeanings";
 import { duplicateLine } from "@/lib/flowWords";
 import { EarlierLink } from "./RowActions";
 import { classifyApiFailure } from "@/lib/apiFailure";
@@ -20,6 +21,9 @@ import { firstRunAddress } from "@/lib/firstRun";
 
 /** Reasons the engine parks a document for review on its own, each worded in COPY (`output_invalid` names its file, in ReadProblem). */
 const AUTOMATIC_HOLDS = new Set(["no_output_matches", "ksef_confirm"]);
+
+/** A country is taken from the party's EU VAT number when none is printed; with neither, the person types it. */
+const COUNTRIES = new Set(["sender_country", "receiver_country"]);
 
 /** Gone: the server's words and the way on: back to the start of a first run, or back to Documents from the review screen. */
 export const Gone = ({ text, back = "start" }: { text: string; back?: "start" | "documents" }) => (
@@ -152,20 +156,36 @@ export function ReadProblem({ summary, retry, scansOn, uploadHref, held }: {
   /** The server's sentence for a held duplicate ("This file is already in your workspace." in the inbox). */
   held?: string;
 }) {
-  // The screen's own ["document", id] query already holds the detail; read, never fetched again here.
-  const detail = useQueryClient().getQueryData<DocumentDetail>(["document", summary.id]);
+  // The screen's own ["document", id] and ["flow", id] queries already hold the detail and flow; read, never fetched again here.
+  const qc = useQueryClient();
+  const detail = qc.getQueryData<DocumentDetail>(["document", summary.id]);
+  const flow = qc.getQueryData<Flow>(["flow", summary.flowId]);
   const failed = detail?.heldOutput;
+  // A missing country becomes a field of the flow (as a standard's "Add it as a field"), so it can be typed on this document.
+  const addField = useMutation({
+    mutationFn: (meanings: string[]) => saveFlowFields(flow!.id, { ...flow!.fields, fields: [...flow!.fields.fields,
+      ...meanings.map((m) => ({ key: m, label: FIELD_MEANINGS[m as keyof typeof FIELD_MEANINGS].label, type: "text", meaning: m, required: false }))] }),
+    onSuccess: (saved) => { qc.setQueryData(["flow", saved.id], saved); qc.invalidateQueries({ queryKey: ["flows"] }); qc.invalidateQueries({ queryKey: ["document", summary.id] }); },
+  });
   if (summary.statusReason === "output_invalid") {
     // A missing meaning is set on a read value in the flow's "We read" (More, Meaning); a value it reads but this document lacks is typed here.
     const missing = failed?.missing ?? [];
     const typed = summary.status === "needs_review" && missing.every((m) => detail?.read.fields.some((f) => f.meaning === m));
     const link = (href: string, text: string) => <Link href={href} className={buttonClass("secondary", "sm")}>{text}</Link>;
+    // Only a flow that lists its fields can take a new one: with none listed, adding one would leave the others meaning nothing.
+    const country = !typed && summary.status === "needs_review" && !!flow?.fields.fields.length && missing.length > 0 && missing.every((m) => COUNTRIES.has(m));
+    const toAdd = addField.isSuccess ? [] : missing.filter((m) => !flow?.fields.fields.some((f) => f.meaning === m));
     return (
-      <StatusNotice tone="warning" action={!missing.length ? link(flowAddress(summary.flowId, "send", { output: failed?.outputId ?? undefined }), "Change the file")
-        : !typed && link(flowAddress(summary.flowId, "read"), "Open We read")}>
-        {outputFailedMessage(failed?.output, failed?.detail)}{summary.status !== "needs_review" && " The other files were made."}
-        {missing.length > 0 && !typed && ` To fix it, open We read, choose More on the value that holds it, and set its Meaning.${summary.status === "needs_review" ? " If we don't read that value yet, add it here first with Something missing." : ""}`}
-      </StatusNotice>
+      <>
+        <StatusNotice tone="warning" action={!missing.length ? link(flowAddress(summary.flowId, "send", { output: failed?.outputId ?? undefined }), "Change the file")
+          : country ? toAdd.length > 0 && <Button variant="secondary" size="sm" loading={addField.isPending} onClick={() => addField.mutate(toAdd)}>Add it as a field</Button>
+          : !typed && link(flowAddress(summary.flowId, "read"), "Open We read")}>
+          {outputFailedMessage(failed?.output, failed?.detail)}{summary.status !== "needs_review" && " The other files were made."}
+          {country ? ` This document doesn't print the country, and has no EU VAT number to take it from. ${toAdd.length ? "Add it as a field, then type it in What we read." : "Type it in What we read, then send it."}`
+            : missing.length > 0 && !typed && ` To fix it, open We read, choose More on the value that holds it, and set its Meaning.${summary.status === "needs_review" ? " If we don't read that value yet, add it here first with Something missing." : ""}`}
+        </StatusNotice>
+        {addField.isError && <StatusNotice tone="error">{documentRefusalMessage(addField.error)}</StatusNotice>}
+      </>
     );
   }
   if (AUTOMATIC_HOLDS.has(summary.statusReason ?? "")) return <StatusNotice tone="warning">{readFailureMessage(summary.statusReason)}</StatusNotice>;
