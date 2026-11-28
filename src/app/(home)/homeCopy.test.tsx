@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, cleanup, within } from "@testing-library/react";
+import { render, cleanup, within, act } from "@testing-library/react";
 import { PLAN_BY_ID, PUBLIC_LADDER } from "@/lib/plans";
 import { FLOW_SENTENCE } from "@/components/marketing/sitePictures";
 import { DEMO_VIDEO } from "@/lib/demoVideo";
@@ -39,6 +39,20 @@ describe("landing page sells the document tool", () => {
     const origin = new URL(DEMO_VIDEO.src).origin;
     expect(csp).toMatch(new RegExp(`media-src [^;]*${origin}`));
     expect(csp).toMatch(new RegExp(`img-src [^;]*${origin}`)); // the poster
+  });
+
+  it("fetches the demo poster only once the video is near the screen, so it does not hold back the first paint", () => {
+    let report: (entries: { isIntersecting: boolean }[]) => void = () => {};
+    vi.stubGlobal("IntersectionObserver", class {
+      constructor(cb: typeof report) { report = cb; }
+      observe() {}
+      disconnect() {}
+    });
+    const video = render(<RootPage />).container.querySelector("video")!;
+    expect(video.hasAttribute("poster")).toBe(false);
+    act(() => report([{ isIntersecting: true }]));
+    expect(video.getAttribute("poster")).toBe(DEMO_VIDEO.poster);
+    vi.unstubAllGlobals();
   });
 
   it("no longer carries the ROI calculator or order-era copy", () => {
