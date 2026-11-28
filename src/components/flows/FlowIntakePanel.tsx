@@ -35,11 +35,12 @@ type Run = ReturnType<typeof useRun>;
 const Refused = ({ run }: { run: Run }) =>
   run.isError ? <StatusNotice tone="error">{documentRefusalMessage(run.error)}</StatusNotice> : null;
 
-/** Only the two statuses the worker writes get a tone; anything else is printed plain. A toned run needs the person. */
+/** Only the two statuses the worker writes get a tone; anything else is printed plain. A toned run needs the person.
+ *  A plain line ("No new files.") is left out while the pickup is off: it would read as a check that is not happening. */
 const runTone = (i: FlowIntake) => (i.lastStatus === "paused" ? "warning" : i.lastStatus === "failed" ? "error" : null);
 function LastRun({ intake }: { intake: FlowIntake }) {
-  if (!intake.lastMessage) return null;
   const tone = runTone(intake);
+  if (!intake.lastMessage || (!tone && !intake.isEnabled)) return null;
   return tone ? <StatusNotice tone={tone}>{intake.lastMessage}</StatusNotice>
     : <p className="m-0 text-[12.5px] text-ink-muted">{intake.lastMessage}</p>;
 }

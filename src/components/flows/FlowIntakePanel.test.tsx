@@ -129,4 +129,13 @@ describe("FlowIntakePanel", () => {
     fireEvent.click(within(row).getByRole("checkbox", { name: "Collect from here" }));
     await waitFor(() => expect(api.updateIntake).toHaveBeenCalledWith("f1", "p1", expect.objectContaining({ enabled: false })));
   });
+
+  it("a pickup that is off does not say it found no new files", async () => {
+    // Live 2026-11-27 (N-11): an unticked pickup still showed "No new files." under it.
+    const pickup = { ...email, kind: "sftp", address: null, config: { host: "sftp.example.test" }, lastStatus: "ok", lastMessage: "No new files." };
+    api.listIntakes.mockResolvedValue([email, { ...pickup, id: "p1", isEnabled: false }, { ...pickup, id: "p2", config: { host: "on.example.test" } }]);
+    mount();
+    await screen.findByText("on.example.test");
+    expect(screen.getAllByText("No new files.")).toHaveLength(1);
+  });
 });
