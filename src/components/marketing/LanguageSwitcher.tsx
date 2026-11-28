@@ -6,7 +6,7 @@
 import { usePathname } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { Check, Globe } from "lucide-react";
-import { useMenuDismiss } from "@/components/bridge/OrgSwitcher";
+import { useMenuDismiss } from "@/hooks/useMenuDismiss";
 import { chooseLocale, ENDONYMS, LOCALES } from "@/i18n/locales";
 import { useCopy } from "@/i18n/useCopy";
 

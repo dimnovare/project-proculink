@@ -3,7 +3,6 @@
 // The public site's one header: logo, the five pages (from 900px), Sign in and
 // the filled action, and below 900px a menu sheet.
 
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -13,15 +12,13 @@ import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useCopy } from "@/i18n/useCopy";
 import { LanguageList, LanguageMenuButton } from "./LanguageSwitcher";
 
-// Clerk is the heaviest dependency of the public pages (~140 kB). The probe is
-// code-split (ssr: false), renders nothing, and only reports a signed-in
-// session. The links below are rendered signed-out by the server and change
-// their words in place when the probe reports, so nothing jumps and no focused
-// node is replaced. With no publishable key nothing from Clerk loads at all.
-const MarketingClerkLinks = dynamic(
-  () => import("@/components/marketing/MarketingClerkLinks").then((m) => m.MarketingClerkLinks),
-  { ssr: false, loading: () => null },
-);
+// No sign-in code on the public pages: Clerk's own `__client_uat` cookie (readable by scripts, "0" once
+// signed out) says whether this browser holds a session. The links render signed-out first and change their
+// words in place, so nothing jumps and no focused node is replaced. A stale cookie only sends someone to the
+// app, which asks them to sign in.
+export function hasSessionCookie(cookie: string): boolean {
+  return /(?:^|;\s*)__client_uat(?:_[^=]*)?=(?!0(?:;|$))[^;]+/.test(cookie);
+}
 
 export const SITE_LINKS = [
   ["How it works", "/how-it-works"],
@@ -45,9 +42,9 @@ const FILLED =
 
 export function MarketingNav() {
   const pathname = usePathname();
-  const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
   const [open, setOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => setSignedIn(hasSessionCookie(document.cookie)), []);
   const menuRef = useRef<HTMLDivElement>(null);
   const mainNavRef = useRef<HTMLElement>(null);
   const widened = useRef(false);
@@ -151,7 +148,6 @@ export function MarketingNav() {
               </>
             ) : action.label}
           </Link>
-          {clerkEnabled && <MarketingClerkLinks onSignedInChange={setSignedIn} />}
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
