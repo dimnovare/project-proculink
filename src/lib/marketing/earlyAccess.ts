@@ -1,3 +1,4 @@
+import type { Locale } from "@/i18n/locales";
 import { SALES } from "@/lib/plans";
 
 /**
@@ -76,3 +77,61 @@ export const EINVOICE_STEPS = [
     ],
   },
 ] as const;
+
+/** The same block in the other languages. It lives here, not in messages/*.json, because this is the one file allowed to name KSeF, Peppol and B2Brouter. */
+const TRANSLATED: Partial<Record<Locale, { heading: string; lead: string; items: [string, string][]; pricingLine: string; cta: string }>> = {
+  de: {
+    heading: "Vorabzugang",
+    lead: "In der Testumgebung des jeweiligen Anbieters gebaut und getestet. Wir schalten es für Ihren Arbeitsbereich frei, wenn Sie danach fragen.",
+    items: [
+      ["KSeF (Polen)", "ProcuLink erstellt die FA(3)-Rechnungsdatei und sendet sie mit Ihrem eigenen Token an KSeF. Wir probieren es zuerst gemeinsam mit Ihnen in der Testumgebung von KSeF aus."],
+      ["Peppol und E-Rechnungen in Frankreich", "ProcuLink sendet Ihre E-Rechnungen über Ihr eigenes B2Brouter-Konto, einen Peppol-Zugangspunkt, der auch Frankreich abdeckt. Den ersten Versand richten wir gemeinsam mit Ihnen ein."],
+    ],
+    pricingLine: "Vorabzugang: KSeF (Polen) sowie Peppol und Frankreich über B2Brouter.",
+    cta: "Vorabzugang anfragen",
+  },
+  fr: {
+    heading: "Accès anticipé",
+    lead: "Conçu et testé dans l’environnement de test de chaque fournisseur. Nous l’activons pour votre espace de travail sur simple demande.",
+    items: [
+      ["KSeF (Pologne)", "ProcuLink crée le fichier de facture FA(3) et l’envoie à KSeF avec votre propre jeton. Nous l’essayons d’abord avec vous dans l’environnement de test de KSeF."],
+      ["Peppol et facturation électronique en France", "ProcuLink envoie vos factures électroniques via votre propre compte B2Brouter, un point d’accès Peppol qui couvre aussi la France. Nous configurons le premier envoi avec vous."],
+    ],
+    pricingLine: "Accès anticipé : KSeF (Pologne), ainsi que Peppol et la France via B2Brouter.",
+    cta: "Demander un accès anticipé",
+  },
+  pl: {
+    heading: "Wczesny dostęp",
+    lead: "Zbudowane i przetestowane w środowisku testowym każdego dostawcy. Włączamy je w Twoim obszarze roboczym, gdy o to poprosisz.",
+    items: [
+      ["KSeF (Polska)", "ProcuLink tworzy plik faktury FA(3) i wysyła go do KSeF z Twoim własnym tokenem. Najpierw testujemy to razem z Tobą w środowisku testowym KSeF."],
+      ["Peppol i e-faktury we Francji", "ProcuLink wysyła Twoje e-faktury przez Twoje własne konto B2Brouter, punkt dostępowy Peppol, który obsługuje też Francję. Pierwszą wysyłkę konfigurujemy razem z Tobą."],
+    ],
+    pricingLine: "Wczesny dostęp: KSeF (Polska) oraz Peppol i Francja przez B2Brouter.",
+    cta: "Poproś o wczesny dostęp",
+  },
+  et: {
+    heading: "Varajane ligipääs",
+    lead: "Ehitatud ja testitud iga teenusepakkuja testkeskkonnas. Lülitame selle teie tööruumis sisse, kui seda palute.",
+    items: [
+      ["KSeF (Poola)", "ProcuLink koostab FA(3) arvefaili ja saadab selle teie enda tokeniga KSeF-i. Proovime seda kõigepealt koos teiega KSeF-i testkeskkonnas."],
+      ["Peppol ja e-arved Prantsusmaal", "ProcuLink saadab teie e-arved teie enda B2Brouteri konto kaudu. See on Peppoli juurdepääsupunkt, mis teenindab ka Prantsusmaad. Esimese saatmise seadistame koos teiega."],
+    ],
+    pricingLine: "Varajane ligipääs: KSeF (Poola) ning Peppol ja Prantsusmaa B2Brouteri kaudu.",
+    cta: "Küsi varajast ligipääsu",
+  },
+};
+
+/** EARLY_ACCESS in the reader's language; English, the pinned source, for English or a language without it. */
+export function earlyAccessIn(locale: string) {
+  const t = TRANSLATED[locale as Locale];
+  if (!t) return EARLY_ACCESS;
+  return {
+    ...EARLY_ACCESS,
+    heading: t.heading,
+    lead: t.lead,
+    items: EARLY_ACCESS.items.map((item, i) => ({ ...item, name: t.items[i][0], note: t.items[i][1] })),
+    pricingLine: t.pricingLine,
+    cta: { ...EARLY_ACCESS.cta, label: t.cta },
+  };
+}

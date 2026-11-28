@@ -5,6 +5,7 @@ import { Card } from "@/components/bridge/layout/Card";
 import { ContactForm, ContactFormFromAddress } from "@/components/marketing/ContactForm";
 import { SITE_PAGE } from "@/components/marketing/LegalPage";
 import { SITE } from "@/components/marketing/sitePictures";
+import { useCopy } from "@/i18n/useCopy";
 
 export const metadata = pageMetadata({
   path: "/support",
@@ -34,15 +35,16 @@ const BLOCK = "flex flex-col items-start gap-2.5";
 const MAIL = "font-semibold text-brand-blue-deep underline";
 
 export default function SupportPage() {
+  const { c, rich, list } = useCopy("support");
   return (
     <div className={SITE_PAGE}>
       <section className="pb-12 pt-16">
         <div className={`${SITE.wrap} flex flex-col gap-4`}>
           <h1 className={SITE.docH1}>
-            Support
+            {c("title", "Support")}
           </h1>
           <p className={`${SITE.lead} max-w-[720px]`}>
-            Need help with ProcuLink? Here&apos;s how to reach us and find answers.
+            {c("lead", "Need help with ProcuLink? Here's how to reach us and find answers.")}
           </p>
         </div>
       </section>
@@ -66,19 +68,19 @@ export default function SupportPage() {
 
           <div className="contents min-[860px]:flex min-[860px]:min-w-0 min-[860px]:flex-[1_1_320px] min-[860px]:flex-col min-[860px]:gap-8">
             <div className={`${BLOCK} -order-1 min-[860px]:order-none`}>
-              <h2 className={SITE.h3}>Email support</h2>
+              <h2 className={SITE.h3}>{c("emailTitle", "Email support")}</h2>
               <a href="mailto:support@proculink.eu" className="inline-flex min-h-[44px] items-center text-[20px] font-semibold text-brand-blue-deep">
                 support@proculink.eu
               </a>
-              <p className={SITE.soft}>Monday to Friday, 9am to 6pm EET. We aim to reply within one business day.</p>
+              <p className={SITE.soft}>{c("hours", "Monday to Friday, 9am to 6pm EET. We aim to reply within one business day.")}</p>
             </div>
             <div className={`${BLOCK} border-t border-border pt-7`}>
               <h2 id="report-a-bug" className={`${SITE.h3} scroll-mt-24`}>
-                Report a problem
+                {c("reportTitle", "Report a problem")}
               </h2>
-              <p>When something isn&apos;t working, tell us:</p>
+              <p>{c("reportLead", "When something isn't working, tell us:")}</p>
               <ul className="m-0 list-disc pl-6">
-                {REPORT.map((r) => (
+                {list("report", REPORT).map((r) => (
                   <li key={r} className="mb-1.5">{r}</li>
                 ))}
               </ul>
@@ -90,17 +92,17 @@ export default function SupportPage() {
       <section aria-labelledby="support-questions" className="py-[88px]">
         <div className={`${SITE.wrap} flex flex-wrap items-start gap-x-14 gap-y-8`}>
           <h2 id="support-questions" className="flex-[1_1_280px] font-display text-[clamp(28px,3vw,38px)] font-semibold leading-[1.1] tracking-[-0.02em]">
-            Common questions
+            {c("questionsTitle", "Common questions")}
           </h2>
           <ul className="m-0 min-w-0 flex-[2.4_1_560px] list-none border-b border-border p-0">
-            {QUESTIONS.map(([title, detail, href]) => (
+            {QUESTIONS.map(([title, detail, href], i) => (
               <li key={href} className="border-t border-border">
                 <Link
                   href={href}
                   className="flex min-h-[44px] flex-wrap items-baseline gap-x-6 gap-y-1.5 py-3.5 text-ink no-underline hover:text-brand-blue-deep"
                 >
-                  <strong className="flex-[0_0_170px] font-semibold">{title}</strong>
-                  <span className={`${SITE.soft} flex-[1_1_260px]`}>{detail}</span>
+                  <strong className="flex-[0_0_170px] font-semibold">{c(`questions.${i}.title`, title)}</strong>
+                  <span className={`${SITE.soft} flex-[1_1_260px]`}>{c(`questions.${i}.detail`, detail)}</span>
                 </Link>
               </li>
             ))}
@@ -111,28 +113,40 @@ export default function SupportPage() {
       <section className="bg-surface pb-[104px] pt-[88px]">
         <div className={`${SITE.wrap} grid items-start lg:grid-cols-3 gap-x-14 gap-y-10`}>
           <div className={BLOCK}>
-            <h2 className={SITE.h3}>Find it yourself</h2>
-            <p>Most questions about documents, flows and destinations are answered in the help centre.</p>
+            <h2 className={SITE.h3}>{c("selfTitle", "Find it yourself")}</h2>
+            <p>{c("selfLead", "Most questions about documents, flows and destinations are answered in the help centre.")}</p>
             <div className="flex flex-col items-start">
-              <Link href="/help" className={SITE.more}>Search the help centre</Link>
-              <Link href="/help/guides" className={SITE.more}>Follow a step-by-step guide</Link>
+              <Link href="/help" className={SITE.more}>{c("searchHelp", "Search the help centre")}</Link>
+              <Link href="/help/guides" className={SITE.more}>{c("followGuide", "Follow a step-by-step guide")}</Link>
             </div>
           </div>
           <div className={BLOCK}>
-            <h2 className={SITE.h3}>Security issues</h2>
+            <h2 className={SITE.h3}>{c("securityTitle", "Security issues")}</h2>
             <p>
-              Found a security problem? Write to{" "}
-              <a href="mailto:security@proculink.eu" className={MAIL}>security@proculink.eu</a>.
+              {rich(
+                "securityLead",
+                <>
+                  Found a security problem? Write to{" "}
+                  <a href="mailto:security@proculink.eu" className={MAIL}>security@proculink.eu</a>.
+                </>,
+                { mail: (chunks) => <a href="mailto:security@proculink.eu" className={MAIL}>{chunks}</a> },
+              )}
             </p>
-            <Link href="/security" className={SITE.more}>How we protect your documents</Link>
+            <Link href="/security" className={SITE.more}>{c("securityLink", "How we protect your documents")}</Link>
           </div>
           <div className={BLOCK}>
-            <h2 className={SITE.h3}>Enterprise and partnerships</h2>
+            <h2 className={SITE.h3}>{c("enterpriseTitle", "Enterprise and partnerships")}</h2>
             <p>
-              For larger volumes, a custom agreement or working together, write to{" "}
-              <a href="mailto:hello@proculink.eu" className={MAIL}>hello@proculink.eu</a>.
+              {rich(
+                "enterpriseLead",
+                <>
+                  For larger volumes, a custom agreement or working together, write to{" "}
+                  <a href="mailto:hello@proculink.eu" className={MAIL}>hello@proculink.eu</a>.
+                </>,
+                { mail: (chunks) => <a href="mailto:hello@proculink.eu" className={MAIL}>{chunks}</a> },
+              )}
             </p>
-            <Link href="/book-demo" className={SITE.more}>Or book a 20-minute call</Link>
+            <Link href="/book-demo" className={SITE.more}>{c("bookCall", "Or book a 20-minute call")}</Link>
           </div>
         </div>
       </section>

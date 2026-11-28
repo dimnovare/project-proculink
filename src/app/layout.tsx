@@ -62,8 +62,9 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // The cookie, then Accept-Language, then English (src/i18n/request.ts).
   const locale = await getLocale();
-  // The browser gets only what client components read; the page copy (home, pricing) renders on the server.
-  const { home: _home, pricing: _pricing, ...clientMessages } = await getMessages();
+  // The browser gets only what client components read; the server-rendered page copy stays on the server.
+  const { home: _h, pricing: _p, howItWorks: _hw, useCases: _u, formats: _f, compare: _c, security: _s, notFound: _n, pictures: _pi, ...clientMessages } =
+    await getMessages();
   const rawPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   const isMockMode = process.env.NEXT_PUBLIC_USE_MOCK === "true";
   const isQaBypass = process.env.NEXT_PUBLIC_QA_BYPASS_AUTH === "true";

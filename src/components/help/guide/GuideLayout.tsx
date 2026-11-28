@@ -24,6 +24,7 @@ import { SITE_PAGE } from "@/components/marketing/LegalPage";
 import { JsonLd } from "@/components/marketing/JsonLd";
 import { breadcrumbStructuredData } from "@/lib/seo";
 import { GuideProvider } from "./GuideContext";
+import { useCopy } from "@/i18n/useCopy";
 
 interface StepMeta {
   id: string;
@@ -60,6 +61,7 @@ export default function GuideLayout({
     setSteps(nodes.map((el) => ({ id: el.id, title: el.dataset.stepTitle ?? "" })));
   }, [children]);
 
+  const { c, rich } = useCopy("helpChrome");
   const related = resolveArticles(guide.related, 4);
   const startAt = START_HERE.indexOf(guide.slug);
   const nextGuide = startAt >= 0 && startAt < START_HERE.length - 1 ? getGuideBySlug(START_HERE[startAt + 1]) : undefined;
@@ -99,14 +101,14 @@ export default function GuideLayout({
                       </Card>
                     )}
                     <Link href="/help/guides" className={SITE.more}>
-                      All step-by-step guides
+                      {c("allGuides", "All step-by-step guides")}
                     </Link>
                     {related.length > 0 && (
                       <section aria-labelledby="guide-reference" className="flex flex-col gap-2">
                         <h2 id="guide-reference" className={H2}>
-                          Reference articles
+                          {c("reference", "Reference articles")}
                         </h2>
-                        <p className={`${SITE.soft} m-0`}>For more detail, read:</p>
+                        <p className={`${SITE.soft} m-0`}>{c("moreDetail", "For more detail, read:")}</p>
                         <ul className="m-0 list-none p-0">
                           {related.map((a) => (
                             <li key={a.slug} className="border-t border-border first:border-t-0">
@@ -120,16 +122,22 @@ export default function GuideLayout({
                     )}
                     <GuideFeedback slug={guide.slug} />
                     <Card edge="none">
-                      <p className="m-0 font-semibold">Stuck on a step?</p>
+                      <p className="m-0 font-semibold">{c("stuck", "Stuck on a step?")}</p>
                       <p className="m-0 mt-1">
-                        Email{" "}
-                        <a href="mailto:support@proculink.eu" className="text-brand-blue-deep underline underline-offset-4">
-                          support@proculink.eu
-                        </a>{" "}
-                        and tell us which step and what you saw.
+                        {rich(
+                          "emailStep",
+                          <>
+                            Email{" "}
+                            <a href="mailto:support@proculink.eu" className="text-brand-blue-deep underline underline-offset-4">
+                              support@proculink.eu
+                            </a>{" "}
+                            and tell us which step and what you saw.
+                          </>,
+                          { mail: (x) => <a href="mailto:support@proculink.eu" className="text-brand-blue-deep underline underline-offset-4">{x}</a> },
+                        )}
                       </p>
                       <Link href="/support" className={SITE.more}>
-                        Contact support
+                        {c("contact", "Contact support")}
                       </Link>
                     </Card>
                   </>
@@ -138,8 +146,8 @@ export default function GuideLayout({
             </div>
 
             {steps.length > 0 && (
-              <nav aria-label="Guide steps" className="sticky top-6 hidden w-[260px] shrink-0 min-[960px]:block">
-                <p className="m-0 text-[15px] font-semibold">Steps</p>
+              <nav aria-label={c("guideSteps", "Guide steps")} className="sticky top-6 hidden w-[260px] shrink-0 min-[960px]:block">
+                <p className="m-0 text-[15px] font-semibold">{c("steps", "Steps")}</p>
                 <ol className="m-0 mt-2 list-none p-0">
                   {steps.map((s) => (
                     <li key={s.id}>
@@ -162,6 +170,7 @@ export default function GuideLayout({
 }
 
 function GuideHeader({ guide, stepCount }: { guide: Guide; stepCount: number }) {
+  const { c } = useCopy("helpChrome");
   const isAdmin = guide.audience === "admin";
   return (
     <header className="flex max-w-[72ch] flex-col gap-3">
@@ -183,13 +192,13 @@ function GuideHeader({ guide, stepCount }: { guide: Guide; stepCount: number }) 
           <ol className="m-0 flex list-none flex-wrap items-center gap-x-2 p-0">
             <li>
               <Link href="/help" className="inline-flex min-h-[44px] items-center text-brand-blue-deep underline underline-offset-4">
-                Help centre
+                {c("helpCentre", "Help centre")}
               </Link>
             </li>
             <li aria-hidden="true">/</li>
             <li>
               <Link href="/help/guides" className="inline-flex min-h-[44px] items-center text-brand-blue-deep underline underline-offset-4">
-                Step-by-step guides
+                {c("guides", "Step-by-step guides")}
               </Link>
             </li>
             {/* Phones: the title sits right below, so the trail stops at its parent. */}
@@ -212,6 +221,7 @@ function GuideHeader({ guide, stepCount }: { guide: Guide; stepCount: number }) 
 
 function GuideFeedback({ slug }: { slug: string }) {
   const [answer, setAnswer] = useState<null | "yes" | "no">(null);
+  const { c } = useCopy("helpChrome");
   const vote = useCallback(
     (value: "yes" | "no") => {
       setAnswer(value);
@@ -222,20 +232,20 @@ function GuideFeedback({ slug }: { slug: string }) {
 
   return (
     <div className="flex flex-col items-start gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
-      <span className="font-semibold">Did this guide get you there?</span>
+      <span className="font-semibold">{c("guideHelped", "Did this guide get you there?")}</span>
       {answer === null ? (
-        <div className="flex items-center gap-2" role="group" aria-label="Did this guide get you there?">
+        <div className="flex items-center gap-2" role="group" aria-label={c("guideHelped", "Did this guide get you there?")}>
           {(["yes", "no"] as const).map((v) => (
             <button key={v} type="button" onClick={() => vote(v)} className={BUTTON}>
-              {v === "yes" ? "Yes" : "Not quite"}
+              {v === "yes" ? c("yes", "Yes") : c("notQuite", "Not quite")}
             </button>
           ))}
         </div>
       ) : (
         <span className="text-brand-green-deep" role="status">
           {answer === "yes"
-            ? "Good — thanks for telling us."
-            : "Thanks — tell support which step lost you and we'll fix the guide."}
+            ? c("guideThanks", "Good — thanks for telling us.")
+            : c("guideThanksNo", "Thanks — tell support which step lost you and we'll fix the guide.")}
         </span>
       )}
     </div>

@@ -1,3 +1,5 @@
+import { useCopy } from "@/i18n/useCopy";
+
 /**
  * Visually-hidden "Skip to main content" link (WCAG 2.4.1). Rendered as the
  * FIRST focusable element in a layout; stays `sr-only` until the KEYBOARD
@@ -15,12 +17,13 @@
  * the global `:focus-visible` rule in globals.css.
  */
 export function SkipToContent() {
+  const { c } = useCopy("nav");
   return (
     <a
       href="#main-content"
       className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:z-[9999] focus-visible:inline-flex focus-visible:items-center focus-visible:rounded-lg focus-visible:bg-white focus-visible:px-4 focus-visible:py-2.5 focus-visible:text-[13px] focus-visible:font-semibold focus-visible:text-[#0B1A2F] focus-visible:no-underline focus-visible:shadow-[0_8px_24px_rgba(11,26,47,0.18)]"
     >
-      Skip to main content
+      {c("skip", "Skip to main content")}
     </a>
   );
 }

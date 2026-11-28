@@ -19,7 +19,7 @@ export type CompareMark = "yes" | "no" | "partly" | null;
 export type CompareCell = readonly [CompareMark, string];
 
 const VARIES: CompareCell = [null, "Varies by tool."];
-const CHEAPEST_MONTHLY = Math.min(...DOCUMENT_PLANS.map((p) => p.priceMonthly ?? Infinity));
+export const CHEAPEST_MONTHLY = Math.min(...DOCUMENT_PLANS.map((p) => p.priceMonthly ?? Infinity));
 
 export const COMPARE_ROWS: readonly { name: string; cells: readonly [CompareCell, CompareCell, CompareCell, CompareCell] }[] = [
   {
