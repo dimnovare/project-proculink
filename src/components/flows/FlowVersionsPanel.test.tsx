@@ -11,7 +11,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.stubGlobal("confirm", vi.fn(() => true));
   api.listFlowVersions.mockResolvedValue([
-    { versionNo: 2, publishedAt: "2026-11-02T10:00:00Z", publishedBy: null, live: true },
+    { versionNo: 2, publishedAt: "2026-11-02T10:00:00Z", publishedBy: null, live: true, changes: [
+      { section: "standard", action: "added", names: ["ubl-2-1-order"] }, { section: "value", action: "renamed", names: ["A", "B"] },
+      { section: "check", action: "added", names: ["Total"] }, { section: "output", action: "when", names: ["Out"] }, { section: "new", action: "kind", names: [] },
+    ] },
     { versionNo: 1, publishedAt: "2026-11-01T10:00:00Z", publishedBy: "a@b.co", live: false },
   ]);
 });
@@ -23,6 +26,7 @@ describe("FlowVersionsPanel", () => {
     const live = (await screen.findByText("Version 2")).closest("li")!;
     expect(within(live).getByText("In use")).toBeTruthy();
     expect(within(live).queryByRole("button", { name: "Restore" })).toBeNull();
+    expect(within(live).getByText("Added a standard file: UBL Order · Renamed 2 values · New check on Total and 2 more")).toBeTruthy();
     const older = screen.getByText("Version 1").closest("li")!;
     expect(within(older).getByText(/by a@b\.co/)).toBeTruthy();
     fireEvent.click(within(older).getByRole("button", { name: "Restore" }));
