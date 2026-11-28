@@ -88,7 +88,7 @@ export function BottomTabBar() {
   return (
     <>
       <nav
-        aria-label="Main"
+        aria-label={c("mainNav", "Main")}
         data-testid="tab-bar"
         className={`plk-tabbar fixed inset-x-0 bottom-0 z-drawer grid ${COLUMNS} items-end border-t border-border bg-surface pt-1 md:hidden`}
         style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}
@@ -97,14 +97,14 @@ export function BottomTabBar() {
         {link(second)}
         {/* With a flow the round Add opens the sheet; with none (or not known yet) it stays the link to Upload (R15). */}
         {engine === "on" && !!flows.data?.length ? (
-          <button type="button" aria-label="Add a document" aria-haspopup="dialog" aria-expanded={adding} onClick={() => setAdding(true)}
+          <button type="button" aria-label={c("addDocument", "Add a document")} aria-haspopup="dialog" aria-expanded={adding} onClick={() => setAdding(true)}
             aria-current={pathname === PINNED_ACTION_HREF ? "page" : undefined} className={addClass}>
             <Plus size={26} aria-hidden />
           </button>
         ) : (
           <Link
             href={PINNED_ACTION_HREF}
-            aria-label="Add a document"
+            aria-label={c("addDocument", "Add a document")}
             aria-current={pathname === PINNED_ACTION_HREF ? "page" : undefined}
             className={addClass}
           >

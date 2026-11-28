@@ -318,13 +318,21 @@
     "workspaces": "Tööruumid",
     "switching": "Vahetamine…",
     "currentWorkspace": "Praegune tööruum",
-    "addCompany": "Lisa ettevõte…",
+    "addWorkspace": "Lisa tööruum…",
     "switchLabel": "Tööruum: {name}. Vaheta tööruumi",
     "accountLabel": "Konto: {name}. Ava konto menüü",
     "account": "Konto",
     "profile": "Profiil",
     "language": "Keel",
-    "signOut": "Logi välja"
+    "signOut": "Logi välja",
+    "homeLink": "ProcuLink, ava dokumendid",
+    "mainNav": "Peamenüü",
+    "openNavigation": "Ava menüü",
+    "closeNavigation": "Sulge menüü",
+    "addDocument": "Lisa dokument",
+    "planLabel": "Pakett {name}",
+    "loading": "Laadimine…",
+    "yourWorkspace": "Teie tööruum"
   },
   "legal": {
     "englishOnly": "See leht on saadaval ainult inglise keeles. Siduv on ingliskeelne versioon."

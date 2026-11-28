@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { getBillingStatus, checkAdminAccess } from "@/lib/api-client";
 import { SIDEBAR_AUTO_COLLAPSE_EVENT } from "@/lib/sidebar-auto-collapse";
-import { planDisplayName } from "@/lib/plans";
+import { planDisplayName, planName } from "@/lib/plans";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useCopy } from "@/i18n/useCopy";
 import { ProcuLinkMark } from "./DSPrimitives";
@@ -176,8 +176,9 @@ export function BridgeSidebar({
   // A failed billing read shows a neutral "—", never an eternal "Loading…": the
   // loading label is a claim that an answer is coming, and after the last retry
   // fails, none is.
-  const planLabel = billing ? planDisplayName(billing.plan) : billingFailed ? "—" : "Loading…";
-  const orgName = organization?.name ?? "Your workspace";
+  const { c: tr } = useCopy("app");
+  const planLabel = billing ? tr("planLabel", planDisplayName(billing.plan), { name: planName(billing.plan) }) : billingFailed ? "—" : tr("loading", "Loading…");
+  const orgName = organization?.name ?? tr("yourWorkspace", "Your workspace");
 
   useEffect(() => {
     if (!collapsible) return;
@@ -216,7 +217,6 @@ export function BridgeSidebar({
   // Forced rail in the tablet band wins; then a screen-requested auto-collapse;
   // otherwise honor the persisted preference.
   const isCollapsed = (collapseBelowLg && belowLg) || (collapsible && autoCollapsed) || (collapsible && collapsed);
-  const { c: tr } = useCopy("app");
 
   const renderItem = (item: SidebarNavItem) => {
     // A document's review lights Documents (as the top bar and the phone bar do); every other address its own item.
@@ -298,8 +298,8 @@ export function BridgeSidebar({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close navigation"
-            title="Close navigation"
+            aria-label={tr("closeNavigation", "Close navigation")}
+            title={tr("closeNavigation", "Close navigation")}
             className="flex items-center justify-center flex-shrink-0 ml-auto"
             style={{ minWidth: "var(--tap-min)", minHeight: "var(--tap-min)", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
           >
@@ -350,8 +350,8 @@ export function BridgeSidebar({
           <Link
             href={PINNED_ACTION_HREF}
             onClick={onNavigate}
-            title="Upload document"
-            aria-label="Upload document"
+            title={tr("uploadLabel", "Upload document")}
+            aria-label={tr("uploadLabel", "Upload document")}
             className="flex items-center justify-center text-white"
             style={{ width: 40, height: 40, borderRadius: 10, background: "#1E66C9", boxShadow: "0 1px 2px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.14)", transition: "background 140ms" }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#0F4FA8"; }}
