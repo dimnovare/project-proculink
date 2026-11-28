@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 import { act, render, screen, within, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { NextIntlClientProvider } from "next-intl";
+import de from "../../../messages/de.json";
 import { UploadQueueProvider } from "@/components/flows/UploadQueue";
 import { BottomTabBar, isFullScreenStep, needsYouBadge } from "./BottomTabBar";
 
@@ -33,6 +35,13 @@ describe("BottomTabBar", () => {
     mockPath = "/operations/log";
     const again = renderBar(<BottomTabBar />);
     expect(within(again.container).getByRole("link", { name: "Documents" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("names the bar and the Add button in the chosen language", async () => {
+    mockPath = "/documents";
+    renderBar(<NextIntlClientProvider locale="de" messages={de}><BottomTabBar /></NextIntlClientProvider>);
+    const bar = screen.getByRole("navigation", { name: "Hauptnavigation" });
+    expect(await within(bar).findByRole("button", { name: "Dokument hinzufügen" })).toBeInTheDocument();
   });
 
   it("shows the needs-you count only when it is known", async () => {

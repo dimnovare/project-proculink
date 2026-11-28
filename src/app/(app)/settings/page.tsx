@@ -54,7 +54,7 @@ function SettingsScreen() {
   // `tab=api` (the old API keys tab) opens Workspace with For developers open.
   const developers = params.get("tab") === "api";
   const router = useRouter();
-  const { c } = useCopy("app");
+  const { c, locale } = useCopy("app");
   const { organization } = useOrganization();
   const { data: billing } = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000 });
   const orgName   = organization?.name ?? "…";
@@ -76,7 +76,7 @@ function SettingsScreen() {
       />
       {/* The tab rule and every tab's content share one width: the page's, like its siblings. */}
       <div className="w-full">
-      <nav aria-label={c("settingsSections", "Settings sections")} className="mb-5 flex gap-1 overflow-x-auto shadow-[inset_0_-1px_0_var(--border)]">
+      <nav lang={locale} aria-label={c("settingsSections", "Settings sections")} className="mb-5 flex gap-1 overflow-x-auto shadow-[inset_0_-1px_0_var(--border)]">
         {SETTINGS_TABS.map((t) => {
           const on = tab === t.id;
           return (

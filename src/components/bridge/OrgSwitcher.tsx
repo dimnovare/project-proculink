@@ -8,7 +8,7 @@
 // actually belongs to (real Clerk memberships via useOrganizationList — nothing
 // fabricated): each row shows the org name; the plan line renders ONLY for the
 // active org because the billing query is org-scoped (we never invent plan
-// tiers for other orgs); the active row gets a green check. "+ Add company…"
+// tiers for other orgs); the active row gets a green check. "+ Add workspace…"
 // opens Clerk's own CreateOrganization modal — Clerk itself enforces whether
 // organization creation is allowed for this instance/user, so the item is
 // never a dead end we have to predict.
@@ -264,7 +264,7 @@ export function OrgSwitcher({ collapsed = false, compact = false, orgName, planL
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#FFFFFF"; }}
         >
           <Plus size={14} strokeWidth={2.2} aria-hidden />
-          {c("addCompany", "Add company…")}
+          {c("addWorkspace", "Add workspace…")}
         </button>
       </div>
     );

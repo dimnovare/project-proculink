@@ -318,13 +318,21 @@
     "workspaces": "Espaces de travail",
     "switching": "Changement…",
     "currentWorkspace": "Espace de travail actuel",
-    "addCompany": "Ajouter une société…",
+    "addWorkspace": "Ajouter un espace de travail…",
     "switchLabel": "Espace de travail : {name}. Changer d’espace de travail",
     "accountLabel": "Compte : {name}. Ouvrir le menu du compte",
     "account": "Compte",
     "profile": "Profil",
     "language": "Langue",
-    "signOut": "Se déconnecter"
+    "signOut": "Se déconnecter",
+    "homeLink": "ProcuLink, aller aux documents",
+    "mainNav": "Navigation principale",
+    "openNavigation": "Ouvrir la navigation",
+    "closeNavigation": "Fermer la navigation",
+    "addDocument": "Ajouter un document",
+    "planLabel": "Offre {name}",
+    "loading": "Chargement…",
+    "yourWorkspace": "Votre espace de travail"
   },
   "legal": {
     "englishOnly": "Cette page n’est disponible qu’en anglais. La version anglaise fait foi."

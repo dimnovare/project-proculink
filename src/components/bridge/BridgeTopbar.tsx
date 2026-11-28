@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { checkAdminAccess, getBillingStatus, isApiMockMode } from "@/lib/api-client";
-import { planDisplayName } from "@/lib/plans";
+import { planDisplayName, planName } from "@/lib/plans";
 import { useTenantQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useApple, useShortcut } from "@/hooks/useShortcut";
 import { OPEN_SEARCH_EVENT, ariaOf, keyWord } from "@/lib/shortcuts";
@@ -62,6 +62,7 @@ function useTopNav() {
 function useWorkspaceCardData() {
   const queryEnabled = useTenantQueriesEnabled();
   const { organization } = useOrganization();
+  const { c } = useCopy("app");
   const { data: billing } = useQuery({
     queryKey: ["billing-status"],
     queryFn: getBillingStatus,
@@ -73,8 +74,8 @@ function useWorkspaceCardData() {
   // Derived from the ladder, not from the wire value. Capitalising the first letter of
   // `billing.plan` agrees with the ladder only by coincidence — it is a string operation on
   // an identifier, and it would render a future two-word tier as "Highvolume plan".
-  const planLabel = billing ? planDisplayName(billing.plan) : "Loading…";
-  const orgName = organization?.name ?? "Your workspace";
+  const planLabel = billing ? c("planLabel", planDisplayName(billing.plan), { name: planName(billing.plan) }) : c("loading", "Loading…");
+  const orgName = organization?.name ?? c("yourWorkspace", "Your workspace");
   return { orgName, planLabel, activePlan: billing ? planLabel : null };
 }
 
@@ -114,7 +115,7 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
           where the gradient line sits, BELOW the row, so the current link's white
           line stays visible above it. */}
       <div data-testid="topbar-row" className="flex h-[52px] items-center gap-2 px-3 sm:px-5 md:h-14 xl:gap-3">
-        <Link href="/documents" aria-label="ProcuLink, go to Documents" className="flex shrink-0 items-center gap-2 text-white no-underline">
+        <Link href="/documents" aria-label={c("homeLink", "ProcuLink, go to Documents")} className="flex shrink-0 items-center gap-2 text-white no-underline">
           <ProcuLinkMark size={24} mono />
           <span className="hidden font-display text-[16px] font-bold tracking-[-0.015em] md:inline">ProcuLink</span>
         </Link>
@@ -123,7 +124,7 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
           <OrgSwitcher compact orgName={orgName} planLabel={planLabel} activePlan={activePlan} />
         </div>
 
-        <nav aria-label="Main" data-testid="topbar-nav" className="hidden shrink-0 self-stretch lg:flex">
+        <nav aria-label={c("mainNav", "Main")} data-testid="topbar-nav" className="hidden shrink-0 self-stretch lg:flex">
           {navItems.map((item) => {
             const active = isTopBarActive(pathname, item);
             return (
@@ -228,7 +229,7 @@ export function BridgeTopbar({ onMenuClick, menuOpen }: BridgeTopbarProps) {
         <button
           type="button"
           onClick={onMenuClick}
-          aria-label="Open navigation"
+          aria-label={c("openNavigation", "Open navigation")}
           aria-haspopup="dialog"
           aria-expanded={!!menuOpen}
           className="hidden size-11 shrink-0 items-center justify-center rounded-[7px] border border-navy-border bg-navy-surface text-navy-text md:flex lg:hidden"
