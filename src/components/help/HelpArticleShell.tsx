@@ -19,6 +19,7 @@ import { SITE } from "@/components/marketing/sitePictures";
 import { SITE_PAGE } from "@/components/marketing/LegalPage";
 import { JsonLd } from "@/components/marketing/JsonLd";
 import { breadcrumbStructuredData } from "@/lib/seo";
+import { useCopy } from "@/i18n/useCopy";
 
 const ASIDE_LINK = "flex min-h-[40px] items-center py-1.5 text-[15px] leading-[1.35] text-ink-muted no-underline hover:text-ink";
 const BUTTON = "inline-flex min-h-[44px] items-center rounded-[10px] border border-border-strong px-5 font-semibold text-ink hover:border-ink";
@@ -28,6 +29,7 @@ export default function HelpArticleShell({ children }: { children: React.ReactNo
   const slug = pathname?.split("/").filter(Boolean).pop() ?? "";
   const articleRef = useRef<HTMLElement>(null);
   const [toc, setToc] = useState<{ id: string; text: string }[]>([]);
+  const { c, rich } = useCopy("helpChrome");
 
   // "In this article" is the body's own h2s, read once they are rendered (the MDX wrapper gets the body as one element).
   useEffect(() => {
@@ -56,7 +58,7 @@ export default function HelpArticleShell({ children }: { children: React.ReactNo
           <ol className="m-0 flex list-none flex-wrap items-center gap-x-2 p-0">
             <li>
               <Link href="/help" className="inline-flex min-h-[44px] items-center text-brand-blue-deep underline underline-offset-4">
-                Help centre
+                {c("helpCentre", "Help centre")}
               </Link>
             </li>
             {article && (
@@ -82,7 +84,7 @@ export default function HelpArticleShell({ children }: { children: React.ReactNo
             <h1 className={SITE.docH1}>
               {article.title}
             </h1>
-            <p className={`${SITE.soft} m-0 text-[15px]`}>{article.readMin} minute read</p>
+            <p className={`${SITE.soft} m-0 text-[15px]`}>{c("minuteRead", `${article.readMin} minute read`, { n: article.readMin })}</p>
           </header>
         )}
 
@@ -91,9 +93,9 @@ export default function HelpArticleShell({ children }: { children: React.ReactNo
           <Card edge="none" pad="0 16px" data-testid="article-toc-folded" className="mt-6 min-[960px]:hidden">
             <details>
               <summary className="flex min-h-[48px] cursor-pointer items-center text-[15px] font-semibold">
-                In this article · {toc.length} sections
+                {c("tocFolded", `In this article · ${toc.length} sections`, { n: toc.length })}
               </summary>
-              <nav aria-label="In this article" className="pb-2">
+              <nav aria-label={c("toc", "In this article")} className="pb-2">
                 <Toc toc={toc} />
               </nav>
             </details>
@@ -119,8 +121,8 @@ export default function HelpArticleShell({ children }: { children: React.ReactNo
               </div>
 
               {(prev || next) && (
-                <nav aria-label="Keep reading" className="flex flex-col gap-3">
-                  <h2 className="m-0 font-display text-[22px] font-semibold">Keep reading</h2>
+                <nav aria-label={c("keepReading", "Keep reading")} className="flex flex-col gap-3">
+                  <h2 className="m-0 font-display text-[22px] font-semibold">{c("keepReading", "Keep reading")}</h2>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {prev ? <Pager label="Previous" slug={prev.slug} title={prev.title} /> : <span />}
                     {next ? <Pager label="Next" slug={next.slug} title={next.title} /> : <span />}
@@ -129,16 +131,22 @@ export default function HelpArticleShell({ children }: { children: React.ReactNo
               )}
 
               <Card edge="none">
-                <p className="m-0 font-semibold">Didn&apos;t find it?</p>
+                <p className="m-0 font-semibold">{c("notFound", "Didn't find it?")}</p>
                 <p className="m-0 mt-1">
-                  Email{" "}
-                  <a href="mailto:support@proculink.eu" className="text-brand-blue-deep underline underline-offset-4">
-                    support@proculink.eu
-                  </a>{" "}
-                  and tell us what you were trying to do.
+                  {rich(
+                    "emailUs",
+                    <>
+                      Email{" "}
+                      <a href="mailto:support@proculink.eu" className="text-brand-blue-deep underline underline-offset-4">
+                        support@proculink.eu
+                      </a>{" "}
+                      and tell us what you were trying to do.
+                    </>,
+                    { mail: (x) => <a href="mailto:support@proculink.eu" className="text-brand-blue-deep underline underline-offset-4">{x}</a> },
+                  )}
                 </p>
                 <Link href="/support" className={SITE.more}>
-                  Contact support
+                  {c("contact", "Contact support")}
                 </Link>
               </Card>
             </footer>
@@ -146,8 +154,8 @@ export default function HelpArticleShell({ children }: { children: React.ReactNo
 
           <aside data-testid="article-aside" className="sticky top-6 hidden w-[260px] shrink-0 flex-col gap-8 min-[960px]:flex">
             {toc.length >= 2 && (
-              <nav aria-label="In this article">
-                <p className="m-0 text-[15px] font-semibold">In this article</p>
+              <nav aria-label={c("toc", "In this article")}>
+                <p className="m-0 text-[15px] font-semibold">{c("toc", "In this article")}</p>
                 <Toc toc={toc} />
               </nav>
             )}
@@ -174,11 +182,12 @@ function Toc({ toc }: { toc: { id: string; text: string }[] }) {
 }
 
 function Guides({ id, guides }: { id: string; guides: ReturnType<typeof guidesForArticle> }) {
+  const { c } = useCopy("helpChrome");
   if (guides.length === 0) return null;
   return (
     <section aria-labelledby={id}>
       <h2 id={id} className="m-0 text-[15px] font-semibold">
-        Step-by-step guides
+        {c("guides", "Step-by-step guides")}
       </h2>
       <ul className="m-0 mt-2 flex list-none flex-col gap-3 p-0">
         {guides.map((g) => (
@@ -186,7 +195,7 @@ function Guides({ id, guides }: { id: string; guides: ReturnType<typeof guidesFo
             <Link href={g.href} className="inline-flex min-h-[44px] items-center text-[15px] font-semibold text-brand-blue-deep underline underline-offset-4">
               {g.title}
             </Link>
-            {g.minutes != null && <span className={`${SITE.soft} text-[14px]`}>About {g.minutes} minutes</span>}
+            {g.minutes != null && <span className={`${SITE.soft} text-[14px]`}>{c("aboutMinutes", `About ${g.minutes} minutes`, { n: g.minutes })}</span>}
           </li>
         ))}
       </ul>
@@ -196,6 +205,7 @@ function Guides({ id, guides }: { id: string; guides: ReturnType<typeof guidesFo
 
 function FeedbackPrompt({ slug, title }: { slug: string; title?: string }) {
   const [answer, setAnswer] = useState<null | "yes" | "no">(null);
+  const { c } = useCopy("helpChrome");
 
   function vote(value: "yes" | "no") {
     setAnswer(value);
@@ -204,19 +214,19 @@ function FeedbackPrompt({ slug, title }: { slug: string; title?: string }) {
 
   return (
     <div className="flex flex-col items-start gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
-      <span className="font-semibold">Was this article helpful?</span>
+      <span className="font-semibold">{c("helpful", "Was this article helpful?")}</span>
       {answer === null ? (
-        <div className="flex items-center gap-2" role="group" aria-label="Was this article helpful?">
+        <div className="flex items-center gap-2" role="group" aria-label={c("helpful", "Was this article helpful?")}>
           <button type="button" onClick={() => vote("yes")} className={BUTTON}>
-            Yes
+            {c("yes", "Yes")}
           </button>
           <button type="button" onClick={() => vote("no")} className={BUTTON}>
-            No
+            {c("no", "No")}
           </button>
         </div>
       ) : (
         <span className="text-brand-green-deep" role="status">
-          {answer === "yes" ? "Thanks for the feedback." : "Thanks — we'll work on making this clearer."}
+          {answer === "yes" ? c("thanks", "Thanks for the feedback.") : c("thanksNo", "Thanks — we'll work on making this clearer.")}
         </span>
       )}
     </div>
@@ -224,12 +234,13 @@ function FeedbackPrompt({ slug, title }: { slug: string; title?: string }) {
 }
 
 function Pager({ label, slug, title }: { label: "Previous" | "Next"; slug: string; title: string }) {
+  const { c } = useCopy("helpChrome");
   return (
     <Link
       href={`/help/${slug}`}
       className={`flex flex-col gap-1 rounded-[10px] border border-border bg-surface px-4 py-3 no-underline hover:border-border-strong ${label === "Next" ? "sm:items-end sm:text-right" : ""}`}
     >
-      <span className={`${SITE.soft} text-[14px]`}>{label}</span>
+      <span className={`${SITE.soft} text-[14px]`}>{label === "Next" ? c("next", label) : c("previous", label)}</span>
       <span className="font-semibold text-brand-blue-deep underline underline-offset-4">{title}</span>
     </Link>
   );

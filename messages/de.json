@@ -14,7 +14,9 @@
     "signIn": "Anmelden",
     "menu": "Menü",
     "closeMenu": "Menü schließen",
-    "language": "Sprache"
+    "language": "Sprache",
+    "skip": "Zum Hauptinhalt springen",
+    "onPage": "Auf dieser Seite"
   },
   "footer": {
     "about": "Jedes Dokument rein. Saubere Daten raus. ProcuLink liest Ihre Dokumente, legt sie Ihnen zur Prüfung vor und sendet sie im benötigten Format weiter – jede Zustellung wird protokolliert.",
@@ -41,7 +43,8 @@
     "status": "Status",
     "language": "Sprache",
     "storage": "Dokumentenspeicherung in der EU",
-    "atRest": ", AES-GCM-Verschlüsselung ruhender Daten"
+    "atRest": ", AES-GCM-Verschlüsselung ruhender Daten",
+    "copyright": "© 2026 {name}, Registernummer {code}, Tallinn, Estland"
   },
   "closing": {
     "title": "Testen Sie ProcuLink mit Ihren eigenen Dokumenten",
@@ -165,7 +168,7 @@
       },
       "6": {
         "title": "Protokoll jeder Zustellung",
-        "body": "Zu jeder Zustellung wird festgehalten, wann sie erfolgte, über welchen Kanal, wie viele Versuche nötig waren, was das Ziel geantwortet hat (sofern es antwortet) und bei einem Fehler die Fehlermeldung."
+        "body": "Zu jeder Zustellung wird festgehalten, wann sie erfolgte, über welchen Kanal, wie viele Versuche nötig waren, was der Zielort geantwortet hat (sofern er antwortet) und bei einem Fehler die Fehlermeldung."
       }
     },
     "apiRef": "API-Referenz",
@@ -199,7 +202,8 @@
         "label": "Unterauftrags­verarbeiter",
         "line": "Alle Unternehmen, die Ihre Daten verarbeiten, und an welchem Standort"
       }
-    }
+    },
+    "introLabel": "Einführung"
   },
   "priceHelper": {
     "fits": "{n} Dokumente pro Monat sind in {plan} enthalten.",
@@ -269,7 +273,7 @@
       },
       "3": {
         "q": "Wird während der Testphase etwas automatisch versendet?",
-        "a": "Nur, wenn Sie das festlegen. Eine Datei wird erst versendet, wenn ihr Ablauf ein Ziel hat; bis dahin laden Sie sie herunter. Ein neuer Ablauf, den ein Admin anlegt, hält jedes Dokument mit einem markierten Wert für Sie zurück, und Sie können einen Ablauf so einstellen, dass jedes Dokument geprüft wird."
+        "a": "Nur, wenn Sie das festlegen. Eine Datei wird erst versendet, wenn ihr Ablauf einen Zielort hat; bis dahin laden Sie sie herunter. Ein neuer Ablauf, den ein Admin anlegt, hält jedes Dokument mit einem markierten Wert für Sie zurück, und Sie können einen Ablauf so einstellen, dass jedes Dokument geprüft wird."
       },
       "4": {
         "q": "Was passiert, wenn die Testphase endet?",
@@ -285,7 +289,7 @@
       },
       "7": {
         "q": "Wo werden meine Daten gespeichert?",
-        "a": "Dokumente werden in der EU gespeichert, ruhende Daten sind mit AES-GCM verschlüsselt. Ein Teil der Verarbeitung erfolgt auf Grundlage von Standardvertragsklauseln bei namentlich genannten Unterauftragsverarbeitern in den USA: Anmeldung, KI-Auslesung, Zahlungen und E-Mail in beide Richtungen, einschließlich der Dokumente, die wir per E-Mail an die von Ihnen festgelegten Ziele senden. Alle Details finden Sie auf der <security>Sicherheitsseite</security>."
+        "a": "Dokumente werden in der EU gespeichert, ruhende Daten sind mit AES-GCM verschlüsselt. Ein Teil der Verarbeitung erfolgt auf Grundlage von Standardvertragsklauseln bei namentlich genannten Unterauftragsverarbeitern in den USA: Anmeldung, KI-Auslesung, Zahlungen und E-Mail in beide Richtungen, einschließlich der Dokumente, die wir per E-Mail an die von Ihnen festgelegten Zielorte senden. Alle Details finden Sie auf der <security>Sicherheitsseite</security>."
       },
       "8": {
         "q": "Ich nutze einen älteren Tarif. Was ändert sich?",
@@ -309,7 +313,7 @@
     "helpButton": "Hilfe",
     "settingsSections": "Bereiche der Einstellungen",
     "tab_org": "Arbeitsbereich",
-    "tab_destinations": "Ziele",
+    "tab_destinations": "Zielorte",
     "tab_billing": "Tarif & Abrechnung",
     "workspaces": "Arbeitsbereiche",
     "switching": "Wird gewechselt…",
@@ -324,5 +328,823 @@
   },
   "legal": {
     "englishOnly": "Diese Seite ist nur auf Englisch verfügbar. Die englische Fassung ist verbindlich."
+  },
+  "howItWorks": {
+    "intake": {
+      "label": "Fünf Wege, ein Dokument einzusenden: Hochladen, die eigene E-Mail-Adresse des Ablaufs, Abholung aus einem Postfach oder von einem Server, die API und Ihr KI-Assistent.",
+      "upload": {
+        "title": "Hochladen",
+        "body": "Ziehen Sie eine Datei hierher oder wählen Sie eine aus."
+      },
+      "email": {
+        "title": "E-Mail",
+        "body": "Leiten Sie an die eigene Adresse des Ablaufs weiter oder senden Sie direkt dorthin. Sie steht beim Ablauf."
+      },
+      "collect": {
+        "title": "Abholen",
+        "body": "Aus einem Postfach, von einem Server oder aus einem Bucket. Wir sehen alle fünf Minuten nach, und Dateien auf Ihrem Server oder in Ihrem Bucket bleiben, wo sie sind."
+      },
+      "api": {
+        "title": "API",
+        "body": "Ihr eigenes System sendet eine Datei an den Ablauf."
+      },
+      "ai": {
+        "title": "KI-Assistent",
+        "body": "Fügen Sie ein Dokument aus Claude, ChatGPT, Cursor oder VS Code hinzu."
+      }
+    },
+    "read": {
+      "label": "Eine Rechnung, auf der jeder erkannte Wert markiert ist, dahinter ein fotografierter Lieferschein.",
+      "photo": "Lieferschein, Handyfoto"
+    },
+    "send": {
+      "label": "Eine CSV-Datei aus der Rechnung, gesendet an einen Buchhaltungsserver und an Google Sheets.",
+      "chips": [
+        "CSV",
+        "Excel",
+        "JSON",
+        "XML",
+        "PDF",
+        "Text",
+        "Festlängenformat",
+        "cXML",
+        "UBL",
+        "ZUGFeRD / Factur-X"
+      ],
+      "docs": "Sie haben die Dokumentation Ihres empfangenden Systems? Laden Sie sie hoch, und wir schlagen Ihnen die Datei zur Prüfung vor."
+    },
+    "steps": {
+      "0": {
+        "title": "Sie senden es ein",
+        "lead": "Laden Sie eine Datei hoch, leiten Sie eine E-Mail an die Adresse Ihres Ablaufs weiter, oder lassen Sie ProcuLink die Dateien für Sie abholen.",
+        "detail": "Wir holen aus einem Postfach, von einem SFTP-, FTP- oder FTPS-Server oder aus einem S3-Bucket ab. Ihr eigenes System kann unsere API nutzen, und Sie können Dokumente aus Ihrem KI-Assistenten hinzufügen. Gelesen werden PDFs mit Textebene, CSV- und Excel-Dateien sowie Word-, Text-, XML- und JSON-Dateien."
+      },
+      "1": {
+        "title": "Wir lesen es aus",
+        "lead": "Wir lesen schon beim ersten Dokument jeden Wert und jede Tabelle aus, Zeile für Zeile.",
+        "detail": "Sie müssen vorab keine Vorlage anlegen. Ein neuer Absender mit neuem Layout bedeutet also keine neue Einrichtung. Auch Scans und Handyfotos werden erkannt."
+      },
+      "2": {
+        "title": "Sie prüfen es",
+        "lead": "Das Original bleibt neben den erkannten Daten sichtbar. Korrigieren Sie einen falschen Wert oder ziehen Sie einen Rahmen um die Stelle im Dokument, damit wir ihn beim nächsten Mal an derselben Stelle finden.",
+        "detail": "Wir markieren einen Wert, der fehlt, das falsche Format hat oder schwer lesbar ist. Ein Dokument, das wir schon kennen, halten wir zurück, statt es zweimal zu senden."
+      },
+      "3": {
+        "title": "Wir senden es",
+        "lead": "Wählen Sie CSV, JSON, XML, Excel, PDF, Text, Festlängenformat, einen Bestellstandard wie cXML oder UBL oder eine ZUGFeRD / Factur-X-Rechnung, und senden Sie das Ergebnis dorthin, wo es gebraucht wird.",
+        "detail": "Senden Sie es per E-Mail, an eine Webadresse, an einen SFTP- oder FTPS-Server, in einen S3-Bucket, nach Google Drive, Google Sheets oder OneDrive, oder laden Sie es herunter."
+      }
+    },
+    "introLabel": "Einführung",
+    "h1": {
+      "0": "Senden Sie es ein.",
+      "1": "Wir lesen es aus.",
+      "2": "Sie prüfen es.",
+      "3": "Wir senden es weiter."
+    },
+    "lead": "ProcuLink liest die Dateien, die Sie erhalten, zeigt die erkannten Daten neben dem Original und sendet sie in dem Format weiter, das Ihr System benötigt. Auch Scans und Handyfotos werden erkannt.",
+    "start": "Kostenlos testen",
+    "pipelineLink": "Für technisch Interessierte: die Verarbeitungsschritte",
+    "stepsLabel": "Die vier Schritte",
+    "detailLabel": "Die vier Schritte im Detail",
+    "second": {
+      "label": "Was beim zweiten Dokument passiert",
+      "title": "Das zweite Dokument geht leichter.",
+      "lead": "Wir merken uns, wo jeder Absender welchen Wert angibt, damit das nächste Dokument von ihm weniger geprüft werden muss.",
+      "ticks": [
+        "Ein neuer Ablauf hält ein Dokument nur dann für Sie zurück, wenn wir einen seiner Werte markiert haben. Alle anderen laufen direkt durch.",
+        "Der Ablauf zeigt Ihnen, wie viele Dokumente in Folge ohne Korrektur hinausgegangen sind.",
+        "Sie können einen Ablauf so einstellen, dass jedes Dokument oder gar keines geprüft wird, und das jederzeit ändern.",
+        "Ein Dokument mit einer Nummer, die wir schon erhalten haben, wartet immer auf Sie, damit nichts doppelt versendet wird.",
+        "Auch ein Dokument von einer E-Mail-Adresse, die wir noch nicht bestätigt haben, wartet auf Sie. Senden Sie eines von dieser Adresse einmal ab, dann gehen spätere Dokumente von ihr von selbst, solange wir bestätigen können, dass jedes wirklich von dort kam."
+      ]
+    },
+    "pipeline": {
+      "label": "Die Verarbeitungsschritte, für technisch Interessierte",
+      "title": "Für technisch Interessierte: die Verarbeitungsschritte.",
+      "lead": "Jedes Dokument durchläuft dieselben fünf Stufen. Was in jeder Stufe geschehen ist, wird am Dokument gespeichert, sodass Sie es später öffnen und seinen Verlauf nachlesen können."
+    },
+    "stages": {
+      "In": {
+        "name": "Eingang",
+        "body": "Eine Datei kommt per Upload, E-Mail, Abholung, API oder über Ihren KI-Assistenten an und wird zu einem Dokument in ihrem Ablauf."
+      },
+      "Read": {
+        "name": "Lesen",
+        "body": "Jeder Wert und jede Tabelle wird gelesen, zusammen mit der Stelle im Dokument, an der er stand, und wie sicher wir uns sind."
+      },
+      "Check": {
+        "name": "Prüfen",
+        "body": "Eingebaute Prüfungen markieren einen Wert, der fehlt, das falsche Format hat oder schwer lesbar ist. Eine wiederholte Dokumentnummer wird zurückgehalten, ebenso ein Dokument von einer E-Mail-Adresse, die wir noch nicht bestätigt haben."
+      },
+      "Transform": {
+        "name": "Umwandeln",
+        "body": "Jede Datei wird aus den gelesenen Werten erstellt, mit Ihren Spaltennamen und den angewendeten Zuordnungstabellen."
+      },
+      "Send": {
+        "name": "Senden",
+        "body": "Die Datei geht an jeden Zielort. Jede Zustellung speichert ihre Versuche, die Antwort des Zielorts, sofern er eine gibt, und bei einem Fehler die Fehlermeldung."
+      }
+    },
+    "links": {
+      "api": "API-Referenz",
+      "formats": "Alle Formate und Übertragungswege",
+      "security": "Sicherheit"
+    }
+  },
+  "useCases": {
+    "ui": {
+      "introLabel": "Einführung",
+      "start": "Kostenlos testen",
+      "howLink": "So funktioniert’s",
+      "exampleTitle": "Ein Beispiel: was ankommt, was hinausgeht",
+      "arrived": "Was ankam",
+      "weSend": "Was wir senden",
+      "weSendLabel": "Was wir senden: {name}",
+      "stepsTitle": "So funktioniert’s",
+      "step": "Schritt {n}",
+      "todayTitle": "Was es heute kann",
+      "notTitle": "Was es nicht tut",
+      "readMore": "Weiterlesen"
+    },
+    "invoice": {
+      "h1": "Holen Sie die Daten aus Ihren Rechnungen, ohne sie abzutippen",
+      "lead": "ProcuLink liest jede Rechnung, die Sie erhalten, ob PDF, Scan oder Handyfoto, zeigt die erkannten Daten zur Prüfung neben dem Original und erstellt die Excel- oder CSV-Datei, die Ihre Buchhaltungssoftware importiert.",
+      "problem": {
+        "title": "Rechnungen abzutippen dauert lange, und genau dabei entstehen Fehler",
+        "body": [
+          "Die meisten Lieferanten senden ein PDF. Jemand öffnet es, tippt Nummer, Datum, Lieferant, Summen und Positionen in die Buchhaltungssoftware und vergleicht alles mit dem Dokument. Jeder neue Lieferant bringt ein neues Layout mit.",
+          "Sie müssen vorab keine Vorlage anlegen. ProcuLink liest die erste Rechnung jedes Lieferanten, Sie korrigieren, was nicht stimmt, und es merkt sich für die nächste, wo dieser Lieferant welchen Wert angibt."
+        ]
+      },
+      "fields": {
+        "0": "Rechnungsnr.",
+        "1": "Datum",
+        "2": "Lieferant",
+        "3": "Summe EUR"
+      },
+      "head": [
+        "Code",
+        "Artikel",
+        "Menge",
+        "Preis"
+      ],
+      "steps": {
+        "0": {
+          "title": "Sie senden es ein",
+          "body": "Laden Sie die Rechnung hoch, leiten Sie die E-Mail weiter, mit der sie kam, oder lassen Sie uns sie aus einem Postfach abholen."
+        },
+        "1": {
+          "title": "Wir lesen es aus",
+          "body": "Kopfdaten und Positionen werden gelesen, auch aus Scans und Handyfotos. Vorab ist nichts einzurichten."
+        },
+        "2": {
+          "title": "Sie prüfen es",
+          "body": "Das Original bleibt neben den erkannten Daten. Was fehlt oder schwer lesbar ist, wird markiert."
+        },
+        "3": {
+          "title": "Sie erhalten die Datei",
+          "body": "Laden Sie die Excel- oder CSV-Datei herunter oder lassen Sie sie per E-Mail, nach Google Drive, Sheets oder OneDrive oder an einen Server senden."
+        }
+      },
+      "works": [
+        "Liest PDF-Rechnungen, Scans und Handyfotos sowie Excel- oder CSV-Dateien",
+        "Liest Rechnungsnummer, Datum, Lieferant, USt-IdNr., IBAN, Summen und Positionen",
+        "Markiert einen Wert, der fehlt, das falsche Format hat oder schwer lesbar ist",
+        "Hält eine Rechnung zurück, die es schon kennt, damit nichts doppelt hinausgeht",
+        "Merkt sich, wo jeder Lieferant einen Wert angibt, damit die nächste Rechnung weniger geprüft werden muss",
+        "Teilt eine Datei mit mehreren Rechnungen in je ein Dokument auf",
+        "Verwendet Ihre Spaltennamen in der erstellten Datei",
+        "Kann auch eine ZUGFeRD / Factur-X-Rechnung erstellen"
+      ],
+      "limits": {
+        "0": "Es bucht nicht für Sie in Ihre Buchhaltungssoftware. Es erstellt die Datei, die diese Software importiert, und sendet sie dorthin, wo Sie es festlegen.",
+        "1": "Es gibt keine Rechnungen frei und bezahlt keine.",
+        "2": "Das Auslesen ist automatisch und kann falsch sein. Was fehlt oder schwer lesbar ist, wird markiert, und das Dokument wartet auf Ihre Prüfung. Sie können einen Ablauf auch so einstellen, dass er bei jedem Dokument wartet.",
+        "3": "Es liest bis zu {pages} Seiten einer Datei."
+      },
+      "links": {
+        "0": "Dateien, die wir lesen",
+        "1": "Prüfungen",
+        "2": "Dateien, die wir erstellen",
+        "3": "Preise"
+      }
+    },
+    "order": {
+      "h1": "Tippen Sie die Bestellungen Ihrer Kunden nicht mehr ab",
+      "lead": "ProcuLink liest jede Bestellung beim Eingang, ob PDF, Excel oder E-Mail-Anhang, ersetzt die Artikelnummern Ihres Kunden durch Ihre eigenen und erstellt die Datei, die Ihr Bestellsystem importiert. Vorher prüfen Sie sie neben dem Original.",
+      "problem": {
+        "title": "Jeder Kunde bestellt auf seine eigene Art",
+        "body": [
+          "Einer sendet ein PDF aus seinem Einkaufssystem, ein anderer eine Excel-Tabelle, ein dritter einen Scan. Jemand in Ihrem Team tippt jede Bestellung in Ihr System ab und schlägt nach, welches Ihrer Produkte jede Kundennummer meint.",
+          "Ihre Kunden werden ihre Art zu bestellen nicht ändern, und das müssen sie auch nicht. ProcuLink liest, was sie ohnehin senden."
+        ]
+      },
+      "fields": {
+        "0": "Bestellnr.",
+        "1": "Datum",
+        "2": "Kunde",
+        "3": "Liefern bis"
+      },
+      "head": [
+        "Ihre Nummer",
+        "Artikel",
+        "Menge"
+      ],
+      "steps": {
+        "0": {
+          "title": "Sie senden es ein",
+          "body": "Leiten Sie die E-Mail weiter, mit der sie kam, laden Sie sie hoch, oder lassen Sie uns sie aus einem Postfach oder von einem Server abholen."
+        },
+        "1": {
+          "title": "Wir lesen es aus",
+          "body": "Bestellnummer, Daten und jede Position werden gelesen. Vorab ist nichts einzurichten."
+        },
+        "2": {
+          "title": "Ihre Nummern kommen hinein",
+          "body": "Eine Zuordnungstabelle, die Sie importieren, ersetzt die Artikelnummer jedes Kunden durch Ihre."
+        },
+        "3": {
+          "title": "Prüfen, dann senden",
+          "body": "Das Original bleibt neben den erkannten Daten. Dann geht die Datei an den Ordner, den Server oder das Postfach, aus dem Ihr System liest."
+        }
+      },
+      "works": [
+        "Liest PDF- und Excel-Bestellungen, CSV-Dateien, E-Mail-Anhänge, Scans und Handyfotos",
+        "Ersetzt Artikelnummern anhand einer Liste, die Sie aus einer CSV- oder Excel-Datei importieren",
+        "Erstellt CSV, Excel, JSON oder XML mit den Spaltennamen, die Ihr System erwartet, oder cXML, UBL Order, EDIFACT ORDERS oder X12 850",
+        "Schlägt die Datei anhand der Importdokumentation Ihres Systems oder einer Beispieldatei vor",
+        "Hält eine Bestellnummer zurück, die es schon kennt, damit eine Bestellung nicht doppelt gesendet wird",
+        "Holt Bestellungen alle fünf Minuten aus einem Postfach, von einem SFTP-, FTP- oder FTPS-Server oder aus einem S3-Bucket ab"
+      ],
+      "limits": {
+        "0": "Es erfasst die Bestellung nicht für Sie in Ihrem ERP. Es erstellt die Importdatei und sendet sie dorthin, wo Ihr System sie liest.",
+        "1": "Es prüft weder Bestand noch Preise noch Kreditlimits.",
+        "2": "Das Auslesen ist automatisch und kann falsch sein. Was fehlt oder schwer lesbar ist, wird markiert, und das Dokument wartet auf Ihre Prüfung. Sie können einen Ablauf auch so einstellen, dass er bei jedem Dokument wartet.",
+        "3": "Es liest bis zu {pages} Seiten einer Datei."
+      },
+      "links": {
+        "0": "Zuordnungstabellen",
+        "1": "Wege, Dokumente einzusenden",
+        "2": "Dateien, die wir erstellen",
+        "3": "Formate"
+      }
+    }
+  },
+  "formats": {
+    "title": "Alle Formate und Wege an einem Ort",
+    "lead": "Sie müssen das technische Format nicht kennen. Wenn ein Dokument als PDF, Tabelle, Scan oder E-Mail-Anhang bei Ihnen ankommt, fangen Sie damit an. Die Details stehen hier für alle, die sie brauchen.",
+    "onPage": "Auf dieser Seite",
+    "seeHow": "So funktioniert es",
+    "yours": {
+      "title": "Ihr Format ist nicht dabei?",
+      "lead": "Zeigen Sie uns die Datei oder das System in einem kurzen Gespräch. Wir sagen Ihnen offen, ob es passt."
+    },
+    "read": {
+      "title": "Dokumente, die wir lesen",
+      "lead": "Senden Sie die Datei so, wie sie ist. Wir lesen jeden Wert und jede Tabelle darin aus. Sie müssen vorab keine Vorlage anlegen.",
+      "rows": {
+        "0": {
+          "name": "PDF (mit Textebene)",
+          "note": "Das übliche PDF: von einem System erstellt oder aus einer E-Mail gespeichert, sodass sich der Text markieren lässt."
+        },
+        "1": {
+          "name": "Scans und Handyfotos",
+          "note": "Eine gescannte Seite oder ein Foto davon, als PDF, PNG oder JPG."
+        },
+        "2": {
+          "name": "CSV",
+          "note": "Eine als einfacher Text gespeicherte Tabelle, so wie die meisten Systeme sie exportieren."
+        },
+        "3": {
+          "name": "Excel",
+          "note": "Eine .xlsx-Arbeitsmappe."
+        },
+        "4": {
+          "name": "Word",
+          "note": "Ein .docx-Dokument."
+        },
+        "5": {
+          "name": "Text",
+          "note": "Eine einfache .txt-Datei."
+        },
+        "6": {
+          "name": "XML",
+          "note": "Eine strukturierte .xml-Datei, die ein anderes System exportiert hat."
+        },
+        "7": {
+          "name": "JSON",
+          "note": "Eine strukturierte .json-Datei, die ein anderes System exportiert hat."
+        },
+        "8": {
+          "name": "ZUGFeRD- und Factur-X-Rechnungen",
+          "note": "Eine PDF-Rechnung mit eingebetteten Daten. Wir verwenden diese Daten, wenn die Seite dieselben Werte zeigt."
+        }
+      }
+    },
+    "outputs": {
+      "title": "Dateien, die wir erstellen",
+      "lead": "Die Datei, die Ihr System erwartet. Sie legen fest, was hineinkommt und wie jeder Wert heißt.",
+      "rows": {
+        "0": {
+          "name": "CSV",
+          "note": "Ihre Spalten und Ihre Namen, getrennt durch Komma, Semikolon oder Tabulator."
+        },
+        "1": {
+          "name": "Excel",
+          "note": "Eine .xlsx-Datei mit Ihren Spalten und Ihren Namen."
+        },
+        "2": {
+          "name": "JSON",
+          "note": "Für Systeme, die strukturierte Daten übernehmen, mit den Namen, die Ihr System erwartet."
+        },
+        "3": {
+          "name": "XML",
+          "note": "Strukturierte Daten als XML, mit den Namen, die Ihr System erwartet."
+        },
+        "4": {
+          "name": "PDF",
+          "note": "Eine saubere Seite mit Ihrem Titel, Ihrem eigenen Text oben und unten und Ihrem Logo."
+        },
+        "5": {
+          "name": "Text",
+          "note": "Eine einfache Textdatei mit einem Titel und den Werten."
+        },
+        "6": {
+          "name": "Feste Feldlängen",
+          "note": "Jeder Wert mit fester Breite, für Systeme, die nach Position lesen."
+        },
+        "7": {
+          "name": "cXML",
+          "note": "Eine Bestellung als cXML 1.2, für Lieferanten und Beschaffungsnetzwerke, die es übernehmen."
+        },
+        "8": {
+          "name": "UBL Order",
+          "note": "Eine Bestellung als UBL 2.1, die XML-Bestellung, die viele europäische Systeme übernehmen."
+        },
+        "9": {
+          "name": "EDIFACT ORDERS",
+          "note": "Eine Bestellung als EDIFACT-ORDERS-Nachricht (D.96A)."
+        },
+        "10": {
+          "name": "ANSI X12 850",
+          "note": "Eine Bestellung als X12 850 (Version 4010), für EDI-Partner in Nordamerika."
+        },
+        "11": {
+          "name": "ZUGFeRD-/Factur-X-Rechnung",
+          "note": "Eine PDF-Rechnung, die Menschen lesen können, mit eingebetteten Rechnungsdaten für das System des Käufers."
+        }
+      }
+    },
+    "ways-in": {
+      "title": "Wege hinein",
+      "lead": "Wie ein Dokument in einen Ablauf gelangt. Wer Ihnen Dokumente sendet, muss nichts ändern.",
+      "note": "Die Abholung läuft alle fünf Minuten, nimmt jede Datei einmal und lässt sie, wo sie ist.",
+      "rows": {
+        "0": {
+          "name": "Hochladen",
+          "note": "Ziehen Sie eine Datei in ProcuLink oder wählen Sie eine aus."
+        },
+        "1": {
+          "name": "Die eigene E-Mail-Adresse eines Ablaufs",
+          "note": "Leiten Sie Dokumente dorthin weiter oder senden Sie sie dorthin. Jede angehängte Datei, die wir lesen können, wird zu einem Dokument."
+        },
+        "2": {
+          "name": "Ein Postfach",
+          "note": "Wir holen neue E-Mails aus einem Postfach ab, das Sie bereits nutzen."
+        },
+        "3": {
+          "name": "SFTP, FTP oder FTPS",
+          "note": "Wir holen neue Dateien aus einem Ordner auf Ihrem Server ab."
+        },
+        "4": {
+          "name": "Ein S3-Bucket",
+          "note": "Wir holen neue Dateien aus einem Bucket oder aus S3-kompatiblem Speicher ab."
+        },
+        "5": {
+          "name": "Unsere API",
+          "note": "Ihr eigenes System übergibt eine Datei an einen Ablauf und ruft das Ergebnis ab."
+        }
+      }
+    },
+    "ways-out": {
+      "title": "Wege hinaus",
+      "lead": "Wohin die fertige Datei geht. Ein Ablauf kann an mehrere Zielorte gleichzeitig senden.",
+      "rows": {
+        "0": {
+          "name": "E-Mail",
+          "note": "Die Datei als Anhang, an eine oder mehrere Adressen."
+        },
+        "1": {
+          "name": "Eine Webadresse",
+          "note": "Wir übermitteln die Datei an eine Adresse, die Ihr System Ihnen nennt."
+        },
+        "2": {
+          "name": "SFTP oder FTPS",
+          "note": "In einen Ordner auf Ihrem Server."
+        },
+        "3": {
+          "name": "Ein S3-Bucket",
+          "note": "In einen Bucket oder in S3-kompatiblen Speicher."
+        },
+        "4": {
+          "name": "Google Drive",
+          "note": "In einen Ordner Ihrer Wahl."
+        },
+        "5": {
+          "name": "Google Sheets",
+          "note": "Als neue Zeilen am Ende einer Tabelle Ihrer Wahl."
+        },
+        "6": {
+          "name": "OneDrive",
+          "note": "In einen Ordner Ihrer Wahl."
+        },
+        "7": {
+          "name": "Herunterladen",
+          "note": "Laden Sie die Datei herunter und senden Sie sie selbst weiter."
+        }
+      }
+    },
+    "limits": {
+      "title": "Grenzen",
+      "lead": "Wie groß eine Datei sein darf und wie Dateien gezählt werden.",
+      "rows": {
+        "0": {
+          "name": "Dateigröße",
+          "note": "Bis zu {mb} MB pro Datei."
+        },
+        "1": {
+          "name": "Was als Dokument zählt"
+        }
+      }
+    }
+  },
+  "compare": {
+    "title": "So schneidet ProcuLink im Vergleich ab",
+    "lead": "Es gibt einige gängige Wege, Daten aus Dokumenten zu holen: einen vorlagenbasierten PDF-Parser, ein allgemeines KI-Extraktionstool oder das Abtippen von Hand. Hier sehen Sie, worin sich jeder davon von ProcuLink unterscheidet und wann einer davon die bessere Wahl ist.",
+    "side": {
+      "title": "Im direkten Vergleich",
+      "lead": "Jede der anderen Spalten beschreibt eine Art von Tool, nicht ein bestimmtes Produkt. Wo sich Tools dieser Art unterscheiden, sagen wir das."
+    },
+    "caption": "ProcuLink im Vergleich mit drei anderen Wegen, Daten aus Dokumenten zu holen",
+    "whatYouGet": "Was Sie bekommen",
+    "tools": {
+      "1": "Vorlagenbasierte PDF-Parser",
+      "2": "Allgemeine KI-Extraktionstools",
+      "3": "Abtippen von Hand"
+    },
+    "varies": "Je nach Tool unterschiedlich.",
+    "rows": {
+      "0": {
+        "name": "Keine Vorlage für jedes Layout nötig",
+        "cells": {
+          "0": "Ja, ein neues Layout braucht keine Einrichtung.",
+          "1": "Nein, meist eine Vorlage pro Layout.",
+          "2": "Meist keine nötig.",
+          "3": "Ja, aber Sie tippen jeden Wert ab."
+        }
+      },
+      "1": {
+        "name": "Das Original neben den erkannten Daten",
+        "cells": {
+          "0": "Ja, nebeneinander auf einem breiten Bildschirm.",
+          "3": "Nur wenn Sie beides offen halten."
+        }
+      },
+      "2": {
+        "name": "Zu prüfende Werte werden markiert und für Sie zurückgehalten",
+        "cells": {
+          "0": "Ja, mit Angabe, wie sicher wir sind. Sie legen fest, was wartet.",
+          "3": "Nein, ein Tippfehler sieht aus wie jeder andere Wert."
+        }
+      },
+      "3": {
+        "name": "Lernt, wo jeder Absender einen Wert platziert",
+        "cells": {
+          "0": "Ja, zeigen Sie einmal auf einen Wert, und wir sehen beim nächsten Mal dort nach.",
+          "1": "Sie bearbeiten die Vorlage.",
+          "3": "Nur, was die Person sich merkt."
+        }
+      },
+      "4": {
+        "name": "Erstellt die Datei, die Ihr System importiert",
+        "cells": {
+          "0": "Ja, mit Ihren Spaltennamen und Ihrem Trennzeichen.",
+          "3": "Sie erstellen sie von Hand."
+        }
+      },
+      "5": {
+        "name": "Ersetzt Codes durch die aus Ihrer eigenen Liste",
+        "cells": {
+          "0": "Ja, mit Zuordnungstabellen, die Sie selbst pflegen.",
+          "3": "Sie schlagen jeden einzeln nach."
+        }
+      },
+      "6": {
+        "name": "Funktioniert aus Ihrem KI-Assistenten",
+        "cells": {
+          "0": "Ja: Claude, ChatGPT, Cursor oder VS Code, in jedem Tarif.",
+          "3": "Nein."
+        }
+      },
+      "7": {
+        "name": "Dokumente kommen per E-Mail, Upload, SFTP, S3 oder API herein",
+        "cells": {
+          "0": "Ja, in jedem Tarif.",
+          "3": "Nein, Sie öffnen jede Datei selbst."
+        }
+      },
+      "8": {
+        "name": "Dateien gehen per E-Mail, SFTP, an eine Webadresse, nach Google Sheets oder als Download hinaus",
+        "cells": {
+          "0": "Ja, in jedem Tarif.",
+          "3": "Nein, Sie geben sie selbst ein."
+        }
+      },
+      "9": {
+        "name": "Dateien und Daten in der EU gespeichert",
+        "cells": {
+          "0": "Ja, wobei manche Verarbeitung namentlich genannte US-Anbieter nutzt.",
+          "3": "Dort, wo Sie sie aufbewahren."
+        }
+      },
+      "10": {
+        "name": "Preis pro Monat, günstigster bezahlter Tarif",
+        "cells": {
+          "0": "Ab {price} im Monat, zuerst {days} Tage kostenlos.",
+          "3": "Kein Abonnement, aber es kostet Arbeitszeit."
+        }
+      }
+    },
+    "better": {
+      "0": {
+        "title": "Sie bauen es in Ihre eigene App ein",
+        "body": "Wenn Sie als Entwickler Rohwerte über eine API in Ihr eigenes Produkt holen möchten, ist ein allgemeines KI-Extraktionstool genau dafür gemacht."
+      },
+      "1": {
+        "title": "Ein festes Layout in sehr großer Zahl",
+        "body": "Wenn jedes Dokument dasselbe Layout hat und sehr viele davon ankommen, kann eine einmal eingerichtete Vorlage der günstigste Weg sein, sie zu lesen."
+      },
+      "2": {
+        "title": "Eine Handvoll Dokumente im Monat",
+        "body": "Wenn jeden Monat nur wenige Dokumente ankommen, ist Abtippen vielleicht schneller, als ein Tool einzurichten."
+      },
+      "title": "Wann ein anderes Tool die bessere Wahl ist"
+    },
+    "links": {
+      "formats": "Alle Formate und Wege",
+      "security": "Wo Ihre Daten liegen",
+      "pricing": "Preise"
+    }
+  },
+  "security": {
+    "title": "Gebaut für Dokumente, bei denen Fehler teuer sind",
+    "lead": "ProcuLink verarbeitet die Dokumente, von denen Ihr Geschäft lebt. Diese Verantwortung und Ihre Daten nehmen wir so ernst, wie sie es verdienen.",
+    "sections": {
+      "posture": "So werden Ihre Dokumente geschützt",
+      "compliance": "Compliance",
+      "subprocessors": "Unterauftrags­verarbeiter"
+    },
+    "posture": {
+      "0": {
+        "title": "Verschlüsselung bei der Übertragung und im Ruhezustand",
+        "lead": "Verbindungen sind standardmäßig verschlüsselt, und die Passwörter, die Sie für die Zustellung speichern, werden verschlüsselt gespeichert.",
+        "body": "Zugangsdaten für die Zustellung werden im Ruhezustand mit authentifizierter AES-256-GCM-Verschlüsselung gespeichert und nie in Anwendungsprotokolle geschrieben. Jeder ausgehende Kanal, der über eine URL eingerichtet wird (Webhook- und HTTP-Zustellung sowie S3-Eingang), muss https:// verwenden; eine einfache http://-Adresse wird beim Speichern abgelehnt. SFTP ist von Grund auf verschlüsselt, und FTPS handelt explizites TLS aus. Zwei Verbindungseinstellungen können das dennoch schwächen, wenn Sie sie einschalten: das Überspringen der FTPS-Zertifikatsprüfung und das Abschalten von SSL für IMAP oder SMTP."
+      },
+      "1": {
+        "title": "Wo Ihre Daten liegen",
+        "lead": "Ihre Dateien werden in Infrastruktur in der EU-Region gespeichert, und ein Teil der Verarbeitung nutzt namentlich genannte US-Anbieter.",
+        "body": "Ihre Dateien, die Datenbank dahinter und die API laufen in Infrastruktur in der EU-Region: Cloudflare R2, Neon und Railway. Ein Teil der Verarbeitung läuft bei namentlich genannten US-Unterauftragsverarbeitern auf Grundlage von Standardvertragsklauseln: Anmeldung, KI-Auslesen von Dokumenten und Zuordnungsvorschläge, Zahlungen sowie E-Mail in beide Richtungen, also die Dokumente, die an die Adresse Ihres Ablaufs gesendet werden, und die Daten, die wir per E-Mail verschicken. Wenn Sie per E-Mail zustellen, läuft die Ausgabe selbst über einen US-Anbieter. Jeder Anbieter ist mit Standort und Vertrag auf <link>der Liste der Unterauftragsverarbeiter</link> aufgeführt. Wo Ihre Daten gespeichert sind und welchen Weg sie nehmen, sind zwei verschiedene Fragen: Den Netzwerkweg zu Ihrem Lieferanten wählt unser Hosting-Anbieter, und wir legen ihn nicht auf eine Region fest. Deshalb können wir Ihnen heute nicht sagen, aus welchem Land eine ausgehende Zustellung abgeht."
+      },
+      "2": {
+        "title": "Was wir bei jeder Zustellung festhalten",
+        "lead": "Jeder Versand wird festgehalten.",
+        "body": "Jedes Auslesen, jede Änderung und jede Zustellung wird festgehalten. Zu jeder Zustellung bleiben der Kanal, die Anzahl der Versuche, der letzte Antwortcode und bei einem Fehler die Fehlermeldung erhalten. Sie können jedes einzelne Dokument öffnen und seinen vollständigen Verlauf lesen."
+      },
+      "3": {
+        "title": "Prüfung vor der Zustellung",
+        "lead": "Jedes Dokument wird geprüft, bevor es hinausgeht.",
+        "body": "Eingebaute Prüfungen laufen in jedem Tarif und lassen sich nicht abschalten: Wir markieren einen Wert, der fehlt, das falsche Format hat oder schwer lesbar ist, und wir halten ein Dokument zurück, das wir schon gesehen haben, statt es zweimal zu senden."
+      },
+      "4": {
+        "title": "Zugriffskontrolle",
+        "lead": "Die Daten Ihres Arbeitsbereichs bleiben von jedem anderen Arbeitsbereich getrennt.",
+        "body": "Datentrennung pro Organisation bei jeder Abfrage, eingeschränkte API-Schlüssel, die Sie sofort widerrufen können, und standardmäßig kurzlebige Sitzungen."
+      },
+      "5": {
+        "title": "Verantwortungsvolle KI",
+        "lead": "KI-Vorschläge werden nie von selbst übernommen.",
+        "body": "Vorschläge werden nie von selbst übernommen: Sie bestätigen jeden einzelnen, und bei jedem Wert sehen Sie, wie sicher wir uns sind. Unser KI-Anbieter trainiert keine Modelle mit Ihren Daten. Ein KI-Assistent, den Sie selbst verbinden, arbeitet unter Ihrer eigenen Vereinbarung mit dessen Anbieter. Wir können KI für einen Arbeitsbereich auch ganz abschalten, sodass nichts über seine Dokumente OpenAI erreicht. Dokumente dort können nicht ausgelesen werden, weil das Auslesen KI nutzt: Sie werden angehalten, als nicht ausgelesen markiert und nie versendet. Wir stellen das auf Anfrage für Sie ein; es ist keine Einstellung zum Selbermachen, und es ändert nichts daran, wo Ihre Dateien gespeichert sind."
+      }
+    },
+    "compliance": {
+      "0": "AVV veröffentlicht · Standardvertragsklauseln für Übermittlungen außerhalb des EWR",
+      "1": "Vorbereitung steht auf unserer Roadmap",
+      "2": "Steht auf unserer Roadmap"
+    },
+    "readDpa": "Den Auftragsverarbeitungsvertrag lesen",
+    "th": {
+      "company": "Unternehmen",
+      "purpose": "Was es für uns tut",
+      "where": "Wo"
+    },
+    "fullList": "Vollständige Liste mit Standorten, Verträgen und Änderungsmitteilungen",
+    "packageTitle": "Brauchen Sie unser Sicherheitspaket?",
+    "packageLead": "Unseren AVV, eine Sicherheitsübersicht und unsere Architekturdokumentation teilen wir unter NDA.",
+    "report": "Ein Sicherheitsproblem gefunden? Schreiben Sie an <mail>security@proculink.eu</mail>.",
+    "requestDocs": "Sicherheitsunterlagen anfordern",
+    "startFree": "Kostenlos starten"
+  },
+  "support": {
+    "title": "Support",
+    "lead": "Brauchen Sie Hilfe mit ProcuLink? So erreichen Sie uns und finden Antworten.",
+    "emailTitle": "Support per E-Mail",
+    "hours": "Montag bis Freitag, 9 bis 18 Uhr EET. Wir antworten in der Regel innerhalb eines Werktags.",
+    "reportTitle": "Ein Problem melden",
+    "reportLead": "Wenn etwas nicht funktioniert, nennen Sie uns:",
+    "report": [
+      "Was Sie tun wollten",
+      "Was stattdessen passiert ist",
+      "Um welches Dokument oder welchen Ablauf es ging",
+      "Ihren Browser und Ihr Gerät",
+      "Jede Meldung, die Sie auf dem Bildschirm gesehen haben"
+    ],
+    "questionsTitle": "Häufige Fragen",
+    "questions": {
+      "0": {
+        "title": "Abrechnung und Tarife",
+        "detail": "Was jeder Tarif enthält und was als Dokument zählt"
+      },
+      "1": {
+        "title": "Daten und Datenschutz",
+        "detail": "Was wir erfassen und wie lange wir es aufbewahren"
+      },
+      "2": {
+        "title": "Sicherheit",
+        "detail": "Verschlüsselung, Dokumentspeicherung in der EU-Region und wie KI genutzt wird"
+      },
+      "3": {
+        "title": "Bedingungen und Rechtliches",
+        "detail": "Bedingungen, zulässige Nutzung und der Auftragsverarbeitungsvertrag"
+      }
+    },
+    "selfTitle": "Selbst nachschlagen",
+    "selfLead": "Die meisten Fragen zu Dokumenten, Abläufen und Zielorten beantwortet das Hilfe-Center.",
+    "searchHelp": "Im Hilfe-Center suchen",
+    "followGuide": "Einer Schritt-für-Schritt-Anleitung folgen",
+    "securityTitle": "Sicherheitsprobleme",
+    "securityLead": "Ein Sicherheitsproblem gefunden? Schreiben Sie an <mail>security@proculink.eu</mail>.",
+    "securityLink": "So schützen wir Ihre Dokumente",
+    "enterpriseTitle": "Enterprise und Partnerschaften",
+    "enterpriseLead": "Für größere Mengen, eine individuelle Vereinbarung oder eine Zusammenarbeit schreiben Sie an <mail>hello@proculink.eu</mail>.",
+    "bookCall": "Oder buchen Sie ein 20-minütiges Gespräch",
+    "form": {
+      "needMessage": "Schreiben Sie Ihre Nachricht",
+      "needEmail": "Geben Sie Ihre E-Mail-Adresse ein",
+      "thanks": "Danke. Wir antworten innerhalb eines Werktags.",
+      "notSent": "Ihre Nachricht konnte nicht automatisch gesendet werden. Bitte schreiben Sie uns direkt an {email}, wir antworten innerhalb eines Werktags.",
+      "aria": "Support kontaktieren",
+      "title": "Schreiben Sie uns",
+      "needed": "Ihre Nachricht und Ihre E-Mail-Adresse sind erforderlich.",
+      "category": "Worum geht es?",
+      "categories": {
+        "general": "Allgemeine Frage",
+        "bug": "Etwas funktioniert nicht",
+        "billing": "Abrechnung",
+        "security": "Sicherheit"
+      },
+      "subject": "Betreff",
+      "optional": "(optional)",
+      "message": "Nachricht",
+      "messageHint": "Je genauer Sie es beschreiben, desto schneller können wir helfen.",
+      "email": "Ihre E-Mail-Adresse",
+      "emailHint": "Wir nutzen sie nur, um auf Ihre Anfrage zu antworten.",
+      "sending": "Wird gesendet…",
+      "send": "Nachricht senden"
+    }
+  },
+  "bookDemo": {
+    "title": "Zeigen Sie uns eines Ihrer Dokumente",
+    "lead": "Ein 20-minütiges Gespräch über ein Dokument, das Sie von Hand bearbeiten: eine Bestellung, eine Rechnung, eine Preisliste. Erzählen Sie uns kurz, mit welchen Dokumenten Sie heute arbeiten, und wir melden uns innerhalb eines Werktags, um einen Termin zu finden.",
+    "coverTitle": "Worüber wir sprechen",
+    "cover": {
+      "0": {
+        "title": "Eines Ihrer Dokumente",
+        "detail": "Bringen Sie eine PDF-, Excel- oder CSV-Datei mit, die Sie von Hand bearbeiten, oder eine Test- oder anonymisierte Datei. Wir können sie während des Gesprächs durch ProcuLink laufen lassen."
+      },
+      "1": {
+        "title": "Ob es passt",
+        "detail": "Wenn ein Dokument, das Sie immer wieder bearbeiten, ein guter Testfall ist, besprechen wir, wie ProcuLink damit umgehen würde. In keinem Fall eine Verpflichtung."
+      }
+    },
+    "already": "Sie wissen schon, dass Sie es testen wollen?",
+    "start": "Kostenlos testen",
+    "trial": "{days} Tage kostenlos, {docs} Dokumente, keine Kreditkarte.",
+    "form": {
+      "optional": "(optional)",
+      "needName": "Geben Sie Ihren Namen ein",
+      "needEmail": "Geben Sie Ihre geschäftliche E-Mail-Adresse ein",
+      "needCompany": "Geben Sie Ihr Unternehmen ein",
+      "thanks": "Danke. Wir melden uns innerhalb eines Werktags, um einen Termin zu vereinbaren.",
+      "notSent": "Ihre Anfrage konnte nicht automatisch gesendet werden. Bitte schreiben Sie uns direkt an {email}, wir antworten innerhalb eines Werktags.",
+      "sentAria": "Gesprächsanfrage gesendet",
+      "received": "Anfrage erhalten.",
+      "addMore": "Möchten Sie in der Zwischenzeit noch etwas ergänzen? Schreiben Sie an <mail>hello@proculink.eu</mail>.",
+      "aria": "Ein 20-minütiges Gespräch anfragen",
+      "title": "Gespräch anfragen",
+      "needed": "Name, geschäftliche E-Mail-Adresse und Unternehmen sind erforderlich.",
+      "name": "Name",
+      "email": "Geschäftliche E-Mail-Adresse",
+      "emailHint": "Wir nutzen sie nur, um zu antworten und das Gespräch zu planen.",
+      "company": "Unternehmen",
+      "formats": "In welchem Format liegen Ihre Dokumente vor?",
+      "formatsHint": "Zum Beispiel: PDF-Rechnungen, Excel-Preislisten, Scans.",
+      "times": "Bevorzugte Zeiten",
+      "timesHint": "Zum Beispiel: Dienstag- oder Donnerstagnachmittag, EET.",
+      "message": "Sonst noch etwas?",
+      "sending": "Wird gesendet…",
+      "reply": "Wir antworten innerhalb eines Werktags."
+    }
+  },
+  "notFound": {
+    "title": "Diese Seite hat sich verlaufen.",
+    "lead": "Die gesuchte Seite gibt es nicht oder sie ist umgezogen. Wir bringen Sie zurück auf den richtigen Weg.",
+    "home": "Zur Startseite",
+    "help": "Zum Hilfe-Center",
+    "code": "Fehler 404"
+  },
+  "pictures": {
+    "look": "Bitte prüfen. Wir sind uns zu 72 % sicher.",
+    "accounting": "Buchhaltungsserver",
+    "sent": "Gesendet",
+    "ready": "Bereit zum Senden",
+    "total": "Gesamt",
+    "invoiceNumber": "Rechnungsnummer",
+    "supplier": "Lieferant",
+    "example": {
+      "label": "Ein Beispiel: Eine Rechnung kommt als PDF an, ProcuLink liest ihre Werte, und eine CSV-Datei wird an einen Buchhaltungsserver und ein Google Sheet gesendet.",
+      "arrived": "Was ankam",
+      "read": "Was wir gelesen haben",
+      "send": "Was wir senden",
+      "values": {
+        "0": "Rechnungsnummer",
+        "1": "Datum",
+        "2": "Lieferant",
+        "3": "Gesamt",
+        "4": "Positionen"
+      },
+      "lines": "3 Zeilen, 5 Spalten",
+      "marked": "Was fehlt oder schwer lesbar ist, wird markiert, damit Sie wissen, wo Sie hinschauen müssen.",
+      "expects": "Die Datei, die Ihr System erwartet, gesendet dorthin, wo sie hin muss."
+    },
+    "second": {
+      "label": "Drei Dokumente vom selben Absender. Beim ersten waren zwei Werte zu prüfen. Bei den beiden nächsten gab es nichts zu prüfen.",
+      "docs": {
+        "0": "Erstes Dokument von diesem Absender. Sie haben einen Wert korrigiert und auf einen anderen auf der Seite gezeigt.",
+        "1": "Derselbe Absender, eine Woche später.",
+        "2": "Und das nächste."
+      },
+      "toCheck": "2 Werte zu prüfen",
+      "streak": "Die letzten 8 Dokumente wurden ohne Korrektur gesendet."
+    },
+    "review": {
+      "label": "Die Prüfansicht: links das Originaldokument, rechts die daraus gelesenen Werte, ein Wert zum Prüfen markiert, und eine Schaltfläche zum Senden.",
+      "teachLabel": "Die Prüfansicht. Um den Gesamtbetrag im Original ist ein Rahmen gezogen, und ein Hinweis sagt, dass wir beim nächsten Mal dort nachsehen.",
+      "toCheck": "1 Wert zu prüfen",
+      "point": "Darauf zeigen",
+      "saved": "Gespeichert. Wenn das nächste Dokument von {supplier} kommt, suchen wir den Wert Gesamt dort.",
+      "to": "Rechnungs-CSV an Buchhaltungsserver",
+      "send": "Senden"
+    }
+  },
+  "helpChrome": {
+    "helpCentre": "Hilfe-Center",
+    "minuteRead": "{n} Minuten Lesezeit",
+    "tocFolded": "In diesem Artikel · {n} Abschnitte",
+    "toc": "In diesem Artikel",
+    "keepReading": "Weiterlesen",
+    "previous": "Zurück",
+    "next": "Weiter",
+    "notFound": "Nicht gefunden, was Sie suchen?",
+    "emailUs": "Schreiben Sie an <mail>support@proculink.eu</mail> und sagen Sie uns, was Sie tun wollten.",
+    "contact": "Support kontaktieren",
+    "guides": "Schritt-für-Schritt-Anleitungen",
+    "aboutMinutes": "Etwa {n} Minuten",
+    "helpful": "War dieser Artikel hilfreich?",
+    "yes": "Ja",
+    "no": "Nein",
+    "thanks": "Danke für Ihre Rückmeldung.",
+    "thanksNo": "Danke. Wir arbeiten daran, das klarer zu machen.",
+    "allGuides": "Alle Schritt-für-Schritt-Anleitungen",
+    "reference": "Artikel zum Nachlesen",
+    "moreDetail": "Mehr Details finden Sie hier:",
+    "stuck": "Bei einem Schritt hängen geblieben?",
+    "emailStep": "Schreiben Sie an <mail>support@proculink.eu</mail> und sagen Sie uns, bei welchem Schritt und was Sie gesehen haben.",
+    "guideSteps": "Schritte der Anleitung",
+    "steps": "Schritte",
+    "guideHelped": "Hat Ihnen diese Anleitung geholfen?",
+    "notQuite": "Nicht ganz",
+    "guideThanks": "Gut, danke für Ihre Rückmeldung.",
+    "guideThanksNo": "Danke. Sagen Sie dem Support, bei welchem Schritt Sie nicht weiterkamen, dann verbessern wir die Anleitung."
   }
 }

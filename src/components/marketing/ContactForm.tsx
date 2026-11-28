@@ -7,6 +7,7 @@ import { friendlySubmitError } from "@/lib/friendly-submit-error";
 import { captureException } from "@/lib/sentry-context";
 import { PROBLEM_COPY, isProblemStatus } from "@/components/bridge/problem/problemCopy";
 import { SITE } from "@/components/marketing/sitePictures";
+import { useCopy } from "@/i18n/useCopy";
 
 type Category = "general" | "bug" | "billing" | "security";
 
@@ -84,6 +85,7 @@ export function fieldError(id: string, errors: Record<string, string>, hint?: st
 
 /** The form, opened on `initialSubject`. Paints the same frame before and after the address is read. */
 export function ContactForm({ initialSubject }: { initialSubject: string }) {
+  const { c } = useCopy("support");
   const pathname = usePathname() ?? "(unknown)";
   const [category, setCategory] = useState<Category>("general");
   // Seeded from the URL, then owned by the field: a prefilled input the user can
@@ -101,8 +103,8 @@ export function ContactForm({ initialSubject }: { initialSubject: string }) {
     // A second press while one request is out sends nothing.
     if (state.status === "submitting") return;
     const missing = checkNeeded([
-      { id: "contact-message", value: message, message: "Write your message" },
-      { id: "contact-email", value: email, message: "Enter your email", email: true },
+      { id: "contact-message", value: message, message: c("form.needMessage", "Write your message") },
+      { id: "contact-email", value: email, message: c("form.needEmail", "Enter your email"), email: true },
     ]);
     setErrors(missing);
     if (Object.keys(missing).length) return;
@@ -116,7 +118,7 @@ export function ContactForm({ initialSubject }: { initialSubject: string }) {
         route: pathname,
       });
       if (result.delivered) {
-        setState({ status: "success", message: "Thanks — we'll reply within one business day." });
+        setState({ status: "success", message: c("form.thanks", "Thanks — we'll reply within one business day.") });
         setSubject("");
         setMessage("");
       } else {
@@ -124,7 +126,11 @@ export function ContactForm({ initialSubject }: { initialSubject: string }) {
         // (e.g. SMTP not configured) — don't pretend it reached us.
         setState({
           status: "error",
-          message: `Your message couldn't be sent automatically. Please email us directly at ${result.contactEmail} and we'll reply within one business day.`,
+          message: c(
+            "form.notSent",
+            `Your message couldn't be sent automatically. Please email us directly at ${result.contactEmail} and we'll reply within one business day.`,
+            { email: result.contactEmail },
+          ),
         });
       }
     } catch (err) {
@@ -142,27 +148,27 @@ export function ContactForm({ initialSubject }: { initialSubject: string }) {
   const emailErr = fieldError("contact-email", errors, "contact-email-hint");
 
   return (
-    <form onSubmit={onSubmit} noValidate aria-label="Contact support" className="flex flex-col gap-[22px]">
-      <h2 className="font-display text-[30px] font-semibold leading-[1.1] tracking-[-0.02em]">Write to us</h2>
-      <p className={FORM.hint}>Your message and email are needed.</p>
+    <form onSubmit={onSubmit} noValidate aria-label={c("form.aria", "Contact support")} className="flex flex-col gap-[22px]">
+      <h2 className="font-display text-[30px] font-semibold leading-[1.1] tracking-[-0.02em]">{c("form.title", "Write to us")}</h2>
+      <p className={FORM.hint}>{c("form.needed", "Your message and email are needed.")}</p>
 
       <div className={FORM.row}>
-        <label htmlFor="contact-category" className={FORM.label}>What is it about?</label>
+        <label htmlFor="contact-category" className={FORM.label}>{c("form.category", "What is it about?")}</label>
         <select
           id="contact-category"
           value={category}
           onChange={(e) => setCategory(e.target.value as Category)}
           className={FORM.field}
         >
-          {CATEGORIES.map((c) => (
-            <option key={c.value} value={c.value}>{c.label}</option>
+          {CATEGORIES.map((o) => (
+            <option key={o.value} value={o.value}>{c(`form.categories.${o.value}`, o.label)}</option>
           ))}
         </select>
       </div>
 
       <div className={FORM.row}>
         <label htmlFor="contact-subject" className={FORM.label}>
-          Subject <span className={FORM.opt}>(optional)</span>
+          {c("form.subject", "Subject")} <span className={FORM.opt}>{c("form.optional", "(optional)")}</span>
         </label>
         <input
           id="contact-subject"
@@ -175,7 +181,7 @@ export function ContactForm({ initialSubject }: { initialSubject: string }) {
       </div>
 
       <div className={FORM.row}>
-        <label htmlFor="contact-message" className={FORM.label}>Message</label>
+        <label htmlFor="contact-message" className={FORM.label}>{c("form.message", "Message")}</label>
         <textarea
           id="contact-message"
           value={message}
@@ -186,11 +192,11 @@ export function ContactForm({ initialSubject }: { initialSubject: string }) {
           {...messageErr.props}
         />
         {messageErr.node}
-        <p id="contact-message-hint" className={FORM.hint}>The more detail you give, the faster we can help.</p>
+        <p id="contact-message-hint" className={FORM.hint}>{c("form.messageHint", "The more detail you give, the faster we can help.")}</p>
       </div>
 
       <div className={FORM.row}>
-        <label htmlFor="contact-email" className={FORM.label}>Your email</label>
+        <label htmlFor="contact-email" className={FORM.label}>{c("form.email", "Your email")}</label>
         <input
           id="contact-email"
           type="email"
@@ -202,12 +208,12 @@ export function ContactForm({ initialSubject }: { initialSubject: string }) {
           {...emailErr.props}
         />
         {emailErr.node}
-        <p id="contact-email-hint" className={FORM.hint}>We use this only to reply to your request.</p>
+        <p id="contact-email-hint" className={FORM.hint}>{c("form.emailHint", "We use this only to reply to your request.")}</p>
       </div>
 
       <div className="flex flex-col items-stretch gap-3 sm:items-start">
         <button type="submit" disabled={state.status === "submitting"} className={SITE.cta}>
-          {state.status === "submitting" ? "Sending…" : "Send message"}
+          {state.status === "submitting" ? c("form.sending", "Sending…") : c("form.send", "Send message")}
         </button>
         {state.status === "success" && <p role="status" className={FORM.ok}>{state.message}</p>}
         {state.status === "error" && <p role="alert" className={FORM.bad}>{state.message}</p>}

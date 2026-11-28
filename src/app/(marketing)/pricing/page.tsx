@@ -5,7 +5,7 @@ import { Card } from "@/components/bridge/layout/Card";
 import { PriceHelper } from "@/components/marketing/PriceHelper";
 import { ClosingCta, FLOW_SENTENCE, SITE, Ticks } from "@/components/marketing/sitePictures";
 import { euro } from "@/lib/billingWords";
-import { EARLY_ACCESS } from "@/lib/marketing/earlyAccess";
+import { earlyAccessIn } from "@/lib/marketing/earlyAccess";
 import { euroIn, useCopy } from "@/i18n/useCopy";
 import {
   DOCUMENT_PLAN_FEATURES,
@@ -101,6 +101,7 @@ const ROW = "flex flex-col gap-3.5 border-t border-border py-6 min-[1100px]:grid
 export default function PricingPage() {
   // English is written in this file; other languages come from messages/<locale>.json under "pricing".
   const { locale, c, rich } = useCopy("pricing");
+  const early = earlyAccessIn(locale);
   const link = (href: string) => (chunks: ReactNode) => <Link href={href} className={LINK}>{chunks}</Link>;
   const faq = FAQ.map(([q, a], i): [string, ReactNode] => [
     c(`faq.${i}.q`, q),
@@ -159,8 +160,8 @@ export default function PricingPage() {
               <div className="flex flex-col gap-3 min-[1100px]:pl-5">
                 <Ticks items={DOCUMENT_PLAN_FEATURES.map((x, i) => c(`features.${i}`, x))} />
                 <p data-early-access="" className={SITE.soft}>
-                  {EARLY_ACCESS.pricingLine}{" "}
-                  <a href={EARLY_ACCESS.cta.href} className={LINK}>{EARLY_ACCESS.cta.label}</a>
+                  {early.pricingLine}{" "}
+                  <a href={early.cta.href} className={LINK}>{early.cta.label}</a>
                 </p>
               </div>
             </div>
