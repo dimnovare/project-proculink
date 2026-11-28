@@ -94,12 +94,13 @@ function field(payload: unknown, key: string): string | undefined {
 
 /** A server field key in words: `invoice_number` → "invoice number". */
 const words = (s: string) => s.replaceAll("_", " ");
-/** The server's edit target in words: `field:invoice_number` → "invoice number", `cell:lines[2].unit_price` → "unit price, line 3"; anything else is left out. */
-function targetLabel(target: string): string | undefined {
+/** The server's edit target in words: `field:invoice_number` → "invoice number", `cell:lines[2].unit_price` → "unit price, line 3"; anything else is left out.
+ *  The value's own name, when the row carries it, reads in place of the key's words (older rows have none). */
+function targetLabel(target: string, label?: string): string | undefined {
   const f = /^field:(.+)$/.exec(target);
-  if (f) return words(f[1]);
+  if (f) return label ?? words(f[1]);
   const c = /^cell:[^[\]]+\[(\d+)\]\.(.+)$/.exec(target);
-  return c ? `${words(c[2])}, line ${Number(c[1]) + 1}` : undefined;
+  return c ? `${label ?? words(c[2])}, line ${Number(c[1]) + 1}` : undefined;
 }
 
 const RECEIVED = new Map([
@@ -185,7 +186,7 @@ export function activityView(e: ActivityEvent, ctx: { who: string; destinationNa
       const line = target.startsWith("row:") ? (p("new") === "row" ? " was added" : p("old") === "row" ? " was removed" : null) : null;
       sentence = fileSentence(line ? "A line on " : "A value on ", line ?? " was changed");
       tag = { label: "Change", tone: "neutral" };
-      const value = targetLabel(target);
+      const value = targetLabel(target, p("label"));
       if (value) {
         fact("Value", value);
         fact("Was", p("old"));
@@ -197,7 +198,7 @@ export function activityView(e: ActivityEvent, ctx: { who: string; destinationNa
       sentence = fileSentence("A value on ", " was taught");
       tag = { label: "Change", tone: "neutral" };
       const key = p("key");
-      fact("Value", key && words(key));
+      fact("Value", p("label") ?? (key && words(key)));
       break;
     }
     case "document.sent":
