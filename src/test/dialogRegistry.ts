@@ -79,7 +79,7 @@ export const DIALOG_REGISTRY: DialogEntry[] = [
     hadEscapeBefore: true,
   },
   {
-    file: "src/app/(app)/layout.tsx",
+    file: "src/app/(app)/AppShell.tsx",
     name: "mobile nav drawer",
     dialogs: 1,
     kind: "modal",

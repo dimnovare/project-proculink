@@ -25,43 +25,12 @@ import { useEffect, useRef, useState } from "react";
 import { useClerk, useOrganization, useOrganizationList } from "@clerk/nextjs";
 import { Check, ChevronDown, Plus } from "lucide-react";
 import { useCopy } from "@/i18n/useCopy";
+import { useMenuDismiss } from "@/hooks/useMenuDismiss";
+import { rememberWorkspaceName } from "@/hooks/useWorkspaceName";
 
 /** Initials for an identity tile — first letters of up to two words. */
 export function orgInitials(name: string): string {
   return (name.match(/\b\p{L}/gu) ?? []).slice(0, 2).join("").toUpperCase() || "PL";
-}
-
-/**
- * Shared dismiss behavior for the sidebar's anchored menus: click outside
- * (excluding the trigger) and Escape both close; Escape returns focus to the
- * trigger. Exported for UserChipMenu so the two menus behave identically.
- */
-export function useMenuDismiss(
-  open: boolean,
-  close: () => void,
-  triggerRef: React.RefObject<HTMLElement | null>,
-  menuRef: React.RefObject<HTMLElement | null>,
-) {
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (menuRef.current?.contains(t) || triggerRef.current?.contains(t)) return;
-      close();
-    };
-    const onEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        close();
-        triggerRef.current?.focus();
-      }
-    };
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onEsc);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onEsc);
-    };
-  }, [open, close, triggerRef, menuRef]);
 }
 
 // Dropdown surface tokens (white card per the v2 handoff): radius 10,
@@ -117,11 +86,12 @@ export function OrgSwitcher({ collapsed = false, compact = false, orgName, planL
   useEffect(() => {
     const id = activeOrg?.id ?? null;
     if (prevOrgId.current && id && prevOrgId.current !== id) {
+      rememberWorkspaceName(activeOrg?.name ?? null); // the reload shows the new name, never the old one
       window.location.assign("/documents");
       return; // page is unloading — keep prev id so a re-render can't re-fire
     }
     prevOrgId.current = id;
-  }, [activeOrg?.id]);
+  }, [activeOrg?.id, activeOrg?.name]);
 
   // If the membership list is paginated, pull the rest once the menu opens so
   // the WORKSPACES list is complete (typical users have 1–2 orgs; this no-ops).

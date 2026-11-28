@@ -61,7 +61,7 @@ vi.mock("@/components/onboarding/WorkspaceNameNudge", () => ({
   WorkspaceNameNudge: () => null,
 }));
 
-import AppShellLayout from "./layout";
+import AppShellLayout from "./AppShell";
 import { CLERK_LOAD_DEADLINE_MS } from "@/components/bridge/ClerkAvailabilityGate";
 
 const PAGE_CONTENT = "the page a route rendered";

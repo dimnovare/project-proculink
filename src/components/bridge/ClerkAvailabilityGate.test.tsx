@@ -15,7 +15,7 @@
 //   1. blocked  → an explanatory card inside the deadline, with a working retry
 //   2. healthy  → never the card, whether signed in OR signed out
 //   3. mock / QA-bypass → never the card, ever. Those builds hand ClerkProvider
-//      an EMPTY publishable key on purpose (src/app/layout.tsx:88,
+//      an EMPTY publishable key on purpose (src/components/auth/AppClerkProvider.tsx,
 //      playwright.config.ts:78) so Clerk stays dormant and `isLoaded` is
 //      legitimately false forever. Arming a timer on `!isLoaded` alone would
 //      put this card in front of the entire e2e suite.

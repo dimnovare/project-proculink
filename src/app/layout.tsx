@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { ClerkProvider } from "@clerk/nextjs";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { AnalyticsBoot } from "@/components/analytics/AnalyticsBoot";
@@ -65,26 +64,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // The browser gets only what client components read; the server-rendered page copy stays on the server.
   const { home: _h, pricing: _p, howItWorks: _hw, useCases: _u, formats: _f, compare: _c, security: _s, notFound: _n, pictures: _pi, ...clientMessages } =
     await getMessages();
-  const rawPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-  const isMockMode = process.env.NEXT_PUBLIC_USE_MOCK === "true";
   const isQaBypass = process.env.NEXT_PUBLIC_QA_BYPASS_AUTH === "true";
-
-  // ClerkProvider is ALWAYS mounted so every Clerk hook (useUser / useAuth /
-  // useOrganization) has a provider in the tree — including during the production
-  // build's static prerender, where a missing provider throws
-  // "useX can only be used within <ClerkProvider>" and fails `next build`.
-  //
-  // In mock / QA-bypass mode we feed it an EMPTY publishable key so it renders
-  // children in a degraded no-session state (hooks return safe defaults).
-  //
-  // CRITICAL: an empty key alone is NOT enough. In `next dev` (development),
-  // @clerk/nextjs's KEYLESS mode auto-provisions a throwaway Clerk app and
-  // redirects to its "claim your application" page on any navigation to a
-  // protected route — which hijacks router.push and breaks every e2e nav test.
-  // Keyless is disabled via NEXT_PUBLIC_CLERK_KEYLESS_DISABLED=true (set in
-  // playwright.config.ts webServer.env and the CI workflow env). With keyless
-  // off + an empty key, Clerk stays fully dormant: no hosted JS, no router patch.
-  const publishableKey = (isMockMode || isQaBypass) ? "" : rawPublishableKey;
 
   return (
     <html lang={locale}>
@@ -116,10 +96,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <NextIntlClientProvider messages={clientMessages}>
-          <ClerkProvider publishableKey={publishableKey}>
-            {children}
-            <AnalyticsBoot />
-          </ClerkProvider>
+          {/* No ClerkProvider here: the public pages load no sign-in code. The layouts that need it mount
+              AppClerkProvider (src/components/auth/AppClerkProvider.tsx). */}
+          {children}
+          <AnalyticsBoot />
           <CookieConsentBanner />
           <PwaBoot />
         </NextIntlClientProvider>

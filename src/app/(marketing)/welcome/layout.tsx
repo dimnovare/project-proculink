@@ -1,3 +1,4 @@
+import { AppClerkProvider } from "@/components/auth/AppClerkProvider";
 import { pageMetadata } from "@/lib/seo";
 
 // /welcome is a post-signup onboarding landing (reads the signed-in user + an
@@ -13,5 +14,5 @@ export const metadata = pageMetadata({
 });
 
 export default function WelcomeLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return <AppClerkProvider>{children}</AppClerkProvider>;
 }
