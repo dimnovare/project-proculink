@@ -8,6 +8,7 @@ import { captureException } from "@/lib/sentry-context";
 import { Card } from "@/components/bridge/layout/Card";
 import { FORM, checkNeeded, fieldError } from "@/components/marketing/ContactForm";
 import { SITE } from "@/components/marketing/sitePictures";
+import { useCopy } from "@/i18n/useCopy";
 
 // Same visual grammar as ContactForm (FORM), so the two marketing forms stay in lockstep.
 
@@ -24,11 +25,12 @@ function Field({
   hint?: string;
   children: React.ReactNode;
 }) {
+  const { c } = useCopy("bookDemo");
   return (
     <div className={FORM.row}>
       <label htmlFor={id} className={FORM.label}>
         {label}
-        {optional && <> <span className={FORM.opt}>(optional)</span></>}
+        {optional && <> <span className={FORM.opt}>{c("form.optional", "(optional)")}</span></>}
       </label>
       {children}
       {hint && <p id={`${id}-hint`} className={FORM.hint}>{hint}</p>}
@@ -37,6 +39,7 @@ function Field({
 }
 
 export function BookDemoForm() {
+  const { c, rich } = useCopy("bookDemo");
   const [name, setName]         = useState("");
   const [email, setEmail]       = useState("");
   const [company, setCompany]   = useState("");
@@ -52,9 +55,9 @@ export function BookDemoForm() {
     // A second press while one request is out sends nothing.
     if (state.status === "submitting") return;
     const missing = checkNeeded([
-      { id: "demo-name", value: name, message: "Enter your name" },
-      { id: "demo-email", value: email, message: "Enter your work email", email: true },
-      { id: "demo-company", value: company, message: "Enter your company" },
+      { id: "demo-name", value: name, message: c("form.needName", "Enter your name") },
+      { id: "demo-email", value: email, message: c("form.needEmail", "Enter your work email"), email: true },
+      { id: "demo-company", value: company, message: c("form.needCompany", "Enter your company") },
     ]);
     setErrors(missing);
     if (Object.keys(missing).length) return;
@@ -80,13 +83,17 @@ export function BookDemoForm() {
       });
       if (result.delivered) {
         capture("demo_request_submitted", { from_route: "/book-demo" });
-        setState({ status: "success", message: "Thanks — we'll reply within 1 business day to schedule." });
+        setState({ status: "success", message: c("form.thanks", "Thanks — we'll reply within 1 business day to schedule.") });
       } else {
         // The endpoint accepted the request but no email was actually sent
         // (e.g. sender not configured) — don't pretend it reached us.
         setState({
           status: "error",
-          message: `Your request couldn't be sent automatically. Please email us directly at ${result.contactEmail} and we'll reply within 1 business day.`,
+          message: c(
+            "form.notSent",
+            `Your request couldn't be sent automatically. Please email us directly at ${result.contactEmail} and we'll reply within 1 business day.`,
+            { email: result.contactEmail },
+          ),
         });
       }
     } catch (err) {
@@ -110,13 +117,19 @@ export function BookDemoForm() {
 
   if (state.status === "success") {
     return (
-      <Card aria-label="Call request sent">
+      <Card aria-label={c("form.sentAria", "Call request sent")}>
         <div ref={successRef} tabIndex={-1} role="status" className={`${FORM.ok} outline-none`}>
-          <strong>Request received.</strong> {state.message}
+          <strong>{c("form.received", "Request received.")}</strong> {state.message}
         </div>
         <p className={`${FORM.hint} mt-3`}>
-          Want to add anything in the meantime? Email{" "}
-          <a href="mailto:hello@proculink.eu" className="text-brand-blue-deep underline">hello@proculink.eu</a>.
+          {rich(
+            "form.addMore",
+            <>
+              Want to add anything in the meantime? Email{" "}
+              <a href="mailto:hello@proculink.eu" className="text-brand-blue-deep underline">hello@proculink.eu</a>.
+            </>,
+            { mail: (chunks) => <a href="mailto:hello@proculink.eu" className="text-brand-blue-deep underline">{chunks}</a> },
+          )}
         </p>
       </Card>
     );
@@ -130,11 +143,11 @@ export function BookDemoForm() {
     // /book-demo is framed as a 20-minute call about one of the visitor's documents,
     // not a generic demo — the form's own labels say the same thing as the page around it.
     <Card>
-      <form onSubmit={onSubmit} noValidate aria-label="Request a 20-minute call" className="flex flex-col gap-5">
-        <h2 className="font-display text-[26px] font-semibold leading-[1.2] tracking-[-0.015em]">Request a call</h2>
-        <p className={FORM.hint}>Name, work email and company are needed.</p>
+      <form onSubmit={onSubmit} noValidate aria-label={c("form.aria", "Request a 20-minute call")} className="flex flex-col gap-5">
+        <h2 className="font-display text-[26px] font-semibold leading-[1.2] tracking-[-0.015em]">{c("form.title", "Request a call")}</h2>
+        <p className={FORM.hint}>{c("form.needed", "Name, work email and company are needed.")}</p>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(200px,100%),1fr))] gap-x-4 gap-y-5">
-          <Field id="demo-name" label="Name">
+          <Field id="demo-name" label={c("form.name", "Name")}>
             <input
               id="demo-name"
               type="text"
@@ -148,7 +161,7 @@ export function BookDemoForm() {
             />
             {nameErr.node}
           </Field>
-          <Field id="demo-email" label="Work email" hint="We use this only to reply and schedule the call.">
+          <Field id="demo-email" label={c("form.email", "Work email")} hint={c("form.emailHint", "We use this only to reply and schedule the call.")}>
             <input
               id="demo-email"
               type="email"
@@ -164,7 +177,7 @@ export function BookDemoForm() {
           </Field>
         </div>
 
-        <Field id="demo-company" label="Company">
+        <Field id="demo-company" label={c("form.company", "Company")}>
           <input
             id="demo-company"
             type="text"
@@ -181,9 +194,9 @@ export function BookDemoForm() {
 
         <Field
           id="demo-formats"
-          label="What format are your documents in?"
+          label={c("form.formats", "What format are your documents in?")}
           optional
-          hint="For example: PDF invoices, Excel price lists, scans."
+          hint={c("form.formatsHint", "For example: PDF invoices, Excel price lists, scans.")}
         >
           <input
             id="demo-formats"
@@ -196,7 +209,7 @@ export function BookDemoForm() {
           />
         </Field>
 
-        <Field id="demo-times" label="Preferred times" optional hint="For example: Tuesday or Thursday afternoon, EET.">
+        <Field id="demo-times" label={c("form.times", "Preferred times")} optional hint={c("form.timesHint", "For example: Tuesday or Thursday afternoon, EET.")}>
           <input
             id="demo-times"
             type="text"
@@ -208,7 +221,7 @@ export function BookDemoForm() {
           />
         </Field>
 
-        <Field id="demo-message" label="Anything else?" optional>
+        <Field id="demo-message" label={c("form.message", "Anything else?")} optional>
           <textarea
             id="demo-message"
             value={message}
@@ -220,10 +233,10 @@ export function BookDemoForm() {
 
         <div className="flex flex-col gap-3 pt-1">
           <button type="submit" disabled={state.status === "submitting"} className={`${SITE.cta} w-full`}>
-            {state.status === "submitting" ? "Sending…" : "Request a call"}
+            {state.status === "submitting" ? c("form.sending", "Sending…") : c("form.title", "Request a call")}
           </button>
           {state.status === "error" && <p role="alert" className={FORM.bad}>{state.message}</p>}
-          <p className="text-center text-[15px] text-ink-muted">We reply within 1 business day.</p>
+          <p className="text-center text-[15px] text-ink-muted">{c("form.reply", "We reply within 1 business day.")}</p>
         </div>
       </form>
     </Card>

@@ -1,3 +1,4 @@
+import { useCopy } from "@/i18n/useCopy";
 import { Children, isValidElement } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
@@ -48,12 +49,13 @@ export const INK_CTA =
 
 /** The one "On this page" box of the public pages: collapsed, a row per section. `items` are [anchor id, label]. */
 export function OnThisPage({ items, className = "" }: { items: readonly (readonly [id: string, label: string])[]; className?: string }) {
+  const { c } = useCopy("nav");
   return (
-    <nav aria-label="On this page" className={className}>
+    <nav aria-label={c("onPage", "On this page")} className={className}>
       <details className="group rounded-[10px] border border-border px-4">
         {/* `flex` drops the native marker, so the chevron says the box opens. */}
         <summary className="flex min-h-[52px] cursor-pointer items-center justify-between font-semibold">
-          On this page
+          {c("onPage", "On this page")}
           <ChevronDown aria-hidden="true" className="size-5 shrink-0 transition-transform group-open:rotate-180" />
         </summary>
         {items.map(([id, label]) => (

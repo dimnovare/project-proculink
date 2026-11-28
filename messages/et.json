@@ -14,7 +14,9 @@
     "signIn": "Logi sisse",
     "menu": "Menüü",
     "closeMenu": "Sulge menüü",
-    "language": "Keel"
+    "language": "Keel",
+    "skip": "Liigu põhisisu juurde",
+    "onPage": "Sellel lehel"
   },
   "footer": {
     "about": "Iga dokument sisse. Puhtad andmed välja. ProcuLink loeb teie dokumendid, laseb teil need üle vaadata ja saadab need edasi vajalikus vormingus. Iga edastus jääb kirja.",
@@ -41,7 +43,8 @@
     "status": "Teenuse olek",
     "language": "Keel",
     "storage": "Dokumentide hoidmine ELis",
-    "atRest": ", salvestatuna AES-GCM-iga krüpteeritud"
+    "atRest": ", salvestatuna AES-GCM-iga krüpteeritud",
+    "copyright": "© 2026 {name}, registrikood {code}, Tallinn, Eesti"
   },
   "closing": {
     "title": "Proovige oma dokumentidega",
@@ -199,7 +202,8 @@
         "label": "Alamtöötlejad",
         "line": "Kõik ettevõtted, kes teie andmeid töötlevad, ja kus nad seda teevad"
       }
-    }
+    },
+    "introLabel": "Sissejuhatus"
   },
   "priceHelper": {
     "fits": "{n} dokumenti kuus mahub paketti {plan}.",
@@ -324,5 +328,822 @@
   },
   "legal": {
     "englishOnly": "See leht on saadaval ainult inglise keeles. Siduv on ingliskeelne versioon."
+  },
+  "howItWorks": {
+    "intake": {
+      "label": "Viis viisi dokumendi saatmiseks: üleslaadimine, töövoo oma e-posti aadress, toomine postkastist või serverist, API ja teie AI-assistent.",
+      "upload": {
+        "title": "Üleslaadimine",
+        "body": "Lohistage fail siia või valige see."
+      },
+      "email": {
+        "title": "E-post",
+        "body": "Edastage või saatke töövoo oma aadressile, mis on töövoo juures näha."
+      },
+      "collect": {
+        "title": "Toomine",
+        "body": "Postkastist, serverist või ämbrist. Kontrollime iga viie minuti järel ning teie serveris või ämbris olevad failid jäävad sinna, kus need on."
+      },
+      "api": {
+        "title": "API",
+        "body": "Teie enda süsteem saadab faili töövoogu."
+      },
+      "ai": {
+        "title": "AI-assistent",
+        "body": "Lisage dokument Claude’ist, ChatGPT-st, Cursorist või VS Code’ist."
+      }
+    },
+    "read": {
+      "label": "Arve, millel on iga loetud väärtus märgitud, ja selle taga pildistatud saateleht.",
+      "photo": "Saateleht, telefonifoto"
+    },
+    "send": {
+      "label": "Arvest koostatud CSV-fail, mis saadeti raamatupidamisserverisse ja Google Sheetsi.",
+      "chips": [
+        "CSV",
+        "Excel",
+        "JSON",
+        "XML",
+        "PDF",
+        "Tekst",
+        "Fikseeritud laius",
+        "cXML",
+        "UBL",
+        "ZUGFeRD / Factur-X"
+      ],
+      "docs": "Kas teil on vastuvõtva süsteemi dokumentatsioon? Laadige see üles ja me pakume teile kontrollimiseks faili välja."
+    },
+    "steps": {
+      "0": {
+        "title": "Teie saadate",
+        "lead": "Laadige fail üles, edastage e-kiri aadressile, mille teie töövoog annab, või laske ProcuLinkil failid teie eest ära tuua.",
+        "detail": "Toome faile postkastist, SFTP-, FTP- või FTPS-serverist või S3-ämbrist. Teie enda süsteem saab kasutada meie API-t ning dokumente saate lisada ka oma AI-assistendist. Loeme tekstikihiga PDF-e, CSV- ja Exceli faile ning ka Wordi-, teksti-, XML- ja JSON-faile."
+      },
+      "1": {
+        "title": "Meie loeme",
+        "lead": "Loeme iga väärtuse ja iga tabeli juba esimeselt dokumendilt, rida realt.",
+        "detail": "Eelnevalt pole vaja malli koostada, nii et uus saatja uue paigutusega ei tähenda uut seadistust. Loeme ka skaneeringuid ja telefonifotosid."
+      },
+      "2": {
+        "title": "Teie kontrollite",
+        "lead": "Originaal jääb ekraanil loetu kõrvale. Parandage vale väärtus või tõmmake dokumendil selle ümber kast, et leiaksime selle järgmisel korral samast kohast.",
+        "detail": "Märgime väärtuse, mis puudub, on vales kujus või raskesti loetav, ning peame kinni dokumendi, mida oleme juba näinud, selle asemel et seda kaks korda saata."
+      },
+      "3": {
+        "title": "Meie saadame edasi",
+        "lead": "Valige CSV, JSON, XML, Excel, PDF, tekst, fikseeritud laius, tellimusstandard nagu cXML või UBL või ZUGFeRD / Factur-X arve ning saatke tulemus sinna, kuhu see minema peab.",
+        "detail": "Saatke see e-postiga, veebiaadressile, SFTP- või FTPS-serverisse, S3-ämbrisse, Google Drive’i, Google Sheetsi või OneDrive’i või laadige see alla."
+      }
+    },
+    "introLabel": "Sissejuhatus",
+    "h1": {
+      "0": "Teie saadate.",
+      "1": "Meie loeme.",
+      "2": "Teie kontrollite.",
+      "3": "Meie saadame edasi."
+    },
+    "lead": "ProcuLink loeb teile saabuvaid faile, näitab loetut originaali kõrval ja saadab andmed edasi vormingus, mida teie süsteem vajab. Loeme ka skaneeringuid ja telefonifotosid.",
+    "start": "Alusta tasuta prooviperioodi",
+    "pipelineLink": "Tehnilistele lugejatele: töötlemine",
+    "stepsLabel": "Neli sammu",
+    "detailLabel": "Neli sammu lähemalt",
+    "second": {
+      "label": "Mis juhtub teise dokumendiga",
+      "title": "Teine dokument läheb lihtsamalt.",
+      "lead": "Jätame meelde, kuhu iga saatja iga väärtuse paneb, nii et tema järgmine dokument vajab vähem kontrollimist.",
+      "ticks": [
+        "Uus töövoog peab dokumendi teie jaoks kinni ainult siis, kui oleme mõne selle väärtuse märkinud. Ülejäänud lähevad otse läbi.",
+        "Töövoog näitab, mitu dokumenti järjest on läinud välja ilma parandusteta.",
+        "Saate seada töövoo kontrollima iga dokumenti või mitte ühtegi ning seda igal ajal muuta.",
+        "Dokument numbriga, mille oleme juba saanud, ootab alati teid, nii et midagi ei saadeta kaks korda.",
+        "Ka dokument e-posti aadressilt, mida me pole veel kinnitanud, ootab teid. Saatke sellelt aadressilt üks kord dokument teele ja hilisemad dokumendid lähevad sealt ise, kui saame kinnitada, et igaüks tuli tõesti sealt."
+      ]
+    },
+    "pipeline": {
+      "label": "Töötlemine, tehnilistele lugejatele",
+      "title": "Tehnilistele lugejatele: töötlemine.",
+      "lead": "Iga dokument läbib samad viis etappi. See, mis igas etapis juhtus, salvestatakse dokumendi juurde, nii et saate selle hiljem avada ja selle ajalugu lugeda."
+    },
+    "stages": {
+      "In": {
+        "name": "Vastuvõtt",
+        "body": "Fail saabub üleslaadimise, e-posti, toomise, API või teie AI-assistendi kaudu ja muutub dokumendiks oma töövoos."
+      },
+      "Read": {
+        "name": "Lugemine",
+        "body": "Loeme iga väärtuse ja tabeli koos kohaga lehel, kust see leiti, ja sellega, kui kindlad me oleme."
+      },
+      "Check": {
+        "name": "Kontroll",
+        "body": "Sisseehitatud kontrollid märgivad väärtuse, mis puudub, on vales kujus või raskesti loetav. Korduva numbriga dokument peetakse kinni, samuti dokument e-posti aadressilt, mida me pole veel kinnitanud."
+      },
+      "Transform": {
+        "name": "Teisendus",
+        "body": "Iga fail koostatakse loetud väärtustest, teie veerunimede ja rakendatud vastavustabelitega."
+      },
+      "Send": {
+        "name": "Saatmine",
+        "body": "Fail läheb igasse sihtkohta. Iga saatmine salvestab oma katsed, sihtkoha vastuse, kui see vastab, ja ebaõnnestumise korral vea."
+      }
+    },
+    "links": {
+      "api": "API viide",
+      "formats": "Kõik vormingud ja kanalid",
+      "security": "Turvalisus"
+    }
+  },
+  "useCases": {
+    "ui": {
+      "introLabel": "Sissejuhatus",
+      "start": "Alusta tasuta prooviperioodi",
+      "howLink": "Vaadake, kuidas see töötab",
+      "exampleTitle": "Näide: mis tuleb sisse ja mis läheb välja",
+      "arrived": "Mis saabus",
+      "weSend": "Mida me saadame",
+      "weSendLabel": "Mida me saadame: {name}",
+      "stepsTitle": "Kuidas see töötab",
+      "step": "{n}. samm",
+      "todayTitle": "Mida see täna teeb",
+      "notTitle": "Mida see ei tee",
+      "readMore": "Loe edasi"
+    },
+    "invoice": {
+      "h1": "Saage andmed arvetelt kätte ilma neid ümber trükkimata",
+      "lead": "ProcuLink loeb iga saabunud arve, olgu see PDF, skaneering või telefonifoto, näitab loetut kontrollimiseks originaali kõrval ja koostab Exceli- või CSV-faili, mille teie raamatupidamistarkvara impordib.",
+      "problem": {
+        "title": "Arvete ümbertrükkimine on aeglane ja just siis tekivad vead",
+        "body": [
+          "Enamik tarnijaid saadab PDF-i. Keegi avab selle, trükib numbri, kuupäeva, tarnija, kogusummad ja read raamatupidamistarkvarasse ning võrdleb neid dokumendiga. Iga uus tarnija toob kaasa uue paigutuse.",
+          "Eelnevalt pole vaja malli koostada. ProcuLink loeb mis tahes tarnija esimese arve, teie parandate, mis valesti läks, ja see jätab järgmise jaoks meelde, kuhu see tarnija iga väärtuse paneb."
+        ]
+      },
+      "fields": {
+        "0": "Arve nr",
+        "1": "Kuupäev",
+        "2": "Tarnija",
+        "3": "Kokku EUR"
+      },
+      "head": [
+        "Kood",
+        "Toode",
+        "Kogus",
+        "Hind"
+      ],
+      "steps": {
+        "0": {
+          "title": "Teie saadate",
+          "body": "Laadige arve üles, edastage e-kiri, millega see tuli, või laske meil see postkastist ära tuua."
+        },
+        "1": {
+          "title": "Meie loeme",
+          "body": "Loeme päise ja read, ka skaneeringutelt ja telefonifotodelt. Eelnevalt pole midagi vaja seadistada."
+        },
+        "2": {
+          "title": "Teie kontrollite",
+          "body": "Originaal jääb loetu kõrvale. Kõik, mis puudub või on raskesti loetav, on märgitud."
+        },
+        "3": {
+          "title": "Saate faili",
+          "body": "Laadige Exceli- või CSV-fail alla või laske see saata e-postiga, Google Drive’i, Sheetsi või OneDrive’i või serverisse."
+        }
+      },
+      "works": [
+        "Loeb PDF-arveid, skaneeringuid ja telefonifotosid ning Exceli- või CSV-faile",
+        "Loeb arve numbri, kuupäeva, tarnija, KMKR numbri, IBAN-i, kogusummad ja read",
+        "Märgib väärtuse, mis puudub, on vales kujus või raskesti loetav",
+        "Peab kinni arve, mida on juba näinud, nii et midagi ei lähe välja kaks korda",
+        "Jätab meelde, kuhu iga tarnija väärtuse paneb, nii et järgmine arve vajab vähem kontrollimist",
+        "Jagab mitut arvet sisaldava faili eraldi dokumentideks",
+        "Kasutab koostatud failis teie veerunimesid",
+        "Oskab koostada ka ZUGFeRD / Factur-X arve"
+      ],
+      "limits": {
+        "0": "See ei kirjenda arvet teie eest raamatupidamistarkvarasse. See koostab faili, mille see tarkvara impordib, ja saadab selle sinna, kuhu te valite.",
+        "1": "See ei kinnita ega maksa arveid.",
+        "2": "Lugemine on automaatne ja võib eksida, seega märgitakse kõik, mis puudub või on raskesti loetav, ning dokument ootab teie kontrolli. Töövoo saate seada ootama ka iga dokumendi juures.",
+        "3": "See loeb failist kuni {pages} lehekülge."
+      },
+      "links": {
+        "0": "Failid, mida loeme",
+        "1": "Kontrollid",
+        "2": "Failid, mida koostame",
+        "3": "Hinnad"
+      }
+    },
+    "order": {
+      "h1": "Lõpetage klientide saadetud ostutellimuste ümbertrükkimine",
+      "lead": "ProcuLink loeb iga ostutellimuse kohe saabumisel, olgu see PDF, Excel või e-kirja manus, asendab kliendi tootekoodid teie omadega ja koostab faili, mille teie tellimussüsteem impordib. Enne kontrollite seda originaali kõrval.",
+      "problem": {
+        "title": "Iga klient saadab tellimusi omal moel",
+        "body": [
+          "Üks saadab PDF-i oma ostusüsteemist, teine Exceli tabeli, kolmas skaneeringu. Keegi teie meeskonnast trükib iga tellimuse teie süsteemi ümber ja otsib, millisele teie tootele iga kliendikood vastab.",
+          "Teie kliendid ei muuda oma tellimisviisi ja nad ei peagi. ProcuLink loeb seda, mida nad juba saadavad."
+        ]
+      },
+      "fields": {
+        "0": "Tellimuse nr",
+        "1": "Kuupäev",
+        "2": "Klient",
+        "3": "Tarne hiljemalt"
+      },
+      "head": [
+        "Nende kood",
+        "Toode",
+        "Kogus"
+      ],
+      "steps": {
+        "0": {
+          "title": "Teie saadate",
+          "body": "Edastage e-kiri, millega see tuli, laadige see üles või laske meil see postkastist või serverist ära tuua."
+        },
+        "1": {
+          "title": "Meie loeme",
+          "body": "Loeme tellimuse numbri, kuupäevad ja iga rea. Eelnevalt pole midagi vaja seadistada."
+        },
+        "2": {
+          "title": "Teie koodid lähevad sisse",
+          "body": "Teie imporditud vastavustabel asendab iga kliendi tootekoodi teie omaga."
+        },
+        "3": {
+          "title": "Kontrollige, siis saatke",
+          "body": "Originaal jääb loetu kõrvale. Seejärel läheb fail kausta, serverisse või postkasti, millest teie süsteem loeb."
+        }
+      },
+      "works": [
+        "Loeb PDF- ja Exceli tellimusi, CSV-faile, e-kirjade manuseid, skaneeringuid ja telefonifotosid",
+        "Asendab tootekoodid nimekirja abil, mille impordite CSV- või Exceli failist",
+        "Koostab CSV, Exceli, JSON-i või XML-i veerunimedega, mida teie süsteem ootab, või cXML-i, UBL Orderi, EDIFACT ORDERSi või X12 850",
+        "Pakub faili välja teie süsteemi impordidokumentatsiooni või näidisfaili põhjal",
+        "Peab kinni tellimuse numbri, mida on juba näinud, nii et tellimust ei saadeta kaks korda",
+        "Toob tellimusi iga viie minuti järel postkastist, SFTP-, FTP- või FTPS-serverist või S3-ämbrist"
+      ],
+      "limits": {
+        "0": "See ei sisesta tellimust teie eest teie ERP-sse. See koostab impordifaili ja saadab selle sinna, kust teie süsteem loeb.",
+        "1": "See ei kontrolli laoseisu, hindu ega krediiti.",
+        "2": "Lugemine on automaatne ja võib eksida, seega märgitakse kõik, mis puudub või on raskesti loetav, ning dokument ootab teie kontrolli. Töövoo saate seada ootama ka iga dokumendi juures.",
+        "3": "See loeb failist kuni {pages} lehekülge."
+      },
+      "links": {
+        "0": "Vastavustabelid",
+        "1": "Dokumentide saatmise viisid",
+        "2": "Failid, mida koostame",
+        "3": "Vormingud"
+      }
+    }
+  },
+  "formats": {
+    "title": "Kõik vormingud ja viisid ühes kohas",
+    "lead": "Tehnilist vormingut ei pea teadma. Kui dokument jõuab teieni PDF-i, tabeli, skaneeringu või e-kirja manusena, alustage sellest. Üksikasjad on siin neile, kes neid vajavad.",
+    "onPage": "Sellel lehel",
+    "seeHow": "Vaadake, kuidas see töötab",
+    "yours": {
+      "title": "Teie vormingut pole loetelus?",
+      "lead": "Näidake meile faili või süsteemi lühikese kõne ajal ja me ütleme otse, kas see sobib."
+    },
+    "read": {
+      "title": "Dokumendid, mida loeme",
+      "lead": "Saatke fail sellisena, nagu see on. Loeme sellelt iga väärtuse ja tabeli ning eelnevalt ei pea ühtegi malli looma.",
+      "rows": {
+        "0": {
+          "name": "PDF (tekstikihiga)",
+          "note": "Tavaline PDF: süsteemi loodud või e-kirjast salvestatud, mille teksti saab valida."
+        },
+        "1": {
+          "name": "Skaneeringud ja telefonifotod",
+          "note": "Skaneeritud leht või selle foto, PDF-, PNG- või JPG-failina."
+        },
+        "2": {
+          "name": "CSV",
+          "note": "Lihttekstina salvestatud tabel, nagu enamik süsteeme seda ekspordib."
+        },
+        "3": {
+          "name": "Excel",
+          "note": "Töövihik .xlsx."
+        },
+        "4": {
+          "name": "Word",
+          "note": "Dokument .docx."
+        },
+        "5": {
+          "name": "Tekst",
+          "note": "Lihtne .txt-fail."
+        },
+        "6": {
+          "name": "XML",
+          "note": "Mõne muu süsteemi eksporditud struktureeritud .xml-fail."
+        },
+        "7": {
+          "name": "JSON",
+          "note": "Mõne muu süsteemi eksporditud struktureeritud .json-fail."
+        },
+        "8": {
+          "name": "ZUGFeRD- ja Factur-X-arved",
+          "note": "PDF-arve, millesse on andmed sisse ehitatud. Kasutame neid andmeid, kui lehel on samad väärtused."
+        }
+      }
+    },
+    "outputs": {
+      "title": "Failid, mida koostame",
+      "lead": "Fail, mida teie süsteem ootab. Teie valite, mis sinna läheb ja mis on iga väärtuse nimi.",
+      "rows": {
+        "0": {
+          "name": "CSV",
+          "note": "Teie veerud ja teie nimed, eraldatuna koma, semikooloni või tabeldusmärgiga."
+        },
+        "1": {
+          "name": "Excel",
+          "note": "Teie veergude ja nimedega .xlsx-fail."
+        },
+        "2": {
+          "name": "JSON",
+          "note": "Süsteemidele, mis võtavad vastu struktureeritud andmeid, nende nimedega, mida teie süsteem ootab."
+        },
+        "3": {
+          "name": "XML",
+          "note": "Struktureeritud andmed XML-ina, nende nimedega, mida teie süsteem ootab."
+        },
+        "4": {
+          "name": "PDF",
+          "note": "Puhas leht teie pealkirja, teie enda teksti ülal ja all ning teie logoga."
+        },
+        "5": {
+          "name": "Tekst",
+          "note": "Lihtne tekstifail pealkirja ja väärtustega."
+        },
+        "6": {
+          "name": "Fikseeritud laiusega",
+          "note": "Iga väärtus kindla laiusega, süsteemidele, mis loevad asukoha järgi."
+        },
+        "7": {
+          "name": "cXML",
+          "note": "Ostutellimus cXML 1.2 vormingus, tarnijatele ja hankevõrkudele, kes seda vastu võtavad."
+        },
+        "8": {
+          "name": "UBL Order",
+          "note": "Ostutellimus UBL 2.1 vormingus, XML-tellimus, mida võtavad vastu paljud Euroopa süsteemid."
+        },
+        "9": {
+          "name": "EDIFACT ORDERS",
+          "note": "Ostutellimus EDIFACT ORDERS sõnumina (D.96A)."
+        },
+        "10": {
+          "name": "ANSI X12 850",
+          "note": "Ostutellimus X12 850 vormingus (versioon 4010), EDI-partneritele Põhja-Ameerikas."
+        },
+        "11": {
+          "name": "ZUGFeRD / Factur-X arve",
+          "note": "Inimesele loetav PDF-arve, millesse on ostja süsteemi jaoks sisse ehitatud arve andmed."
+        }
+      }
+    },
+    "ways-in": {
+      "title": "Sissetulek",
+      "lead": "Kuidas dokument töövoogu jõuab. Need, kes teile dokumente saadavad, ei pea midagi muutma.",
+      "note": "Kogumine toimub iga viie minuti järel, võtab iga faili ühe korra ja jätab selle oma kohale.",
+      "rows": {
+        "0": {
+          "name": "Üleslaadimine",
+          "note": "Lohistage fail ProcuLinki või valige see."
+        },
+        "1": {
+          "name": "Töövoo enda e-posti aadress",
+          "note": "Edastage või saatke dokumendid sellele aadressile. Iga manusfail, mida suudame lugeda, muutub dokumendiks."
+        },
+        "2": {
+          "name": "Postkast",
+          "note": "Kogume uued kirjad postkastist, mida te juba kasutate."
+        },
+        "3": {
+          "name": "SFTP, FTP või FTPS",
+          "note": "Kogume uued failid teie serveri kaustast."
+        },
+        "4": {
+          "name": "S3-ämber",
+          "note": "Kogume uued failid ämbrist või S3-ühilduvast salvestusruumist."
+        },
+        "5": {
+          "name": "Meie API",
+          "note": "Teie enda süsteem edastab faili töövoogu ja võtab tulemuse vastu."
+        }
+      }
+    },
+    "ways-out": {
+      "title": "Väljaminek",
+      "lead": "Kuhu valmis fail läheb. Üks töövoog võib saata korraga mitmesse sihtkohta.",
+      "rows": {
+        "0": {
+          "name": "E-post",
+          "note": "Fail manusena, ühele või mitmele aadressile."
+        },
+        "1": {
+          "name": "Veebiaadress",
+          "note": "Edastame faili aadressile, mille teie süsteem teile annab."
+        },
+        "2": {
+          "name": "SFTP või FTPS",
+          "note": "Teie serveri kausta."
+        },
+        "3": {
+          "name": "S3-ämber",
+          "note": "Ämbrisse või S3-ühilduvasse salvestusruumi."
+        },
+        "4": {
+          "name": "Google Drive",
+          "note": "Teie valitud kausta."
+        },
+        "5": {
+          "name": "Google Sheets",
+          "note": "Uute ridadena teie valitud tabeli lõppu."
+        },
+        "6": {
+          "name": "OneDrive",
+          "note": "Teie valitud kausta."
+        },
+        "7": {
+          "name": "Allalaadimine",
+          "note": "Laadige fail alla ja saatke see ise edasi."
+        }
+      }
+    },
+    "limits": {
+      "title": "Piirangud",
+      "lead": "Kui suur võib fail olla ja kuidas faile arvestatakse.",
+      "rows": {
+        "0": {
+          "name": "Faili suurus",
+          "note": "Kuni {mb} MB faili kohta."
+        },
+        "1": {
+          "name": "Mis loetakse dokumendiks"
+        }
+      }
+    }
+  },
+  "compare": {
+    "title": "Kuidas ProcuLink teistega võrreldes välja paistab",
+    "lead": "Dokumentidest andmete kättesaamiseks on mõni levinud viis: mallipõhine PDF-parser, üldine tehisaru andmete eraldamise tööriist või käsitsi sisestamine. Siin on näha, mille poolest igaüks neist ProcuLinkist erineb ja millal mõni neist on parem valik.",
+    "side": {
+      "title": "Kõrvuti",
+      "lead": "Iga teine veerg kirjeldab tööriista liiki, mitte üht toodet. Kui seda liiki tööriistad erinevad, ütleme seda."
+    },
+    "caption": "ProcuLink võrrelduna kolme muu viisiga dokumentidest andmeid kätte saada",
+    "whatYouGet": "Mida saate",
+    "tools": {
+      "1": "Mallipõhised PDF-parserid",
+      "2": "Üldised tehisaru andmete eraldamise tööriistad",
+      "3": "Käsitsi sisestamine"
+    },
+    "varies": "Sõltub tööriistast.",
+    "rows": {
+      "0": {
+        "name": "Iga paigutuse jaoks ei pea malli looma",
+        "cells": {
+          "0": "Jah, uus paigutus ei vaja seadistamist.",
+          "1": "Ei, tavaliselt üks mall paigutuse kohta.",
+          "2": "Tavaliselt pole vaja.",
+          "3": "Jah, aga iga väärtuse sisestate ise."
+        }
+      },
+      "1": {
+        "name": "Originaal on näha loetud andmete kõrval",
+        "cells": {
+          "0": "Jah, laial ekraanil kõrvuti.",
+          "3": "Ainult siis, kui hoiate mõlemad lahti."
+        }
+      },
+      "2": {
+        "name": "Kontrollimist vajavad väärtused märgitakse ja hoitakse teie jaoks kinni",
+        "cells": {
+          "0": "Jah, koos sellega, kui kindlad me oleme. Teie valite, mis ootab.",
+          "3": "Ei, trükiviga näeb välja nagu iga teine väärtus."
+        }
+      },
+      "3": {
+        "name": "Õpib, kuhu iga saatja väärtuse paneb",
+        "cells": {
+          "0": "Jah, näidake väärtust üks kord ja järgmisel korral vaatame sealt.",
+          "1": "Muudate malli.",
+          "3": "Ainult seda, mida inimene mäletab."
+        }
+      },
+      "4": {
+        "name": "Koostab faili, mille teie süsteem impordib",
+        "cells": {
+          "0": "Jah, teie veerunimede ja eraldajaga.",
+          "3": "Koostate selle käsitsi."
+        }
+      },
+      "5": {
+        "name": "Asendab koodid teie enda loendi koodidega",
+        "cells": {
+          "0": "Jah, vastavustabelitega, mida ise haldate.",
+          "3": "Otsite igaühe ise üles."
+        }
+      },
+      "6": {
+        "name": "Töötab teie tehisaru assistendist",
+        "cells": {
+          "0": "Jah: Claude, ChatGPT, Cursor või VS Code, igas paketis.",
+          "3": "Ei."
+        }
+      },
+      "7": {
+        "name": "Dokumendid tulevad e-posti, üleslaadimise, SFTP, S3 või API kaudu",
+        "cells": {
+          "0": "Jah, igas paketis.",
+          "3": "Ei, avate iga faili ise."
+        }
+      },
+      "8": {
+        "name": "Failid lähevad e-posti, SFTP kaudu, veebiaadressile, Google Sheetsi või allalaadimisena",
+        "cells": {
+          "0": "Jah, igas paketis.",
+          "3": "Ei, sisestate need ise."
+        }
+      },
+      "9": {
+        "name": "Failid ja andmed hoitakse ELis",
+        "cells": {
+          "0": "Jah, kuigi osa töötlusest kasutab nimeliselt nimetatud USA teenusepakkujaid.",
+          "3": "Seal, kus te neid hoiate."
+        }
+      },
+      "10": {
+        "name": "Hind kuus, odavaim tasuline pakett",
+        "cells": {
+          "0": "Alates {price} kuus, esimesed {days} päeva tasuta.",
+          "3": "Tellimust pole, aga see võtab töötajate aega."
+        }
+      }
+    },
+    "better": {
+      "0": {
+        "title": "Ehitate selle oma rakendusse",
+        "body": "Kui olete arendaja ja soovite API kaudu oma tootesse toorväärtusi, on üldine tehisaru andmete eraldamise tööriist just selleks tehtud."
+      },
+      "1": {
+        "title": "Üks kindel paigutus väga suurtes kogustes",
+        "body": "Kui igal dokumendil on sama paigutus ja neid on väga palju, võib üks kord seadistatud mall olla odavaim viis neid lugeda."
+      },
+      "2": {
+        "title": "Käputäis dokumente kuus",
+        "body": "Kui igas kuus saabub vaid mõni dokument, võib nende sisestamine olla kiirem kui ükskõik millise tööriista seadistamine."
+      },
+      "title": "Millal on mõni teine tööriist parem valik"
+    },
+    "links": {
+      "formats": "Kõik vormingud ja viisid",
+      "security": "Kus teie andmed asuvad",
+      "pricing": "Hinnad"
+    }
+  },
+  "security": {
+    "title": "Loodud dokumentidele, milles vigu teha ei saa",
+    "lead": "ProcuLink käsitleb dokumente, millele teie äri tugineb. Suhtume sellesse vastutusse ja teie andmetesse nii tõsiselt, kui need väärivad.",
+    "sections": {
+      "posture": "Kuidas teie dokumente kaitstakse",
+      "compliance": "Vastavus",
+      "subprocessors": "Alamtöötlejad"
+    },
+    "posture": {
+      "0": {
+        "title": "Krüpteerimine edastamisel ja salvestatuna",
+        "lead": "Ühendused on vaikimisi krüpteeritud ning saatmiseks salvestatud paroolid hoitakse krüpteeritult.",
+        "body": "Saatmise juurdepääsuandmed salvestatakse krüpteeritult autenditud AES-256-GCM krüpteeringuga ja neid ei kirjutata kunagi rakenduse logidesse. Iga URL-iga seadistatud väljuv kanal (veebihaagi ja HTTP kaudu saatmine ning S3 vastuvõtt) peab kasutama https:// aadressi ja tavaline http:// aadress lükatakse salvestamisel tagasi. SFTP on olemuselt krüpteeritud ja FTPS lepib kokku selgesõnalise TLS-i. Kaks ühenduse seadistust võivad seda siiski nõrgendada, kui need sisse lülitate: FTPS-i sertifikaadi kontrolli vahelejätmine ja SSL-i väljalülitamine IMAP-i või SMTP jaoks."
+      },
+      "1": {
+        "title": "Kus teie andmed asuvad",
+        "lead": "Teie failid salvestatakse EL-i piirkonna taristus ja osa töötlusest kasutab nimeliselt nimetatud USA teenusepakkujaid.",
+        "body": "Teie failid, nende taga olev andmebaas ja API töötavad kõik EL-i piirkonna taristus: Cloudflare R2, Neon ja Railway. Osa töötlusest toimub nimeliselt nimetatud USA alamtöötlejate juures lepingu tüüptingimuste alusel: sisselogimine, dokumentide lugemine tehisintellektiga ja vastavuste soovitused, maksed ning e-post mõlemas suunas, st teie töövoo aadressile saadetud dokumendid ja andmed, mida me e-postiga välja saadame. Kui saadate e-postiga, liigub ka väljundfail ise läbi USA teenusepakkuja. Igaüks neist on koos asukoha ja lepinguga kirjas <link>alamtöötlejate loendis</link>. See, kus teie andmeid hoitakse, ja see, millist teed pidi need liiguvad, on kaks eri küsimust: võrguteekonna teie tarnijani valib meie majutusteenuse pakkuja ja me ei seo seda kindla piirkonnaga, seega ei saa me täna öelda, millisest riigist väljuv saadetis lahkub."
+      },
+      "2": {
+        "title": "Mida me iga saatmise kohta salvestame",
+        "lead": "Iga saatmine salvestatakse.",
+        "body": "Iga lugemine, muudatus ja saatmine salvestatakse. Iga saatmise juures säilivad kanal, katsete arv, viimane vastuskood ja ebaõnnestumise korral viga. Saate avada mis tahes dokumendi ja lugeda selle täielikku ajalugu."
+      },
+      "3": {
+        "title": "Kontroll enne saatmist",
+        "lead": "Iga dokumenti kontrollitakse enne, kui see välja läheb.",
+        "body": "Sisseehitatud kontrollid töötavad igas paketis ja neid ei saa välja lülitada: märgime väärtuse, mis puudub, on vales vormis või raskesti loetav, ja peame kinni dokumendi, mida oleme juba näinud, selle asemel et seda kaks korda saata."
+      },
+      "4": {
+        "title": "Juurdepääsu kontroll",
+        "lead": "Teie tööruumi andmed hoitakse lahus kõigist teistest tööruumidest.",
+        "body": "Organisatsioonipõhine andmete eraldamine iga päringu juures, piiratud ulatusega API-võtmed, mille saate kohe tühistada, ja vaikimisi lühiajalised seansid."
+      },
+      "5": {
+        "title": "Vastutustundlik tehisintellekt",
+        "lead": "Tehisintellekti soovitused ei rakendu kunagi iseenesest.",
+        "body": "Soovitused ei rakendu kunagi iseenesest: kinnitate igaühe ise ja iga väärtuse juures on näha, kui kindlad me oleme. Meie tehisintellekti teenusepakkuja ei treeni teie andmetel mudeleid. Tehisintellekti assistent, mille ise ühendate, töötab teie enda lepingu alusel selle pakkujaga. Saame tehisintellekti tööruumi jaoks ka täielikult välja lülitada, nii et midagi selle dokumentidest ei jõua OpenAI-ni. Seal olevaid dokumente ei saa siis lugeda, sest lugemine kasutab tehisintellekti: need peatatakse ja märgitakse loetamatuks ning neid ei saadeta kunagi välja. Seadistame selle teile soovi korral; see ei ole iseteeninduse seadistus ega muuda seda, kus teie faile hoitakse."
+      }
+    },
+    "compliance": {
+      "0": "Andmetöötluse leping (DPA) avaldatud · lepingu tüüptingimused edastamiseks väljapoole EMP-d",
+      "1": "Ettevalmistus on meie arenduskavas",
+      "2": "On meie arenduskavas"
+    },
+    "readDpa": "Loe andmetöötluse lepingut",
+    "th": {
+      "company": "Ettevõte",
+      "purpose": "Mida see meie heaks teeb",
+      "where": "Kus"
+    },
+    "fullList": "Täielik loend asukohtade, lepingute ja muudatusteadetega",
+    "packageTitle": "Kas vajate meie turvapaketti?",
+    "packageLead": "Jagame oma andmetöötluse lepingut, turvaülevaadet ja arhitektuuridokumentatsiooni konfidentsiaalsuslepingu alusel.",
+    "report": "Leidsite turvaprobleemi? Kirjutage aadressile <mail>security@proculink.eu</mail>.",
+    "requestDocs": "Küsi turvadokumente",
+    "startFree": "Alusta tasuta"
+  },
+  "support": {
+    "title": "Tugi",
+    "lead": "Vajate ProcuLinkiga abi? Siit leiate, kuidas meiega ühendust võtta ja vastuseid leida.",
+    "emailTitle": "Tugi e-postiga",
+    "hours": "Esmaspäevast reedeni kella 9-st 18-ni (EET). Püüame vastata ühe tööpäeva jooksul.",
+    "reportTitle": "Teata probleemist",
+    "reportLead": "Kui midagi ei tööta, kirjutage meile:",
+    "report": [
+      "Mida te proovisite teha",
+      "Mis juhtus selle asemel",
+      "Millise dokumendi või töövooga oli tegu",
+      "Teie brauser ja seade",
+      "Iga teade, mida ekraanil nägite"
+    ],
+    "questionsTitle": "Korduma kippuvad küsimused",
+    "questions": {
+      "0": {
+        "title": "Arveldus ja paketid",
+        "detail": "Mida iga pakett sisaldab ja mis loeb dokumendiks"
+      },
+      "1": {
+        "title": "Andmed ja privaatsus",
+        "detail": "Mida me kogume ja kui kaua seda hoiame"
+      },
+      "2": {
+        "title": "Turvalisus",
+        "detail": "Krüpteerimine, dokumentide hoidmine EL-i piirkonnas ja tehisintellekti kasutamine"
+      },
+      "3": {
+        "title": "Tingimused ja õigusteave",
+        "detail": "Tingimused, lubatud kasutus ja andmetöötluse leping"
+      }
+    },
+    "selfTitle": "Leidke ise",
+    "selfLead": "Enamikule küsimustele dokumentide, töövoogude ja sihtkohtade kohta leiate vastuse abikeskusest.",
+    "searchHelp": "Otsi abikeskusest",
+    "followGuide": "Järgi samm-sammult juhendit",
+    "securityTitle": "Turvaprobleemid",
+    "securityLead": "Leidsite turvaprobleemi? Kirjutage aadressile <mail>security@proculink.eu</mail>.",
+    "securityLink": "Kuidas me teie dokumente kaitseme",
+    "enterpriseTitle": "Enterprise ja partnerlus",
+    "enterpriseLead": "Suuremate mahtude, eraldi lepingu või koostöö asjus kirjutage aadressile <mail>hello@proculink.eu</mail>.",
+    "bookCall": "Või broneerige 20-minutiline kõne",
+    "form": {
+      "needMessage": "Kirjutage oma sõnum",
+      "needEmail": "Sisestage oma e-posti aadress",
+      "thanks": "Aitäh. Vastame ühe tööpäeva jooksul.",
+      "notSent": "Teie sõnumit ei õnnestunud automaatselt saata. Kirjutage meile otse aadressile {email} ja me vastame ühe tööpäeva jooksul.",
+      "aria": "Võta toega ühendust",
+      "title": "Kirjutage meile",
+      "needed": "Sõnum ja e-posti aadress on kohustuslikud.",
+      "category": "Millega on tegu?",
+      "categories": {
+        "general": "Üldine küsimus",
+        "bug": "Midagi ei tööta",
+        "billing": "Arveldus",
+        "security": "Turvalisus"
+      },
+      "subject": "Teema",
+      "optional": "(valikuline)",
+      "message": "Sõnum",
+      "messageHint": "Mida rohkem üksikasju annate, seda kiiremini saame aidata.",
+      "email": "Teie e-posti aadress",
+      "emailHint": "Kasutame seda ainult teie päringule vastamiseks.",
+      "sending": "Saatmine…",
+      "send": "Saada sõnum"
+    }
+  },
+  "bookDemo": {
+    "title": "Näidake meile üht oma dokumenti",
+    "lead": "20-minutiline kõne, et vaadata üht dokumenti, mida töötlete käsitsi: ostutellimust, arvet, hinnakirja. Rääkige meile veidi dokumentidest, millega praegu tegelete, ja me vastame ühe tööpäeva jooksul, et aeg kokku leppida.",
+    "coverTitle": "Millest räägime",
+    "cover": {
+      "0": {
+        "title": "Üks teie dokumentidest",
+        "detail": "Võtke kaasa PDF-, Exceli- või CSV-fail, mida töötlete käsitsi, või test- või anonüümitud fail. Saame selle kõne ajal ProcuLinkist läbi lasta."
+      },
+      "1": {
+        "title": "Kas see sobib",
+        "detail": "Kui dokument, mida ikka ja jälle töötlete, tundub hea testjuhtum, arutame, kuidas ProcuLink sellega hakkama saaks. Mingit kohustust ei teki."
+      }
+    },
+    "already": "Teate juba, et soovite seda proovida?",
+    "start": "Alusta tasuta prooviperioodi",
+    "trial": "{days} päeva tasuta, {docs} dokumenti, pangakaarti pole vaja.",
+    "form": {
+      "optional": "(valikuline)",
+      "needName": "Sisestage oma nimi",
+      "needEmail": "Sisestage oma tööalane e-posti aadress",
+      "needCompany": "Sisestage oma ettevõte",
+      "thanks": "Aitäh. Vastame ühe tööpäeva jooksul, et aeg kokku leppida.",
+      "notSent": "Teie päringut ei õnnestunud automaatselt saata. Kirjutage meile otse aadressile {email} ja me vastame ühe tööpäeva jooksul.",
+      "sentAria": "Kõnepäring saadetud",
+      "received": "Päring kätte saadud.",
+      "addMore": "Soovite vahepeal midagi lisada? Kirjutage aadressile <mail>hello@proculink.eu</mail>.",
+      "aria": "Küsi 20-minutilist kõnet",
+      "title": "Küsi kõnet",
+      "needed": "Nimi, tööalane e-posti aadress ja ettevõte on kohustuslikud.",
+      "name": "Nimi",
+      "email": "Tööalane e-posti aadress",
+      "emailHint": "Kasutame seda ainult vastamiseks ja kõne kokkuleppimiseks.",
+      "company": "Ettevõte",
+      "formats": "Mis vormingus on teie dokumendid?",
+      "formatsHint": "Näiteks: PDF-arved, Exceli hinnakirjad, skannid.",
+      "times": "Eelistatud ajad",
+      "timesHint": "Näiteks: teisipäeva või neljapäeva pärastlõuna, EET.",
+      "message": "Midagi veel?",
+      "sending": "Saatmine…",
+      "reply": "Vastame ühe tööpäeva jooksul."
+    }
+  },
+  "notFound": {
+    "title": "See leht on ära eksinud.",
+    "lead": "Otsitud lehte ei ole või see on kolinud. Aitame teid õigele teele tagasi.",
+    "home": "Tagasi avalehele",
+    "help": "Ava abikeskus",
+    "code": "Viga 404"
+  },
+  "pictures": {
+    "look": "Kontrollige seda. Oleme selles 72% kindlad.",
+    "accounting": "Raamatupidamisserver",
+    "sent": "Saadetud",
+    "ready": "Valmis saatmiseks",
+    "total": "Kokku",
+    "invoiceNumber": "Arve number",
+    "supplier": "Tarnija",
+    "example": {
+      "label": "Näide: arve saabub PDF-ina, ProcuLink loeb selle väärtused ning CSV-fail saadetakse raamatupidamisserverisse ja Google Sheetsi tabelisse.",
+      "arrived": "Mis saabus",
+      "read": "Mida me lugesime",
+      "send": "Mida me saadame",
+      "values": {
+        "0": "Arve number",
+        "1": "Kuupäev",
+        "2": "Tarnija",
+        "3": "Kokku",
+        "4": "Read"
+      },
+      "lines": "3 rida, 5 veergu",
+      "marked": "Kõik, mis puudub või on raskesti loetav, märgitakse, nii et teate, kuhu vaadata.",
+      "expects": "Fail, mida teie süsteem ootab, saadetud sinna, kuhu see minema peab."
+    },
+    "second": {
+      "label": "Kolm dokumenti samalt saatjalt. Esimeses oli kaks väärtust kontrollida. Järgmises kahes polnud midagi kontrollida.",
+      "docs": {
+        "0": "Esimene dokument sellelt saatjalt. Parandasite ühe väärtuse ja näitasite teise lehel ära.",
+        "1": "Sama saatja, nädal hiljem.",
+        "2": "Ja järgmine."
+      },
+      "toCheck": "2 väärtust kontrollida",
+      "streak": "Viimased 8 dokumenti saadeti ilma parandusteta."
+    },
+    "review": {
+      "label": "Kontrollivaade: vasakul originaaldokument, paremal sellest loetud väärtused, üks väärtus kontrollimiseks märgitud ja nupp Saada.",
+      "teachLabel": "Kontrollivaade. Originaalil on summa ümber kast ja märge ütleb, et järgmisel korral vaatame sealt.",
+      "toCheck": "1 väärtus kontrollida",
+      "point": "Näita see ära",
+      "saved": "Salvestatud. Kui järgmine dokument saatjalt {supplier} saabub, otsime väärtust Kokku sealt.",
+      "to": "Arve CSV raamatupidamisserverisse"
+    }
+  },
+  "helpChrome": {
+    "helpCentre": "Abikeskus",
+    "minuteRead": "Lugemisaeg {n} min",
+    "tocFolded": "Selles artiklis · {n} jaotist",
+    "toc": "Selles artiklis",
+    "keepReading": "Loe edasi",
+    "previous": "Eelmine",
+    "next": "Järgmine",
+    "notFound": "Ei leidnud vastust?",
+    "emailUs": "Kirjutage aadressil <mail>support@proculink.eu</mail> ja öelge, mida te teha üritasite.",
+    "contact": "Võta toega ühendust",
+    "guides": "Samm-sammult juhendid",
+    "aboutMinutes": "Umbes {n} minutit",
+    "helpful": "Kas see artikkel oli abiks?",
+    "yes": "Jah",
+    "no": "Ei",
+    "thanks": "Aitäh tagasiside eest.",
+    "thanksNo": "Aitäh. Püüame selle selgemaks teha.",
+    "allGuides": "Kõik samm-sammult juhendid",
+    "reference": "Viiteartiklid",
+    "moreDetail": "Täpsemalt lugege siit:",
+    "stuck": "Jäite mõne sammu juures kinni?",
+    "emailStep": "Kirjutage aadressil <mail>support@proculink.eu</mail> ja öelge, millise sammu juures ja mida te nägite.",
+    "guideSteps": "Juhendi sammud",
+    "steps": "Sammud",
+    "guideHelped": "Kas see juhend aitas teid eesmärgini?",
+    "notQuite": "Mitte päris",
+    "guideThanks": "Hea, aitäh, et andsite teada.",
+    "guideThanksNo": "Aitäh. Öelge toele, millise sammu juures te eksisite, ja me parandame juhendi."
   }
 }

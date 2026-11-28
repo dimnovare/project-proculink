@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { buildHelpFuse, buildSiteHelpFuse, searchHelpArticles } from "@/lib/help-search";
+import { buildSiteHelpFuse, searchHelpArticles } from "@/lib/help-search";
 import { liveClientGuides } from "@/lib/guides";
 
 describe("help search (shared Fuse index)", () => {
-  const fuse = buildHelpFuse();
+  const fuse = buildSiteHelpFuse();
 
   it("returns [] for an empty or whitespace query", () => {
     expect(searchHelpArticles(fuse, "")).toEqual([]);
@@ -13,16 +13,16 @@ describe("help search (shared Fuse index)", () => {
   it("finds articles by curated keyword, not just title text", () => {
     // "IMAP" appears only in intake-channels' keywords; "ppk" only in destination-sign-in's —
     // the operator vocabulary the article titles miss.
-    const imap = searchHelpArticles(fuse, "imap").map((a) => a.slug);
-    expect(imap).toContain("intake-channels");
+    const imap = searchHelpArticles(fuse, "imap").map((a) => a.href);
+    expect(imap).toContain("/help/intake-channels");
 
-    const ppk = searchHelpArticles(fuse, "ppk").map((a) => a.slug);
-    expect(ppk).toContain("destination-sign-in");
+    const ppk = searchHelpArticles(fuse, "ppk").map((a) => a.href);
+    expect(ppk).toContain("/help/destination-sign-in");
   });
 
   it("finds articles by title", () => {
-    const out = searchHelpArticles(fuse, "ways to send documents in").map((a) => a.slug);
-    expect(out[0]).toBe("intake-channels");
+    const out = searchHelpArticles(fuse, "ways to send documents in").map((a) => a.href);
+    expect(out[0]).toBe("/help/intake-channels");
   });
 
   it("caps results at the given max", () => {
@@ -32,10 +32,10 @@ describe("help search (shared Fuse index)", () => {
   });
 
   it("finds how files are written, and words no article has together", () => {
-    expect(searchHelpArticles(fuse, "separator")[0]?.slug).toBe("outputs");
-    expect(searchHelpArticles(fuse, "excel semicolon")[0]?.slug).toBe("outputs");
+    expect(searchHelpArticles(fuse, "separator")[0]?.href).toBe("/help/outputs");
+    expect(searchHelpArticles(fuse, "excel semicolon")[0]?.href).toBe("/help/outputs");
     // The whole phrase finds nothing (no field holds both words): the article with the most of them comes first.
-    expect(searchHelpArticles(fuse, "comma decimal")[0]?.slug).toBe("outputs");
+    expect(searchHelpArticles(fuse, "comma decimal")[0]?.href).toBe("/help/outputs");
   });
 
   it("returns [] for gibberish", () => {
@@ -51,11 +51,9 @@ describe("help search over articles and guides", () => {
   });
 
   it("finds the e-invoice guide by the names of the formats and networks, on the help home and in the panel", () => {
-    const site = buildSiteHelpFuse();
-    const panel = buildHelpFuse();
-    for (const q of ["peppol", "ksef", "e-invoice", "xrechnung", "zugferd"]) {
-      expect(searchHelpArticles(site, q, 6).map((h) => h.href), q).toContain("/help/guides/send-e-invoices");
-      expect(searchHelpArticles(panel, q, 6).map((a) => a.slug), q).toEqual(expect.arrayContaining([expect.stringMatching(/^(outputs|destinations)$/)]));
-    }
+    // One index serves both: the panel searched articles only, so it never listed this guide (N-12).
+    const fuse = buildSiteHelpFuse();
+    for (const q of ["peppol", "ksef", "e-invoice", "xrechnung", "zugferd"])
+      expect(searchHelpArticles(fuse, q, 6).map((h) => h.href), q).toContain("/help/guides/send-e-invoices");
   });
 });

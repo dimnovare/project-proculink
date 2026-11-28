@@ -3,8 +3,9 @@ import { FileSpreadsheet, FileText, FlaskConical, FolderCheck, Inbox, Ruler, typ
 import { ClosingCta, SITE } from "@/components/marketing/sitePictures";
 import { OUTPUT_ROWS, READ_ROWS, WAYS_IN_ROWS, WAYS_OUT_ROWS, type FormatRow } from "@/components/marketing/formatsRows";
 import { MAX_UPLOAD_BYTES } from "@/lib/fileKinds";
-import { EARLY_ACCESS } from "@/lib/marketing/earlyAccess";
-import { DOCUMENT_UNIT_SENTENCE } from "@/lib/plans";
+import { useCopy } from "@/i18n/useCopy";
+import { earlyAccessIn } from "@/lib/marketing/earlyAccess";
+import { DOCUMENT_UNIT_SENTENCE, MAX_DOCUMENTS_PER_FILE, PAGES_PER_DOCUMENT } from "@/lib/plans";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata({
@@ -21,11 +22,15 @@ export const metadata = pageMetadata({
 // (SharePoint) says so in its own line. Section heads carry a top rule by direction:
 // blue brings in, navy makes real, green sends.
 
+const MB = MAX_UPLOAD_BYTES / (1024 * 1024);
 const LIMIT_ROWS: FormatRow[] = [
-  { name: "File size", note: `Up to ${MAX_UPLOAD_BYTES / (1024 * 1024)} MB a file.`, keys: [] },
+  { name: "File size", note: `Up to ${MB} MB a file.`, keys: [] },
   { name: "What counts as a document", note: DOCUMENT_UNIT_SENTENCE, keys: [] },
 ];
 
+type Section = { id: string; title: string; lead: string; rule: string; icon: LucideIcon; tone: string; rows: readonly FormatRow[]; note?: string; cta?: { label: string; href: string } };
+
+// The English sections; the early-access one is built per language from earlyAccessIn.
 const SECTIONS: Array<{ id: string; title: string; lead: string; rule: string; icon: LucideIcon; tone: string; rows: readonly FormatRow[]; note?: string; cta?: { label: string; href: string } }> = [
   {
     id: "read", title: "Documents we read", icon: FileText, rule: "border-t-brand-blue", tone: "text-brand-blue", rows: READ_ROWS,
@@ -46,8 +51,7 @@ const SECTIONS: Array<{ id: string; title: string; lead: string; rule: string; i
     note: "Microsoft SharePoint: on request",
   },
   {
-    id: "early-access", title: EARLY_ACCESS.heading, icon: FlaskConical, rule: "border-t-brand-green", tone: "text-brand-green-deep",
-    rows: EARLY_ACCESS.items.map(({ name, note }) => ({ name, note, keys: [] })), lead: EARLY_ACCESS.lead, cta: EARLY_ACCESS.cta,
+    id: "early-access", title: "", icon: FlaskConical, rule: "border-t-brand-green", tone: "text-brand-green-deep", rows: [], lead: "",
   },
   {
     id: "limits", title: "Limits", icon: Ruler, rule: "border-t-ink", tone: "text-ink", rows: LIMIT_ROWS,
@@ -58,20 +62,41 @@ const SECTIONS: Array<{ id: string; title: string; lead: string; rule: string; i
 const H2_SMALL = `${SITE.h2} !text-[clamp(27px,2.5vw,34px)]`;
 
 export default function FormatsPage() {
+  const { locale, c } = useCopy("formats");
+  const home = useCopy("home");
+  const pricing = useCopy("pricing");
+  const closing = useCopy("closing");
+  const early = earlyAccessIn(locale);
+  const sections: Section[] = SECTIONS.map((s) => {
+    if (s.id === "early-access") {
+      return { ...s, title: early.heading, lead: early.lead, cta: early.cta, rows: early.items.map(({ name, note }) => ({ name, note, keys: [] })) };
+    }
+    const rows = s.rows.map((r, i) => ({
+      ...r,
+      name: c(`${s.id}.rows.${i}.name`, r.name),
+      note:
+        s.id === "limits" && i === 1
+          ? pricing.c("unit", r.note, { pages: PAGES_PER_DOCUMENT, max: PAGES_PER_DOCUMENT * MAX_DOCUMENTS_PER_FILE })
+          : c(`${s.id}.rows.${i}.note`, r.note, { mb: MB }),
+    }));
+    // The ways-out note reuses home's one "on request" line, the one key the guards exempt.
+    const note = s.note && (s.id === "ways-out" ? home.c("sharepoint", "Microsoft SharePoint: on request") : c(`${s.id}.note`, s.note));
+    return { ...s, title: c(`${s.id}.title`, s.title), lead: c(`${s.id}.lead`, s.lead), rows, note };
+  });
   return (
     <div className="bg-bgWarm text-[17px] leading-[1.55] text-ink">
       <section aria-labelledby="formats-title" className="pb-20 pt-12 sm:pt-[72px]">
         <div className={`${SITE.wrap} flex flex-wrap items-end gap-x-16 gap-y-10`}>
           <div className="flex min-w-0 flex-[1_1_560px] flex-col gap-[26px]">
-            <h1 id="formats-title" className={SITE.h1}>Every format and method, in one place</h1>
+            <h1 id="formats-title" className={SITE.h1}>{c("title", "Every format and method, in one place")}</h1>
             <p className={`${SITE.lead} max-w-[680px]`}>
-              You don&apos;t need to know the technical format. If it reaches you as a PDF, a spreadsheet, a scan or an email attachment, start with that. The details are here for whoever needs them.
+              {c("lead", "You don't need to know the technical format. If it reaches you as a PDF, a spreadsheet, a scan or an email attachment, start with that. The details are here for whoever needs them.")}
             </p>
           </div>
-          <nav aria-label="On this page" className="min-w-0 flex-[1_1_100%] min-[980px]:flex-[0_1_300px]">
-            <p className={`${SITE.soft} pb-2.5 text-[15px]`}>On this page</p>
+          <nav aria-label={c("onPage", "On this page")} className="min-w-0 flex-[1_1_100%] min-[980px]:flex-[0_1_300px]">
+            <p className={`${SITE.soft} pb-2.5 text-[15px]`}>{c("onPage", "On this page")}</p>
             <ul className="m-0 list-none border-t border-border p-0">
-              {SECTIONS.map((s) => (
+              {sections.map((s) => (
                 <li key={s.id}>
                   <a href={`#${s.id}`} className="flex min-h-[46px] items-center border-b border-border text-[16px] font-semibold text-ink no-underline hover:text-brand-blue-deep">
                     {s.title}
@@ -85,7 +110,7 @@ export default function FormatsPage() {
 
       <div className={`${SITE.band} bg-surface`}>
         <div className={`${SITE.wrap} flex flex-col gap-[clamp(56px,7vw,88px)]`}>
-          {SECTIONS.map(({ id, title, lead, rule, icon: Icon, tone, rows, note, cta }) => (
+          {sections.map(({ id, title, lead, rule, icon: Icon, tone, rows, note, cta }) => (
             <section key={id} id={id} aria-labelledby={`${id}-title`} data-early-access={cta ? "" : undefined} className="flex scroll-mt-[90px] flex-wrap items-start gap-x-[72px] gap-y-7">
               <div className={`flex min-w-0 flex-[1_1_280px] flex-col gap-3 border-t-[3px] pt-5 ${rule} min-[900px]:sticky min-[900px]:top-[90px]`}>
                 <Icon aria-hidden="true" className={`mb-1 size-9 ${tone}`} strokeWidth={1.6} />
@@ -111,15 +136,15 @@ export default function FormatsPage() {
 
       <section aria-labelledby="yours-title" className="py-[72px]">
         <div className={`${SITE.wrap} flex flex-wrap items-center gap-x-[72px] gap-y-4`}>
-          <h2 id="yours-title" className={`${H2_SMALL} flex-[1_1_280px]`}>Don&apos;t see yours?</h2>
+          <h2 id="yours-title" className={`${H2_SMALL} flex-[1_1_280px]`}>{c("yours.title", "Don't see yours?")}</h2>
           <div className="flex min-w-0 flex-[2.3_1_560px] flex-col items-start gap-1.5">
-            <p className={SITE.lead}>Show us the file or the system on a short call and we&apos;ll tell you plainly whether it fits.</p>
-            <Link href="/book-demo" className={SITE.more}>Talk to us</Link>
+            <p className={SITE.lead}>{c("yours.lead", "Show us the file or the system on a short call and we'll tell you plainly whether it fits.")}</p>
+            <Link href="/book-demo" className={SITE.more}>{closing.c("talk", "Talk to us")}</Link>
           </div>
         </div>
       </section>
 
-      <ClosingCta more={{ href: "/how-it-works", label: "See how it works" }} />
+      <ClosingCta more={{ href: "/how-it-works", label: c("seeHow", "See how it works") }} />
     </div>
   );
 }

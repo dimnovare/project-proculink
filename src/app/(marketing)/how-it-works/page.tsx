@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Bot, Code2, Folder, Mail, Upload } from "lucide-react";
 import { Card } from "@/components/bridge/layout/Card";
 import { STAGES } from "@/components/bridge/StatusJourney";
@@ -12,6 +13,7 @@ import {
   Ticks,
 } from "@/components/marketing/sitePictures";
 import { pageMetadata } from "@/lib/seo";
+import { useCopy } from "@/i18n/useCopy";
 
 const LEAD =
   "ProcuLink reads the files you receive, shows what it read beside the original, and sends the data on in the format your system needs. Scans and phone photos are read too.";
@@ -22,49 +24,53 @@ const ICON = "mt-0.5 size-5 shrink-0 text-brand-blue";
 const ROW = "flex items-start gap-3 border-t border-border-faint px-5 py-4";
 
 function IntakePicture() {
+  const { c } = useCopy("howItWorks");
   return (
     <Card
       flush
       role="img"
-      aria-label="Five ways to send a document in: upload, the flow's own email address, collection from a mailbox or server, the API, and your AI assistant."
+      aria-label={c("intake.label", "Five ways to send a document in: upload, the flow's own email address, collection from a mailbox or server, the API, and your AI assistant.")}
       className="overflow-hidden text-[15px]"
     >
       <div aria-hidden="true">
         <div className="p-4">
           <div className="flex flex-col items-center gap-0.5 rounded-xl border-2 border-dashed border-navy-pale px-4 py-5 text-center">
             <Upload className="mb-1.5 size-6 text-brand-blue" />
-            <p className="font-semibold">Upload</p>
-            <p className={`${SITE.soft} text-[14px]`}>Drag a file in, or choose one.</p>
+            <p className="font-semibold">{c("intake.upload.title", "Upload")}</p>
+            <p className={`${SITE.soft} text-[14px]`}>{c("intake.upload.body", "Drag a file in, or choose one.")}</p>
           </div>
         </div>
         <div className={ROW}>
           <Mail className={ICON} />
           <div className="min-w-0 flex-1">
-            <p className="font-semibold">Email</p>
-            <p className={`${SITE.soft} text-[14px]`}>Forward or send to the flow&apos;s own address, shown on the flow.</p>
+            <p className="font-semibold">{c("intake.email.title", "Email")}</p>
+            <p className={`${SITE.soft} text-[14px]`}>{c("intake.email.body", "Forward or send to the flow's own address, shown on the flow.")}</p>
           </div>
         </div>
         <div className={ROW}>
           <Folder className={ICON} />
           <div className="min-w-0 flex-1">
-            <p className="font-semibold">Collect</p>
+            <p className="font-semibold">{c("intake.collect.title", "Collect")}</p>
             <p className={`${SITE.soft} text-[14px]`}>
-              From a mailbox, a server or a bucket. We check every five minutes, and files on your server or in your bucket stay where they are.
+              {c(
+                "intake.collect.body",
+                "From a mailbox, a server or a bucket. We check every five minutes, and files on your server or in your bucket stay where they are.",
+              )}
             </p>
           </div>
         </div>
         <div className={ROW}>
           <Code2 className={ICON} />
           <div className="min-w-0 flex-1">
-            <p className="font-semibold">API</p>
-            <p className={`${SITE.soft} text-[14px]`}>Your own system posts a file to the flow.</p>
+            <p className="font-semibold">{c("intake.api.title", "API")}</p>
+            <p className={`${SITE.soft} text-[14px]`}>{c("intake.api.body", "Your own system posts a file to the flow.")}</p>
           </div>
         </div>
         <div className={ROW}>
           <Bot className={ICON} />
           <div className="min-w-0 flex-1">
-            <p className="font-semibold">AI assistant</p>
-            <p className={`${SITE.soft} text-[14px]`}>Add a document from Claude, ChatGPT, Cursor or VS Code.</p>
+            <p className="font-semibold">{c("intake.ai.title", "AI assistant")}</p>
+            <p className={`${SITE.soft} text-[14px]`}>{c("intake.ai.body", "Add a document from Claude, ChatGPT, Cursor or VS Code.")}</p>
           </div>
         </div>
       </div>
@@ -73,15 +79,16 @@ function IntakePicture() {
 }
 
 function ReadPicture() {
+  const { c } = useCopy("howItWorks");
   return (
     <div
       role="img"
-      aria-label="An invoice with each value we read marked on the page, and a photographed delivery note behind it."
+      aria-label={c("read.label", "An invoice with each value we read marked on the page, and a photographed delivery note behind it.")}
       className="relative pb-2.5 pt-[62px]"
     >
       <div aria-hidden="true">
         <div className="absolute right-0 top-1 flex h-[70%] w-[58%] rotate-3 flex-col items-end gap-[9px] rounded-[5px] bg-bgWarm px-[18px] py-3.5 shadow-[0_1px_2px_color-mix(in_srgb,var(--navy)_10%,transparent),0_18px_40px_-18px_color-mix(in_srgb,var(--navy)_28%,transparent)]">
-          <p className={`${SITE.soft} text-[12.5px]`}>Delivery note, phone photo</p>
+          <p className={`${SITE.soft} text-[12.5px]`}>{c("read.photo", "Delivery note, phone photo")}</p>
           <div className="h-1.5 w-[62%] rounded-[3px] bg-border" />
           <div className="h-1.5 w-[44%] rounded-[3px] bg-border" />
         </div>
@@ -94,22 +101,23 @@ function ReadPicture() {
 const CHIPS = ["CSV", "Excel", "JSON", "XML", "PDF", "Text", "Fixed-width", "cXML", "UBL", "ZUGFeRD / Factur-X"];
 
 function SendPicture() {
+  const { c, list } = useCopy("howItWorks");
   return (
     <div className="min-w-0">
-      <div role="img" aria-label="A CSV file built from the invoice, sent to an accounting server and to Google Sheets.">
+      <div role="img" aria-label={c("send.label", "A CSV file built from the invoice, sent to an accounting server and to Google Sheets.")}>
         <div aria-hidden="true">
           <CsvFile
             sent
             head={
               <div className="flex flex-wrap gap-1.5 border-b border-border-faint px-4 py-3.5">
-                {CHIPS.map((c, i) => (
+                {list("send.chips", CHIPS).map((chip, i) => (
                   <span
-                    key={c}
+                    key={chip}
                     className={`inline-flex h-7 items-center rounded-md border px-2.5 text-[13px] font-semibold ${
                       i === 0 ? "border-navy bg-navy text-white" : "border-border-strong bg-surface text-ink-muted"
                     }`}
                   >
-                    {c}
+                    {chip}
                   </span>
                 ))}
               </div>
@@ -118,13 +126,13 @@ function SendPicture() {
         </div>
       </div>
       <p className={`${SITE.soft} pt-3 text-[14.5px]`}>
-        Have your receiving system&apos;s documentation? Upload it and we propose the file for you to check.
+        {c("send.docs", "Have your receiving system's documentation? Upload it and we propose the file for you to check.")}
       </p>
     </div>
   );
 }
 
-const STEPS = [
+const STEPS: { title: string; node: string; lead: string; detail: string; onRequest?: boolean; picture: ReactNode }[] = [
   {
     title: "You send it in",
     node: "border-brand-blue",
@@ -154,7 +162,9 @@ const STEPS = [
     node: "border-brand-green",
     lead: "Choose CSV, JSON, XML, Excel, PDF, text, fixed-width, an order standard such as cXML or UBL, or a ZUGFeRD / Factur-X invoice, then send the result where it needs to go.",
     detail:
-      "Send it by email, to a web address, to an SFTP or FTPS server, an S3 bucket, Google Drive, Google Sheets or OneDrive, or download it. Microsoft SharePoint is available on request.",
+      "Send it by email, to a web address, to an SFTP or FTPS server, an S3 bucket, Google Drive, Google Sheets or OneDrive, or download it.",
+    // The on-request line is translated by the home namespace (the one key neverClaim.ts lets name it).
+    onRequest: true,
     picture: <SendPicture />,
   },
 ];
@@ -174,34 +184,39 @@ const NOWRAP = "min-[360px]:whitespace-nowrap";
 const JUMP = "scroll-mt-20";
 
 export default function HowItWorksPage() {
+  // English is written below; other languages come from messages/<locale>.json under "howItWorks".
+  const { locale, c, list } = useCopy("howItWorks");
+  const home = useCopy("home");
+  // The pairs are measured in English; a longer translation wraps inside its pair instead of running off a phone.
+  const pair = locale === "en" ? NOWRAP : "";
   return (
     <div className="bg-bgWarm text-[17px] leading-[1.55] text-ink">
-      <section aria-label="Introduction" className="pb-16 pt-12 sm:pb-[88px] sm:pt-[72px]">
+      <section aria-label={c("introLabel", "Introduction")} className="pb-16 pt-12 sm:pb-[88px] sm:pt-[72px]">
         <div className={`${SITE.wrap} flex flex-wrap items-end gap-x-16 gap-y-10`}>
           <div className="flex min-w-0 flex-[1_1_560px] flex-col gap-[26px]">
             <h1 className={SITE.h1}>
               <span className="text-brand-blue">
-                <span className={NOWRAP}>Send it in.</span> <span className={NOWRAP}>We read it.</span>
+                <span className={pair}>{c("h1.0", "Send it in.")}</span> <span className={pair}>{c("h1.1", "We read it.")}</span>
               </span>{" "}
               <span className="block text-brand-green-deep">
-                <span className={NOWRAP}>You check it.</span> <span className={NOWRAP}>We send it on.</span>
+                <span className={pair}>{c("h1.2", "You check it.")}</span> <span className={pair}>{c("h1.3", "We send it on.")}</span>
               </span>
             </h1>
-            <p className={`${SITE.lead} max-w-[640px]`}>{LEAD}</p>
+            <p className={`${SITE.lead} max-w-[640px]`}>{c("lead", LEAD)}</p>
             <div className="flex flex-col gap-x-7 gap-y-2.5 sm:flex-row sm:flex-wrap sm:items-center">
-              <Link href="/sign-up" className={SITE.cta}>Start your free trial</Link>
-              <a href="#pipeline" className={`${SITE.more} self-center sm:self-auto`}>For technical readers: the pipeline</a>
+              <Link href="/sign-up" className={SITE.cta}>{c("start", "Start your free trial")}</Link>
+              <a href="#pipeline" className={`${SITE.more} self-center sm:self-auto`}>{c("pipelineLink", "For technical readers: the pipeline")}</a>
             </div>
           </div>
           <ol
-            aria-label="The four steps"
+            aria-label={c("stepsLabel", "The four steps")}
             className="m-0 min-w-0 flex-[0_1_300px] list-none border-t border-border-strong p-0 text-[16px] max-[980px]:flex-[1_1_100%]"
           >
             {STEPS.map((s, i) => (
               <li key={s.title}>
                 <a href={`#step-${i + 1}`} className="flex min-h-[50px] items-center gap-3.5 border-b border-border-strong font-semibold text-ink no-underline">
                   <span className={`w-3.5 font-display ${SITE.soft}`}>{i + 1}</span>
-                  {s.title}
+                  {c(`steps.${i}.title`, s.title)}
                 </a>
               </li>
             ))}
@@ -209,7 +224,7 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      <section aria-label="The four steps in detail" className={`${SITE.band} bg-surface`}>
+      <section aria-label={c("detailLabel", "The four steps in detail")} className={`${SITE.band} bg-surface`}>
         <div className={SITE.wrap}>
           <ol className="relative m-0 flex list-none flex-col gap-16 p-0 min-[700px]:gap-24 min-[700px]:before:absolute min-[700px]:before:bottom-6 min-[700px]:before:left-[19px] min-[700px]:before:top-6 min-[700px]:before:w-0.5 min-[700px]:before:bg-[linear-gradient(var(--brand-blue),var(--brand-green))] min-[700px]:before:content-['']">
             {STEPS.map((s, i) => (
@@ -226,9 +241,12 @@ export default function HowItWorksPage() {
                 </span>
                 <div className="grid items-start gap-x-16 gap-y-8 [grid-template-columns:repeat(auto-fit,minmax(min(400px,100%),1fr))]">
                   <div className="flex min-w-0 flex-col gap-4">
-                    <h2 className={`${SITE.h2} max-[699px]:min-h-8 max-[699px]:pl-12`}>{s.title}</h2>
-                    <p className={SITE.lead}>{s.lead}</p>
-                    <p className={`${SITE.soft} text-[16px]`}>{s.detail}</p>
+                    <h2 className={`${SITE.h2} max-[699px]:min-h-8 max-[699px]:pl-12`}>{c(`steps.${i}.title`, s.title)}</h2>
+                    <p className={SITE.lead}>{c(`steps.${i}.lead`, s.lead)}</p>
+                    <p className={`${SITE.soft} text-[16px]`}>
+                      {c(`steps.${i}.detail`, s.detail)}
+                      {s.onRequest && <> {home.c("sharepoint", "Microsoft SharePoint is available on request.")}</>}
+                    </p>
                   </div>
                   {s.picture}
                 </div>
@@ -238,34 +256,36 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      <section aria-label="What happens with the second document" className={SITE.band}>
+      <section aria-label={c("second.label", "What happens with the second document")} className={SITE.band}>
         <div className={`${SITE.wrap} grid items-center gap-x-20 gap-y-12 [grid-template-columns:repeat(auto-fit,minmax(min(440px,100%),1fr))]`}>
           <SecondDocumentPicture />
           <div className="flex flex-col gap-5">
-            <h2 className={SITE.h2}>The second document is easier.</h2>
+            <h2 className={SITE.h2}>{c("second.title", "The second document is easier.")}</h2>
             <p className={SITE.lead}>
-              We remember where each sender puts each value, so the next document from them needs less checking.
+              {c("second.lead", "We remember where each sender puts each value, so the next document from them needs less checking.")}
             </p>
             <Ticks
-              items={[
+              items={list("second.ticks", [
                 "A new flow holds a document for you only when we have marked one of its values; the rest go straight through.",
                 "The flow tells you how many documents in a row went out without a correction.",
                 "You can set a flow to check every document, or nothing at all, and change it at any time.",
                 "A document with a number we have already received always waits for you, so nothing is sent twice.",
                 "A document from an email address we haven't confirmed waits for you too. Send one from an address once, and later documents from it go by themselves, as long as we can confirm each one really came from it.",
-              ]}
+              ])}
             />
           </div>
         </div>
       </section>
 
-      <section id="pipeline" aria-label="The pipeline, for technical readers" className={`${SITE.band} ${JUMP} on-navy bg-navy text-navy-text`}>
+      <section id="pipeline" aria-label={c("pipeline.label", "The pipeline, for technical readers")} className={`${SITE.band} ${JUMP} on-navy bg-navy text-navy-text`}>
         <div className={`${SITE.wrap} flex flex-col gap-12`}>
           <div className="flex max-w-[720px] flex-col gap-[18px]">
-            <h2 className={`${SITE.h2} text-white`}>For technical readers: the pipeline.</h2>
+            <h2 className={`${SITE.h2} text-white`}>{c("pipeline.title", "For technical readers: the pipeline.")}</h2>
             <p className="text-[20px] leading-[1.5] text-navy-text">
-              Every document goes through the same five stages. What happened at each one is kept on the document, so you
-              can open it later and read its history.
+              {c(
+                "pipeline.lead",
+                "Every document goes through the same five stages. What happened at each one is kept on the document, so you can open it later and read its history.",
+              )}
             </p>
           </div>
           <div className="relative">
@@ -283,16 +303,16 @@ export default function HowItWorksPage() {
                     aria-hidden="true"
                     className={`absolute left-0 top-1.5 size-3.5 rounded-full border-[3px] bg-navy min-[1060px]:static min-[1060px]:mb-2.5 ${PIPELINE[stage].dot}`}
                   />
-                  <h3 className={`${SITE.h3} text-white`}>{stage}</h3>
-                  <p className="text-[15.5px]">{PIPELINE[stage].body}</p>
+                  <h3 className={`${SITE.h3} text-white`}>{c(`stages.${stage}.name`, stage)}</h3>
+                  <p className="text-[15.5px]">{c(`stages.${stage}.body`, PIPELINE[stage].body)}</p>
                 </li>
               ))}
             </ol>
           </div>
           <div className="flex flex-wrap gap-x-7 gap-y-2">
-            <Link href="/help/api-reference" className={SITE.onNavyLink}>API reference</Link>
-            <Link href="/formats" className={SITE.onNavyLink}>Every format and method</Link>
-            <Link href="/security" className={SITE.onNavyLink}>Security</Link>
+            <Link href="/help/api-reference" className={SITE.onNavyLink}>{c("links.api", "API reference")}</Link>
+            <Link href="/formats" className={SITE.onNavyLink}>{c("links.formats", "Every format and method")}</Link>
+            <Link href="/security" className={SITE.onNavyLink}>{c("links.security", "Security")}</Link>
           </div>
         </div>
       </section>

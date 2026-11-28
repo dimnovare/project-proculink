@@ -6,6 +6,7 @@ import { Card } from "@/components/bridge/layout/Card";
 import { TableScroller } from "@/components/marketing/TableScroller";
 import { SITE } from "@/components/marketing/sitePictures";
 import { OnThisPage, SITE_PAGE } from "@/components/marketing/LegalPage";
+import { useCopy } from "@/i18n/useCopy";
 
 export const metadata = pageMetadata({
   path: "/security",
@@ -177,35 +178,38 @@ const SECTIONS: Array<[id: string, label: string]> = [
 // ─── Page ───────────────────────────────────────────────────────────────────────
 
 export default function SecurityPage() {
+  const { c, rich } = useCopy("security");
+  const sections = SECTIONS.map(([id, label]): [string, string] => [id, c(`sections.${id}`, label)]);
   return (
     <div className={SITE_PAGE}>
       <section className="pb-20 pt-[72px]">
         <div className={`${SITE.wrap} flex flex-col gap-[26px]`}>
-          <h1 className={`${SITE.h1} max-w-[980px]`}>Built for documents you can&apos;t afford to get wrong</h1>
+          <h1 className={`${SITE.h1} max-w-[980px]`}>{c("title", "Built for documents you can't afford to get wrong")}</h1>
           <p className={`${SITE.lead} max-w-[700px]`}>
-            ProcuLink handles the documents your business runs on. We treat that responsibility, and
-            your data, with the seriousness it deserves.
+            {c("lead", "ProcuLink handles the documents your business runs on. We treat that responsibility, and your data, with the seriousness it deserves.")}
           </p>
-          <OnThisPage items={SECTIONS} className="w-full max-w-[460px]" />
+          <OnThisPage items={sections} className="w-full max-w-[460px]" />
         </div>
       </section>
 
       <section id="posture" aria-labelledby="posture-title" className={`${SITE.band} scroll-mt-24 bg-surface`}>
         <div className={`${SITE.wrap} flex flex-col gap-8`}>
           <h2 id="posture-title" className={SITE.h2}>
-            How your documents are protected
+            {sections[0][1]}
           </h2>
           <ul className="m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(min(460px,100%),1fr))] gap-x-[72px] border-b border-border p-0">
-            {POSTURE.map((p) => (
+            {POSTURE.map((p, i) => (
               <li key={p.title} className="border-t border-border">
                 <article className="grid grid-cols-[24px_minmax(0,1fr)] items-start gap-x-4 gap-y-2 py-8">
                   <span aria-hidden="true" className="mt-px text-ink">
                     {p.icon}
                   </span>
-                  <h3 className={SITE.h3}>{p.title}</h3>
-                  <p className="col-span-2 text-[16px] font-semibold leading-[1.5] text-ink sm:col-span-1 sm:col-start-2">{p.lead}</p>
+                  <h3 className={SITE.h3}>{c(`posture.${i}.title`, p.title)}</h3>
+                  <p className="col-span-2 text-[16px] font-semibold leading-[1.5] text-ink sm:col-span-1 sm:col-start-2">{c(`posture.${i}.lead`, p.lead)}</p>
                   <p className="col-span-2 text-[15px] leading-[1.6] text-ink-muted sm:col-span-1 sm:col-start-2 [&_a]:text-brand-blue-deep [&_a]:underline">
-                    {p.body}
+                    {typeof p.body === "string"
+                      ? c(`posture.${i}.body`, p.body)
+                      : rich(`posture.${i}.body`, p.body, { link: (chunks) => <Link href="/subprocessors">{chunks}</Link> })}
                   </p>
                 </article>
               </li>
@@ -217,33 +221,33 @@ export default function SecurityPage() {
       <div className={SITE.band}>
         <div className={`${SITE.wrap} flex flex-wrap items-start gap-x-[72px] gap-y-14`}>
           <section id="compliance" className="flex min-w-0 flex-[1_1_320px] scroll-mt-24 flex-col items-start gap-[22px]">
-            <h2 className={SITE.h2}>Compliance</h2>
+            <h2 className={SITE.h2}>{sections[1][1]}</h2>
             <Card className="w-full">
               <dl className="m-0">
-                {COMPLIANCE_ROWS.map(([label, note]) => (
+                {COMPLIANCE_ROWS.map(([label, note], i) => (
                   <div key={label} className="flex flex-wrap gap-x-6 gap-y-0.5 border-t border-border-faint py-4 first:border-t-0 first:pt-0 last:pb-0">
                     <dt className="w-[110px] shrink-0 font-semibold">{label}</dt>
-                    <dd className="m-0 min-w-0 flex-[1_1_200px] text-ink-muted">{note}</dd>
+                    <dd className="m-0 min-w-0 flex-[1_1_200px] text-ink-muted">{c(`compliance.${i}`, note)}</dd>
                   </div>
                 ))}
               </dl>
             </Card>
             <Link href="/dpa" className={SITE.more}>
-              Read the data processing addendum
+              {c("readDpa", "Read the data processing addendum")}
             </Link>
           </section>
 
           <section id="subprocessors" className="flex min-w-0 flex-[1.7_1_520px] scroll-mt-24 flex-col items-start gap-[22px]">
-            <h2 className={SITE.h2}>Subprocessors</h2>
+            <h2 className={SITE.h2}>{sections[2][1]}</h2>
             {/* The full purpose and location of each row, as on /subprocessors: a legal list
                 never gets a second, shorter wording. The table scrolls inside its box on a
                 phone; the page itself never does. */}
             <Card flush className="w-full">
-              <TableScroller label="Subprocessors">
+              <TableScroller label={sections[2][1]}>
                 <table className="w-full min-w-[520px] border-collapse text-[15.5px] leading-[1.4]">
                   <thead>
                     <tr>
-                      {["Company", "What it does for us", "Where"].map((h) => (
+                      {[c("th.company", "Company"), c("th.purpose", "What it does for us"), c("th.where", "Where")].map((h) => (
                         <th key={h} scope="col" className="border-b border-border px-[18px] py-[13px] text-left text-[14px] font-semibold text-ink-muted">
                           {h}
                         </th>
@@ -263,7 +267,7 @@ export default function SecurityPage() {
               </TableScroller>
             </Card>
             <Link href="/subprocessors" className={SITE.more}>
-              Full list with locations, contracts, and change notifications
+              {c("fullList", "Full list with locations, contracts, and change notifications")}
             </Link>
           </section>
         </div>
@@ -272,21 +276,27 @@ export default function SecurityPage() {
       <section className={`${SITE.band} border-t border-border`}>
         <div className={`${SITE.wrap} flex flex-wrap items-center gap-x-16 gap-y-8`}>
           <div className="flex flex-[1_1_460px] flex-col gap-4">
-            <h2 className={SITE.h2}>Need our security package?</h2>
+            <h2 className={SITE.h2}>{c("packageTitle", "Need our security package?")}</h2>
             <p className={SITE.lead}>
-              We&apos;ll share our DPA, security overview, and architecture documentation under NDA.
+              {c("packageLead", "We'll share our DPA, security overview, and architecture documentation under NDA.")}
             </p>
             <p className="m-0 text-[15px] text-ink-muted">
-              Found a security problem? Write to{" "}
-              <a href="mailto:security@proculink.eu" className="text-brand-blue underline">security@proculink.eu</a>.
+              {rich(
+                "report",
+                <>
+                  Found a security problem? Write to{" "}
+                  <a href="mailto:security@proculink.eu" className="text-brand-blue underline">security@proculink.eu</a>.
+                </>,
+                { mail: (chunks) => <a href="mailto:security@proculink.eu" className="text-brand-blue underline">{chunks}</a> },
+              )}
             </p>
           </div>
           <div className="flex w-full flex-col gap-x-7 gap-y-2.5 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
             <a href="mailto:security@proculink.eu?subject=Security%20package%20request" className={SITE.cta}>
-              Request security docs
+              {c("requestDocs", "Request security docs")}
             </a>
             <Link href="/sign-up" className={SITE.more}>
-              Start free
+              {c("startFree", "Start free")}
             </Link>
           </div>
         </div>

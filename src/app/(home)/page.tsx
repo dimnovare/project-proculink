@@ -62,7 +62,7 @@ export default function RootPage() {
       <MarketingNav />
       <main id="main-content" tabIndex={-1} className="bg-bgWarm text-[17px] leading-[1.55] text-ink outline-none">
         {/* 1. Introduction */}
-        <section aria-label="Introduction" className="pb-16 pt-12 sm:pb-24 sm:pt-[72px]">
+        <section aria-label={c("introLabel", "Introduction")} className="pb-16 pt-12 sm:pb-24 sm:pt-[72px]">
           <div className={`${SITE.wrap} flex flex-col gap-14`}>
             <div className="flex flex-wrap items-end gap-x-16 gap-y-10">
               <div className="flex min-w-0 flex-[1_1_560px] flex-col gap-[26px]">

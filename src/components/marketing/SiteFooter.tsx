@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
-import { COPYRIGHT_NOTICE } from "@/lib/legal-entity";
+import { COPYRIGHT_NOTICE, LEGAL_ENTITY } from "@/lib/legal-entity";
 import { SITE_TAGLINE } from "@/lib/seo";
 import { useCopy } from "@/i18n/useCopy";
 import { FOOTER_COLS } from "./footerColumns";
@@ -52,7 +52,7 @@ export function SiteFooter() {
           </nav>
         </div>
         <div className="flex flex-wrap justify-between gap-3 border-t border-navy-border pt-5 text-[13.5px] text-navy-faint">
-          <span>{COPYRIGHT_NOTICE}</span>
+          <span>{c("copyright", COPYRIGHT_NOTICE, { name: LEGAL_ENTITY.legalName, code: LEGAL_ENTITY.registryCode })}</span>
           <span>
             <Link href="/security" className="inline-flex items-center text-navy-text underline">{c("storage", "EU-region document storage")}</Link>{c("atRest", ", AES-GCM at rest")}
           </span>

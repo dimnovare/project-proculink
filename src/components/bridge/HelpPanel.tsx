@@ -14,8 +14,8 @@ import { Loading } from "@/components/flows/states";
 import { loadHelpPage } from "@/components/help/helpPages";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { capture } from "@/lib/analytics";
-import { POPULAR_ARTICLE_SLUGS, resolveArticles, type HelpArticle } from "@/lib/help-articles";
-import { buildHelpFuse, searchHelpArticles } from "@/lib/help-search";
+import { POPULAR_ARTICLE_SLUGS, resolveArticles } from "@/lib/help-articles";
+import { articleHit, buildSiteHelpFuse, hitMeta, searchHelpArticles, type HelpHit } from "@/lib/help-search";
 import { getGuideBySlug } from "@/lib/guides";
 import { matchGuide } from "@/lib/section-guides";
 
@@ -106,7 +106,7 @@ function Body({ pathname, searchRef }: { pathname: string | null; searchRef: Rea
   const [article, setArticle] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
-  const fuse = useMemo(() => buildHelpFuse(), []);
+  const fuse = useMemo(() => buildSiteHelpFuse(), []);
   const results = useMemo(() => searchHelpArticles(fuse, debounced, 6), [fuse, debounced]);
   const searching = debounced.trim().length > 0;
 
@@ -172,7 +172,7 @@ function Body({ pathname, searchRef }: { pathname: string | null; searchRef: Rea
           <h3 className={H3}>Search results</h3>
           {results.length === 0
             ? <p className="m-0 text-[13.5px] text-ink-muted">Nothing matches. Try other words, or open the help centre.</p>
-            : results.map((a) => <ArticleRow key={a.slug} article={a} onClick={opener(`/help/${a.slug}`, "panel_search")} showCategory />)}
+            : results.map((h) => <HitRow key={h.href} hit={h} onClick={opener(h.href, "panel_search")} />)}
         </section>
       ) : (
         <>
@@ -198,9 +198,7 @@ function Body({ pathname, searchRef }: { pathname: string | null; searchRef: Rea
           )}
           <section aria-label="Popular articles" className="flex flex-col gap-1">
             <h3 className={H3}>Popular articles</h3>
-            {resolveArticles(POPULAR_ARTICLE_SLUGS, 3).map((a) => (
-              <ArticleRow key={a.slug} article={a} onClick={opener(`/help/${a.slug}`, "panel_popular")} />
-            ))}
+            {resolveArticles(POPULAR_ARTICLE_SLUGS, 3).map((a) => <HitRow key={a.slug} hit={articleHit(a)} onClick={opener(`/help/${a.slug}`, "panel_popular")} />)}
           </section>
         </>
       )}
@@ -208,12 +206,11 @@ function Body({ pathname, searchRef }: { pathname: string | null; searchRef: Rea
   );
 }
 
-function ArticleRow({ article, onClick, showCategory }: { article: HelpArticle; onClick: React.MouseEventHandler<HTMLAnchorElement>; showCategory?: boolean }) {
+function HitRow({ hit, onClick }: { hit: HelpHit; onClick: React.MouseEventHandler<HTMLAnchorElement> }) {
   return (
-    <a href={`/help/${article.slug}`} onClick={onClick} className="flex min-h-11 flex-col justify-center py-1.5">
-      {showCategory && <span className="text-[12.5px] text-ink-muted">{article.category}</span>}
-      <span className="text-[14.5px] font-semibold text-ink">{article.title}</span>
-      <span className="text-[13px] text-ink-muted">{article.readMin} minute read</span>
+    <a href={hit.href} onClick={onClick} className="flex min-h-11 flex-col justify-center py-1.5">
+      <span className="text-[14.5px] font-semibold text-ink">{hit.title}</span>
+      <span className="text-[13px] text-ink-muted">{hitMeta(hit)}</span>
     </a>
   );
 }

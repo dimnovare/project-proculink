@@ -5,6 +5,7 @@ import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
 import { INK_CTA, SITE_PAGE } from "@/components/marketing/LegalPage";
 import { SITE } from "@/components/marketing/sitePictures";
+import { useCopy } from "@/i18n/useCopy";
 
 // Global branded 404. App Router renders this for any unmatched route outside the
 // app (the app has its own, src/app/(app)/not-found.tsx). Kept as a Server Component
@@ -20,6 +21,7 @@ export const metadata: Metadata = {
 const LINE = "h-2.5 rounded-full bg-surface-2";
 
 export default function NotFound() {
+  const { c } = useCopy("notFound");
   return (
     <div className="min-h-dvh bg-surface">
       <SkipToContent />
@@ -29,21 +31,20 @@ export default function NotFound() {
           <div className={`${SITE.wrap} flex flex-wrap items-center gap-x-24 gap-y-16`}>
             <div className="flex min-w-0 flex-[1_1_480px] flex-col items-start gap-6">
               <h1 className="m-0 font-display text-[clamp(40px,4.8vw,66px)] font-semibold leading-[1.02] tracking-[-0.02em] [text-wrap:balance]">
-                This page took a wrong turn.
+                {c("title", "This page took a wrong turn.")}
               </h1>
               <p className={`${SITE.lead} max-w-[540px]`}>
-                The page you were looking for doesn&apos;t exist or has moved. Let&apos;s get you back on
-                route.
+                {c("lead", "The page you were looking for doesn't exist or has moved. Let's get you back on route.")}
               </p>
               <div className="flex flex-wrap items-center gap-x-7 gap-y-2.5">
                 <Link href="/" className={INK_CTA}>
-                  Back to home
+                  {c("home", "Back to home")}
                 </Link>
                 <Link href="/help" className={SITE.more}>
-                  Visit the help centre
+                  {c("help", "Visit the help centre")}
                 </Link>
               </div>
-              <p className="text-[15px] text-ink-muted">Error 404</p>
+              <p className="text-[15px] text-ink-muted">{c("code", "Error 404")}</p>
             </div>
 
             {/* A sheet that missed its place: drawing only, so screen readers skip it. */}

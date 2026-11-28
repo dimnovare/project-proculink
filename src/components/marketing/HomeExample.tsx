@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import { Card } from "@/components/bridge/layout/Card";
+import { useCopy } from "@/i18n/useCopy";
 import { CsvFile, EXAMPLE_INVOICE, InvoiceSheet, LookValue, SITE } from "./sitePictures";
 
 // Home's example, the one picture on the site that moves by itself. Pure CSS,
@@ -58,11 +59,12 @@ function StageHead({ dot, children }: { dot: string; children: React.ReactNode }
 }
 
 export function HomeExample() {
+  const { c } = useCopy("pictures");
   return (
     <div
       data-testid="home-example"
       role="img"
-      aria-label="An example: an invoice arrives as a PDF, ProcuLink reads its values, and a CSV file is sent to an accounting server and a Google Sheet."
+      aria-label={c("example.label", "An example: an invoice arrives as a PDF, ProcuLink reads its values, and a CSV file is sent to an accounting server and a Google Sheet.")}
       className="plk-ex relative pt-[30px]"
     >
       <style>{CSS}</style>
@@ -74,21 +76,21 @@ export function HomeExample() {
       </div>
       <div aria-hidden="true" className="grid items-start gap-x-8 gap-y-7 min-[680px]:grid-cols-2 lg:grid-cols-3">
         <div className="flex min-w-0 flex-col gap-4">
-          <StageHead dot="bg-brand-blue">What arrived</StageHead>
+          <StageHead dot="bg-brand-blue">{c("example.arrived", "What arrived")}</StageHead>
           <InvoiceSheet marked className="-rotate-1" />
         </div>
         <div className="flex min-w-0 flex-col gap-4">
-          <StageHead dot="bg-navy">What we read</StageHead>
+          <StageHead dot="bg-navy">{c("example.read", "What we read")}</StageHead>
           <Card flush className="text-[14.5px]">
             {VALUES.map(([label, value], i) => (
               <div key={label} className={`plk-ex-val plk-ex-val-${i + 1} flex items-center gap-3 border-t border-border-faint px-4 py-[11px] first:border-t-0`}>
                 {label === "Total" ? (
-                  <LookValue label={label} value={value} sentenceClass="plk-ex-need" />
+                  <LookValue label={c(`example.values.${i}`, label)} value={value} sentenceClass="plk-ex-need" />
                 ) : (
                   <>
                     <div className="min-w-0 flex-1">
-                      <p className={`${SITE.soft} text-[12.5px]`}>{label}</p>
-                      <p className="font-semibold">{value}</p>
+                      <p className={`${SITE.soft} text-[12.5px]`}>{c(`example.values.${i}`, label)}</p>
+                      <p className="font-semibold">{label === "Lines" ? c("example.lines", value) : value}</p>
                     </div>
                     <Check aria-hidden="true" className="size-[18px] shrink-0 text-brand-green-deep" strokeWidth={2.5} />
                   </>
@@ -96,13 +98,13 @@ export function HomeExample() {
               </div>
             ))}
           </Card>
-          <p className={`${SITE.soft} text-[14px]`}>Anything missing or hard to read is marked, so you know where to look.</p>
+          <p className={`${SITE.soft} text-[14px]`}>{c("example.marked", "Anything missing or hard to read is marked, so you know where to look.")}</p>
         </div>
         {/* Spans both columns at two-up widths, so it is never left beside an empty half. */}
         <div className="flex min-w-0 flex-col gap-4 min-[680px]:max-lg:col-span-2">
-          <StageHead dot="bg-brand-green">What we send</StageHead>
+          <StageHead dot="bg-brand-green">{c("example.send", "What we send")}</StageHead>
           <CsvFile sent />
-          <p className={`${SITE.soft} text-[14px]`}>The file your system expects, sent where it needs to go.</p>
+          <p className={`${SITE.soft} text-[14px]`}>{c("example.expects", "The file your system expects, sent where it needs to go.")}</p>
         </div>
       </div>
     </div>

@@ -3,7 +3,7 @@ import { Check, FileText } from "lucide-react";
 import { Card } from "@/components/bridge/layout/Card";
 import { useCopy } from "@/i18n/useCopy";
 
-// The drawings Home and How it works share. Server-safe: no hooks, no handlers.
+// The drawings Home and How it works share. Server-safe: no handlers (useCopy works on the server).
 // Every word inside a picture is the app's own word for the same thing, and no
 // text in a picture is under 12.5px.
 
@@ -49,11 +49,12 @@ export const LOOK_SENTENCE = "Check this one. We are 72% sure of it.";
 
 /** A value drawn the way the Review screen marks one to check: label, amber-edged value, the sentence under it. */
 export function LookValue({ label, value, sentenceClass = "" }: { label: string; value: string; sentenceClass?: string }) {
+  const { c } = useCopy("pictures");
   return (
     <div className="flex flex-col items-start gap-1">
       <p className={`${SITE.soft} text-[12.5px]`}>{label}</p>
       <p className="rounded-md border-2 border-amber bg-amber-wash px-2.5 py-1 font-semibold">{value}</p>
-      <p className={`text-[12.5px] font-semibold text-amber-text ${sentenceClass}`}>{LOOK_SENTENCE}</p>
+      <p className={`text-[12.5px] font-semibold text-amber-text ${sentenceClass}`}>{c("look", LOOK_SENTENCE)}</p>
     </div>
   );
 }
@@ -146,6 +147,7 @@ const CSV_LINES = [
 
 /** `head` is drawn inside the card above the file (How it works puts the output chips there). */
 export function CsvFile({ sent = false, head }: { sent?: boolean; head?: React.ReactNode }) {
+  const { c } = useCopy("pictures");
   return (
     <Card flush className="overflow-hidden">
       {head}
@@ -161,10 +163,10 @@ export function CsvFile({ sent = false, head }: { sent?: boolean; head?: React.R
       {sent &&
         ["Accounting server", "Google Sheets"].map((to, i) => (
           <div key={to} className={`${KV} text-[14.5px]`}>
-            <span className="flex-1 font-semibold">{to}</span>
+            <span className="flex-1 font-semibold">{i === 0 ? c("accounting", to) : to}</span>
             <Tag tone="ok" className={`plk-ex-sent plk-ex-sent-${i + 1}`}>
               <Check aria-hidden="true" className="size-3.5" strokeWidth={3} />
-              Sent
+              {c("sent", "Sent")}
             </Tag>
           </div>
         ))}
@@ -180,25 +182,26 @@ const SENDER_DOCS = [
 ] as const;
 
 export function SecondDocumentPicture() {
+  const { c } = useCopy("pictures");
   return (
     <Card
       flush
       role="img"
-      aria-label="Three documents from the same sender. The first had two values to check. The next two had nothing to check."
+      aria-label={c("second.label", "Three documents from the same sender. The first had two values to check. The next two had nothing to check.")}
       className="overflow-hidden text-[15px]"
     >
       <div aria-hidden="true">
-        {SENDER_DOCS.map((d) => (
+        {SENDER_DOCS.map((d, i) => (
           <div key={d.name} className={`${KV} flex-wrap gap-x-3 gap-y-2 px-5 py-4`}>
             <div className="min-w-0 flex-[1_1_230px]">
               <p className="font-semibold">{d.name}</p>
-              <p className={`${SITE.soft} text-[14px]`}>{d.sub}</p>
+              <p className={`${SITE.soft} text-[14px]`}>{c(`second.docs.${i}`, d.sub)}</p>
             </div>
-            <Tag tone={d.tone}>{d.tag}</Tag>
+            <Tag tone={d.tone}>{i === 0 ? c("second.toCheck", d.tag) : c("ready", d.tag)}</Tag>
           </div>
         ))}
         <p className="bg-brand-green-soft px-5 py-4 text-[14.5px] text-brand-green-deep">
-          The last 8 documents were sent without a correction.
+          {c("second.streak", "The last 8 documents were sent without a correction.")}
         </p>
       </div>
     </Card>
@@ -208,21 +211,22 @@ export function SecondDocumentPicture() {
 const PAGE_BAR = "h-1.5 rounded-[3px] bg-border";
 
 export function ReviewPicture({ teach = false }: { teach?: boolean }) {
+  const { c } = useCopy("pictures");
   return (
     <Card
       flush
       role="img"
       aria-label={
         teach
-          ? "The review screen. A box is drawn around the total on the original, and a note says we will look there next time."
-          : "The review screen: the original document on the left, the values read from it on the right, one value marked to check, and a Send button."
+          ? c("review.teachLabel", "The review screen. A box is drawn around the total on the original, and a note says we will look there next time.")
+          : c("review.label", "The review screen: the original document on the left, the values read from it on the right, one value marked to check, and a Send button.")
       }
       className="overflow-hidden text-[14.5px]"
     >
       <div aria-hidden="true">
         <div className="flex flex-wrap items-center gap-3 border-b border-border px-[18px] py-3.5">
           <p className="flex-[1_1_160px] font-semibold">invoice-1001.pdf</p>
-          <Tag tone="need">1 value to check</Tag>
+          <Tag tone="need">{c("review.toCheck", "1 value to check")}</Tag>
         </div>
         <div className="grid [grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr))]">
           <div className="bg-border-faint p-[18px]">
@@ -235,7 +239,7 @@ export function ReviewPicture({ teach = false }: { teach?: boolean }) {
               {teach ? (
                 <div className="relative mt-7 w-[56%] self-end">
                   <span className="absolute bottom-full left-0 rounded-t-[3px] bg-brand-blue px-1.5 text-[12.5px] font-semibold leading-[1.5] text-white">
-                    Total
+                    {c("total", "Total")}
                   </span>
                   <div className="flex h-7 items-center justify-end rounded-[3px] rounded-tl-none border-2 border-dashed border-brand-blue bg-brand-blue-soft px-1.5">
                     <span className="font-mono text-[12.5px] font-medium">{EXAMPLE_INVOICE.total}</span>
@@ -251,27 +255,27 @@ export function ReviewPicture({ teach = false }: { teach?: boolean }) {
           </div>
           <div className="flex flex-col gap-3 px-[18px] py-4">
             <div>
-              <p className={`${SITE.soft} text-[12.5px]`}>Invoice number</p>
+              <p className={`${SITE.soft} text-[12.5px]`}>{c("invoiceNumber", "Invoice number")}</p>
               <p className="font-semibold">{EXAMPLE_INVOICE.number}</p>
             </div>
             {!teach && (
               <div>
-                <p className={`${SITE.soft} text-[12.5px]`}>Supplier</p>
+                <p className={`${SITE.soft} text-[12.5px]`}>{c("supplier", "Supplier")}</p>
                 <p className="font-semibold">{EXAMPLE_INVOICE.supplier}</p>
               </div>
             )}
-            <LookValue label="Total" value={EXAMPLE_INVOICE.totalPlain} />
-            {teach && <p className="text-[13.5px] font-semibold text-brand-blue-deep">Point to it</p>}
+            <LookValue label={c("total", "Total")} value={EXAMPLE_INVOICE.totalPlain} />
+            {teach && <p className="text-[13.5px] font-semibold text-brand-blue-deep">{c("review.point", "Point to it")}</p>}
           </div>
         </div>
         {teach ? (
           <div className="flex items-start gap-2.5 bg-brand-green-soft px-[18px] py-3 text-[14px] text-brand-green-deep">
             <Check aria-hidden="true" className="mt-0.5 size-[18px] shrink-0" strokeWidth={2.5} />
-            <p>Saved. Next time a document from {EXAMPLE_INVOICE.supplier} comes in, we&apos;ll look there for Total.</p>
+            <p>{c("review.saved", `Saved. Next time a document from ${EXAMPLE_INVOICE.supplier} comes in, we'll look there for Total.`, { supplier: EXAMPLE_INVOICE.supplier })}</p>
           </div>
         ) : (
           <div className="flex items-center gap-3 border-t border-border px-[18px] py-3">
-            <p className={`${SITE.soft} flex-1 text-[14px]`}>Invoice CSV to Accounting server</p>
+            <p className={`${SITE.soft} flex-1 text-[14px]`}>{c("review.to", "Invoice CSV to Accounting server")}</p>
             <span className="inline-flex h-10 items-center rounded-lg bg-brand-green-btn px-[18px] font-semibold text-white">Send</span>
           </div>
         )}
