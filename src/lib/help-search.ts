@@ -2,29 +2,6 @@ import Fuse from "fuse.js";
 import { HELP_ARTICLES, type HelpArticle } from "./help-articles";
 import { liveClientGuides } from "./guides";
 
-/**
- * Shared help-article search index — used by BOTH the /help center page and
- * the in-app help slideover so the two surfaces always agree on results.
- *
- * Weighted keys: title dominates, blurb next, curated keywords cover the
- * operator vocabulary MDX prose doesn't surface (e.g. "IMAP", "test-fire",
- * "429"), category is a light tie-breaker.
- */
-export function buildHelpFuse(
-  articles: HelpArticle[] = HELP_ARTICLES,
-): Fuse<HelpArticle> {
-  return new Fuse(articles, {
-    keys: [
-      { name: "title", weight: 0.5 },
-      { name: "blurb", weight: 0.3 },
-      { name: "keywords", weight: 0.15 },
-      { name: "category", weight: 0.05 },
-    ],
-    threshold: 0.4,
-    includeScore: true,
-  });
-}
-
 /** One row of the help home's search: an article or a live public guide. */
 export interface HelpHit {
   kind: "article" | "guide";
@@ -38,7 +15,7 @@ export interface HelpHit {
 /** An article as a row of the help home. */
 export const articleHit = (a: HelpArticle): HelpHit => ({ kind: "article", title: a.title, blurb: a.blurb, href: `/help/${a.slug}`, minutes: a.readMin, keywords: a.keywords });
 
-/** The help home's index: articles and live public guides together. The panel keeps its article index. */
+/** The help home's and the in-app panel's index: articles and live public guides together. */
 export function buildSiteHelpFuse(): Fuse<HelpHit> {
   const hits: HelpHit[] = [
     ...HELP_ARTICLES.map(articleHit),
@@ -54,6 +31,12 @@ export function buildSiteHelpFuse(): Fuse<HelpHit> {
     includeScore: true,
   });
 }
+
+/** A search row's second line: an article's reading time, or that it is a guide. */
+export const hitMeta = (hit: HelpHit) =>
+  hit.kind === "article"
+    ? `${hit.minutes} minute read`
+    : `Step-by-step guide${hit.minutes != null ? `, about ${hit.minutes} minutes` : ""}`;
 
 /** Search a shared index, capped (slideover shows at most 6 results). */
 export function searchHelpArticles<T>(fuse: Fuse<T>, query: string, max = 6): T[] {

@@ -11,7 +11,7 @@ import {
   type HelpCategory,
 } from "@/lib/help-articles";
 import { START_HERE, getGuideBySlug, liveClientGuides } from "@/lib/guides";
-import { articleHit, buildSiteHelpFuse, searchHelpArticles, type HelpHit } from "@/lib/help-search";
+import { articleHit, buildSiteHelpFuse, hitMeta, searchHelpArticles, type HelpHit } from "@/lib/help-search";
 import { DOCUMENT_TABS } from "@/lib/documentTabs";
 import { Card } from "@/components/bridge/layout/Card";
 import { SITE, Tag } from "@/components/marketing/sitePictures";
@@ -43,10 +43,6 @@ const ROW = "group flex min-h-[44px] flex-col justify-center gap-0.5 border-t bo
 
 const articleCount = (category: HelpCategory) => HELP_ARTICLES.filter((a) => a.category === category).length;
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
-const meta = (hit: HelpHit) =>
-  hit.kind === "article"
-    ? `${hit.minutes} minute read`
-    : `Step-by-step guide${hit.minutes != null ? `, about ${hit.minutes} minutes` : ""}`;
 
 function HitRows({ hits }: { hits: HelpHit[] }) {
   return (
@@ -54,7 +50,7 @@ function HitRows({ hits }: { hits: HelpHit[] }) {
       {hits.map((hit) => (
         <Link key={hit.href} href={hit.href} className={ROW}>
           <span className={`font-semibold ${CARD_TITLE}`}>{hit.title}</span>
-          <span className="text-[15px] text-ink-muted">{meta(hit)}</span>
+          <span className="text-[15px] text-ink-muted">{hitMeta(hit)}</span>
         </Link>
       ))}
     </Card>
