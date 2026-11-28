@@ -56,12 +56,19 @@ export function ValueInput({ target, value, edits, kind, className = "", base = 
   const { locale } = useCopy("app");
   const [focused, setFocused] = useState(false);
   const shown = focused || !kind ? value : formatReadValue(value, kind.type, kind.meaning, locale);
+  // The text as read goes in at once, so a select() just after focus() selects it, and text selected just before stays selected.
+  const asRead = (el: HTMLInputElement) => {
+    const raw = edits.drafts[editKey(target)] ?? value ?? "";
+    if (el.value === raw) return;
+    const all = el.selectionStart === 0 && el.selectionEnd === el.value.length;
+    el.value = raw;
+    if (all) el.select();
+  };
   return (
     <input
       {...rest} data-value={editKey(target)} className={`${base} ${className}`} value={edits.drafts[editKey(target)] ?? shown ?? ""}
       onChange={(e) => edits.type(target, e.target.value)}
-      // The text as read goes in at once, so a select() right after focus() selects it, not the formatted one.
-      onFocus={(e) => { if (!(editKey(target) in edits.drafts)) e.currentTarget.value = value ?? ""; setFocused(true); onFocus?.(e); }}
+      onFocus={(e) => { asRead(e.currentTarget); setFocused(true); onFocus?.(e); }}
       onBlur={() => { setFocused(false); edits.commit(); }}
       onKeyDown={(e) => e.key === "Enter" && edits.commit()}
     />
