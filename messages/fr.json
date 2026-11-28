@@ -332,7 +332,9 @@
     "addDocument": "Ajouter un document",
     "planLabel": "Offre {name}",
     "loading": "Chargement…",
-    "yourWorkspace": "Votre espace de travail"
+    "yourWorkspace": "Votre espace de travail",
+    "needsYouOne": "{count} vous attend",
+    "needsYouMany": "{count} vous attendent"
   },
   "legal": {
     "englishOnly": "Cette page n’est disponible qu’en anglais. La version anglaise fait foi."

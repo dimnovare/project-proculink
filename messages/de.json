@@ -332,7 +332,9 @@
     "addDocument": "Dokument hinzufügen",
     "planLabel": "Tarif {name}",
     "loading": "Wird geladen…",
-    "yourWorkspace": "Ihr Arbeitsbereich"
+    "yourWorkspace": "Ihr Arbeitsbereich",
+    "needsYouOne": "{count} wartet auf Sie",
+    "needsYouMany": "{count} warten auf Sie"
   },
   "legal": {
     "englishOnly": "Diese Seite ist nur auf Englisch verfügbar. Die englische Fassung ist verbindlich."

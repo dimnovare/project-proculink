@@ -63,7 +63,7 @@ export function BottomTabBar() {
         key={href}
         href={href}
         aria-current={active ? "page" : undefined}
-        aria-label={count ? `${label}, ${total} ${total === 1 ? "needs" : "need"} you` : undefined}
+        aria-label={count ? `${label}, ${total === 1 ? c("needsYouOne", "1 needs you", { count: 1 }) : c("needsYouMany", `${total} need you`, { count: total! })}` : undefined}
         className={`${TAB} ${active ? "font-semibold !text-brand-blue-deep" : "font-medium"}`}
       >
         <span className="relative inline-flex">
