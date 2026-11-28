@@ -269,8 +269,13 @@ export const clerkAppearance = {
       "h-[42px] rounded-[6px] border border-[color:var(--border-strong)] bg-[color:var(--surface)] px-3 text-[14px] text-[color:var(--ink)] placeholder:text-[color:var(--ink-faint)] focus:border-[color:var(--brand-blue)] focus:ring-[3px] focus:ring-[color:var(--brand-blue-soft)] shadow-none transition-colors",
     // Primary CTA: navy to sign in, green to start a trial. One object for both
     // pages; the page is told apart by the `data-auth` mark AuthShell sets.
+    // Clerk's own ring and shadow sit at a higher specificity, so `!shadow-none`; no arrow glyph. The form's
+    // 32px gap plus the last field's margin left a 58px band above the button: 10px gap + 14px margin = the
+    // same 24px as between fields.
+    form: "!gap-[10px]",
     formButtonPrimary:
-      "h-12 rounded-[6px] bg-navy text-surface text-[16px] font-semibold hover:bg-navy-surface active:translate-y-[0.5px] shadow-none normal-case transition-colors mt-3",
+      "h-12 rounded-[6px] bg-navy text-surface text-[16px] font-semibold hover:bg-navy-surface active:translate-y-[0.5px] !shadow-none normal-case transition-colors",
+    buttonArrowIcon: "!hidden",
     // "Forgot?" action link → a.link (brand-blue-deep)
     formFieldAction: "text-[11.5px] font-medium text-[color:var(--brand-blue-deep)] hover:underline",
     identityPreviewEditButton: "text-[color:var(--brand-blue-deep)]",

@@ -33,8 +33,16 @@ import { act, render, screen, fireEvent, cleanup } from "@testing-library/react"
 
 let clerkLoaded = false;
 let clerkSignedIn = false;
+// Clerk's own status channel: a test calls `emitStatus("error")` the way Clerk does on a blocked script.
+let statusListener: ((s: string) => void) | null = null;
+const emitStatus = (s: string) => act(() => statusListener?.(s));
+const fakeClerk = {
+  on: (_e: string, h: (s: string) => void) => (statusListener = h),
+  off: () => (statusListener = null),
+};
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({ isLoaded: clerkLoaded, isSignedIn: clerkSignedIn }),
+  useClerk: () => fakeClerk,
 }));
 
 // Getters, not plain values: the module factory runs once, but `useQueriesEnabled`
@@ -119,11 +127,16 @@ describe("ClerkAvailabilityGate", () => {
     expect(screen.queryByText(APP_CONTENT)).not.toBeInTheDocument();
   });
 
-  it("lands inside the 10s acceptance ceiling", () => {
-    expect(CLERK_LOAD_DEADLINE_MS).toBeLessThan(10_000);
-    // …and above the app's own 5s Clerk wait in authHeader (src/lib/api/core.ts),
-    // so the card can never pre-empt a slow load the fetch path would still honour.
-    expect(CLERK_LOAD_DEADLINE_MS).toBeGreaterThanOrEqual(5_000);
+  // L01 (audit 2026-11-27): a slow but healthy production load showed the card for 3 to 6 s, then
+  // cleared it. A load that is still going shows nothing; Clerk's own "error" shows the card at once.
+  it("waits out a slow load, and shows the card as soon as Clerk reports an error", () => {
+    renderGate();
+    emitStatus("loading");
+    advance(12_000);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByText(APP_CONTENT)).toBeInTheDocument();
+    emitStatus("error");
+    expect(screen.getByRole("alert")).toHaveTextContent("Nothing was changed. Your documents, flows and settings");
   });
 
   it("counts the deadline from navigation, not from the moment it mounted", () => {

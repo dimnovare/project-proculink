@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/bridge/layout/Card";
+import { scrollRegionProps } from "@/components/bridge/document/scrollRegion";
 import { SITE_PAGE } from "@/components/marketing/LegalPage";
 import { ClosingCta, SITE, Ticks } from "@/components/marketing/sitePictures";
 
@@ -80,7 +81,8 @@ export function UseCasePage({ page }: { page: UseCase }) {
               </div>
             </Card>
             <Card edge="green" title="What we send" sub={example.outName}>
-              <pre className="m-0 overflow-x-auto whitespace-pre font-mono text-[14px] leading-[1.6]">{example.outLines.join("\n")}</pre>
+              {/* Long lines scroll sideways, so the box takes focus and a name (as the help code blocks do). */}
+              <pre {...scrollRegionProps(`What we send: ${example.outName}`, true)} className="m-0 overflow-x-auto whitespace-pre font-mono text-[14px] leading-[1.6]">{example.outLines.join("\n")}</pre>
             </Card>
           </div>
         </div>

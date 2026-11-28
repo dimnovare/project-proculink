@@ -49,23 +49,26 @@
 //     back; and the copy named causes a reload cannot fix without saying so.
 
 import * as React from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, useClerk } from "@clerk/nextjs";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useDependencyReady } from "@/hooks/useDependencyReady";
 import { reloadPage } from "@/lib/reload";
 import { DependencyUnavailable } from "./DependencyUnavailable";
 
 /**
- * How long to wait for the sign-in service before declaring it unreachable.
+ * How long to wait for the sign-in service before declaring it unreachable
+ * when Clerk itself has not reported a failure.
  *
- * 8s: under the 10s product ceiling with room for React to commit and paint,
- * and above the 5s Clerk wait already baked into authHeader()
- * (src/lib/api/core.ts) so this can never pre-empt a slow-but-successful load
- * that the fetch path would still have honoured.
+ * 20s. It was 8s, and on production a slow but healthy cold load (L01, audit
+ * 2026-11-27) put the card on screen for 3 to 6 s before Clerk arrived and
+ * cleared it. A real failure no longer waits for this: Clerk reports
+ * `status: "error"` when its script is blocked or misses its own 15s load
+ * timeout, and the card shows at once (`failed`). This is only the backstop
+ * for a load that hangs without ever erroring, so it sits above Clerk's 15s.
  *
  * Measured from NAVIGATION, not from mount — see `since: "navigation"` below.
  */
-export const CLERK_LOAD_DEADLINE_MS = 8_000;
+export const CLERK_LOAD_DEADLINE_MS = 20_000;
 
 /**
  * How long "Try again" waits before re-arming, when the reload never happens.
@@ -129,11 +132,14 @@ function helpDestination(): { href: string; label: string; external?: boolean } 
 export function SignInServiceGate({
   ready,
   armed,
+  failed = false,
   surface = "workspace",
   children,
 }: {
   ready: boolean;
   armed: boolean;
+  /** The dependency reported a failure itself: show the card now, not at the deadline. */
+  failed?: boolean;
   surface?: SignInSurface;
   children: React.ReactNode;
 }) {
@@ -169,7 +175,7 @@ export function SignInServiceGate({
     rearmTimer.current = setTimeout(restart, REARM_AFTER_RELOAD_MS);
   }, [restart]);
 
-  if (status !== "unavailable") return <>{children}</>;
+  if (status !== "unavailable" && !(failed && status === "pending")) return <>{children}</>;
 
   return (
     <DependencyUnavailable
@@ -189,14 +195,14 @@ export function SignInServiceGate({
           </p>
           <p style={{ margin: "10px 0 0" }}>
             This is usually a temporary outage, an ad blocker, or a company network that
-            blocks the address below. Trying again only helps once an outage has ended
-            &mdash; if an ad blocker or your company network is blocking that address, it
-            has to be allowed first.
+            blocks the address below. Trying again only helps once an outage has ended. If
+            an ad blocker or your company network is blocking that address, it has to be
+            allowed first.
           </p>
           {surface === "workspace" && (
             <p style={{ margin: "10px 0 0" }}>
-              Nothing was changed &mdash; your orders and settings are exactly as you left
-              them.
+              Nothing was changed. Your documents, flows and settings are exactly as you
+              left them.
             </p>
           )}
         </>
@@ -214,9 +220,17 @@ export function ClerkAvailabilityGate({
 }) {
   const { isLoaded } = useAuth();
   const queriesEnabled = useQueriesEnabled();
+  // Clerk says "error" when its script is blocked or times out; until then a slow load is still a load.
+  const clerk = useClerk();
+  const [failed, setFailed] = React.useState(false);
+  React.useEffect(() => {
+    const onStatus = (s: string) => setFailed(s === "error");
+    clerk?.on?.("status", onStatus, { notify: true });
+    return () => clerk?.off?.("status", onStatus);
+  }, [clerk]);
 
   return (
-    <SignInServiceGate ready={isLoaded} armed={!queriesEnabled} surface={surface}>
+    <SignInServiceGate ready={isLoaded} armed={!queriesEnabled} failed={failed} surface={surface}>
       {children}
     </SignInServiceGate>
   );

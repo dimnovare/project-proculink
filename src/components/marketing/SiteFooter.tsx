@@ -6,7 +6,8 @@ import { useCopy } from "@/i18n/useCopy";
 import { FOOTER_COLS } from "./footerColumns";
 import { LanguageList } from "./LanguageSwitcher";
 
-const LINK = "flex items-center min-h-[44px] text-navy-text no-underline hover:text-white";
+// py-2 keeps a gap between links that wrap to two lines (German), not only between one-line ones.
+const LINK = "flex items-center min-h-[44px] py-2 leading-snug text-navy-text no-underline hover:text-white";
 
 /** The one footer of the public site: Home and every page under the marketing layout. */
 export function SiteFooter() {

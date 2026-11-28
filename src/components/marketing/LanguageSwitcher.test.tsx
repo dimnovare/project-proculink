@@ -19,7 +19,7 @@ describe("language switcher", () => {
         <LanguageMenuButton />
       </NextIntlClientProvider>,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Sprache: Deutsch" }));
+    fireEvent.click(screen.getByRole("button", { name: "DE, Sprache: Deutsch" }));
     expect(screen.getAllByRole("button").slice(1).map((b) => b.textContent)).toEqual(["English", "Deutsch", "Français", "Polski", "Eesti"]);
     expect(screen.getByRole("button", { name: "Deutsch" })).toHaveAttribute("aria-current", "true");
     fireEvent.click(screen.getByRole("button", { name: "Polski" }));

@@ -3,6 +3,7 @@ import { readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 import { preparePage, settle } from "./a11yHarness";
+import { LOCALE_COOKIE, LOCALES } from "../../src/i18n/locales";
 
 /**
  * MARKETING PAGES MUST NOT SCROLL SIDEWAYS ON A PHONE.
@@ -128,5 +129,24 @@ test.describe(`marketing pages at ${NARROW_WIDTH}px`, () => {
       expect(measured.doc, detail).toBeLessThanOrEqual(measured.inner);
       expect(measured.body, detail).toBeLessThanOrEqual(measured.inner);
     });
+  }
+});
+
+// F-01 (audit 2026-11-27): at 360px the German "Kostenlos starten" pushed the header's Menu button half
+// off-screen and every page scrolled sideways. The label is per language, so every language is measured.
+test("the header fits at 320 and 360 in every language", async ({ page, baseURL }) => {
+  test.slow(); // ten page loads; a cold dev server compiles /pricing on the first
+  for (const locale of LOCALES) {
+    await page.context().addCookies([{ name: LOCALE_COOKIE, value: locale, url: baseURL! }]);
+    for (const width of [320, 360]) {
+      await page.setViewportSize({ width, height: 740 });
+      await page.goto("/pricing");
+      const m = await page.evaluate(() => ({
+        doc: document.documentElement.scrollWidth,
+        menu: Math.ceil(document.querySelector("header [aria-controls='marketing-mobile-menu']")!.getBoundingClientRect().right),
+      }));
+      expect(m.doc, `${locale} at ${width}px: page width`).toBeLessThanOrEqual(width);
+      expect(m.menu, `${locale} at ${width}px: Menu button`).toBeLessThanOrEqual(width);
+    }
   }
 });

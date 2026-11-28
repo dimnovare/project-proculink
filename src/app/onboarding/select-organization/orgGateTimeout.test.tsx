@@ -81,7 +81,8 @@ describe("/onboarding/select-organization when the sign-in service stalls", () =
 
     advance(1);
     expect(screen.getByRole("alert")).toBeInTheDocument();
-    expect(CLERK_LOAD_DEADLINE_MS).toBeLessThan(10_000);
+    // The hang backstop sits above Clerk's own 15s script timeout, which reports a real failure first.
+    expect(CLERK_LOAD_DEADLINE_MS).toBeGreaterThan(15_000);
   });
 
   it("names the real cause instead of claiming a setup is in progress", () => {

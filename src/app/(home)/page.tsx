@@ -66,8 +66,10 @@ export default function RootPage() {
           <div className={`${SITE.wrap} flex flex-col gap-14`}>
             <div className="flex flex-wrap items-end gap-x-16 gap-y-10">
               <div className="flex min-w-0 flex-[1_1_560px] flex-col gap-[26px]">
+                {/* From 640px each half stays on one line (the German first half otherwise left "Jedes" alone);
+                    at 5.6vw it always fits the page, and the column widens instead. */}
                 <h1 className={SITE.h1}>
-                  <span className="text-brand-blue">{c("h1a", "Any document in.")}</span>{" "}
+                  <span className="text-brand-blue sm:whitespace-nowrap">{c("h1a", "Any document in.")}</span>{" "}
                   <span className="block text-brand-green-deep">{c("h1b", "Clean data out.")}</span>
                 </h1>
                 <p className={`${SITE.lead} max-w-[620px]`}>{c("lead", SITE_DESCRIPTION)}</p>
@@ -201,7 +203,8 @@ export default function RootPage() {
                 </p>
               </div>
               <figure aria-label={c("apiLabel", "Example: send a file to a flow over the API")} className="m-0 min-w-0 flex-[1_1_420px]">
-                <pre tabIndex={0} className="m-0 overflow-x-auto rounded-xl bg-navy-surface px-[22px] py-5 font-mono text-[13px] leading-[1.7] text-navy-text">
+                {/* On phones the long URL line wraps instead of running past the box with no cue. */}
+                <pre tabIndex={0} className="m-0 overflow-x-auto max-sm:whitespace-pre-wrap max-sm:break-all rounded-xl bg-navy-surface px-[22px] py-5 font-mono text-[13px] leading-[1.7] text-navy-text">
                   {API_EXAMPLE}
                 </pre>
               </figure>

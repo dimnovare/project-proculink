@@ -38,8 +38,10 @@ export function isCurrentSection(pathname: string | null, href: string): boolean
 
 const WIDE = "(min-width: 900px)";
 // The header is navy, so its one filled button is the inverse: white with navy text (green only sends).
+// Below 390px a long label ("Kostenlos starten") may wrap to two lines inside the same 44px box, so the
+// header never runs past the screen edge; short labels stay on one line.
 const FILLED =
-  "inline-flex h-11 min-w-[9.5rem] items-center justify-center whitespace-nowrap rounded-lg bg-white px-4 text-[15px] max-[389px]:min-w-[7rem] max-[389px]:px-3.5 font-semibold text-navy hover:bg-navy-text";
+  "inline-flex h-11 min-w-[9.5rem] items-center justify-center whitespace-nowrap rounded-lg bg-white px-4 text-[15px] max-[389px]:min-w-[7rem] max-[389px]:shrink max-[389px]:whitespace-normal max-[389px]:px-3 max-[389px]:text-center max-[389px]:text-[14px] max-[389px]:leading-[1.1] font-semibold text-navy hover:bg-navy-text";
 
 export function MarketingNav() {
   const pathname = usePathname();
@@ -126,7 +128,7 @@ export function MarketingNav() {
           })}
         </nav>
 
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex min-w-0 items-center gap-1.5">
           <LanguageMenuButton />
           {/* Signed in, "Sign in" keeps its box (so nothing moves) but leaves the reading and tab order. */}
           <Link
