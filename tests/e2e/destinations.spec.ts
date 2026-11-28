@@ -98,7 +98,7 @@ test.describe("destinations", () => {
     await expect(panel.getByTestId("destination-waiting")).toHaveCount(0);
     const server = page.getByRole("list", { name: "Destinations" }).getByRole("listitem").filter({ hasText: "Accounting server" });
     await server.getByRole("button", { name: "Send a test to Accounting server" }).click();
-    await expect(server.getByRole("alert")).toContainText("The test didn't arrive: The server refused the login.");
+    await expect(server.getByRole("alert")).toContainText("The test didn't arrive. The server refused the login.");
     await page.goBack();
     await expect(page).toHaveURL(/\/documents\?show=failed$/);
     await page.goto("/settings");
@@ -177,7 +177,7 @@ test.describe("destinations", () => {
     await panel.getByLabel("New password").fill(fake);
     await panel.getByRole("button", { name: "Save and send a test" }).click();
     // The test ran on what was saved, and its result is said where it was pressed.
-    await expect(panel.getByRole("alert")).toContainText("The test didn't arrive: The server refused the login.");
+    await expect(panel.getByRole("alert")).toContainText("The test didn't arrive. The server refused the login.");
     await expect(panel.getByRole("button", { name: "Close" })).toBeVisible();
     await expect(panel.getByLabel("New password")).toHaveValue("");
     expect(await page.evaluate((s) => document.body.innerText.includes(s)

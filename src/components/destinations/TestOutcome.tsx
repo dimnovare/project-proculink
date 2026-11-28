@@ -43,7 +43,7 @@ export function TestOutcome({ destinationId, protocol, result, error, at, place,
   if (!result.success)
     return shown(
       <StatusNotice tone="error">
-        {reason ? <>The test didn&apos;t arrive: <span>{sentence(reason)}</span></> : "The test didn't arrive."} {GO_ON[place]}
+        {reason ? <>The test didn&apos;t arrive. <span>{sentence(reason)}</span></> : "The test didn't arrive."} {GO_ON[place]}
       </StatusNotice>
     );
 

@@ -73,7 +73,7 @@ describe("DestinationsSection", () => {
     const test = within(rows[1]).getByRole("button", { name: "Send a test to Accounting server" });
     fireEvent.click(test);
     fireEvent.click(test);
-    expect(await within(rows[1]).findByRole("alert")).toHaveTextContent("The test didn't arrive: The server refused the login.");
+    expect(await within(rows[1]).findByRole("alert")).toHaveTextContent("The test didn't arrive. The server refused the login.");
     expect(api.testDestination).toHaveBeenCalledTimes(1);
     expect(within(rows[0]).queryByRole("alert")).toBeNull();
     cleanup();
@@ -142,7 +142,17 @@ describe("DestinationsSection", () => {
     renderSection();
     const fresh = await screen.findByRole("region", { name: "New destination" });
     expect(within(fresh).getByLabelText("Send by")).toBeInTheDocument();
-    expect(within(fresh).getByRole("button", { name: "Save and send a test" })).toBeInTheDocument();
+    // A failed test after the first save: the form now edits what that save created, so a second save is no duplicate.
+    api.createDestination.mockResolvedValue({ ...inbox, id: "dest-new", usedBy: [] });
+    api.updateDestination.mockResolvedValue({ ...inbox, id: "dest-new", usedBy: [] });
+    api.testDestination.mockResolvedValue({ success: false, message: "We couldn't find that web address.", responseCode: null });
+    fireEvent.change(within(fresh).getByLabelText("Name"), { target: { value: "Books" } });
+    fireEvent.change(within(fresh).getByLabelText(/^Send to/), { target: { value: "books@example.test" } });
+    fireEvent.click(within(fresh).getByRole("button", { name: "Save and send a test" }));
+    expect(await within(fresh).findByRole("alert")).toHaveTextContent("The test didn't arrive. We couldn't find that web address. Check the details above");
+    fireEvent.click(within(fresh).getByRole("button", { name: "Save and send a test" }));
+    await waitFor(() => expect(api.updateDestination).toHaveBeenCalledWith("dest-new", expect.anything()));
+    expect(api.createDestination).toHaveBeenCalledTimes(1);
   });
 
   it("a later passed test never hides a failed real send, and what still waits is offered from the server, by count", async () => {

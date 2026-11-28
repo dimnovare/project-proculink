@@ -65,8 +65,9 @@ export function CookieConsentBanner() {
       aria-label="Cookie consent"
       data-plk-nonmodal="banner"
       // Compact on mobile (tighter padding, smaller gap) so the banner stays
-      // ~110px tall and doesn't cover sticky action bars; roomier on sm+.
-      className="plk-cookie-banner flex flex-wrap items-center justify-between gap-2.5 p-3.5 sm:gap-4 sm:p-[18px_20px]"
+      // ~110px tall and doesn't cover sticky action bars; roomier on sm+. On a short phone (iPhone SE) tighter still,
+      // so the sign-in form above stays clear.
+      className="plk-cookie-banner flex flex-wrap items-center justify-between gap-2.5 p-3.5 sm:gap-4 sm:p-[18px_20px] max-sm:[@media(max-height:640px)]:gap-1.5 max-sm:[@media(max-height:640px)]:p-2.5"
       style={{
         position: "fixed",
         bottom: "calc(16px + var(--plk-tabbar-h, 0px))",
@@ -84,7 +85,7 @@ export function CookieConsentBanner() {
     >
       {/* Compact copy on mobile — two short sentences + link. */}
       <p
-        className="m-0 flex-1 basis-full text-[13.5px] leading-snug text-[#3D4A5C] sm:hidden"
+        className="m-0 flex-1 basis-full text-[13.5px] leading-snug text-[#3D4A5C] sm:hidden [@media(max-height:640px)]:text-[12.5px] [@media(max-height:640px)]:leading-tight"
       >
         We use cookies to keep you signed in. May we also use analytics cookies to improve ProcuLink?{" "}
         <Link href="/privacy" style={{ color: "#1E6D29", textDecoration: "underline" }}>Privacy Policy</Link>
@@ -108,7 +109,7 @@ export function CookieConsentBanner() {
         <button
           type="button"
           onClick={() => setConsent("functional-only")}
-          className="flex-1 sm:flex-none"
+          className="flex-1 sm:flex-none max-sm:[@media(max-height:640px)]:!py-1.5"
           style={{
             background: "#FFFFFF",
             color: "#0B1A2F",
@@ -125,7 +126,7 @@ export function CookieConsentBanner() {
         <button
           type="button"
           onClick={() => setConsent("analytics-allowed")}
-          className="flex-1 sm:flex-none"
+          className="flex-1 sm:flex-none max-sm:[@media(max-height:640px)]:!py-1.5"
           style={{
             background: "#0B1A2F",
             color: "#FFFFFF",

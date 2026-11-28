@@ -201,8 +201,14 @@ export function activityView(e: ActivityEvent, ctx: { who: string; destinationNa
       break;
     }
     case "document.sent":
-      sentence = fileSentence("Started sending ", "");
-      tag = { label: "Sending", tone: "neutral" };
+      // Nothing queued: every file was made to download, so nothing is on its way. Absent (an older row) stays "Sending".
+      if (p("queued") === "0") {
+        sentence = fileSentence("A file was made from ", "");
+        tag = { label: "File made", tone: "green" };
+      } else {
+        sentence = fileSentence("Started sending ", "");
+        tag = { label: "Sending", tone: "neutral" };
+      }
       fact("Files", p("outputs"));
       fact("Flow version", version);
       break;

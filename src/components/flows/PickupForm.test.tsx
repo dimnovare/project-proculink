@@ -75,13 +75,13 @@ describe("PickupForm", () => {
     expect(screen.getByRole("option", { name: "new@example.com (Reconnect needed)" })).toBeTruthy();
     expect(screen.queryByLabelText("Password")).toBeNull();
     fireEvent.change(screen.getByLabelText("Microsoft account"), { target: { value: "ms-1" } });
-    expect(screen.getByRole("button", { name: "Disconnect" })).toBeTruthy();
+    // Accounts are removed in one place, Settings, never from a pickup.
+    expect(screen.getByRole("link", { name: "Manage accounts in Workspace › Connected accounts" })).toHaveAttribute("href", "/settings?tab=org");
+    expect(screen.queryByRole("button", { name: "Disconnect" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(api.createIntake).toHaveBeenCalledWith("f1", {
       kind: "outlook", config: { accountId: "ms-1", folder: "Inbox", fromFilter: "", subjectFilter: "" }, credentials: null,
     }));
-    // Saved, the pickup holds that account, so disconnecting it is not offered.
-    await waitFor(() => expect(screen.queryByRole("button", { name: "Disconnect" })).toBeNull());
 
     ui.unmount();
     linked.listLinkedAccounts.mockResolvedValue({ available: false, microsoftAvailable: false, accounts: [] });

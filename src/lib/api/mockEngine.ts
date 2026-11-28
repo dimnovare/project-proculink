@@ -61,7 +61,8 @@ const flow2: Flow = {
 const quietFlow = (id: string, name: string, automation: Flow["automation"], documentCount: number): Flow =>
   ({ ...flow1, id, name, automation, documentCount, hasChanges: false, noCorrectionStreak: null });
 const flow3 = quietFlow("flow-3", "Purchase orders", "review", 2);
-const flow4 = quietFlow("flow-4", "Remittance advices", "auto", 1);
+// Download-only, with a run of documents finished without a correction (You check says so).
+const flow4: Flow = { ...quietFlow("flow-4", "Remittance advices", "auto", 1), noCorrectionStreak: 6 };
 const FLOWS = [flow1, flow2, flow3, flow4];
 /** The workspace's inbox. Never in FLOWS, so `GET /flows`, the flow limit and `pick(FLOWS, …)` never see it. */
 const INBOX: Flow = { ...flow2, id: MOCK_ENGINE_IDS.inbox, name: "New documents", documentCount: 0, automation: "review" };

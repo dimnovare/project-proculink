@@ -125,6 +125,10 @@ describe("activityRows", () => {
     expect(said("document.moved", { newFlow: true })).toBe("invoice-2292.pdf was moved");
     expect([said("document.split", { documents: 4, file: "march.pdf" }), at("document.split", {}).tag]).toEqual(["march.pdf held 4 documents, so each is read on its own", { label: "Split", tone: "blue" }]);
     expect(said("document.split", { documents: 1 })).toBe("invoice-2292.pdf was printed more than once, so only its first copy is read");
+    // A send that queued nothing made its files to download; an older row with no count still says Sending.
+    const made = at("document.sent", { mode: "person", outputs: ["CSV file"], queued: 0 });
+    expect([plainSentence(made.sentence), made.tag]).toEqual(["A file was made from invoice-2292.pdf", { label: "File made", tone: "green" }]);
+    expect([said("document.sent", { queued: 1 }), at("document.sent", {}).tag.label]).toEqual(["Started sending invoice-2292.pdf", "Sending"]);
     const down = at("document.downloaded", { format: "xlsx" });
     expect([plainSentence(down.sentence), down.tag, down.facts]).toEqual(["What we read from invoice-2292.pdf was downloaded", { label: "Downloaded", tone: "green" }, [{ term: "Format", value: "Excel" }]]);
     expect([at("document.downloaded", { format: "csv" }).facts, at("document.downloaded", null).facts]).toEqual([[{ term: "Format", value: "CSV" }], []]);
