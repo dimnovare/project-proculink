@@ -1,13 +1,15 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { Card } from "@/components/bridge/layout/Card";
 import { StatusNotice } from "@/components/bridge/layout/StatusNotice";
 import { createIntake, testIntake, updateIntake } from "@/lib/api/documents";
 import type { FlowIntake } from "@/lib/api/documents";
-import { deleteLinkedAccount, startOutlookConnect } from "@/lib/api/linkedAccounts";
+import { startOutlookConnect } from "@/lib/api/linkedAccounts";
+import { settingsAddress } from "@/lib/settingsTabs";
 import { COPY, documentRefusalMessage } from "@/lib/documentRefusals";
 import { Field, INPUT } from "./DestinationForm";
 import { connectAccount, useGoogleConnectRefresh, useLinkedAccounts } from "./GoogleTargetFields";
@@ -94,7 +96,7 @@ export function PickupForm({ flowId, intake, onDone }: { flowId: string; intake?
         {isKind(kind) && (
           <>
             {FIELDS[kind].map(([key, label]) => key === "accountId" ? (
-              <MicrosoftAccountField key={key} value={values.accountId ?? ""} saved={String(current?.config?.accountId ?? "")} onChange={(id) => setValues((v) => ({ ...v, accountId: id }))} />
+              <MicrosoftAccountField key={key} value={values.accountId ?? ""} onChange={(id) => setValues((v) => ({ ...v, accountId: id }))} />
             ) : (
               <Fragment key={key}>
                 <Field label={label}>
@@ -143,25 +145,15 @@ export function PickupForm({ flowId, intake, onDone }: { flowId: string; intake?
   );
 }
 
-/** The org's Microsoft mailbox accounts (never its Google ones), with connect and disconnect. */
-function MicrosoftAccountField({ value, saved, onChange }: { value: string; saved: string; onChange(id: string): void }) {
-  const qc = useQueryClient();
+/** The org's Microsoft mailbox accounts (never its Google ones), with connect; they are removed in Settings. */
+function MicrosoftAccountField({ value, onChange }: { value: string; onChange(id: string): void }) {
   const linked = useLinkedAccounts();
   const [problem, setProblem] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState(false);
   useGoogleConnectRefresh();
   const fail = (e: unknown) => setProblem(documentRefusalMessage(e));
-  const disconnect = useMutation({
-    mutationFn: deleteLinkedAccount,
-    onSuccess: () => { onChange(""); void qc.invalidateQueries({ queryKey: ["linked-accounts"] }); },
-    onError: fail,
-    onSettled: () => setConfirming(false),
-  });
 
   const accounts = (linked.data?.accounts ?? []).filter((a) => a.provider === "outlook");
   const account = accounts.find((a) => a.id === value);
-  // The account this saved pickup uses can't be disconnected (the server answers account_in_use), so it isn't offered.
-  const removable = account?.id !== saved ? account : undefined;
   return (
     <div className="grid gap-2">
       {value && linked.data && !account && <StatusNotice tone="warning">{COPY.account_not_found}</StatusNotice>}
@@ -175,25 +167,16 @@ function MicrosoftAccountField({ value, saved, onChange }: { value: string; save
           </select>
         </Field>
       )}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <Button type="button" variant="secondary"
           onClick={() => { setProblem(null); connectAccount(startOutlookConnect, "outlook-connect").catch(fail); }}>
           Connect a Microsoft mailbox
         </Button>
-        {removable && !confirming && <Button type="button" variant="ghost" onClick={() => setConfirming(true)}>Disconnect</Button>}
+        {/* Accounts are shared by every destination and pickup, so they are removed in one place only. */}
+        <Link href={settingsAddress("org")} className="inline-flex min-h-11 items-center text-[13px] font-semibold text-ink underline">
+          Manage accounts in Workspace › Connected accounts
+        </Link>
       </div>
-      {removable && confirming && (
-        <StatusNotice tone="warning" action={
-          <span className="flex gap-2">
-            <Button type="button" variant="secondary" size="sm" loading={disconnect.isPending} className="border-danger text-danger"
-              onClick={() => disconnect.mutate(removable.id)}>Disconnect</Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)}>Keep connected</Button>
-          </span>
-        }>
-          Disconnect this Microsoft account? ProcuLink deletes its access now. You can also remove ProcuLink from your
-          Microsoft account&apos;s app permissions.
-        </StatusNotice>
-      )}
       {problem && <StatusNotice tone="error">{problem}</StatusNotice>}
     </div>
   );

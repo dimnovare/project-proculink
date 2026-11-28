@@ -77,7 +77,7 @@ describe("TestOutcome", () => {
 
   it("a failed test says why and how to go on, and nothing is said about waiting documents while it is not known", async () => {
     render(<QueryClientProvider client={new QueryClient()}><TestOutcome destinationId="dest-3" protocol="sftp" result={{ success: false, message: "The server refused the login.", responseCode: null }} error={null} at={at} place="row" /></QueryClientProvider>);
-    expect(screen.getByRole("alert")).toHaveTextContent("The test didn't arrive: The server refused the login. Press Edit to check the details, then test again.");
+    expect(screen.getByRole("alert")).toHaveTextContent("The test didn't arrive. The server refused the login. Press Edit to check the details, then test again.");
     expect(api.listDocumentPage).not.toHaveBeenCalled();
     cleanup();
     // Made when asked: a rejection made up front is unhandled until its turn, which fails the run.
