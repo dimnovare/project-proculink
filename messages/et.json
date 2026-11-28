@@ -1152,6 +1152,8 @@
     "guideHelped": "Kas see juhend aitas teid eesmärgini?",
     "notQuite": "Mitte päris",
     "guideThanks": "Hea, aitäh, et andsite teada.",
-    "guideThanksNo": "Aitäh. Öelge toele, millise sammu juures te eksisite, ja me parandame juhendi."
+    "guideThanksNo": "Aitäh. Öelge toele, millise sammu juures te eksisite, ja me parandame juhendi.",
+    "ifThisFails": "Kui see ei õnnestu",
+    "youllNeed": "Vaja läheb"
   }
 }

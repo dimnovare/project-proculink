@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Card } from "@/components/bridge/layout/Card";
+import { useCopy } from "@/i18n/useCopy";
 
 /**
  * One numbered step in a guide.
@@ -84,13 +85,8 @@ const LABEL = "m-0 text-[15px] font-semibold";
  * The failure branch of a step. Every step that can plausibly fail should carry
  * one — a guide that documents only the happy path sends the reader to support.
  */
-export function IfThisFails({
-  title = "If this fails",
-  children,
-}: {
-  title?: string;
-  children: ReactNode;
-}) {
+export function IfThisFails({ children }: { children: ReactNode }) {
+  const title = useCopy("helpChrome").c("ifThisFails", "If this fails");
   return (
     <Card edge="none" className="mt-4">
       <p className={`${LABEL} text-amber-text`}>{title}</p>
@@ -100,13 +96,8 @@ export function IfThisFails({
 }
 
 /** "You'll need" — the prerequisite box that opens a guide. */
-export function Prereqs({
-  title = "You'll need",
-  children,
-}: {
-  title?: string;
-  children: ReactNode;
-}) {
+export function Prereqs({ children }: { children: ReactNode }) {
+  const title = useCopy("helpChrome").c("youllNeed", "You'll need");
   return (
     <Card edge="none" as="aside" aria-label={title} className="mt-6">
       <p className={LABEL}>{title}</p>
