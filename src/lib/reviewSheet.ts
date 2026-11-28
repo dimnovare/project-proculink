@@ -1,23 +1,8 @@
 import type { DocumentDetail, Flow } from "@/lib/api/documents";
 import { editKey } from "@/lib/reviewMarks";
+import { numberOf } from "@/lib/format-number";
 
-// An optional currency symbol or upper-case ISO code on either side of the digits, as the backend's NumberShape.
-const SHAPE = /^(?:[A-Z]{3}|[€$£])?(-?[\d.,]+)(?:[A-Z]{3}|[€$£])?$/;
-
-/**
- * The backend's `FieldValueParser.Number`, rule for rule: the one reading of a number, or null when the text has
- * none or has two. The right-most separator is the decimal one; a separator that repeats can only be a thousands
- * mark; a lone separator followed by exactly three digits ("1,500", "1.500") is either, so it is not read.
- */
-export function numberOf(text: string | null | undefined): number | null {
-  const body = SHAPE.exec((text ?? "").replace(/\s/g, ""))?.[1];
-  if (!body || !/\d/.test(body) || /^-?\d{1,3}[.,]\d{3}$/.test(body)) return null;
-  let at = Math.max(body.lastIndexOf(","), body.lastIndexOf("."));
-  if (at >= 0 && body.split(body[at]).length > 2) at = -1;
-  const plain = (s: string) => s.replace(/[.,]/g, "");
-  const n = Number(at < 0 ? plain(body) : `${plain(body.slice(0, at))}.${body.slice(at + 1)}`);
-  return Number.isFinite(n) ? n : null;
-}
+export { numberOf };
 
 /** Cells copied from a spreadsheet: rows by line, cells by tab. null when it is one plain value. */
 export function pasteGrid(text: string): string[][] | null {
