@@ -56,20 +56,21 @@ export function ValueInput({ target, value, edits, kind, className = "", base = 
   const { locale } = useCopy("app");
   const [focused, setFocused] = useState(false);
   const shown = focused || !kind ? value : formatReadValue(value, kind.type, kind.meaning, locale);
-  // The text as read goes in at once, so a select() just after focus() selects it, and text selected just before stays selected.
+  const clicked = useRef(false);
+  // The text as read goes in at once. Not from a click it is all selected, as a Tab into a box selects it, so a select()
+  // around focus() selects the raw text, not the formatted one; a click leaves the caret at the end.
   const asRead = (el: HTMLInputElement) => {
     const raw = edits.drafts[editKey(target)] ?? value ?? "";
-    if (el.value === raw) return;
-    const all = el.selectionStart === 0 && el.selectionEnd === el.value.length;
-    el.value = raw;
-    if (all) el.select();
+    if (el.value !== raw) { el.value = raw; if (!clicked.current) el.select(); }
+    clicked.current = false;
   };
   return (
     <input
       {...rest} data-value={editKey(target)} className={`${base} ${className}`} value={edits.drafts[editKey(target)] ?? shown ?? ""}
       onChange={(e) => edits.type(target, e.target.value)}
+      onPointerDown={() => { clicked.current = true; }}
       onFocus={(e) => { asRead(e.currentTarget); setFocused(true); onFocus?.(e); }}
-      onBlur={() => { setFocused(false); edits.commit(); }}
+      onBlur={() => { clicked.current = false; setFocused(false); edits.commit(); }}
       onKeyDown={(e) => e.key === "Enter" && edits.commit()}
     />
   );
