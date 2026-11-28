@@ -21,6 +21,7 @@ async function open(page: Page, width: number, url: string, { inbox = true, heig
   await page.addInitScript((on) => {
     (window as unknown as { __mockEngine: unknown }).__mockEngine = { calls: [] };
     if (on) sessionStorage.setItem("proculink.mock.inbox", "on");
+    sessionStorage.setItem("proculink.mock.plan", "growth"); // room for another flow, so Set it up is offered
   }, inbox);
   await page.setViewportSize({ width, height });
   await page.goto(url);

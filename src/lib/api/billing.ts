@@ -60,8 +60,11 @@ export async function getBillingStatus(): Promise<BillingStatus> {
     // caught this way on 2026-08-26 (server "1284", client "1,284"), and a gate
     // that cries wolf about hydration would have buried them.
     await delay(120);
+    // The mock workspace holds 4 flows, over the trial's 2: a spec that sets one up says the plan has room.
+    let plan: BillingStatus["plan"] = "pilot";
+    try { plan = (sessionStorage.getItem("proculink.mock.plan") as BillingStatus["plan"] | null) ?? plan; } catch { /* no storage: the trial */ }
     return {
-      plan:                   "pilot",
+      plan,
       accountStatus:          "trialing",
       ordersThisMonth:        5,
       orderLimit:             20,

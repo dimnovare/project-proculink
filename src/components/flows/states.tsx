@@ -139,7 +139,7 @@ export function Checks({ checks, inbox = false, flowId, duplicateOf, downloadOnl
       {failed.map((c, i) => c.code === "duplicate" && duplicateOf
         ? <StatusNotice key={`${c.code}-${i}`} tone="warning" action={flowId && <EarlierLink flowId={flowId} of={duplicateOf} className={buttonClass("secondary", "sm")} />}>{duplicateLine(duplicateOf)}</StatusNotice>
         : <StatusNotice key={`${c.code}-${i}`} tone="warning">{downloadOnly ? c.message.replace(/ before sending\.$/, " before you make the file.") : c.message}</StatusNotice>)}
-      {!inbox && <p className="m-0 text-[12.5px] text-ink-muted">{`Checks are a heads-up; they never stop you ${downloadOnly ? "making the file" : "sending"}.`}</p>}
+      {!inbox && <p className="m-0 text-[12.5px] text-ink-muted">{downloadOnly ? "Checks are a heads-up; they never stop you making the file." : "Checks are a heads-up; they never stop you sending."}</p>}
     </div>
   );
 }
