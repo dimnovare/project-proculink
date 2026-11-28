@@ -42,6 +42,7 @@ describe("BottomTabBar", () => {
     renderBar(<NextIntlClientProvider locale="de" messages={de}><BottomTabBar /></NextIntlClientProvider>);
     const bar = screen.getByRole("navigation", { name: "Hauptnavigation" });
     expect(await within(bar).findByRole("button", { name: "Dokument hinzufügen" })).toBeInTheDocument();
+    expect(await within(bar).findByRole("link", { name: "Dokumente, 3 warten auf Sie" })).toHaveAttribute("href", "/documents");
   });
 
   it("shows the needs-you count only when it is known", async () => {

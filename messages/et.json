@@ -332,7 +332,9 @@
     "addDocument": "Lisa dokument",
     "planLabel": "Pakett {name}",
     "loading": "Laadimine…",
-    "yourWorkspace": "Teie tööruum"
+    "yourWorkspace": "Teie tööruum",
+    "needsYouOne": "{count} ootab teid",
+    "needsYouMany": "{count} ootavad teid"
   },
   "legal": {
     "englishOnly": "See leht on saadaval ainult inglise keeles. Siduv on ingliskeelne versioon."
