@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { useOrganization } from "@clerk/nextjs";
+import { useWorkspaceName } from "@/hooks/useWorkspaceName";
 import { useQuery } from "@tanstack/react-query";
 import {
   Upload, FileText, Clock, Workflow, ArrowRightLeft,
@@ -150,7 +150,6 @@ export function BridgeSidebar({
   // Screen-requested collapse (e.g. the Review screen's Full-document mode at
   // <1440px). Session-only — never persisted; the requester restores it on exit.
   const [autoCollapsed, setAutoCollapsed] = useState(false);
-  const { organization } = useOrganization();
   const queryEnabled = useTenantQueriesEnabled();
   // Admin-link visibility probe (UX hint only; the page + API re-gate server-side).
   const { data: adminAccess } = useQuery({
@@ -178,7 +177,7 @@ export function BridgeSidebar({
   // fails, none is.
   const { c: tr } = useCopy("app");
   const planLabel = billing ? tr("planLabel", planDisplayName(billing.plan), { name: planName(billing.plan) }) : billingFailed ? "—" : tr("loading", "Loading…");
-  const orgName = organization?.name ?? tr("yourWorkspace", "Your workspace");
+  const orgName = useWorkspaceName(tr("yourWorkspace", "Your workspace"));
 
   useEffect(() => {
     if (!collapsible) return;

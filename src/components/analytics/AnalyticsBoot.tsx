@@ -2,9 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
 import { useCookieConsent } from "@/lib/cookie-consent";
-import { capture, identifyUser, onConsentChanged, rememberLanding, setGroup } from "@/lib/analytics";
+import { capture, onConsentChanged, rememberLanding } from "@/lib/analytics";
 
 /** The calls to action whose clicks we count, by where the link goes. */
 const CTA_TARGETS: [prefix: string, cta: string][] = [
@@ -13,8 +12,9 @@ const CTA_TARGETS: [prefix: string, cta: string][] = [
   ["mailto:sales@", "contact_sales"],
 ];
 
+// Consent, calls to action and page views on every page. Who is signed in is AnalyticsIdentify, mounted only
+// where sign-in code is loaded (src/components/auth/AppClerkProvider.tsx).
 export function AnalyticsBoot() {
-  const { user, isLoaded } = useUser();
   const [consent] = useCookieConsent();
   const pathname = usePathname();
   // Path of the last $pageview we actually emitted under consent — guards
@@ -50,16 +50,6 @@ export function AnalyticsBoot() {
       onConsentChanged(consent);
     }
   }, [consent]);
-
-  // Identify + group on sign-in.
-  useEffect(() => {
-    if (!isLoaded || !user) return;
-    identifyUser(user.id, {
-      email_domain: (user.primaryEmailAddress?.emailAddress ?? "").split("@")[1] ?? "",
-    });
-    const orgId = user.publicMetadata?.organisationId as string | undefined;
-    if (orgId) setGroup(orgId, {});
-  }, [isLoaded, user]);
 
   // Pageview on every App Router navigation (and the initial load). Gated on
   // consent so we never capture before consent is granted — and because this

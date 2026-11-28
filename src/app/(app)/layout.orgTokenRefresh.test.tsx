@@ -65,7 +65,7 @@ vi.mock("@/components/bridge/BottomTabBar", () => ({ BottomTabBar: () => null })
 vi.mock("@/components/bridge/BridgeSidebar", () => ({ BridgeSidebar: () => <div>sidebar</div> }));
 vi.mock("@/components/onboarding/WorkspaceNameNudge", () => ({ WorkspaceNameNudge: () => null }));
 
-import AppShellLayout from "./layout";
+import AppShellLayout from "./AppShell";
 
 type TokenOpts = { skipCache?: boolean } | undefined;
 const getToken = vi.fn(async (opts: TokenOpts) => {
