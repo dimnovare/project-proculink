@@ -5,7 +5,7 @@ import { ApiHttpError } from "@/lib/api/core";
 import { COPY } from "@/lib/documentRefusals";
 import { changeFileAddress } from "@/lib/flowSteps";
 import { ariaOf } from "@/lib/shortcuts";
-import { DocumentScreen } from "./DocumentScreen";
+import { DocumentScreen, TABLET_FILL } from "./DocumentScreen";
 
 const replace = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace, push: vi.fn() }) }));
@@ -66,6 +66,12 @@ describe("DocumentScreen", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "a.csv" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Back to Documents" })).toHaveAttribute("href", "/documents");
     expect(screen.getByRole("link", { name: "Receipts" })).toHaveAttribute("href", "/flows/f");
+  });
+
+  it("on a tablet every pane reaches down the screen, not only the top of it (D-04)", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { level: 1, name: "a.csv" });
+    for (const id of ["original", "read"]) expect(document.getElementById(`review-pane-${id}`)).toHaveClass(TABLET_FILL);
   });
 
   it("says how the document arrived, and prints an unknown source as it is", async () => {

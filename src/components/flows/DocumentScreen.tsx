@@ -174,6 +174,9 @@ const PANES: readonly { id: PaneId; title: string }[] = [
 ];
 const DOTS = { blue: "bg-brand-blue", navy: "bg-navy", green: "bg-brand-green" } as const;
 
+/** On a tablet (md to lg) the open tab reaches down to the bottom of the screen instead of stopping short of it (D-04). */
+export const TABLET_FILL = "md:max-lg:min-h-[calc(100dvh-334px)]";
+
 /** One of the three panes. Used by 14.5's first run too (R24). Below lg it is the panel of its tab (R15). */
 export function Pane({ id, title, dot, aside, hidden, sticky, children }: {
   id: PaneId; title: string; dot: keyof typeof DOTS; aside?: ReactNode; hidden?: boolean; children: ReactNode;
@@ -186,7 +189,7 @@ export function Pane({ id, title, dot, aside, hidden, sticky, children }: {
     <Card
       flush as="section" id={`review-pane-${id}`} role={isLg ? undefined : "tabpanel"} tabIndex={isLg ? undefined : 0}
       aria-labelledby={isLg ? `review-heading-${id}` : `review-tab-${id}`}
-      className={`min-w-0 ${hidden ? "max-lg:hidden" : ""} ${original ? `flex flex-col ${sticky ? `lg:!sticky ${sticky}` : "lg:h-[calc(100vh-150px)]"}` : ""}`}
+      className={`min-w-0 ${TABLET_FILL} ${hidden ? "max-lg:hidden" : ""} ${original ? `flex flex-col ${sticky ? `lg:!sticky ${sticky}` : "lg:h-[calc(100vh-150px)]"}` : ""}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-2 pt-3.5">
         <h2 id={`review-heading-${id}`} className="m-0 flex items-center gap-2 text-[13px] font-semibold text-ink">
