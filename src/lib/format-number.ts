@@ -62,3 +62,62 @@ export function formatCount(n: number): string {
 export function formatNumber(n: number, options?: Intl.NumberFormatOptions): string {
   return n.toLocaleString(NUMBER_LOCALE, options);
 }
+
+// An optional currency symbol or upper-case ISO code on either side of the digits, as the backend's NumberShape.
+const SHAPE = /^(?:[A-Z]{3}|[€$£])?(-?[\d.,]+)(?:[A-Z]{3}|[€$£])?$/;
+
+/**
+ * The backend's `FieldValueParser.Number`, rule for rule: the one reading of a number, or null when the text has
+ * none or has two. A space or an apostrophe only groups thousands. The right-most separator is the decimal one; a
+ * separator that repeats can only be a thousands mark; a lone separator followed by exactly three digits ("1,500",
+ * "1.500") is either, so it is not read.
+ */
+export function numberOf(text: string | null | undefined): number | null {
+  return numberParts(text)?.n ?? null;
+}
+
+function numberParts(text: string | null | undefined): { n: number; decimals: number } | null {
+  const body = SHAPE.exec((text ?? "").replace(/[\s'’]/g, ""))?.[1];
+  if (!body || !/\d/.test(body) || /^-?\d{1,3}[.,]\d{3}$/.test(body)) return null;
+  let at = Math.max(body.lastIndexOf(","), body.lastIndexOf("."));
+  if (at >= 0 && body.split(body[at]).length > 2) at = -1;
+  const plain = (s: string) => s.replace(/[.,]/g, "");
+  const n = Number(at < 0 ? plain(body) : `${plain(body.slice(0, at))}.${body.slice(at + 1)}`);
+  return Number.isFinite(n) ? { n, decimals: at < 0 ? 0 : body.length - at - 1 } : null;
+}
+
+/** The Intl locale for an app language: English is written the British way, as everywhere else in the product. */
+const intlLocale = (locale: string) => (locale === "en" ? "en-GB" : locale);
+
+/** Numbered dates that can be read only one way (the backend's `IsoDate`): a dotted date is day first; 03/04/2026 is refused. */
+function dateOf(text: string): Date | null {
+  const iso = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/.exec(text);
+  const dmy = /^(\d{1,2})([./-])(\d{1,2})\2(\d{4})$/.exec(text);
+  const y = iso ? +iso[1] : dmy ? +dmy[4] : 0;
+  let [m, d] = iso ? [+iso[2], +iso[3]] : dmy ? [+dmy[3], +dmy[1]] : [0, 0];
+  if (dmy && dmy[2] === "/" && m > 12 && d <= 12) [m, d] = [d, m];      // 11/21/2026 can only be month first
+  else if (dmy && dmy[2] !== "." && d <= 12 && m <= 12 && d !== m) return null;
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d ? date : null;
+}
+
+/**
+ * A read value as the reader's language writes it, for SHOWING only: what is saved and sent stays as read.
+ * Money and numbers keep their printed decimals and any currency around them ("€ 1303,40" → "€ 1,303.40" in English);
+ * dates that can be read one way only are written the reader's way. Anything else, or anything with two readings
+ * ("1.500", "03/04/2026"), comes back as it was.
+ */
+export function formatReadValue(raw: string | null, type: string, meaning: string | null, locale: string): string | null {
+  const text = raw?.trim() ?? "";
+  if (!text) return raw;
+  if (type === "date") {
+    const d = dateOf(text);
+    return d ? new Intl.DateTimeFormat(intlLocale(locale), { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" }).format(d) : raw;
+  }
+  if ((type !== "money" && type !== "number") || meaning === "line_number" || meaning === "document_number") return raw;
+  const m = /^((?:[A-Z]{3}|[€$£])?\s*)(.*?)(\s*(?:[A-Z]{3}|[€$£])?)$/.exec(text)!;
+  const p = /^-?0\d/.test(m[2]) ? null : numberParts(m[2]);
+  if (!p) return raw;
+  const digits = Math.min(p.decimals, 20);
+  return m[1] + new Intl.NumberFormat(intlLocale(locale), { useGrouping: "always", minimumFractionDigits: digits, maximumFractionDigits: digits }).format(p.n) + m[3];
+}
